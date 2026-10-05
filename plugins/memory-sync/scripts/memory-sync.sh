@@ -36,8 +36,11 @@ MODE=${1:-}
 CONF="${CLAUDE_CONFIG_DIR:-$HOME/.claude}"
 ROOT="$CONF/projects"
 # Why 12: a run can last up to the limit plus 3 s (see `bounded` below), and the hook timeout in
-# settings.example.json is 20 s, so 12 leaves 5 s for the script to log its own timeout before
-# the harness kills it.
+# this plugin's hooks/hooks.json is 20 s, so 12 leaves 5 s for the script to log its own timeout
+# before the harness kills it. SessionEnd is the exception: Claude Code gives all SessionEnd hooks
+# 1.5 s between them, and a plugin hook's own timeout does not raise that. The documented override
+# is CLAUDE_CODE_SESSIONEND_HOOKS_TIMEOUT_MS; whether it covers a plugin-provided hook is
+# not yet confirmed, so at session end the harness can kill the script before it logs anything.
 TIMEOUT=${CLAUDE_MEMORY_S3_TIMEOUT:-12}
 # The largest limit accepted. A run can last TIMEOUT + 3 s, so 17 is the largest value whose worst
 # case (20 s) still fits the 20 s hook timeout; anything above it would let the harness kill the

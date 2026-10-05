@@ -9,7 +9,20 @@ description: Sync Claude Code memories to or from S3 or an S3-compatible store, 
 # Memory sync
 
 Memories live in `~/.claude/projects/<project>/memory/` and are mirrored to S3 by
-`~/.claude/memory-sync.sh`. Four hook events in `~/.claude/settings.json` run it automatically: `SessionStart` pulls, `SessionEnd` pushes, and `PostToolUse` and `Stop` run `push-if-changed`, so an edited memory reaches S3 within seconds. This skill is for doing
+`${CLAUDE_PLUGIN_ROOT}/scripts/memory-sync.sh`, the script this plugin ships. Claude Code fills that path in when it loads this skill, and it changes with every plugin update, so copy it from here each time; the variable does not exist in the shell.
+
+If the path above still begins with a dollar sign and a brace, it was not filled in: do not run it as written. Look for the installed copy instead:
+
+1. An installed plugin may be kept under the config directory's `plugins/` as `<marketplace>/memory-sync/<version>/scripts/memory-sync.sh` — that layout is taken from the docs and has not been checked on an installed plugin.
+2. Run `find "${CLAUDE_CONFIG_DIR:-$HOME/.claude}/plugins" -type f -path '*/memory-sync/*/scripts/memory-sync.sh' | while IFS= read -r f; do [ -e "${f%/scripts/memory-sync.sh}/.orphaned_at" ] || printf '%s\n' "$f"; done`: it searches nowhere but that `plugins/` directory and leaves out a superseded version, whose directory holds an `.orphaned_at` file.
+3. Act on what it prints:
+   - If it prints exactly one path, tell the user which copy you are using.
+   - If it prints more than one, list them and ask the user which to use; do not choose one yourself.
+   - If it prints nothing, say so and stop.
+4. The plugin root is that path without `/scripts/memory-sync.sh` at the end. Wherever the text below still shows the placeholder that was not filled in — the dollar sign, the brace and the name inside it — put the plugin root in its place. The hooks check in *Status check* needs the root, not the script path.
+5. Never use a `memory-sync.sh` that lies directly in the config directory instead: that is a copy from before the plugin, not the script this plugin ships.
+
+Four hook events in the plugin's `hooks/hooks.json` run the script automatically: `SessionStart` pulls, `SessionEnd` pushes, and `PostToolUse` and `Stop` run `push-if-changed`, so an edited memory reaches S3 within seconds. This skill is for doing
 it by hand, and for diagnosing it when the automatic path is silent.
 
 ## Arguments
@@ -27,7 +40,7 @@ it by hand, and for diagnosing it when the automatic path is silent.
 Run the script directly. It is safe to run at any time: `pull` and `push` never delete a memory on either side, only `delete` does, and it exits 0 even on failure so it can never break a session.
 
 ```
-~/.claude/memory-sync.sh push
+"${CLAUDE_PLUGIN_ROOT}/scripts/memory-sync.sh" push
 ```
 
 Report what it printed. `push ok`, `push-if-changed ok`, `pull ok` or `delete ok: <path>` means it completed;
@@ -62,8 +75,11 @@ these and report them together rather than one at a time:
    would change.
    Without `$CLAUDE_MEMORY_S3_ARGS` these commands talk to AWS itself, not to the configured endpoint.
    When you report what these commands print, replace the bucket name with a placeholder.
-4. **Are the hooks live?** `jq '.hooks' ~/.claude/settings.json` should show
-   `SessionStart`, `SessionEnd`, `PostToolUse` and `Stop` entries pointing at the script.
+4. **Are the hooks live?** They ship in this plugin, not in `settings.json`.
+   `jq '.hooks | keys' "${CLAUDE_PLUGIN_ROOT}/hooks/hooks.json"` shows what the plugin ships: it should print
+   `PostToolUse`, `SessionEnd`, `SessionStart` and `Stop`. That does not show the plugin is enabled, and you cannot check that yourself: `/plugin` is interactive. Ask the user to open `/plugin` and confirm that `memory-sync` is enabled.
+   An entry for the script that is still in `~/.claude/settings.json` from before the plugin runs as well, so every sync happens twice — it should be removed.
+   `SessionEnd` is the weak one: Claude Code gives all `SessionEnd` hooks 1.5 seconds between them, and a timeout set by a plugin's hook does not raise that. `CLAUDE_CODE_SESSIONEND_HOOKS_TIMEOUT_MS` in the `env` block is the documented override for that budget; whether it also covers a hook that a plugin provides is not yet confirmed. Until it is, the final push is best effort: it can be cut off with no log line. Edits already sent by `push-if-changed` are not affected.
 5. **Is a failed push cooling down?** For 5 minutes after a failed push,
    `push-if-changed` skips without printing anything. The marker is
    `~/.claude/.memory-sync-failed`: `ls -l` it and compare its time with now. A
@@ -98,7 +114,7 @@ in the bucket and can be recovered.
 ## Deleting a memory
 
 ```
-~/.claude/memory-sync.sh delete <project>/memory/<file>
+"${CLAUDE_PLUGIN_ROOT}/scripts/memory-sync.sh" delete <project>/memory/<file>
 ```
 
 The path is relative to `~/.claude/projects/`. The script removes the bucket

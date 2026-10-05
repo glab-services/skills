@@ -2,38 +2,7 @@
   "env": {
     "CLAUDE_MEMORY_S3_URI": "s3://<bucket>/<prefix>",
     "AWS_PROFILE": "<profile, or delete this key>",
-    "CLAUDE_MEMORY_S3_ARGS": "<extra aws arguments, or delete this key>"
-  },
-  "hooks": {
-    "SessionStart": [
-      {
-        "hooks": [
-          { "type": "command", "command": "~/.claude/memory-sync.sh pull", "timeout": 20 },
-          { "type": "command", "command": "~/.claude/manager-bootstrap.sh", "timeout": 5 }
-        ]
-      }
-    ],
-    "SessionEnd": [
-      {
-        "hooks": [
-          { "type": "command", "command": "~/.claude/memory-sync.sh push", "timeout": 20 }
-        ]
-      }
-    ],
-    "PostToolUse": [
-      {
-        "matcher": "Write|Edit|MultiEdit|NotebookEdit|Bash",
-        "hooks": [
-          { "type": "command", "command": "~/.claude/memory-sync.sh push-if-changed", "timeout": 20 }
-        ]
-      }
-    ],
-    "Stop": [
-      {
-        "hooks": [
-          { "type": "command", "command": "~/.claude/memory-sync.sh push-if-changed", "timeout": 20 }
-        ]
-      }
-    ]
+    "CLAUDE_MEMORY_S3_ARGS": "<extra aws arguments, or delete this key>",
+    "CLAUDE_CODE_SESSIONEND_HOOKS_TIMEOUT_MS": "20000"
   }
 }
