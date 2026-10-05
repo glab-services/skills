@@ -1,6 +1,6 @@
 ---
 name: bootstrap
-description: The first thing to run in any session on this machine — establishes the working agreement, loads the manager and security skills, finds the repo's real gate commands, picks up any handoff left by a previous session, and states the tooling hazards that have already produced wrong answers here. Use at session start, after a context compaction, when resuming parked work, or whenever you are unsure what the operating model for this session is.
+description: The first thing to run in any session — establishes the working agreement, loads the manager and security skills, finds the repo's real gate commands, picks up any handoff left by a previous session, and states the tooling hazards that have already produced wrong answers. Use at session start, after a context compaction, when resuming parked work, or whenever you are unsure what the operating model for this session is.
 ---
 
 # Bootstrap
@@ -24,6 +24,13 @@ off the existing code, not ones you invented.
 Do not skim it. It is the contract every review is held to, and an agent that
 skipped it produces work the repo rejects — which you pay for in a correction
 round, not in saved time.
+
+**Then read `~/.claude/host.md`, before the first command** — steps 3 and 5
+already run some. It belongs to the machine: where temp files go, which path is
+the system `grep`. No `host.md` → say the machine has no host file, then use
+`$TMPDIR` if it is set and the session's scratchpad directory otherwise — and
+keep temp files few and small, because that fallback may itself sit on a small
+`/tmp`. Step 6 says why this matters.
 
 ## 2. Load `manager` and `security`
 
@@ -62,7 +69,7 @@ A command you composed yourself proves nothing about CI. `go test ./somepkg`
 when the repo's target is `go test ./... -race` is not the same check, and the
 difference is exactly where the race lives.
 
-**Read what a target actually does before trusting its name.** In this backend,
+**Read what a target actually does before trusting its name.** In one backend,
 `make ci` and `make ci-all` run `tidy` + `download` — no build, no test, no lint.
 Reporting `ci-all` green as a verification gate would be a false green, and the
 name is the only thing suggesting otherwise.
@@ -105,31 +112,36 @@ re-explain anything:
 
 **Treat a handoff as a point-in-time observation, not live state.** It was true
 when written. Verify anything load-bearing against the current code before
-acting on it — a handoff in this repo asserted two feature switches were off
+acting on it — a handoff in one repo asserted two feature switches were off
 while one had since been armed, which would have misled a cold reader into
 thinking the enforcement path was inert.
 
 ## 6. Know the hazards before you trust a result
 
-Each of these produced a confidently wrong answer on this machine. They are
+Each of these produced a confidently wrong answer in a real session. They are
 listed because none of them announces itself — every one returns success.
 
-**Temp files go in `/data/tmp/claude`, never `/tmp`** — `/data` is a dedicated disk. `/tmp` here is a tmpfs
-under a **per-user quota shared by every agent**. Exhausting it returns `EDQUOT`
-on every write and takes the Bash tool down with it — the harness writes its own
-task output under `/tmp/claude-1000/`, so a full `/tmp` is not a slow session,
-it is a dead one, and it cannot be repaired from inside that session. Growing
-the tmpfs does not help: `size=` is the filesystem, `usrquota` is the per-user
-cut of it. `export TMPDIR=/data/tmp/claude` before any `go` command, use unique
-filenames, clean up what you create, **and say all of this in every dispatch
-message** so subagents do the same.
+**Temp files go where the host file you read in step 1 says.** Facts true of one
+machine — where temp files go, which path is the system `grep` — live there,
+not in this skill. Say its temp-file rule in every dispatch message so
+subagents follow it too, use unique filenames, and clean up what you create.
+Why this is a hazard at all: on one host `/tmp` was a tmpfs under a per-user quota shared
+by every agent, and filling it killed the session from the inside. Growing the
+tmpfs did not help: the limit was that quota, not the size of the filesystem.
+The template the host file is made from, `host.example.md`, records that case
+in full; the rule above does not depend on your having it.
 
-**`grep` is ugrep, not GNU grep.** It returns **zero matches with no error** for
-`-E` patterns beginning with an alternation group, and `\s` inside a bracket
-expression means the literal `\` and `s` — which silently excluded
-`golang.org/x/tools` from a dependency audit. Use **`/usr/bin/grep`** for
-anything load-bearing, and confirm a pattern matches something you *know* exists
-before trusting it to prove an absence.
+**In Claude Code's Bash tool, `grep` can be a shell function that runs a bundled ugrep, not the system grep** —
+`type grep` shows which. The two do not agree. `-E 'foo[\s]bar'` matched
+`foo bar` under the function and nothing under GNU grep, where `\s` inside a
+bracket expression means the literal `\` and `s`. The function has also been
+observed returning **zero matches with no error** for an `-E` pattern
+beginning with an alternation group. One of these differences silently
+excluded `golang.org/x/tools` from a dependency audit. Use **`command grep`**,
+which bypasses the function, for anything load-bearing, and confirm a pattern
+matches something you *know* exists before trusting it to prove an absence.
+
+*The next four come from one Go and PostgreSQL project. The trap in each is general; the commands are that project's.*
 
 **A receiver name in a Go grep silently undercounts.** `func (rcv *Route)` and
 `func (r *Route)` are the same method set; a pattern naming one finds a fraction
@@ -154,7 +166,7 @@ change.
 **A capped linter's per-file counts are not reproducible.** With a
 `max-same-issues` cap, which files absorb a capped linter's findings varies
 between runs on an unchanged tree — so a per-package or per-file comparison is
-noise, while the **repo-wide total is stable**. Measured here: three runs of one
+noise, while the **repo-wide total is stable**. Measured in one repo: three runs of one
 command on one tree moved a package from 5 findings to 11 to 30 with the total
 fixed at 717. Compare totals, and treat any per-file "delta 0" as luck until the
 same run reproduces it.
@@ -170,7 +182,7 @@ you expect to touch config.** Not logs, not error messages, not commit messages,
 not a URL you print. A brief that omits this is how the same credential leaks a
 third time: an agent enumerating config for an unrelated reason redacted by key
 name and printed a DSN's embedded password. A DSN carries a password in the middle of a
-value, not only after an `@` — two different redaction attempts leaked one here.
+value, not only after an `@` — two different redaction attempts leaked one.
 Do not print config values at all; test them instead.
 
 ---
