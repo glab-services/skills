@@ -1,0 +1,19 @@
+{
+  "name": "glab-services",
+  "description": "The glab workflow for Claude Code, and a hook that syncs Claude Code memories to S3",
+  "owner": {
+    "name": "glab-services"
+  },
+  "plugins": [
+    {
+      "name": "glab",
+      "source": "./plugins/glab",
+      "description": "The glab workflow: skills, agents, commands and the session bootstrap hook"
+    },
+    {
+      "name": "memory-sync",
+      "source": "./plugins/memory-sync",
+      "description": "Syncs Claude Code memories to and from S3 on session hooks"
+    }
+  ]
+}

@@ -1,7 +1,7 @@
 # Host file — example
 
 Copy this to `~/.claude/host.md` and edit it. It is never shipped: it holds
-facts that are true of one machine only. `bootstrap` step 1 reads it at
+facts that are true of one machine only. `glab:bootstrap` step 1 reads it at
 session start.
 
 What follows is the author's host, kept in full because each line is a lesson.
@@ -21,3 +21,11 @@ message** so subagents do the same.
 ## Tool paths
 
 The system grep is `/usr/bin/grep`.
+
+The Claude Code CLI is `<path to the claude binary on this host>`. A session
+started by the desktop app has no `claude` on `PATH`; from its Bash tool,
+`readlink /proc/$PPID/exe` prints the binary that is running the session. The
+path contains the CLI version, so it changes with every update — look it up
+each time rather than keeping an old one. The plugin gates of the
+`glab-services/skills` repository read it from `CLAUDE_BIN`: export that
+variable as this path before running them.
