@@ -1,16 +1,16 @@
 ---
-description: Implement an approved plan through developer agents — plan-first steps 5 to 7 — then hand off to /analyze
+description: Implement an approved plan through glab:developer agents — glab:plan-first steps 5 to 7 — then hand off to /glab:analyze
 argument-hint: "[plan slug]"
 ---
 
 Read `AGENTS.md` (or `CLAUDE.md` if the repo has none — say so), then `plan/$ARGUMENTS/plan.md`. If no slug was given, ask which plan; do not guess, and do not pick the most recent.
 
-You are the orchestrator here. **You do not write the implementation yourself** — the `developer` agent does. Your job is to check the preconditions, decide how the work is split, dispatch, and verify what comes back.
+You are the orchestrator here. **You do not write the implementation yourself** — the `glab:developer` agent does. Your job is to check the preconditions, decide how the work is split, dispatch, and verify what comes back.
 
 ## Before dispatching anything
 
-- **No plan and no `waived.md`** → stop. That is `/plan`, not this.
-- **`plan/{slug}/waived.md` exists** → that is `plan-first`'s waiver and it is a valid start; say you are working from a waiver, not a plan, and that `/analyze` therefore has nothing to measure against.
+- **No plan and no `waived.md`** → stop. That is `/glab:plan`, not this.
+- **`plan/{slug}/waived.md` exists** → that is `glab:plan-first`'s waiver and it is a valid start; say you are working from a waiver, not a plan, and that `/glab:analyze` therefore has nothing to measure against.
 - **`plan/{slug}/questions.md` exists** → read it. These files have no single convention, so do not try to decide mechanically whether every question is answered. If it is not obvious that all of them are, ask me. Do not refuse on stale text and do not assume an answer.
 - **Approval** → nothing records it, so do not pretend to check. Ask me to confirm the plan is approved before any agent writes code, unless I approved it in this conversation.
 - **Green tree** → run the plan's own gate once before touching anything. Dispatching onto a red tree means every agent inherits a failure it did not cause and cannot tell apart from its own.
@@ -34,7 +34,7 @@ Sequential agents are a third option and a good one for a long plan: one agent p
 
 ## Dispatch
 
-Give each `developer` agent:
+Give each `glab:developer` agent:
 
 - the slug, and the exact step ids it owns;
 - the file boundary, when there is more than one agent;
@@ -44,11 +44,11 @@ Do not paste the plan into the prompt. The agent reads it; a paraphrase is how a
 
 ## When the agents return
 
-An agent's report is not evidence. Verify it yourself, in this order, and do not skip ahead to `/analyze` on a red tree:
+An agent's report is not evidence. Verify it yourself, in this order, and do not skip ahead to `/glab:analyze` on a red tree:
 
 Use the repo's own targets — `make`, `just`, `npm run`, a script under `scripts/` — rather than hand-rolled commands, so you are running the same thing CI runs.
 
-1. **Build** — whatever the repo builds with. `plan-first` owns the command.
+1. **Build** — whatever the repo builds with. `glab:plan-first` owns the command.
 2. **Unit tests** — the repo's test target. Green means green: no failures, no data races, no package you meant to cover silently skipped.
 3. **Lint** — the repo's lint target, and it must be clean.
 
@@ -58,10 +58,10 @@ If the repo separates a changed-code gate from a whole-tree sweep, the gate is w
 
 Then read the diff against the plan yourself. An agent that reports `BUILT` can still have built the wrong thing, and you are the one who saw my answers.
 
-If an agent returns `PLAN WRONG`, stop and bring it to me. Amending the plan is my call, and an amended plan means implementing again and re-running `/analyze`.
+If an agent returns `PLAN WRONG`, stop and bring it to me. Amending the plan is my call, and an amended plan means implementing again and re-running `/glab:analyze`.
 
 If an agent returns `BLOCKED`, decide whether it is unblockable — a missing decision comes to me, a dependency on another slice means you sequenced it wrong and should re-dispatch rather than patch it yourself.
 
 **Build the plan, not your own better idea.** That applies to you as much as to the agents. If you find yourself fixing an agent's work beyond a mechanical consequence, you have taken over the implementation, and the split stopped meaning anything.
 
-When all three gates are green, hand off to `/analyze`. Do not run `/review` yourself. Do not commit. Do not push.
+When all three gates are green, hand off to `/glab:analyze`. Do not run `/glab:review` yourself. Do not commit. Do not push.

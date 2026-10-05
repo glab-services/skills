@@ -1,5 +1,5 @@
 ---
-description: Review the working tree with the reviewer agent, then commit with the committer agent if it passes
+description: Review the working tree with the glab:reviewer agent, then commit with the glab:committer agent if it passes
 argument-hint: "[path to narrow the review, empty for the whole working tree]"
 ---
 
@@ -11,9 +11,9 @@ Read `AGENTS.md` at the repo root (or `CLAUDE.md` if the repo has none — say s
 
 ## 1. Review
 
-`/ship` only ever reviews the working tree. $ARGUMENTS narrows it to a path. If it looks like a branch name or a revision range, stop and tell me to use `/review` instead — reviewing committed history and then committing the dirty tree are not the same scope, and pairing them lets unreviewed work through under a passing verdict.
+`/glab:ship` only ever reviews the working tree. $ARGUMENTS narrows it to a path. If it looks like a branch name or a revision range, stop and tell me to use `/glab:review` instead — reviewing committed history and then committing the dirty tree are not the same scope, and pairing them lets unreviewed work through under a passing verdict.
 
-Use the **reviewer** agent on the uncommitted working tree, narrowed to $ARGUMENTS when that is set. Narrowed means the whole working-tree view restricted to that path — worktree, index and untracked files alike. The agent owns that procedure; do not restate it here.
+Use the **glab:reviewer** agent on the uncommitted working tree, narrowed to $ARGUMENTS when that is set. Narrowed means the whole working-tree view restricted to that path — worktree, index and untracked files alike. The agent owns that procedure; do not restate it here.
 
 Show me its report verbatim: every finding and the verdict line. Do not summarise it, do not soften it, do not add praise, do not re-rank its severities.
 
@@ -33,10 +33,10 @@ If I ask you to fix anything, return to step 1 and re-run the reviewer on the am
 
 ## 3. Commit
 
-Use the **committer** agent, and tell it exactly which paths the reviewer looked at.
+Use the **glab:committer** agent, and tell it exactly which paths the reviewer looked at.
 
 That scope is an upper bound on what may be committed, not a mandate. The committer still splits by logical change and still refuses anything I did not ask about. Anything the reviewer did not see does not get committed, however tempting.
 
-Do not push. `/push` is a separate, deliberate step.
+Do not push. `/glab:push` is a separate, deliberate step.
 
 Report back: commit hash, subject line, and the file list from `git show --stat`. If the committer refused to stage something, say what and why.

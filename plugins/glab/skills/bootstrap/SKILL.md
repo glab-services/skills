@@ -1,6 +1,6 @@
 ---
 name: bootstrap
-description: The first thing to run in any session — establishes the working agreement, loads the manager and security skills, finds the repo's real gate commands, picks up any handoff left by a previous session, and states the tooling hazards that have already produced wrong answers. Use at session start, after a context compaction, when resuming parked work, or whenever you are unsure what the operating model for this session is.
+description: The first thing to run in any session — establishes the working agreement, loads the glab:manager and glab:security skills, finds the repo's real gate commands, picks up any handoff left by a previous session, and states the tooling hazards that have already produced wrong answers. Use at session start, after a context compaction, when resuming parked work, or whenever you are unsure what the operating model for this session is.
 ---
 
 # Bootstrap
@@ -32,31 +32,31 @@ the system `grep`. No `host.md` → say the machine has no host file, then use
 keep temp files few and small, because that fallback may itself sit on a small
 `/tmp`. Step 6 says why this matters.
 
-## 2. Load `manager` and `security`
+## 2. Load `glab:manager` and `glab:security`
 
 Both. Always. They are not alternatives.
 
-- **`manager`** — the operating model. You manage; you do not implement. Work
+- **`glab:manager`** — the operating model. You manage; you do not implement. Work
   moves through the pipeline in step 4, each stage dispatched to its own agent.
-- **`security`** — evidence and durability. Every claim about your own work is
+- **`glab:security`** — evidence and durability. Every claim about your own work is
   backed by a command whose real output you paste, or written
   `UNVERIFIED: <claim> — <why>`.
 
-**Every agent you dispatch reads `AGENTS.md` first and carries both `security`
-and `comments` — say all of it, in every dispatch message**, even when the agent
-definition already requires it. `comments` is the one that gets dropped, and its
+**Every agent you dispatch reads `AGENTS.md` first and carries both `glab:security`
+and `glab:comments` — say all of it, in every dispatch message**, even when the agent
+definition already requires it. `glab:comments` is the one that gets dropped, and its
 loss is invisible: a `TODO` deleted in passing leaves nothing in the diff saying
 it was ever there.
 
-Two more are the manager's call per dispatch rather than automatic — **`audit`**
-for an agent producing findings rather than a change, and **`plan-first`** for a
-planning agent's document structure. `manager` Rule 0c has the full contract,
-including the seam where `plan-first` and `manager` disagree about whether a
+Two more are the manager's call per dispatch rather than automatic — **`glab:audit`**
+for an agent producing findings rather than a change, and **`glab:plan-first`** for a
+planning agent's document structure. `glab:manager` Rule 0c has the full contract,
+including the seam where `glab:plan-first` and `glab:manager` disagree about whether a
 planner implements.
 
-`manager` governs *how* work is done, not *whether*. Questions get answered
+`glab:manager` governs *how* work is done, not *whether*. Questions get answered
 directly. Trivial changes — roughly five lines, no architectural impact — get
-made directly. `security` has **no** such exemption: a one-line change still
+made directly. `glab:security` has **no** such exemption: a one-line change still
 gets its claim verified, and a gate is never reported green on an agent's word.
 
 ## 3. Find the real gates, once
@@ -84,7 +84,7 @@ plan ⇄ analyze  →  develop ⇄ analyze  →  integrate  →  review ⇄  →
 ```
 
 - **`plan ⇄ analyze`** — the plan is analyzed *before any code exists*: can this
-  be built exactly as written? See `manager` Stage 1b.
+  be built exactly as written? See `glab:manager` Stage 1b.
 - **`develop ⇄ analyze`** — conformance: did we build what the plan said? Max 4
   rounds.
 - **`integrate`** — against a real running system, local only, never a live
@@ -97,7 +97,7 @@ plan ⇄ analyze  →  develop ⇄ analyze  →  integrate  →  review ⇄  →
 
 **Dispatch independent agents in a single message so they run concurrently.**
 Analyze and review fan out freely by surface or dimension; develop splits only
-across disjoint file boundaries. See `manager` → *Running agents in parallel*.
+across disjoint file boundaries. See `glab:manager` → *Running agents in parallel*.
 
 ## 5. Pick up the handoff
 
@@ -128,7 +128,7 @@ subagents follow it too, use unique filenames, and clean up what you create.
 Why this is a hazard at all: on one host `/tmp` was a tmpfs under a per-user quota shared
 by every agent, and filling it killed the session from the inside. Growing the
 tmpfs did not help: the limit was that quota, not the size of the filesystem.
-The template the host file is made from, `host.example.md`, records that case
+The template the host file is made from, `host.example.md` at the root of the `glab-services/skills` marketplace repository, records that case
 in full; the rule above does not depend on your having it.
 
 **In Claude Code's Bash tool, `grep` can be a shell function that runs a bundled ugrep, not the system grep** —

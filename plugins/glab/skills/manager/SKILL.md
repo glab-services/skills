@@ -9,7 +9,7 @@ You run this session as a manager. Agents do the work. You decide what is dispat
 
 ## Rule 0 — the working agreement first, always
 
-*(The `bootstrap` skill runs the full session-start sequence — agreement, skills,
+*(The `glab:bootstrap` skill runs the full session-start sequence — agreement, skills,
 gates, handoff, hazards. This rule is its first step, restated here because it is
 the one that cannot be skipped.)*
 
@@ -17,7 +17,7 @@ Read **`AGENTS.md` at the repo root** before anything else in this session. No `
 
 Make every agent you dispatch read it first too. Say so in the dispatch message, even when the agent definition already requires it. An agent that skipped it produces work the repo rejects, and you pay for that in a correction round.
 
-## Rule 0b — the `security` skill runs alongside this one
+## Rule 0b — the `glab:security` skill runs alongside this one
 
 It is loaded with this skill and it is not optional. It governs every claim you or an agent makes about the work: paste the command and its real output, or write `UNVERIFIED: <claim> — <why>`. Its durability rules bind every stage.
 
@@ -35,10 +35,10 @@ comes back with an unproven claim.
 
 **Always, in every dispatch, no exceptions:**
 
-- **`security`** — the agent proves its own claims or writes `UNVERIFIED`. An
+- **`glab:security`** — the agent proves its own claims or writes `UNVERIFIED`. An
   agent reporting a green gate without pasting the output has not finished, and
   you cannot tell the difference after the fact.
-- **`comments`** — the agent records *why* a thing is the way it is, and never
+- **`glab:comments`** — the agent records *why* a thing is the way it is, and never
   deletes or rewrites a `TODO`, `FIXME`, `HACK`, `NOTE` or `XXX` marker without
   approval. This is the easiest one to forget, because it is not about the change
   being made — and its cost is silent. The knowledge is gone and nothing in the
@@ -47,11 +47,11 @@ comes back with an unproven claim.
 **Your call, per dispatch — name it when it fits the agent's job, leave it out
 when it does not:**
 
-- **`audit`** — for an agent examining a service, module or subsystem to produce
+- **`glab:audit`** — for an agent examining a service, module or subsystem to produce
   *findings* rather than a change. It gives the document its shape: architecture
   summary, working flow, severity-classified issues, prioritized recommendations.
-- **`plan-first`** — for a planning agent, for the `findings.md` / `questions.md`
-  / `plan.md` structure it enforces. **Mind the seam:** `plan-first` describes a
+- **`glab:plan-first`** — for a planning agent, for the `findings.md` / `questions.md`
+  / `plan.md` structure it enforces. **Mind the seam:** `glab:plan-first` describes a
   workflow that runs through to implementation, and under this skill a planner
   stops at the plan and hands it to Stage 1b. Say which applies, or you have
   given the agent two contradictory instructions — the exact defect the plan
@@ -94,14 +94,14 @@ Record what you found in one line and reuse it all session. If a repo has no lin
 
 | # | Stage | Run | Writes | Leaves on |
 |---|-------|-----|--------|-----------|
-| 1 | Plan | `/plan <task>` | `plan/{slug}/findings.md`, `questions.md`, `plan.md` | user approval |
-| 1b | Analyze the plan | `/analyze {slug}` (plan only) | — | `BUILDABLE` (max 2 rounds) |
-| 2 | Develop | `/develop {slug}` | code, tests, `result.md` | `BUILT` + green gates |
-| 3 | Analyze | `/analyze {slug}` | — | `CONFORMS` (max 4 rounds) |
-| 4 | Integrate | `/integrate {slug}` | `integration.md` | `INTEGRATED` |
-| 5 | Review | `/review` | — | `SHIP` (max 3 rounds) |
-| 6 | Commit | `/commit` | commits | commits verified |
-| 7 | Push | `/push` | remote branch | landed and confirmed |
+| 1 | Plan | `/glab:plan <task>` | `plan/{slug}/findings.md`, `questions.md`, `plan.md` | user approval |
+| 1b | Analyze the plan | `/glab:analyze {slug}` (plan only) | — | `BUILDABLE` (max 2 rounds) |
+| 2 | Develop | `/glab:develop {slug}` | code, tests, `result.md` | `BUILT` + green gates |
+| 3 | Analyze | `/glab:analyze {slug}` | — | `CONFORMS` (max 4 rounds) |
+| 4 | Integrate | `/glab:integrate {slug}` | `integration.md` | `INTEGRATED` |
+| 5 | Review | `/glab:review` | — | `SHIP` (max 3 rounds) |
+| 6 | Commit | `/glab:commit` | commits | commits verified |
+| 7 | Push | `/glab:push` | remote branch | landed and confirmed |
 
 A command that does not exist in this repo → dispatch the agent of the same role directly with the same contract. Announce each handoff in one line: `slug · stage · round n/max · verdict`.
 
@@ -122,7 +122,7 @@ instead of in sequence. The limit is not a number — it is independence.
 
 **Fan out with care.** Develop writes:
 
-- Split `/develop` **only** when the slices touch no common file **and** have no
+- Split `/glab:develop` **only** when the slices touch no common file **and** have no
   ordering dependency. Two agents editing one file in one working tree clobber
   each other, and there is no merge step to save you.
 - Give each agent its explicit file boundary and its step ids in the dispatch
@@ -152,13 +152,13 @@ This is stronger than dispatch, not weaker: every stage begins with a clean cont
 
 ## Stage 1 — Plan
 
-Run `/plan <task>`. If the user already handed you a plan, skip to the acceptance checklist and apply it to theirs.
+Run `/glab:plan <task>`. If the user already handed you a plan, skip to the acceptance checklist and apply it to theirs.
 
 **The planning agent asks for what it needs.** If it cannot write a clear plan without knowing something — an endpoint, a decision, a vendor behaviour, an existing convention — it must ask rather than infer. Relay those questions to the user; do not answer on their behalf.
 
 ### Plan acceptance checklist
 
-Do not forward a plan to `/develop` until all five hold. Where one fails, say which and send it back.
+Do not forward a plan to `/glab:develop` until all five hold. Where one fails, say which and send it back.
 
 1. **Understandable.** Every stage is one instruction a competent engineer can act on without asking what it means. No stage says "handle X properly".
 2. **Three phases, explicitly.** `before` — preconditions, the gate run green, flags, what must be true to start. `processing` — the ordered change steps. `after` — verification, tests, documentation, and how to back it out.
@@ -187,7 +187,7 @@ agent spent a full run establishing that and wrote no code. Read-only analyzers
 would have found it for a fraction of the cost, and the plan's own heading
 already carried `[BLOCKED]`.
 
-So **before dispatching `/develop`, dispatch analyzers against the plan itself.**
+So **before dispatching `/glab:develop`, dispatch analyzers against the plan itself.**
 One question: *can this be built exactly as written?* Answered by reading the
 code the plan names — never by judging the prose.
 
@@ -236,9 +236,9 @@ design, not another pass.
 
 ## Stage 2 — Develop
 
-Run `/develop {slug}`. One agent is the default. Split only when the slices touch no common file **and** have no ordering dependency — two agents editing one file in one working tree clobber each other, and there is no merge step to save you.
+Run `/glab:develop {slug}`. One agent is the default. Split only when the slices touch no common file **and** have no ordering dependency — two agents editing one file in one working tree clobber each other, and there is no merge step to save you.
 
-Give the `developer` agent, in the dispatch message:
+Give the `glab:developer` agent, in the dispatch message:
 
 - the slug and the exact step ids it owns, and its file boundary when the work is split;
 - **the resolved answers** from `questions.md` and anything decided in this conversation that is not written in the plan — the agent cannot see this chat;
@@ -255,7 +255,7 @@ Do not paste the plan. The agent reads it; a paraphrase is how a step quietly ch
 - unplanned changes, each with the step that mechanically forced it;
 - tests added or changed, and the coverage number for the touched code;
 - gate output: build, tests, lint, each with the exact command;
-- the `security` skill's blast-radius block: what behaviour or format changed, who calls it, what existing data it can affect, and how to roll it back;
+- the `glab:security` skill's blast-radius block: what behaviour or format changed, who calls it, what existing data it can affect, and how to roll it back;
 - follow-ups deferred, and why each was out of scope.
 
 **Test rules, stated in every dispatch:**
@@ -272,7 +272,7 @@ An agent's report is not evidence. Run the gates yourself, in order — build, t
 
 ## Stage 3 — Analyze
 
-Read `result.md` — it is written for you and stays short. Summarise it to at most 10 lines for the user, then run `/analyze {slug}` with the slug and that summary.
+Read `result.md` — it is written for you and stays short. Summarise it to at most 10 lines for the user, then run `/glab:analyze {slug}` with the slug and that summary.
 
 The analyzer answers one question: **did we build what the plan said?** Not whether the code is correct — that is Stage 5. Do not let it drift.
 
@@ -282,7 +282,7 @@ Still diverging at round 4 → stop and bring it to the user with the three hone
 
 ## Stage 4 — Integrate
 
-Run `/integrate {slug}`. The `integrator` agent checks or starts the external dependencies (database, queue, cache), starts the service, and runs the repo's existing integration or E2E suite.
+Run `/glab:integrate {slug}`. The `glab:integrator` agent checks or starts the external dependencies (database, queue, cache), starts the service, and runs the repo's existing integration or E2E suite.
 
 - If it cannot find an E2E suite, it asks — it does not invent one. When the user names the path, **write it to memory** so no later session asks again.
 - **Never against a live or production endpoint.** Local only.
@@ -290,7 +290,7 @@ Run `/integrate {slug}`. The `integrator` agent checks or starts the external de
 
 ## Stage 5 — Review
 
-Run `/review` on the working tree.
+Run `/glab:review` on the working tree.
 
 **The reviewer is an external auditor.** Give it the target and nothing else — **not the slug, not the plan, not the findings, not what the plan intended.** It cares about correctness and security, not conformance; conformance was Stage 3. Do not defend the plan to it and do not re-rank its severities.
 
@@ -300,13 +300,13 @@ Watch where findings land. If most of round *n* sits in code written to fix roun
 
 ## Stage 6 — Commit
 
-Run `/commit`. The `committer` re-reads the change at a high level, then splits it into logical commits — one coherent change each — in the repo's commit format.
+Run `/glab:commit`. The `glab:committer` re-reads the change at a high level, then splits it into logical commits — one coherent change each — in the repo's commit format.
 
 Its deny-list is authoritative: nested repositories, credentials and `.env` files, local noise, and anything the user did not ask about. **A refusal to stage is the correct outcome** — relay the reason, never work around it. Verify the file list from `git show --stat` matches what you expected.
 
 ## Stage 7 — Push
 
-Run `/push`. There is deliberately **no push agent**: a push leaves the machine, so you stay in the loop rather than relaying an agent's report about something already sent. `/push` shows exactly which commits will go out and waits for the user's go-ahead.
+Run `/glab:push`. There is deliberately **no push agent**: a push leaves the machine, so you stay in the loop rather than relaying an agent's report about something already sent. `/glab:push` shows exactly which commits will go out and waits for the user's go-ahead.
 
 After the push, confirm the commits actually landed on the remote branch and report the branch, the commits and the PR URL if git printed one.
 

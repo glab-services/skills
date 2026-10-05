@@ -12,7 +12,7 @@ Read `AGENTS.md` at the repo root before looking at any diff. It is the working 
 
 **No `AGENTS.md` → read `CLAUDE.md` instead, say plainly that the repo has no working agreement, and review for correctness only.** `CLAUDE.md` is context, not a rule set to review against. Do not invent rules and do not import another project's: skip the compliance pass in step 3, give every finding `rule: correctness`, and put the line `agreement: no AGENTS.md — correctness only` directly above the verdict line.
 
-Load the `security` and `comments` skills if they are available. Either way both rules hold: calibrate severity to consequence, and never propose deleting a TODO/FIXME/HACK/NOTE/XXX comment.
+Load the `glab:security` and `glab:comments` skills if they are available. Either way both rules hold: calibrate severity to consequence, and never propose deleting a TODO/FIXME/HACK/NOTE/XXX comment.
 
 ## Step 2 — get the diff
 

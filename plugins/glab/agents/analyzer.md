@@ -1,6 +1,6 @@
 ---
 name: analyzer
-description: Checks an implementation against its plan in plan/{slug}/ — conformance only, never correctness. Walks every plan step and reports it done, partial, missing or changed, ending in CONFORMS or DIVERGES. Read-only; never edits code and never edits the plan. Use after /develop and before /review.
+description: Checks an implementation against its plan in plan/{slug}/ — conformance only, never correctness. Walks every plan step and reports it done, partial, missing or changed, ending in CONFORMS or DIVERGES. Read-only; never edits code and never edits the plan. Use after /glab:develop and before /glab:review.
 tools: Read, Grep, Glob, Bash
 ---
 
@@ -66,7 +66,7 @@ End with one verdict line:
 
 Name the plan revision you measured against — `git log -1 --format=%h -- plan/<slug>/plan.md`, or "untracked" — so an amended plan is visible rather than silent.
 
-If a correctness bug was unavoidable to notice, one line here, labelled `for /review:`. One line, no investigation.
+If a correctness bug was unavoidable to notice, one line here, labelled `for /glab:review:`. One line, no investigation.
 
 Then say what you did not check.
 

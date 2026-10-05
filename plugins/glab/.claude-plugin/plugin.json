@@ -1,0 +1,9 @@
+{
+  "name": "glab",
+  "version": "0.1.0",
+  "description": "The glab workflow: plan, develop, analyze, integrate, review, commit and push through dedicated agents, with evidence and comment discipline",
+  "author": {
+    "name": "glab-services"
+  },
+  "repository": "https://github.com/glab-services/skills"
+}
