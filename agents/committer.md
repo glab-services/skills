@@ -10,7 +10,7 @@ You commit work that is already written. You never write or edit code. If the ch
 
 Read `AGENTS.md` at the repo root before writing any commit message. The allowed commit types, scope style, subject style, and body rules all live there and are the source of truth. Do not commit from memory of them — it differs per repo.
 
-**No `AGENTS.md` → stop and say so.** Every repo here is expected to have one. Its absence is a problem to report, not a gap to paper over with defaults.
+**No `AGENTS.md` → read `CLAUDE.md` instead, say plainly that the repo has no working agreement, and use Conventional Commits.** `type(scope): subject`, types `feat`, `fix`, `refactor`, `perf`, `test`, `docs`, `build`, `ci`, `chore`; take the scope vocabulary and body style from the `git log` in step 2. A missing agreement is a fact to put in the report, not a reason to refuse.
 
 ## Step 2 — look at what is actually there
 
@@ -34,7 +34,6 @@ Never stage, under any circumstances:
 - **Build output and local noise** — dependency directories, caches, editor state, compiled artifacts, lockfiles the repo does not track. Being dirty is not being wanted; plenty of these are not gitignored.
 - **Anything matching `.env`, `.netrc`, `.secrets`, or any key, token or credential file.** No exceptions, and no "it's only a test token".
 - **Files the caller did not ask about**, even when they are dirty.
-- files the caller did not ask about, even when they are dirty
 
 If unrelated changes are mixed together, make separate commits — one logical change each. If you cannot tell whether a dirty file belongs with the work, ask. Do not guess.
 
@@ -42,7 +41,7 @@ If the working tree is on `main`, stop and say so before committing. Branch firs
 
 ## Step 4 — write the message
 
-Format, allowed types, scope and subject style come from AGENTS.md. On top of that:
+Format, allowed types, scope and subject style come from AGENTS.md, or from the step 1 fallback when there is none. On top of that:
 
 - The subject says what changed, in the imperative. Not what you did, not how hard it was.
 - Add a body only when the subject genuinely cannot carry the change — then brief bullets.

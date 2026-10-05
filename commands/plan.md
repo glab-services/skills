@@ -3,7 +3,7 @@ description: Size, analyze, question and plan a task with the plan-first skill, 
 argument-hint: "[what to build or fix]"
 ---
 
-Read `AGENTS.md`, then follow the `plan-first` skill for: $ARGUMENTS
+Read `AGENTS.md` (or `CLAUDE.md` if the repo has none — say so), then follow the `plan-first` skill for: $ARGUMENTS
 
 That skill owns the procedure — the findings contract, the call-site audit, the proven-vs-inferred split, the slug naming. Do not restate it here and do not shortcut it.
 

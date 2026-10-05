@@ -3,7 +3,7 @@ description: Commit changes with the committer agent using Conventional Commits
 argument-hint: "[paths to commit, empty to let it decide from git status]"
 ---
 
-Read `AGENTS.md` at the repo root first — the commit format and the rules it enforces live there.
+Read `AGENTS.md` at the repo root first (or `CLAUDE.md` if the repo has none — say so) — the commit format and the rules it enforces live there.
 
 Then use the **committer** agent. Scope: $ARGUMENTS — if that is empty, it decides from `git status`.
 

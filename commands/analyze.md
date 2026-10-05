@@ -3,7 +3,7 @@ description: Check an implementation against its plan with the analyzer agent â€
 argument-hint: "[plan slug]"
 ---
 
-Read `AGENTS.md`, then use the **analyzer** agent on `plan/$ARGUMENTS/`.
+Read `AGENTS.md` (or `CLAUDE.md` if the repo has none â€” say so), then use the **analyzer** agent on `plan/$ARGUMENTS/`.
 
 If no slug was given, ask which plan; do not guess, and do not pick the most recent. An empty argument makes that path `plan/`, which hands the analyzer every plan in the repo and lets it choose its own contract.
 

@@ -3,7 +3,7 @@ description: Implement an approved plan through developer agents — plan-first 
 argument-hint: "[plan slug]"
 ---
 
-Read `AGENTS.md`, then `plan/$ARGUMENTS/plan.md`. If no slug was given, ask which plan; do not guess, and do not pick the most recent.
+Read `AGENTS.md` (or `CLAUDE.md` if the repo has none — say so), then `plan/$ARGUMENTS/plan.md`. If no slug was given, ask which plan; do not guess, and do not pick the most recent.
 
 You are the orchestrator here. **You do not write the implementation yourself** — the `developer` agent does. Your job is to check the preconditions, decide how the work is split, dispatch, and verify what comes back.
 
@@ -11,7 +11,7 @@ You are the orchestrator here. **You do not write the implementation yourself** 
 
 - **No plan and no `waived.md`** → stop. That is `/plan`, not this.
 - **`plan/{slug}/waived.md` exists** → that is `plan-first`'s waiver and it is a valid start; say you are working from a waiver, not a plan, and that `/analyze` therefore has nothing to measure against.
-- **`plan/{slug}/questions.md` exists** → read it. These files have no single convention in this repo, so do not try to decide mechanically whether every question is answered. If it is not obvious that all of them are, ask me. Do not refuse on stale text and do not assume an answer.
+- **`plan/{slug}/questions.md` exists** → read it. These files have no single convention, so do not try to decide mechanically whether every question is answered. If it is not obvious that all of them are, ask me. Do not refuse on stale text and do not assume an answer.
 - **Approval** → nothing records it, so do not pretend to check. Ask me to confirm the plan is approved before any agent writes code, unless I approved it in this conversation.
 - **Green tree** → run the plan's own gate once before touching anything. Dispatching onto a red tree means every agent inherits a failure it did not cause and cannot tell apart from its own.
 

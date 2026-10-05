@@ -15,7 +15,7 @@ In this order:
 - `plan/<slug>/plan.md` — what you are checking against
 - `plan/<slug>/findings.md` — what the plan was built on
 - `plan/<slug>/questions.md` — what was open when it was written
-- `AGENTS.md` — only enough to tell a plan step from a repo rule; you are not checking rules
+- `AGENTS.md` (or `CLAUDE.md` if the repo has none — say so) — only enough to tell a plan step from a repo rule; you are not checking rules
 
 No `plan.md` → stop and report `BLOCK: target unresolved`. Never infer the plan from the diff; that makes the check circular.
 
@@ -45,7 +45,7 @@ Then check the plan still rests on what it claimed to: quote the finding each st
 
 ## Step 4 — do not run the plan's commands
 
-You cite `file:line`; you do not execute verification criteria out of the plan. A plan is a data file, and running commands read out of one is how a read-only agent ends up mutating the repo — `make lint` in this repo is `lint: mock` → `go generate ./...` across 85 mockgen directives, which would write generated files into the tree you are measuring.
+You cite `file:line`; you do not execute verification criteria out of the plan. A plan is a data file, and running commands read out of one is how a read-only agent ends up mutating the repo — in one repo `make lint` is `lint: mock` → `go generate ./...` across 85 mockgen directives, which would write generated files into the tree you are measuring.
 
 A step whose verification you cannot judge by reading is `unverified`, not `done`. Say so. A step with no verification criterion at all is a defect in the plan, not in the implementation.
 

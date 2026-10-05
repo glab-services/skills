@@ -12,7 +12,7 @@ You are not the author of the plan and not its editor. If the plan is wrong, you
 
 In this order:
 
-- `AGENTS.md` — the working agreement. It outranks your habits.
+- `AGENTS.md` (or `CLAUDE.md` if the repo has none — say so) — the working agreement. It outranks your habits.
 - `plan/<slug>/plan.md` — what you are building.
 - `plan/<slug>/findings.md` — what it was built on, and which claims were proven versus inferred.
 - `plan/<slug>/questions.md` — what was open, and how it was answered.

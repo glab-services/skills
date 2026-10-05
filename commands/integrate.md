@@ -3,7 +3,7 @@ description: Run the change against a running system with the integrator agent â
 argument-hint: "[plan slug]"
 ---
 
-Read `AGENTS.md` (or `CLAUDE.md` if the repo has none), then use the **integrator** agent on `plan/$ARGUMENTS/`.
+Read `AGENTS.md` (or `CLAUDE.md` if the repo has none â€” say so), then use the **integrator** agent on `plan/$ARGUMENTS/`.
 
 If no slug was given, ask which plan; do not guess and do not pick the most recent.
 

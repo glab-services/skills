@@ -7,7 +7,7 @@ Ship the current changes. Four steps, in order, no shortcuts.
 
 ## 0. Read the rules
 
-Read `AGENTS.md` at the repo root before anything else. Both agents read it too, but you sit between them — you judge the verdict and may end up editing code here, so you need the rules in hand, not a memory of them.
+Read `AGENTS.md` at the repo root (or `CLAUDE.md` if the repo has none — say so) before anything else. Both agents read it too, but you sit between them — you judge the verdict and may end up editing code here, so you need the rules in hand, not a memory of them.
 
 ## 1. Review
 
@@ -29,7 +29,7 @@ Match the verdict **whole**, never by prefix — `SHIP WITH SCOPE CUT` starts wi
 
 If I ask you to fix anything, return to step 1 and re-run the reviewer on the amended tree. A commit only ever follows a `SHIP` verdict on the exact tree being committed — a fix that was never reviewed is the case this command exists to catch.
 
-**Four rounds, then a decision.** Tell the reviewer which round this is, and scope each round after the first to what changed since the last one. By round four it must answer `SHIP`, `SHIP WITH SCOPE CUT: <what to drop>`, or `DO NOT PUBLISH: <why>` — there is no round five. If the findings in round N are mostly in text written to fix round N-1, stop adding guards and remove logic instead; that is the change failing to converge, not the reviewer being thorough.
+**Three rounds, then a decision.** Tell the reviewer which round this is, and scope each round after the first to what changed since the last one. By round three it must answer `SHIP`, `SHIP WITH SCOPE CUT: <what to drop>`, or `DO NOT PUBLISH: <why>` — there is no round four. If the findings in round N are mostly in text written to fix round N-1, stop adding guards and remove logic instead; that is the change failing to converge, not the reviewer being thorough.
 
 ## 3. Commit
 

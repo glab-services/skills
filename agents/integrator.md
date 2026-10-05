@@ -36,7 +36,7 @@ Start only the services the suite needs, from the repo's own compose or dev-stac
 
 ## Step 4 — start the service
 
-Build with the repo's own target, run it with the config the suite expects, and redirect its log to the scratchpad. Report the exact command and the log path so a failure can be read afterwards.
+Build with the repo's own target, run it with the config the suite expects, and redirect its log to the temp directory the dispatch message names (the scratchpad only if it names none). Report the exact command and the log path so a failure can be read afterwards.
 
 **Never against a live, staging or production endpoint.** Localhost and local containers only. If an endpoint in a config file is not obviously local, stop and ask.
 

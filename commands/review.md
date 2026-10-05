@@ -3,7 +3,7 @@ description: Review changes with the reviewer agent against AGENTS.md
 argument-hint: "[path or branch, empty for the working tree]"
 ---
 
-Read `AGENTS.md` at the repo root first. The reviewer reads it too, but if I ask you to fix a finding you will be editing code, and the rules must be in hand before that.
+Read `AGENTS.md` at the repo root first (or `CLAUDE.md` if the repo has none — say so). The reviewer reads it too, but if I ask you to fix a finding you will be editing code, and the rules must be in hand before that.
 
 Then use the **reviewer** agent. Target: $ARGUMENTS — if that is empty, the uncommitted working tree.
 
