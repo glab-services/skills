@@ -126,7 +126,11 @@ repo and to nothing else.
   the hedged sentence about its override (the script comment, the
   `memory-sync:sync-memory` skill, `README.md`, and the
   `CLAUDE_CODE_SESSIONEND_HOOKS_TIMEOUT_MS` key in the plugin's settings
-  example).
+  example); the manual model rule — the developer and reviewer only, and no
+  `model` parameter without the user's instruction (`glab:manager` Rule 5 and
+  its handoff-line format in `plugins/glab/skills/manager/SKILL.md`,
+  `plugins/glab/commands/develop.md`, `plugins/glab/commands/review.md`,
+  `plugins/glab/commands/ship.md`).
 - **Comments and recorded incidents are kept.** Update them when the thing
   they describe changes; do not delete them.
 - **Tests clean up by PID.** A test kills only processes it started itself,

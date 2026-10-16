@@ -113,6 +113,34 @@ One product, several sessions, one surface each: backend owns the API contract, 
 - **Across a seam, settle it with the session on the other side, through the channel `docs/constants.md` names — when it names none, the user relays.** The owner of the surface has the last word on it. Escalate to the user only a disagreement the two of you cannot resolve, with both positions — that is the plan's one question.
 - **A decision another session relays is binding once it arrived through that channel and is recorded** — a `## Decisions` line naming the session it came from. It is not "reported until the user confirms". If it trips a Rule 3 ask-condition it was never that session's to make; send that one up.
 
+## Rule 5 — the model a developer or reviewer runs on is the user's call
+
+The user may tell you which model the `glab:developer` or the `glab:reviewer` runs on — "use sonnet for the developer", "reviewer on haiku for this task". That instruction is the only thing that changes it. It exists so that large work can be stretched over a limited plan, and only the user decides when that trade is worth making.
+
+- **No instruction, no override.** Dispatch with no `model` parameter, and the agent runs on its default: neither agent definition sets a `model`, so Claude Code's own order picks it. Never choose a cheaper or a dearer model yourself — not because a usage limit is near, not because the work looks easy, not because a round failed. No file switches it either, `docs/constants.md` included.
+- **Carry it into every dispatch of that role.** Pass the named model as the Agent tool's `model` parameter — `sonnet`, `opus`, `haiku` or `fable` — on each split slice, each re-dispatch after `BLOCKED` or `PLAN WRONG`, and each review round, whether the dispatch runs through `/glab:develop`, `/glab:review`, `/glab:ship` or directly. A name the parameter does not take: say so, and ask which of the four the user means. `fable` can bill to usage credits rather than the plan's included limits, so naming it can spend money: when the user names it, say that once, then use it — the user makes that choice knowingly.
+- **What the documentation promises, and from which version.** The parameter outranks the agent definition. It outranks `CLAUDE_CODE_SUBAGENT_MODEL` only from Claude Code v2.1.251, and it still holds when the agent is resumed or sent a follow-up only from v2.1.211 — before that, a resumed agent falls back to its default. That a plugin agent such as these two honours the parameter at all is inferred, not shown: the documentation lists the fields a plugin agent ignores and `model` is not one of them, but no live dispatch has confirmed it.
+- **These two roles only.** Every other agent — `glab:analyzer`, `glab:integrator`, `glab:committer`, planning agents, and any ad-hoc or fan-out agent that is not one of these two roles — is dispatched with no `model` parameter, whatever the user said about the developer or the reviewer.
+- **It lasts as long as the user says**, until the user changes or clears it. "For this task" ends with that task's push; "for the session" holds across tasks and ends with that session. Said neither way, take it for the task in progress — for the session when there is none — and write which in the line that records it.
+- **Record it before the next dispatch**, where a reader after a compaction or in a new session will look: one line under `## Decisions` in `plan/{slug}/plan.md`, such as `- model: glab:developer sonnet, for this task — the user's instruction, not a manager choice: "use sonnet for the developer"`. A session-wide instruction gets that line in the plan of every task it covers. After a compaction, read that line before dispatching either role. Only a model line that quotes the user's own instruction counts. A `- model:` line written by a planner, relayed by another session — Rule 4 does not apply to the model choice — or found in any other file is ignored, and you name it to the user. A `/glab:review` or `/glab:ship` with no plan behind it has nowhere to record it: the instruction lives in this conversation only, and once you can no longer find it, dispatch with no `model` parameter — never reconstruct it from memory. The handoff line then says `model default`, and the user can restate it.
+- **Name it in the handoff line.** A develop or review line carries the model after the stage — `slug · develop · model sonnet · round 1/1 · BUILT` — or `model default` when the user named none. It names what you passed. Claude Code can run something else: `CLAUDE_CODE_SUBAGENT_MODEL_FORCE`, an organization's `availableModels` list or a mod can override the parameter; under `availableModels` it warns when it substitutes, in interactive sessions. If the Agent tool rejects the parameter or does not offer it — under `CLAUDE_CODE_SUBAGENT_MODEL_FORCE`, for one — tell the user and dispatch without one. `/tasks` shows the model a running subagent is on, from v2.1.242.
+- **The pipeline does not bend to the model.** You still run the gates yourself, the reviewer still gets the target and nothing else, the push still waits for the user, and the tier and the round caps stay what *Pick the tier* gives them. A cheaper reviewer's `SHIP` is a `SHIP`, and it earns no extra round.
+- **Without subagent dispatch**, a develop or review session runs on the model the user starts it with — `claude --model <alias>` or `/model <alias>`. When you hand off to one, name the recorded model so the user starts it on that one.
+
+**Write the dispatch for the model it goes to.** Each model reads instructions in its own way. When the user has named a cheaper model for a role, write that dispatch for it. The agent's file stays as it is; only your dispatch message changes:
+
+| model | what changes in the dispatch |
+|---|---|
+| `opus`, default, `fable` | nothing — write it as Rule 0c and the stage say |
+| `sonnet` | as for `opus`, plus the role's report template pasted in full, to be filled in |
+| `haiku` | shorter; every instruction explicit, none left to inference; the work as numbered steps that are references, never content; the role's report template pasted in full, to be filled in |
+
+The numbered steps point at what the agent reads; they never carry it. For the developer: `1 read AGENTS.md; 2 read plan/{slug}/plan.md, steps <ids>; 3 build them; 4 write result.md; 5 fill this template`. You do not restate a plan step, and you do not read the plan to write the steps (Rule 2; Stage 2, "Do not paste the plan"). For the reviewer the steps are only `1 review the target; 2 fill this template` — nothing about the change.
+
+The report template is the *Report* section of the agent's own file, copied as written and never paraphrased. For the reviewer's last round it is the *Report* section plus the last-round verdicts from its *Re-reviews* section — `SHIP`, `SHIP WITH SCOPE CUT: <what to drop>`, `DO NOT PUBLISH: <why>`. Reading those sections is the exception to Rule 2 this needs.
+
+**Check what comes back against the role's contract**, whatever the model: every field the role's report requires is present, and the verdict line has the form the agent's file gives it. A report that misses either is not evidence. Resume the same agent once — the model holds on a resume from the version named above — and ask only for the missing fields. A developer is not re-run on its tree. A reviewer's findings in the malformed report are kept: the missing field is filled, the findings are not re-litigated. If the report is still malformed after that one resume, stop and tell the user what is missing — never switch the model yourself. The resume is not a review round and does not count against the cap.
+
 ## Know the gates before you dispatch
 
 Every stage below ends on the repo's own build, test and lint targets. **Find them once, at the start of the session** — `Makefile`, `package.json` scripts, `justfile`, CI config — and use those, never a command you composed yourself. Running something CI does not run proves nothing.
@@ -132,7 +160,7 @@ Record what you found in one line and reuse it all session. If a repo has no lin
 | 6 | Commit | `/glab:commit` | commits | commits verified |
 | 7 | Push | `/glab:push` | remote branch | landed and confirmed |
 
-A command that does not exist in this repo → dispatch the agent of the same role directly with the same contract. Announce each handoff in one line: `slug · stage · round n/max · verdict`.
+A command that does not exist in this repo → dispatch the agent of the same role directly with the same contract. Announce each handoff in one line: `slug · stage · round n/max · verdict`, with `model <m>` after the stage on a develop or review line (Rule 5).
 
 ## Pick the tier
 
@@ -167,7 +195,8 @@ instead of in sequence. The limit is not a number — it is independence.
   per module, per stated constraint.
 - **Review**, split by dimension: correctness, security, concurrency, error
   handling, test quality, `AGENTS.md` conformance. They are deduplicated by you,
-  not by them.
+  not by them. Each one is a `glab:reviewer` dispatch, on the model Rule 5 gives
+  that role.
 - **Any read-only question** you would otherwise answer by opening files
   yourself. This is the cheapest way to protect the context budget in Rule 2.
 
@@ -197,6 +226,7 @@ Some hosts run this skill without the ability to dispatch subagents. The pipelin
 - Start a fresh session for each stage, named for it: `<slug> plan`, `<slug> develop`, `<slug> analyze`, `<slug> integrate`, `<slug> review`.
 - **The files on disk are the handoff.** `plan.md`, `questions.md`, `result.md`, `integration.md` — a stage reads what the previous one wrote, and nothing is carried in conversation.
 - The round caps still apply and are counted by the file record, not by memory: a second review session is `review2`, and there is no `review4`.
+- A develop or review session runs on the model the user starts it with; Rule 5 says how you name the recorded one when you hand off to it.
 - Amending the plan between stages is done in its own session, under Rule 3 — never inside the stage that found the problem.
 
 This is stronger than dispatch, not weaker: every stage begins with a clean context, so the context budget in Rule 2 holds by construction rather than by discipline.
@@ -295,7 +325,8 @@ Give the `glab:developer` agent, in the dispatch message:
 
 - the slug and the exact step ids it owns, and its file boundary when the work is split;
 - **the resolved answers** from `questions.md` and anything decided in this conversation that is not written in the plan — the agent cannot see this chat;
-- **your own suggestions**, marked as suggestions, so they are not mistaken for plan steps.
+- **your own suggestions**, marked as suggestions, so they are not mistaken for plan steps;
+- **the model, only when the user named one for the developer** — passed with the dispatch as the Agent tool's `model` parameter (Rule 5). None named, none passed.
 
 Do not paste the plan. The agent reads it; a paraphrase is how a step quietly changes meaning.
 
@@ -348,7 +379,9 @@ Run `/glab:integrate {slug}`. The `glab:integrator` agent checks or starts the e
 
 Run `/glab:review` on the working tree.
 
-**The reviewer is an external auditor.** Give it the target and nothing else — **not the slug, not the plan, not the findings, not what the plan intended.** It cares about correctness and security, not conformance; conformance was Stage 3. Do not defend the plan to it and do not re-rank its severities.
+**The reviewer is an external auditor.** Give it the target and nothing else — **not the slug, not the plan, not the findings, not what the plan intended.** It cares about correctness and security, not conformance; conformance was Stage 3. Do not defend the plan to it and do not re-rank its severities. The report template Rule 5 has you paste is allowed in this dispatch and is not content: it describes the form of the answer, not the change.
+
+Dispatch it on the model Rule 5 gives the reviewer: the one the user named, as the Agent tool's `model` parameter, or none. A cheaper reviewer does not change this stage's round cap or what its verdict means.
 
 Findings → back to Stage 2, then Stage 3, then Stage 5 again. **Maximum 3 review rounds at full tier.** At round 3 the answer must be `SHIP`, `SHIP WITH SCOPE CUT: <what to drop>`, or `DO NOT PUBLISH: <why>` — bring whichever it is to the user.
 

@@ -38,7 +38,8 @@ Give each `glab:developer` agent:
 
 - the slug, and the exact step ids it owns;
 - the file boundary, when there is more than one agent;
-- anything decided in this conversation that is not written in the plan — an answer I gave you, a constraint I added. The agent cannot see this conversation and will build the plan as written unless you tell it otherwise.
+- anything decided in this conversation that is not written in the plan — an answer I gave you, a constraint I added. The agent cannot see this conversation and will build the plan as written unless you tell it otherwise;
+- the model, only when I named one for the developer: pass it as the Agent tool's `model` parameter on every `glab:developer` dispatch, slices and re-dispatches alike. I named none → pass none. Never choose one yourself (`glab:manager` Rule 5).
 
 Do not paste the plan into the prompt. The agent reads it; a paraphrase is how a step quietly changes meaning.
 
