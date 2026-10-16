@@ -33,3 +33,53 @@ at every tier.
 
 The user's local copies under `~/.claude` were not touched and still carry the
 pre-alignment text.
+
+## Status
+
+All 12 were fixed in the follow-up change on top of 0dec5e2. glab is now 0.2.1, and the
+manager's decisions D1-D12 are recorded in `result-followups.md`. Line numbers refer to the
+working tree after the fix.
+
+| # | Status | Fix now at |
+|---|---|---|
+| 1 | fixed | `skills/manager/SKILL.md:113-114` |
+| 2 | fixed | `skills/manager/SKILL.md:139`, `commands/develop.md:15` |
+| 3 | fixed, then corrected after review | `skills/manager/SKILL.md:106` |
+| 4 | fixed | `AGENTS.md:103-111` |
+| 5 | fixed | `commands/integrate.md:10` |
+| 6 | fixed | `commands/develop.md:61` |
+| 7 | reopened — removed by the review's scope cut, see below | — |
+| 8 | fixed | `commands/analyze.md:18` |
+| 9 | fixed | `skills/manager/SKILL.md:58-60`, `:210`; `skills/plan-first/SKILL.md:56` |
+| 10 | partly — manager half removed by the scope cut; plan-first half fixed | `skills/plan-first/SKILL.md:154` |
+| 11 | fixed | `skills/manager/SKILL.md:127` |
+| 12 | fixed | `skills/bootstrap/SKILL.md:46-48`, `:94-95`; `commands/review.md:12`; `scripts/manager-bootstrap.sh:17` |
+
+## After the review of the follow-up fixes (2026-10-16)
+
+One normal-tier review round returned `SHIP WITH SCOPE CUT`. Applied by the manager:
+
+- **#7 reopened.** The waiver routing (`commands/develop.md:67`, "and from a waiver" in
+  `commands/integrate.md:10`) was removed: a waiver has no plan and no tier, and the
+  integrator, the integrate scope and the review cap all depend on both. A fix has to
+  give a waiver a tier and an integrator input first.
+- **#10 reopened.** The spec-entry paragraph in `skills/manager/SKILL.md` was removed: it
+  dispatched the developer outside any plan step (its definition refuses that), and a
+  re-dispatch overwrites `result.md`. The `plan-first` half of #10 (a repo that keeps
+  specs but has no removal rule keeps its plans) stays.
+- **#3 corrected.** The fix had narrowed "confirmation before every destructive action"
+  to unrecoverable targets only. The line now keeps `glab:security`'s stop list and its
+  *Destructive operations are proven* rule, and states confirmation before every
+  destructive action and every push as the manager's own rule.
+
+New minor findings from that review, not fixed:
+
+| # | Where | Finding | Suggested fix |
+|---|---|---|---|
+| 13 | `skills/manager/SKILL.md` Rule 0c seam note, Stage 1; `skills/plan-first/SKILL.md:56` | "may overrule one" conflicts with Rule 4, where a relayed decision binds and the surface owner has the last word. | Except a line recording another session's decision. |
+| 14 | `skills/manager/SKILL.md` Stage 1 | Recording an overrule as a new line leaves steps built on the old choice. | Send the plan back to the planning agent to amend those steps. |
+| 15 | `skills/manager/SKILL.md` Rule 3 | Still reads as "the manager writes the decision line", while Stage 1 now says the planner writes it. | One clause: during planning the planner writes the line and the manager reviews it. |
+| 16 | `commands/integrate.md:10` | The integrator agent is never told the normal-tier scope (milestone test only). | "Say which in the dispatch." |
+| 17 | `scripts/manager-bootstrap.sh:17` | "-> push at full tier" can read as "push only at full tier"; Stage 1b is missing (already so before). | "At full tier work moves through plan -> analyze -> develop -> …". |
+| 18 | `AGENTS.md` one-fact list | The analysis round caps are stated in manager and bootstrap but not listed. | Add them as a known case. |
+| 19 | `commands/develop.md:67`, `commands/ship.md:32` (advisory, older text) | After a normal-tier review fix the develop handoff re-runs integrate and review, while manager says the gates are the only check on that fix; `/glab:ship` has no normal-tier exception. | Align with manager Stage 5. |
