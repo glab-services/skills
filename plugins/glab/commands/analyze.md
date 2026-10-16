@@ -11,8 +11,8 @@ This step asks one question: **did we build the thing the plan said?** Whether t
 
 Show its report verbatim — every step line, the plan revision it measured against, and the verdict. Then:
 
-- `CONFORMS` → go to `/glab:review`.
-- `DIVERGES: <n> steps` → stop and show me what diverged. There are two honest resolutions: change the code, or change the plan because the plan was wrong. **Changing the plan is my call, never yours.** Either way it means implementing again and re-running `/glab:analyze`.
+- `CONFORMS` → go to `/glab:integrate`.
+- `DIVERGES: <n> steps` → stop and show me what diverged. There are two honest resolutions: change the code, or change the plan because the plan was wrong. **Changing the plan is a `glab:manager` Rule 3 decision** — yours when it is an engineering choice, mine when it meets an ask-condition — made through the planning agent, recorded under `## Decisions`, never made by the developer. Either way it means implementing again and re-running `/glab:analyze`.
 - `BLOCK: target unresolved` → say whether the plan or the implementation was the part that could not be resolved.
 
 Never edit `plan.md` to make a divergence go away. That turns the contract into a description of whatever was built, which is the same as having no contract. If I do amend it, the analyzer's next report names the new revision, so the change is visible rather than silent.

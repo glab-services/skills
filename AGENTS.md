@@ -102,8 +102,7 @@ repo and to nothing else.
 - **One fact, one value.** A number or name stated in more than one file
   changes in all of them in the same commit. Known cases: the review round cap
   (`plugins/glab/agents/reviewer.md`, `plugins/glab/commands/ship.md`,
-  `plugins/glab/skills/manager/SKILL.md`,
-  `plugins/glab/skills/bootstrap/SKILL.md`); the missing-`AGENTS.md` fallback
+  `plugins/glab/skills/manager/SKILL.md`); the missing-`AGENTS.md` fallback
   (every agent and command); the hook events
   (`plugins/memory-sync/hooks/hooks.json`, `README.md`,
   `plugins/memory-sync/skills/sync-memory/SKILL.md`, the header of

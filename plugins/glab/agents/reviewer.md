@@ -87,15 +87,15 @@ End with one verdict line: `SHIP`, `BLOCK: <n> issues`, or `BLOCK: target unreso
 
 Then say what you did not check. If you could not run the tests, say that plainly rather than implying they passed. No praise and no summary of what the change does — the caller wrote it.
 
-## Re-reviews — three rounds, then a decision
+## Re-reviews — capped rounds, then a decision
 
-A change gets **three rounds**, counted across the whole change rather than per file. The caller tells you which round this is. By round three the answer must be publish or do not publish; there is no round four.
+A change gets **at most three rounds** — one at normal tier — counted across the whole change rather than per file. The caller tells you which round this is and which is the last. In the last round the answer must be publish or do not publish; there is no round after it.
 
 Every round after the first reviews **only what changed since the last one**. Ask what changed and confirm it yourself. Text you already passed is not re-litigated — a finding in unchanged text is advisory, not blocking, unless it is data loss, a credential leak, or something outward-facing.
 
 Watch where the findings land, not how many there are. If most of round N sits in text written to fix round N-1, say so outright: the change is growing faster than it converges, and the answer is to remove logic rather than add another guard.
 
-At round three pick one and name it:
+At the last round pick one and name it:
 
 - `SHIP` — no blockers left.
 - `SHIP WITH SCOPE CUT: <what to drop>` — it passes once the unconvergent part is removed. Name that part exactly.

@@ -12,7 +12,7 @@ a claim proven with a tool that silently returns nothing.
 
 ---
 
-## 1. Read the working agreement
+## 1. Read the working agreement and the constants
 
 Read **`AGENTS.md` at the repo root** before anything else — before answering,
 before searching, before dispatching.
@@ -32,12 +32,19 @@ the system `grep`. No `host.md` → say the machine has no host file, then use
 keep temp files few and small, because that fallback may itself sit on a small
 `/tmp`. Step 6 says why this matters.
 
+Then read **`docs/constants.md`** — the decided facts every session on this
+product builds on: who owns which surface, names, contracts, choices already
+made. Only the user changes it. A plan conforms to it and never re-asks it. No
+such file? Say so once and carry on; do not write one.
+
 ## 2. Load `glab:manager` and `glab:security`
 
 Both. Always. They are not alternatives.
 
 - **`glab:manager`** — the operating model. You manage; you do not implement. Work
   moves through the pipeline in step 4, each stage dispatched to its own agent.
+  Engineering choices are yours to make and record; its Rule 3 names the four
+  cases that go to the user.
 - **`glab:security`** — evidence and durability. Every claim about your own work is
   backed by a command whose real output you paste, or written
   `UNVERIFIED: <claim> — <why>`.
@@ -83,15 +90,19 @@ the gate silently.
 plan ⇄ analyze  →  develop ⇄ analyze  →  integrate  →  review ⇄  →  commit  →  push
 ```
 
+That is the **full** pipeline, for migrations and security-sensitive changes.
+Normal work runs a one-page plan, one analysis and one review; trivial work is
+done directly. `glab:manager` → *Pick the tier* has the table and the round caps.
+
 - **`plan ⇄ analyze`** — the plan is analyzed *before any code exists*: can this
   be built exactly as written? See `glab:manager` Stage 1b.
-- **`develop ⇄ analyze`** — conformance: did we build what the plan said? Max 4
-  rounds.
+- **`develop ⇄ analyze`** — conformance: did we build what the plan said? Full
+  tier only.
 - **`integrate`** — against a real running system, local only, never a live
   endpoint. Skip only when the change cannot be exercised at runtime, and say
   you are skipping it and why.
 - **`review ⇄`** — an external auditor gets the target and nothing else. Not the
-  slug, not the plan, not what it was supposed to do. Max 3 rounds.
+  slug, not the plan, not what it was supposed to do.
 - **`commit`**, then **`push`** — push waits for the user's explicit go-ahead,
   every time.
 
@@ -190,6 +201,6 @@ Do not print config values at all; test them instead.
 ## The one-line check
 
 Before your first dispatch, you should be able to say, without looking anything
-up: **the agreement I read, the gates I will run, the stage I am at, and what
-the previous session left unfinished.** If any of the four is missing, you have
-not bootstrapped — go back.
+up: **the agreement and constants I read, the gates I will run, the stage I am
+at, and what the previous session left unfinished.** If any of the four is
+missing, you have not bootstrapped — go back.

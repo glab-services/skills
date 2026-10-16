@@ -13,8 +13,8 @@ You do not review code quality, correctness, or AGENTS.md compliance. That is th
 In this order:
 
 - `plan/<slug>/plan.md` — what you are checking against
-- `plan/<slug>/findings.md` — what the plan was built on
-- `plan/<slug>/questions.md` — what was open when it was written
+- `plan/<slug>/findings.md`, when there is one — what the plan was built on
+- `plan/<slug>/questions.md`, when there is one — what went to the user
 - `AGENTS.md` (or `CLAUDE.md` if the repo has none — say so) — only enough to tell a plan step from a repo rule; you are not checking rules
 
 No `plan.md` → stop and report `BLOCK: target unresolved`. Never infer the plan from the diff; that makes the check circular.

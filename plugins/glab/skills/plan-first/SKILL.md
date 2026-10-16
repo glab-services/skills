@@ -1,6 +1,6 @@
 ---
 name: plan-first
-description: Mandatory analyze-then-plan-then-implement workflow. Use for every non-trivial task — feature, bug fix, refactor, flow change, or integration — before touching code. Writes findings, questions, and a plan to plan/{slug}/ and only then implements, builds, and tests. Triggers whenever the user asks to build, fix, refactor, integrate, or investigate something in the codebase. Skip only for trivial one-line changes.
+description: Mandatory analyze-then-plan-then-implement workflow. Use for every non-trivial task — feature, bug fix, refactor, flow change, or integration — before touching code. Writes findings, decisions, and a plan to plan/{slug}/ and only then implements, builds, and tests. Triggers whenever the user asks to build, fix, refactor, integrate, or investigate something in the codebase. Skip only for trivial one-line changes.
 ---
 
 # Plan First
@@ -8,7 +8,7 @@ description: Mandatory analyze-then-plan-then-implement workflow. Use for every 
 Analyze, plan, then execute. No implementation without a plan.
 
 ```
-size → analyze → questions → plan → verify → implement → E2E tests → unit tests
+size → analyze → decide → plan → verify → implement → E2E tests → unit tests
 ```
 
 ## Step 0 — Size the Task
@@ -16,7 +16,7 @@ size → analyze → questions → plan → verify → implement → E2E tests �
 - **Trivial** (skip this workflow): single-line changes, typo fixes, config one-liners, obvious renames, adding a known import — anything under ~5 lines with no architectural impact. Do it directly.
 - **Non-trivial** (follow the workflow): anything that touches logic, spans multiple files, changes behavior, introduces new concepts, or requires understanding existing code first.
 
-When in doubt, treat it as non-trivial.
+When in doubt, treat it as non-trivial. Non-trivial work is **normal** or **full** tier — `glab:manager` → *Pick the tier* says which. Normal tier writes one page: `plan.md` alone, with findings and decisions as sections of it. Full tier writes the separate files below.
 
 ## Step 1 — Analyze
 
@@ -48,41 +48,38 @@ Do not assume how a method behaves from its name or signature alone.
 - who opens, who reads/writes, who closes/finalizes;
 - whether the proposed direction risks double-read, double-close, FD leak, or hidden buffering.
 
-## Step 2 — Questions
+## Step 2 — Decide
 
-Write unresolved gaps to `plan/{slug}/questions.md` and stop until they are resolved.
+Sort every gap Step 1 left open. Each is one of three things:
 
-Questions are **mandatory** when any of these remain unclear:
+- **A fact** — an existing method's runtime semantics; whether an intended call can express the required behavior correctly; rollback, delete, or cleanup semantics; versioning, object-lock, or state-transition behavior; ownership/lifecycle on streamed, file, or network paths. Prove it from the code: read the callers, run it. A behavior-critical point you cannot prove stays **Inferred**, and the step that proves it goes before the step that depends on it. Do not assume, and do not ask the user what the code can answer.
+- **A choice** — decide it, and write one line under `## Decisions` in `plan.md`: the choice and why. `glab:manager` Rule 3 is the rule.
+- **The user's** — destructive, costs money, exposes real data, or changes what the product is. Write it to `plan/{slug}/questions.md` with its context and your recommended answer, and stop until it is answered. At most one per plan is the target.
 
-- an existing method's runtime semantics;
-- whether an intended call can express the required behavior correctly;
-- rollback, delete, or cleanup semantics;
-- versioning, object-lock, or state-transition behavior;
-- ownership/lifecycle on streamed, file, or network paths.
-
-If a behavior-critical point is not proven from the code, ask. Do not assume.
-
-**If you cannot find it, ask.** When you search for a method, function, binary, or code path and cannot locate it — stop and ask. Do not conclude it does not exist, guess its location, or silently skip it.
+**If you cannot find it, say so.** When you search for a method, function, binary, or code path and cannot locate it, do not conclude it does not exist, guess its location, or silently skip it. Show the search that would have found it; if the plan depends on it, report that as a blocker.
 
 ## Step 3 — Write the Plan
 
 Write to `plan/{slug}/plan.md`. Must include:
 
+- the tier and its one-line reason, as the first line;
+- `## Decisions` — every choice made in Step 2, one line each;
+- the milestone: what runs end to end when this plan is done, and the test that proves it. A feature plan that leaves nothing new running is a slice — fold it into the plan that finishes the milestone. A refactor, config or test-only plan has no new behaviour to run: its milestone is the existing test that proves nothing broke;
 - ordered steps with exact files and expected changes;
 - verification criteria per step;
 - test names to be added or updated;
 - the chosen implementation boundary;
 - why the other candidate boundaries were rejected.
 
-Do not prescribe a concrete implementation shape until the boundary is proven by findings and resolved questions. The plan must be complete enough that another agent could execute it without follow-ups.
+Do not prescribe a concrete implementation shape until the boundary is proven by findings and recorded decisions. The plan must be complete enough that another agent could execute it without follow-ups.
 
 ## Step 4 — Verify the Plan
 
 Before implementing, confirm:
 
-- all questions resolved;
+- every gap is proven, decided, or answered by the user;
 - the plan covers every finding, with no gaps left;
-- the user has approved the plan;
+- at full tier, the user has approved the plan;
 - the call-site review is complete for any changed existing method;
 - the chosen boundary is proven by the semantics of the existing implementation — not by naming or file placement;
 - rollback/delete/state semantics are proven where relevant;
@@ -154,7 +151,7 @@ Commits: `type(scope): subject`, types `feat`, `fix`, `refactor`, `perf`, `test`
 `build`, `ci`, `chore`. Scope short, lowercase, component-oriented. One logical change per
 commit, and separate commits per repository when more than one is involved.
 
-**Plan files are permanent artifacts.** They stay in `plan/` after the task ships. Do not delete them.
+**Plan files are working files.** When the task ships, what stays true goes into the repo's spec as a short entry — what it does, why, what is open — and the plan folder is then removed under the repo's own rule for that. A repo that keeps no specs keeps its plans. Never remove an untracked plan file.
 
 **One slug per task.** Reuse the same folder for findings, questions, and plan.
 
@@ -178,9 +175,9 @@ If the user explicitly waives planning after you flag it ("I already know what I
 | Phase | Output | Location |
 |-------|--------|----------|
 | Analyze | Findings | `plan/{slug}/findings.md` |
-| Questions | Open items | `plan/{slug}/questions.md` |
+| Decide | Decisions; one question at most | `## Decisions` in `plan.md`; `plan/{slug}/questions.md` |
 | Plan | Implementation steps | `plan/{slug}/plan.md` |
-| Verify | Plan review | with the user |
+| Verify | Plan review | with the user, at full tier |
 | Implement | Code changes | the repo |
 | E2E tests | the repo's canonical runner | wherever the suite lives |
 | Unit tests | the repo's test target | the repo |

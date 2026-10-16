@@ -29,7 +29,7 @@ Match the verdict **whole**, never by prefix — `SHIP WITH SCOPE CUT` starts wi
 
 If I ask you to fix anything, return to step 1 and re-run the reviewer on the amended tree. A commit only ever follows a `SHIP` verdict on the exact tree being committed — a fix that was never reviewed is the case this command exists to catch.
 
-**Three rounds, then a decision.** Tell the reviewer which round this is, and scope each round after the first to what changed since the last one. By round three it must answer `SHIP`, `SHIP WITH SCOPE CUT: <what to drop>`, or `DO NOT PUBLISH: <why>` — there is no round four. If the findings in round N are mostly in text written to fix round N-1, stop adding guards and remove logic instead; that is the change failing to converge, not the reviewer being thorough.
+**At most three rounds, then a decision.** Tell the reviewer which round this is and which is the last, and scope each round after the first to what changed since the last one. In the last round it must answer `SHIP`, `SHIP WITH SCOPE CUT: <what to drop>`, or `DO NOT PUBLISH: <why>` — there is no round after it. If the findings in round N are mostly in text written to fix round N-1, stop adding guards and remove logic instead; that is the change failing to converge, not the reviewer being thorough.
 
 ## 3. Commit
 

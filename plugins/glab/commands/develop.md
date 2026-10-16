@@ -1,5 +1,5 @@
 ---
-description: Implement an approved plan through glab:developer agents — glab:plan-first steps 5 to 7 — then hand off to /glab:analyze
+description: Implement a plan (approved, at full tier) through glab:developer agents — glab:plan-first steps 5 to 7 — then hand off to /glab:analyze at full tier or /glab:integrate at normal
 argument-hint: "[plan slug]"
 ---
 
@@ -11,8 +11,8 @@ You are the orchestrator here. **You do not write the implementation yourself** 
 
 - **No plan and no `waived.md`** → stop. That is `/glab:plan`, not this.
 - **`plan/{slug}/waived.md` exists** → that is `glab:plan-first`'s waiver and it is a valid start; say you are working from a waiver, not a plan, and that `/glab:analyze` therefore has nothing to measure against.
-- **`plan/{slug}/questions.md` exists** → read it. These files have no single convention, so do not try to decide mechanically whether every question is answered. If it is not obvious that all of them are, ask me. Do not refuse on stale text and do not assume an answer.
-- **Approval** → nothing records it, so do not pretend to check. Ask me to confirm the plan is approved before any agent writes code, unless I approved it in this conversation.
+- **`plan/{slug}/questions.md` exists** → read it. These files have no single convention, so do not refuse on stale text. A question that is mine — destructive, costs money, exposes real data, changes what the product is — and is not plainly answered: ask me, do not assume. Anything else still open in it is yours to decide and record under `## Decisions` (`glab:manager` Rule 3).
+- **Approval** → full tier only. Nothing records it, so do not pretend to check: ask me to confirm the plan is approved before any agent writes code, unless I approved it in this conversation. A normal-tier plan starts without it.
 - **Green tree** → run the plan's own gate once before touching anything. Dispatching onto a red tree means every agent inherits a failure it did not cause and cannot tell apart from its own.
 
 ## Decide the split
@@ -58,10 +58,10 @@ If the repo separates a changed-code gate from a whole-tree sweep, the gate is w
 
 Then read the diff against the plan yourself. An agent that reports `BUILT` can still have built the wrong thing, and you are the one who saw my answers.
 
-If an agent returns `PLAN WRONG`, stop and bring it to me. Amending the plan is my call, and an amended plan means implementing again and re-running `/glab:analyze`.
+If an agent returns `PLAN WRONG`, stop the build. Amending the plan is a `glab:manager` Rule 3 decision — yours when it is an engineering choice, mine when it meets an ask-condition — made through the planning agent, recorded under `## Decisions`, never made by the developer. An amended plan means implementing again and re-running `/glab:analyze`.
 
-If an agent returns `BLOCKED`, decide whether it is unblockable — a missing decision comes to me, a dependency on another slice means you sequenced it wrong and should re-dispatch rather than patch it yourself.
+If an agent returns `BLOCKED`, decide whether it is unblockable — a missing decision is yours under `glab:manager` Rule 3 unless it is one of the four that are mine, a dependency on another slice means you sequenced it wrong and should re-dispatch rather than patch it yourself.
 
 **Build the plan, not your own better idea.** That applies to you as much as to the agents. If you find yourself fixing an agent's work beyond a mechanical consequence, you have taken over the implementation, and the split stopped meaning anything.
 
-When all three gates are green, hand off to `/glab:analyze`. Do not run `/glab:review` yourself. Do not commit. Do not push.
+When all three gates are green, hand off to the plan's next stage — `/glab:analyze` at full tier, `/glab:integrate` at normal. Do not run `/glab:review` yourself. Do not commit. Do not push.

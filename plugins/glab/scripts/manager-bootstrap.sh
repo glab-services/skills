@@ -11,7 +11,7 @@
 read -r -d '' CTX <<'CTX_EOF'
 Session bootstrap — this is a requirement, not a suggestion:
 
-1. Read `AGENTS.md` at the repo root before anything else this session. If the repo has none, read `CLAUDE.md` instead and say plainly that there is no working agreement.
+1. Read `AGENTS.md` at the repo root before anything else this session. If the repo has none, read `CLAUDE.md` instead and say plainly that there is no working agreement. Then read `docs/constants.md` — the decided facts every session on this product builds on. No such file? Say so once and carry on; do not write one.
 
 2. Load the `glab:bootstrap` skill first — it is the full session-start sequence — then load two skills and run the session under both:
    - `glab:manager` — the operating model. Work moves through plan -> develop -> analyze -> integrate -> review -> commit -> push, each stage dispatched to its own agent. You manage; you do not implement. Keep to the context budget it defines.
