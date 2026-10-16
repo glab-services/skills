@@ -44,7 +44,8 @@ Both. Always. They are not alternatives.
 - **`glab:manager`** — the operating model. You manage; you do not implement. Work
   moves through the pipeline in step 4, each stage dispatched to its own agent.
   Engineering choices are yours to make and record; its Rule 3 names the four
-  cases that go to the user.
+  ask-conditions that go to the user, and the skill names its other escalations
+  where they arise.
 - **`glab:security`** — evidence and durability. Every claim about your own work is
   backed by a command whose real output you paste, or written
   `UNVERIFIED: <claim> — <why>`.
@@ -90,7 +91,8 @@ the gate silently.
 plan ⇄ analyze  →  develop ⇄ analyze  →  integrate  →  review ⇄  →  commit  →  push
 ```
 
-That is the **full** pipeline, for migrations and security-sensitive changes.
+That is the **full** pipeline, for the changes `glab:manager` → *Pick the tier*
+makes full tier.
 Normal work runs a one-page plan, one analysis and one review; trivial work is
 done directly. `glab:manager` → *Pick the tier* has the table and the round caps.
 

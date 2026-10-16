@@ -9,4 +9,4 @@ Then use the **glab:reviewer** agent. Target: $ARGUMENTS — if that is empty, t
 
 Show its report verbatim: every finding and the verdict line. Do not summarise it, do not soften it, do not add praise, do not re-rank its severities.
 
-Then stop. Do not fix anything, do not stage anything, do not commit. Run on its own, wait for me to say what to do with the findings; inside the `glab:manager` pipeline they go back to `/glab:develop` (Stage 5).
+Then stop. Do not fix anything, do not stage anything, do not commit. Run on its own, wait for me to say what to do with the findings; inside the `glab:manager` pipeline, Stage 5 sends them back to `/glab:develop`.

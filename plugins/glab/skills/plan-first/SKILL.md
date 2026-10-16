@@ -53,7 +53,7 @@ Do not assume how a method behaves from its name or signature alone.
 Sort every gap Step 1 left open. Each is one of three things:
 
 - **A fact** — an existing method's runtime semantics; whether an intended call can express the required behavior correctly; rollback, delete, or cleanup semantics; versioning, object-lock, or state-transition behavior; ownership/lifecycle on streamed, file, or network paths. Prove it from the code: read the callers, run it. A behavior-critical point you cannot prove stays **Inferred**, and the step that proves it goes before the step that depends on it. Do not assume, and do not ask the user what the code can answer.
-- **A choice** — decide it, and write one line under `## Decisions` in `plan.md`: the choice and why. `glab:manager` Rule 3 is the rule.
+- **A choice** — decide it, and write one line under `## Decisions` in `plan.md`: the choice and why. The manager reviews those lines and may overrule one, recording the overrule as a new line. `glab:manager` Rule 3 is the rule.
 - **The user's** — destructive, costs money, exposes real data, or changes what the product is. Write it to `plan/{slug}/questions.md` with its context and your recommended answer, and stop until it is answered. At most one per plan is the target.
 
 **If you cannot find it, say so.** When you search for a method, function, binary, or code path and cannot locate it, do not conclude it does not exist, guess its location, or silently skip it. Show the search that would have found it; if the plan depends on it, report that as a blocker.
@@ -151,7 +151,7 @@ Commits: `type(scope): subject`, types `feat`, `fix`, `refactor`, `perf`, `test`
 `build`, `ci`, `chore`. Scope short, lowercase, component-oriented. One logical change per
 commit, and separate commits per repository when more than one is involved.
 
-**Plan files are working files.** When the task ships, what stays true goes into the repo's spec as a short entry — what it does, why, what is open — and the plan folder is then removed under the repo's own rule for that. A repo that keeps no specs keeps its plans. Never remove an untracked plan file.
+**Plan files are working files.** When the task ships, what stays true goes into the repo's spec as a short entry — what it does, why, what is open — and the plan folder is then removed under the repo's own rule for that. A repo that keeps no specs, or keeps specs but has no rule for removing plan folders, keeps its plans. Never remove an untracked plan file.
 
 **One slug per task.** Reuse the same folder for findings, questions, and plan.
 

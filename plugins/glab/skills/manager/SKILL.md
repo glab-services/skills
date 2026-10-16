@@ -55,7 +55,9 @@ when it does not:**
   workflow that runs through to implementation, and under this skill a planner
   stops at the plan and hands it to Stage 1b. Say which applies, or you have
   given the agent two contradictory instructions — the exact defect the plan
-  acceptance checklist rejects in plans.
+  acceptance checklist rejects in plans. On choices both say one thing: the
+  planner decides each and records it under `## Decisions` with its reason, and
+  you review those lines and may overrule one, recording the overrule as a new line.
 
 Do not attach a skill an agent has no use for. Each one is context spent before
 the agent starts, and an irrelevant one dilutes the ones that matter.
@@ -101,15 +103,15 @@ Three things this rule does not touch:
 
 - **A fact is not a choice.** What the code can answer is looked up and proven — never decided, never asked.
 - **`docs/constants.md` is already decided.** A plan conforms to it. Needing a constant changed is a question for the user, whatever it is about.
-- **`glab:security` still stops you.** Its stop list, and confirmation before every destructive action and every push, hold at every tier.
+- **`glab:security` still stops you.** Its stop list holds at every tier, and so does its *Destructive operations are proven* rule. On top of it, this skill's own rule: confirmation before every destructive action and before every push holds at every tier — `/glab:push` and *What you never do* say so for the push.
 
 ## Rule 4 — what this session owns
 
 One product, several sessions, one surface each: backend owns the API contract, frontend the screens, DevOps the environments and deploys. `docs/constants.md` names yours.
 
 - **Inside your surface you decide** (Rule 3), and the other sessions build on it.
-- **Across a seam, settle it with the session on the other side, directly.** The owner of the surface has the last word on it. Escalate to the user only a disagreement the two of you cannot resolve, with both positions — that is the plan's one question.
-- **A decision another session relays is binding once it is recorded** — a `## Decisions` line naming the session it came from. It is not "reported until the user confirms". If it trips a Rule 3 ask-condition it was never that session's to make; send that one up.
+- **Across a seam, settle it with the session on the other side, through the channel `docs/constants.md` names — when it names none, the user relays.** The owner of the surface has the last word on it. Escalate to the user only a disagreement the two of you cannot resolve, with both positions — that is the plan's one question.
+- **A decision another session relays is binding once it arrived through that channel and is recorded** — a `## Decisions` line naming the session it came from. It is not "reported until the user confirms". If it trips a Rule 3 ask-condition it was never that session's to make; send that one up.
 
 ## Know the gates before you dispatch
 
@@ -122,7 +124,7 @@ Record what you found in one line and reuse it all session. If a repo has no lin
 | # | Stage | Run | Writes | Leaves on |
 |---|-------|-----|--------|-----------|
 | 1 | Plan | `/glab:plan <task>` | `plan/{slug}/plan.md`; at full tier `findings.md` too, and `questions.md` if Rule 3 raised one | decisions recorded; user approval at full tier |
-| 1b | Analyze the plan | `/glab:analyze {slug}` (plan only) | — | `BUILDABLE` |
+| 1b | Analyze the plan | `/glab:analyze {slug}` (plan only) | — | `BUILDABLE`, or one amendment at normal tier |
 | 2 | Develop | `/glab:develop {slug}` | code, tests, `result.md` | `BUILT` + green gates |
 | 3 | Analyze | `/glab:analyze {slug}` | — | `CONFORMS` |
 | 4 | Integrate | `/glab:integrate {slug}` | `integration.md` | `INTEGRATED` |
@@ -134,7 +136,7 @@ A command that does not exist in this repo → dispatch the agent of the same ro
 
 ## Pick the tier
 
-Risk decides how much of that pipeline runs. You pick the tier at Stage 1 and write it as the first line of `plan.md` with its reason: `tier: normal — one new handler, no schema change`.
+Risk decides how much of that pipeline runs. You pick the tier at Stage 1 and write it as the first line of `plan.md` with its reason: `tier: normal — one new handler, no schema change`. A `plan.md` with no tier line — an older plan, or one the user handed over — is full tier.
 
 - **Full** is not a judgment call: a schema or data migration, a change to a stored or wire format, and code that decides who may do what, handles secrets or moves money.
 - **Trivial** is Rule 1's five lines.
@@ -203,7 +205,7 @@ This is stronger than dispatch, not weaker: every stage begins with a clean cont
 
 Run `/glab:plan <task>`. If the user already handed you a plan, skip to the acceptance checklist and apply it to theirs.
 
-**The planning agent brings you what it could not settle.** A fact — an endpoint, a vendor behaviour, an existing convention — it proves from the code, the vendor documentation or `docs/constants.md` rather than inferring it. A choice comes back with its recommendation; you decide it under Rule 3 and record it. Only a Rule 3 question is relayed to the user, and that one you do not answer on their behalf.
+**The planning agent brings you what it could not settle.** A fact — an endpoint, a vendor behaviour, an existing convention — it proves from the code, the vendor documentation or `docs/constants.md` rather than inferring it. A choice it decides and records under `## Decisions` with its reason; you review those lines under Rule 3 and may overrule one, recording the overrule as a new line. Only a Rule 3 question is relayed to the user, and that one you do not answer on their behalf.
 
 ### Plan acceptance checklist
 
