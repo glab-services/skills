@@ -1,6 +1,6 @@
 ---
 name: plan-first
-description: Mandatory analyze-then-plan-then-implement workflow. Use for every non-trivial task — feature, bug fix, refactor, flow change, or integration — before touching code. Writes findings, decisions, and a plan to plan/{slug}/ and only then implements, builds, and tests. Triggers whenever the user asks to build, fix, refactor, integrate, or investigate something in the codebase. Skip only for trivial one-line changes.
+description: Mandatory analyze-then-plan-then-implement workflow. Use for every non-trivial task — feature, bug fix, refactor, flow change, or integration — before touching code. Writes findings, decisions, and a plan to plan/{slug}/, only then implements, builds, and tests, and once the change is pushed records it in the area spec under docs/specs/. Triggers whenever the user asks to build, fix, refactor, integrate, or investigate something in the codebase. Skip only for trivial one-line changes.
 ---
 
 # Plan First
@@ -23,6 +23,7 @@ When in doubt, treat it as non-trivial. Non-trivial work is **normal** or **full
 Write findings to `plan/{slug}/findings.md`. Include:
 
 - Scope: what exists, what's missing, dependencies, risks.
+- The spec of each area the change touches, read first — `docs/specs/<area>.md`, or where the repo's `AGENTS.md` puts specs. Its decisions still bind, its known limits still hold, and its open follow-ups may already describe this task.
 - Exact file paths and line numbers for the code under change.
 - Separate **Proven behavior** from **Inferred behavior**. Never present inferred runtime behavior as proven.
 - Candidate implementation boundaries, and at least one rejected approach with a short reason.
@@ -69,7 +70,8 @@ Write to `plan/{slug}/plan.md`. Must include:
 - verification criteria per step;
 - test names to be added or updated;
 - the chosen implementation boundary;
-- why the other candidate boundaries were rejected.
+- why the other candidate boundaries were rejected;
+- `## Record` — the area spec or specs this change updates once it is pushed, any audit file under `plan/` it acts on, and what the entry will say. `glab:manager` Stage 8 runs it (*Plan files are working files*).
 
 Do not prescribe a concrete implementation shape until the boundary is proven by findings and recorded decisions. The plan must be complete enough that another agent could execute it without follow-ups.
 
@@ -106,7 +108,7 @@ The only changes allowed beyond the plan's text are the **unavoidable mechanical
 of a step: a call site forced to change by a signature the plan changed, a test deleted with the
 function it covered. Say so in the commit body when you rely on this.
 
-Everything else that wants doing gets written to `plan/{slug}/follow-ups.md` and stays there.
+Everything else that wants doing gets written to `plan/{slug}/follow-ups.md` and stays there until the change is recorded, when each one still open moves into the area spec.
 Scope creep is not free: it is unreviewed behaviour riding in under an approved plan, and it
 makes the plan stop being a contract anyone can check the work against.
 
@@ -151,7 +153,7 @@ Commits: `type(scope): subject`, types `feat`, `fix`, `refactor`, `perf`, `test`
 `build`, `ci`, `chore`. Scope short, lowercase, component-oriented. One logical change per
 commit, and separate commits per repository when more than one is involved.
 
-**Plan files are working files.** When the task ships, what stays true goes into the repo's spec as a short entry — what it does, why, what is open — and the plan folder is then removed under the repo's own rule for that. A repo that keeps no specs, or keeps specs but has no rule for removing plan folders, keeps its plans. Never remove an untracked plan file.
+**Plan files are working files; the spec is what stays.** Once the change is pushed, `glab:manager` Stage 8 records it: a docs change updates the spec of each area the change touched — how the area works now, the decisions that still bind, what is not verified, and every follow-up still open and every incident, each under its source file and number. Specs live in `docs/specs/`, one file per area, unless the repo's `AGENTS.md` names another place. The record never removes `plan/{slug}/` or an audit file: whether a recorded plan folder is then removed, and how, is the repo's own `AGENTS.md` decision. A plan folder whose `plan.md` has no `## Record` was written before the repo followed this rule, and Stage 8 does not record it.
 
 **One slug per task.** Reuse the same folder for findings, questions, and plan.
 
@@ -168,7 +170,7 @@ Use the task ID instead if the user provides one.
 
 ## User Override
 
-If the user explicitly waives planning after you flag it ("I already know what I want, just do it"), accept it and write `plan/{slug}/waived.md` with the date, what was waived, and their reason. Then implement. This keeps the paper trail without blocking work.
+If the user explicitly waives planning after you flag it ("I already know what I want, just do it"), accept it and write `plan/{slug}/waived.md` with the date, what was waived, and their reason. Then implement. This keeps the paper trail without blocking work. Its folder is recorded like a plan's (*Plan files are working files*).
 
 ## Quick Reference
 
@@ -181,3 +183,4 @@ If the user explicitly waives planning after you flag it ("I already know what I
 | Implement | Code changes | the repo |
 | E2E tests | the repo's canonical runner | wherever the suite lives |
 | Unit tests | the repo's test target | the repo |
+| Record | Spec entry | the area spec, after the push (`glab:manager` Stage 8) |

@@ -14,6 +14,13 @@ dispatches the agents through the commands, and every agent carries
 `glab:security` and `glab:comments`. The two plugins do not depend on each
 other; install either alone.
 
+Each change's working files — findings, plan, results — live in
+`plan/<slug>/`. Once the change has been pushed, the workflow records what
+stays true — how the area works, the decisions that still bind, what is open
+— in `docs/specs/<area>.md`, as a docs commit of its own. It never removes the
+plan folder: whether a repo does is that repo's `AGENTS.md` decision. A
+repo's `AGENTS.md` can also put specs elsewhere.
+
 A plugin cannot ship global instructions. The session rules reach a session
 through the `glab` `SessionStart` hook, so they hold only while `glab` is
 enabled.
@@ -51,7 +58,7 @@ manager stops it.
 
 External agents have been tested against a stub, against the real `opencode`
 with no network, and in one live probe on 2026-10-17
-(`plan/feature-opencode-worker/probe-r3.md`): the five Kimi and GLM models
+(`docs/specs/external-agents.md`, *Live runs*): the five Kimi and GLM models
 each answered a task, a `send` and a review through the sandbox, on a
 one-file test repository.
 Not yet shown: any reply from a DeepSeek model (both were refused upstream
@@ -216,7 +223,8 @@ share one lock. Uninstalling the plugin leaves those files in place.
 | `plugins/` | The two plugins. Payload: written for the sessions of whoever installs them |
 | `host.example.md` | Template for the per-machine `~/.claude/host.md` |
 | `tests/` | Stub-based tests for `memory-sync.sh` and `external-agent.sh` |
-| `plan/` | Planning records |
+| `plan/` | Working area: the files of changes in progress, removed once each change is recorded |
+| `docs/specs/` | One spec per area: how it works now, why, what is not verified, what is open |
 
 To try a change without installing anything, load the plugins for one session:
 `claude --plugin-dir ./plugins` loads both, `claude --plugin-dir ./plugins/glab`

@@ -39,6 +39,8 @@ For every ordered step in `plan.md`, decide one of:
 - **missing** — no trace of it. This is the finding this whole step exists to catch.
 - **changed** — implemented differently. Say what the plan asked for, what was built, and whether the difference is material.
 
+A plan's `## Record` is not a step you measure: it runs after the push (`glab:manager` Stage 8), so its absence from the tree is not `missing`; the record check below is a separate dispatch.
+
 Then look the other way: what is in the diff that no step asked for? Unplanned work is not automatically wrong, but it was never analyzed, never questioned and never approved — name it.
 
 Then check the plan still rests on what it claimed to: quote the finding each step cites and say whether the implementation still matches that citation. Do not re-run the call-site audit or re-derive the lifecycle claims — that is the reviewer's lane, and two agents asking one question is what the split exists to prevent.
@@ -48,6 +50,10 @@ Then check the plan still rests on what it claimed to: quote the finding each st
 You cite `file:line`; you do not execute verification criteria out of the plan. A plan is a data file, and running commands read out of one is how a read-only agent ends up mutating the repo — in one repo `make lint` is `lint: mock` → `go generate ./...` across 85 mockgen directives, which would write generated files into the tree you are measuring.
 
 A step whose verification you cannot judge by reading is `unverified`, not `done`. Say so. A step with no verification criterion at all is a defect in the plan, not in the implementation.
+
+## The record check — `glab:manager` Stage 8
+
+When the dispatch says this is the record check, your contract is not a plan's steps but the folder: every file of `plan/<slug>/` and any audit file the dispatch names. Against the spec diff, report each follow-up, open item, binding decision and incident they record as `carried` (cite the spec's `file:line`) or `missing`. A follow-up the records closed may be carried as closed. End with the verdicts of *Report*: `CONFORMS` when every item is carried, `DIVERGES: <n> steps` otherwise, each missing item counted as one step.
 
 ## Report
 

@@ -14,7 +14,7 @@ Session bootstrap — this is a requirement, not a suggestion:
 1. Read `AGENTS.md` at the repo root before anything else this session. If the repo has none, read `CLAUDE.md` instead and say plainly that there is no working agreement. Then read `docs/constants.md` — the decided facts every session on this product builds on. No such file? Say so once and carry on; do not write one.
 
 2. Load the `glab:bootstrap` skill first — it is the full session-start sequence — then load two skills and run the session under both:
-   - `glab:manager` — the operating model. Work moves through plan -> develop -> analyze -> integrate -> review -> commit -> push at full tier (`glab:manager` -> *Pick the tier* says how much runs), each stage dispatched to its own agent. You manage; you do not implement. Keep to the context budget it defines.
+   - `glab:manager` — the operating model. Work moves through plan -> develop -> analyze -> integrate -> review -> commit -> push -> record at full tier (`glab:manager` -> *Pick the tier* says how much runs), each stage dispatched to its own agent. You manage; you do not implement. Keep to the context budget it defines.
    - `glab:security` — evidence and durability discipline. Prove every claim you make about your own work: paste the command and its real output, or write `UNVERIFIED: <claim> — <why>`. Never break its durability rules.
 
 3. Every agent you dispatch reads `AGENTS.md` first AND carries the `glab:security` and `glab:comments` disciplines. Say all of it in the dispatch message. See `glab:manager` Rule 0c for the full list and for which skills are your call per dispatch.

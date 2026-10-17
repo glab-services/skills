@@ -25,9 +25,9 @@ task directly.
 
 ## Notes
 
-- Source: the user's notes on prompting this family,
-  `plan/feature-opencode-worker/notes/glm.md`, and the comparison table
-  `plan/feature-opencode-worker/notes/diff.md`. Another model wrote them, as
+- Source: the user's notes on prompting this family and their comparison
+  table, kept in the history of the glab-services/skills repository
+  (`docs/specs/external-agents.md`, *Profiles*). Another model wrote them, as
   fill-in prompt templates in a documentation style: secondary advice, not
   observed here. Only what fits an OpenCode agent that reads a repository and
   fills a fixed report inside the script's template was taken: plan, analyse,
@@ -43,6 +43,6 @@ task directly.
   unverified, and some are wrong: a persona does not select a model's experts.
 - UNVERIFIED: that this text makes a real reply better. Replies from this
   family were captured in the live probe of 2026-10-17, for `glm-5.3`,
-  `glm-5.3-flash` and `glm-5.2` (`plan/feature-opencode-worker/probe-r3/`),
-  but only with this profile, so nothing compares them with a reply without
-  it. Tune this profile from those transcripts, and cite them here.
+  `glm-5.3-flash` and `glm-5.2` (`docs/specs/external-agents.md`, *Live
+  runs*), but only with this profile, so nothing compares them with a reply
+  without it. Tune this profile from those transcripts, and cite them here.

@@ -15,4 +15,4 @@ Three gates it defines that this command exists to hold you to:
 
 The one exception is `glab:plan-first`'s own waiver: if I explicitly waive planning after you have flagged it, write `plan/{slug}/waived.md` as that skill prescribes and tell me `/glab:develop` can proceed from the waiver instead of a plan. Do not invoke this on my behalf.
 
-Report the slug, the tier, the decisions made, any question for me, and where the plan is. Implement nothing.
+Report the slug, the tier, the decisions made, any question for me, the area spec its `## Record` names (`glab:manager` Stage 8), and where the plan is. Implement nothing.

@@ -26,14 +26,14 @@ task directly.
 
 ## Notes
 
-- Source: the user's notes on prompting this family,
-  `plan/feature-opencode-worker/notes/deepseek-flash.md`, and the comparison
-  table `plan/feature-opencode-worker/notes/diff.md`. Another model wrote
-  them, as fill-in prompt templates in a documentation style: secondary
-  advice, not observed here. Only what fits an OpenCode agent that reads a
-  repository and fills a fixed report inside the script's template was taken:
-  the task as one verb-led instruction, every explicit "do not" obeyed, and no
-  filler, and the silent self-check that all four profiles share.
+- Source: the user's notes on prompting this family and their comparison
+  table, kept in the history of the glab-services/skills repository
+  (`docs/specs/external-agents.md`, *Profiles*). Another model wrote them, as
+  fill-in prompt templates in a documentation style: secondary advice, not
+  observed here. Only what fits an OpenCode agent that reads a repository and
+  fills a fixed report inside the script's template was taken: the task as one
+  verb-led instruction, every explicit "do not" obeyed, and no filler, and the
+  silent self-check that all four profiles share.
 - Left out: the notes' own answer shapes (traces, final-answer, summary and
   blind-spot sections), a visible `<thinking>` block in the answer (the
   backend captures reasoning separately), the "INSUFFICIENT DATA" string (the
@@ -43,6 +43,6 @@ task directly.
   unverified, and some are wrong: a persona does not select a model's experts.
 - UNVERIFIED: that this text makes a real reply better. No reply from this
   family has been captured: in the live probe of 2026-10-17
-  (`plan/feature-opencode-worker/probe-r3/`), `deepseek-v4.1-flash` was refused
-  upstream before its first turn. Tune this profile from the first transcript
-  a run captures, and cite that transcript here.
+  (`docs/specs/external-agents.md`, *Live runs*), `deepseek-v4.1-flash` was
+  refused upstream before its first turn. Tune this profile from the first
+  transcript a run captures, and cite that transcript here.

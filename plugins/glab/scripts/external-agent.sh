@@ -32,7 +32,8 @@
 # by the user until stop), and run/ for the turn in progress, the turn's own
 # $HOME included. stop moves it aside as .stopping.<id> and removes that.
 #
-# Isolation, and why each part is there (plan/feature-opencode-worker/findings-r3.md):
+# Isolation, and why each part is there (docs/specs/external-agents.md in the
+# glab-services/skills repository, *Isolation* and *Measurements*):
 # - The agent never sees the real repository. It gets a copy of the working
 #   tree's tracked and untracked-but-not-ignored files, an index equal to the
 #   real one, and the tree of the real HEAD as one parentless commit: no other
@@ -52,7 +53,7 @@
 #   continues), is the same from turn to turn: whatever a turn writes anywhere
 #   else in $HOME is gone by the next. Its OpenCode config directory,
 #   ~/.config/opencode, the only config directory 2.0.31 reads from $HOME, is
-#   an empty read-only mount in every turn (findings-r3).
+#   an empty read-only mount in every turn (spec, *Measurements*).
 # - Its network is its own namespace, wired to the internet by slirp4netns
 #   with host loopback disabled, and with blackhole routes for every private,
 #   link-local and reserved range and for each of the host's own addresses: no
@@ -93,7 +94,7 @@ readonly TMP_BYTES=268435456
 # any sandboxed process may write, the session database included.
 readonly FILE_BLOCKS=65536
 # 4 GiB of data segment per process, in KiB. opencode 2.0.31 ran a turn at
-# 1 GiB and aborted at 256 MiB (findings-r3), so this binds without starving it.
+# 1 GiB and aborted at 256 MiB (spec, *Measurements*), so this binds without starving it.
 readonly DATA_KIB=4194304
 # 256 tasks in the sandbox's user namespace, threads included. opencode 2.0.31
 # ran a turn with eight parallel shell children at 128 and aborted at 64.
@@ -190,7 +191,7 @@ hostgit() {
 # A model outside this list is refused (exit 5); allowing one is the user's
 # call, because it decides where their code is sent. Grok 4.7 is left out on
 # purpose: the page gives it 30 days' retention, and the user refused it on
-# 2026-10-16 (plan/feature-opencode-worker/questions.md, Q1).
+# 2026-10-16 (docs/specs/external-agents.md, *Allowlist*).
 opencode_models() {
   cat <<'EOF'
 opencode-go/kimi-k3 kimi -
@@ -206,7 +207,7 @@ EOF
 # Prints the stored OpenCode Go key, for the caller to hold in a variable.
 # opencode 2.0.31 keeps credentials in its database and prints them with
 # `auth export`; it no longer reads auth.json or OPENCODE_AUTH_CONTENT, which
-# 1.19.3 did (findings-r3). --standalone: a private server that ends with the
+# 1.19.3 did (spec, *Measurements*). --standalone: a private server that ends with the
 # command, instead of starting the user's background service. stdin is
 # /dev/null because `opencode` reads a non-terminal stdin to its end. It runs
 # from a new empty directory of this script's, with the switches every turn
@@ -223,7 +224,7 @@ opencode_secret() { # opencode_secret <cli> <empty directory to run it from>
            | .value.key | select(type == "string")] | first // empty' <<<"$out" 2>/dev/null
 }
 # The variable the CLI reads its key from. It also unlocks OpenCode's paid
-# provider, which the policy in opencode_env forbids (findings-r3).
+# provider, which the policy in opencode_env forbids (spec, *Measurements*).
 opencode_secret_var() { echo OPENCODE_API_KEY; }
 
 # The permission set is the second layer, not the first: the sandbox is what
@@ -232,7 +233,7 @@ opencode_secret_var() { echo OPENCODE_API_KEY; }
 # may be used: only OpenCode Go, so a paid model cannot be reached even by id.
 # Every rule is allow or deny, because a non-interactive run rejects every ask.
 # OPENCODE_DISABLE_PROJECT_CONFIG stops an opencode.json or .opencode/ in the
-# copy from merging keys into this agent (findings P4, re-proven on 2.0.31).
+# copy from merging keys into this agent (spec, *Measurements*, P4, re-proven on 2.0.31).
 opencode_env() {
   printf 'OPENCODE_CONFIG_CONTENT=%s\n' "$(jq -cn '{
     "$schema": "https://opencode.ai/config.json", update: "disable", share: "disabled",
@@ -537,7 +538,7 @@ wire_network() {
   owner=$(lsns -t net -n -o NS,ONS | awk -v n="$(ns_inode net "$child")" '$1 == n {print $2}')
   [ -n "$owner" ] || die 9 'NO ISOLATED NETWORK' "cannot find the owner of the sandbox's network namespace"
   # bwrap 0.11.1 here puts the network namespace in an outer user namespace and
-  # the sandbox in an inner one (findings-r3), so slirp4netns needs a process in
+  # the sandbox in an inner one (spec, *Measurements*), so slirp4netns needs a process in
   # the owner: the sandbox's own user namespace, or its parent. A holder joins
   # the candidate, is checked against the owner, and lives only until wired.
   for mode in -U --user-parent; do
@@ -684,7 +685,7 @@ finish_turn() {
       # The verdict set is the one plugins/glab/agents/reviewer.md states.
       # `BLOCK: 1 issue` is the same verdict as `BLOCK: 1 issues`: both Kimi
       # models wrote the singular in the live probe
-      # (plan/feature-opencode-worker/probe-r3.md, finding 1). For one only:
+      # (docs/specs/external-agents.md, *Live runs*, finding 1). For one only:
       # no template and no reviewer writes `BLOCK: 3 issue`, and accepting it
       # would widen the check past what was seen.
       verdicts=$(command grep -cE '^(SHIP|SHIP WITH SCOPE CUT: .+|BLOCK: 1 issue|BLOCK: [0-9]+ issues|BLOCK: target unresolved|DO NOT PUBLISH: .+)$' <<<"$text")

@@ -23,7 +23,7 @@ No `plan.md` and no `waived.md` → stop and report `BLOCK: no contract`.
 
 ## Step 2 — build the named steps, in order
 
-**The plan is a closed list.** Every hunk you write maps to a named step. If it does not, it does not go in.
+**The plan is a closed list.** Every hunk you write maps to a named step. If it does not, it does not go in. A plan's `## Record` is not one of these steps: it is built only at Stage 8, when the dispatch says this is the record.
 
 This binds hardest on things that look like improvements:
 
@@ -35,7 +35,7 @@ This binds hardest on things that look like improvements:
 
 The only thing allowed beyond the plan's text is the **unavoidable mechanical consequence** of a step you were told to make: a call site forced to change by a signature the plan changed, a test deleted along with the function it covered. Name each one in your report.
 
-Everything else that wants doing goes to `plan/<slug>/follow-ups.md` and stays there.
+Everything else that wants doing goes to `plan/<slug>/follow-ups.md` and stays there until the record moves it into the area spec.
 
 Before changing an existing function, grep its callers and check each one still holds. The plan's call-site audit tells you what was true when it was written, not what is true now.
 
@@ -93,10 +93,14 @@ Your full report goes in this file. Write it before you reply, and overwrite it 
 
 Keep it factual and short enough to read in one pass. A red gate goes in here plainly — a result, not a failure to hide.
 
+## The record — `glab:manager` Stage 8
+
+When the dispatch says this is the record, that is your whole scope. Update the area specs the dispatch names — those the plan's `## Record` names — as `glab:plan-first` *Plan files are working files* says, from the files of `plan/<slug>/` and any audit file the dispatch names: how the area works now, the decisions that still bind, what is not verified, and every follow-up still open, every binding decision and every incident, each with its source file and number. None is dropped. Change nothing inside `plan/<slug>/`, and remove nothing. Step 5 does not apply: write no `result.md`; your report is the reply alone, and `detail:` names the spec files. Step 3's gates run as for any change; where none reaches the spec files, say so in the report.
+
 ## Rules you do not get to weigh
 
 - **Never commit. Never push. Never stage.** Someone else decides what a commit is.
-- **Never edit `plan.md`, `findings.md` or `questions.md`.** A plan that turns out wrong is reported, never rewritten to match what you built. `result.md` and `follow-ups.md` are the two files in that folder you do write.
+- **Never edit `plan.md`, `findings.md` or `questions.md`.** A plan that turns out wrong is reported, never rewritten to match what you built. `result.md` and `follow-ups.md` are the two files in that folder you do write — and during the record, none.
 - **Never start, stop or restart a service.** The user owns service lifecycle. If your work needs a restart before it can be verified, say so and stop.
 - **Never touch a nested repository.** An entry still ending in `/` under `git status --short -uall` is one. Name it and leave it.
 - **Never delete anything the plan did not name**, and when it does name a deletion, check `git status` first — if the file is untracked, its removal is unrecoverable, so stop and ask instead.

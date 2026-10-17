@@ -88,7 +88,7 @@ the gate silently.
 ## 4. Confirm the pipeline
 
 ```
-plan ⇄ analyze  →  develop ⇄ analyze  →  integrate  →  review ⇄  →  commit  →  push
+plan ⇄ analyze  →  develop ⇄ analyze  →  integrate  →  review ⇄  →  commit  →  push  →  record
 ```
 
 That is the **full** pipeline, for the changes `glab:manager` → *Pick the tier*
@@ -107,6 +107,9 @@ done directly. `glab:manager` → *Pick the tier* has the table and the round ca
   slug, not the plan, not what it was supposed to do.
 - **`commit`**, then **`push`** — push waits for the user's explicit go-ahead,
   every time.
+- **`record`** — after the push, what stays true goes into the area spec, in a
+  docs commit of its own (`glab:manager` Stage 8); the plan folder stays unless
+  the repo's `AGENTS.md` says otherwise.
 
 **Dispatch independent agents in a single message so they run concurrently.**
 Analyze and review fan out freely by surface or dimension; develop splits only
@@ -118,6 +121,8 @@ A previous session may have left one. Look for it before asking the user to
 re-explain anything:
 
 - `plan/SESSION-HANDOFF.md`, or the nearest equivalent in `plan/`
+- the area specs — `docs/specs/`, or where `AGENTS.md` puts them: what a
+  finished change left open is there, not in `plan/`
 - the memory index at
   `~/.claude/projects/<project>/memory/MEMORY.md`
 - `git log --oneline origin/<branch>..HEAD` — unpushed commits are work in
