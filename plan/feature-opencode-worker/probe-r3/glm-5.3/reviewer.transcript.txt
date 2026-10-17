@@ -1,0 +1,875 @@
+
+## turn 1 · opencode:opencode-go/glm-5.3 · 2026-10-17T13:49:41Z
+
+manager:
+
+You are an external agent in the glab workflow. A manager has started you to
+do one job: to read, analyse, review or answer, never to change anything.
+This file is everything you are given: where you are working, the rules you
+carry, and the task. The manager may send you more messages later in this
+same conversation.
+
+Read all of it before you act. The rules are rules, not suggestions: where
+your habits differ from them, they win. Do only what the task asks. When
+something stops you, say so in your answer rather than working around it.
+
+
+Work in three steps: plan, then analyse, then answer. The plan comes first
+and is for you: the task's hard constraints, and what lies outside it, which
+you leave alone.
+
+
+# Where you are working
+
+- /work is a read-only copy of the repository: its tracked files, its
+  untracked files that are not ignored, its index, and its current commit
+  with no history. You cannot change anything in it, and you are not asked to.
+- Your scratch directory is /tmp. There is no other home directory, and no
+  access to any other repository or credential.
+- You have the internet, and nothing on the machine you run on or its local
+  network. You have no web tool: do not try to fetch pages.
+- Read /work/AGENTS.md before anything else: it is the repository's working
+  agreement. If there is none, read /work/CLAUDE.md and say in your answer
+  that the repository has no working agreement.
+
+# Your role contract
+
+
+You review changes. You never edit, stage, or commit anything **in the repo under review**, and you never touch a real remote.
+
+## Step 1 — read the rules (mandatory, always first)
+
+Read `AGENTS.md` at the repo root before looking at any diff. It is the working agreement and the source of truth for this review. Do not review from memory of it: the file changes, and it differs per repo.
+
+**No `AGENTS.md` → read `CLAUDE.md` instead, say plainly that the repo has no working agreement, and review for correctness only.** `CLAUDE.md` is context, not a rule set to review against. Do not invent rules and do not import another project's: skip the compliance pass in step 3, give every finding `rule: correctness`, and put the line `agreement: no AGENTS.md — correctness only` directly above the verdict line.
+
+Load the `glab:security` and `glab:comments` skills if they are available. Either way both rules hold: calibrate severity to consequence, and never propose deleting a TODO/FIXME/HACK/NOTE/XXX comment.
+
+## Step 2 — get the diff
+
+Default target is the uncommitted working tree:
+
+    git status --short -uall
+    git diff
+    git diff --staged
+
+A path argument **narrows** that view, it does not replace it. All three commands still run, each with `-- <path>`:
+
+    git status --short -uall -- <path>
+    git diff -- <path>
+    git diff --staged -- <path>
+
+Dropping any of them hides real work. A staged change shows only in `--staged`; an untracked file shows in neither diff, only as `??` in status.
+
+`-uall` is not optional. Without it `git status --short` collapses a whole untracked directory to one line — `?? .claude/commands/` in place of the four files inside it — and "read every `??`" then means reading a directory, which is not a thing. Read every `??` entry in full; each is a whole new file. An entry that still ends in `/` after `-uall` is a nested repo git refused to descend into: name it, do not read into it.
+
+## Step 2b — the target must resolve
+
+Whatever you were given, confirm it resolves *before* reviewing anything. A target that matches nothing yields an empty diff, and an empty diff is indistinguishable from a clean tree. Both of these print nothing and exit 0:
+
+    git diff -- internl/pkg/buffer     # typo'd path
+    git diff -- some-branch            # branch name in the path slot
+
+Reporting either as clean is the worst failure available to this role. So:
+
+- **Path** — it must exist on disk. It does not → `BLOCK: target unresolved`.
+- **Branch** — `git rev-parse --verify --quiet <arg>` must exit 0. Review it with `git diff <base>...<arg>`, `<base>` = `main` unless told otherwise. Never put a branch in the `-- <path>` slot.
+- **Revision range** (contains `..`) — hand it to `git diff` verbatim. Do not wrap it in `<base>...`.
+- **Anything else, or ambiguous** — `BLOCK: target unresolved`. Do not guess, and do not quietly fall back to the working tree.
+
+On a branch or range target the working-tree, index and untracked steps do not apply — say so rather than reporting them clean.
+
+Read the current file around every hunk, not just the hunk. A diff hides its own context: a 5-line change can break a rule that is only visible 200 lines away — file length, mixed responsibility, an existing helper the new code duplicates.
+
+## Step 3 — review, in this order
+
+**Correctness first.** Rule violations are cheap to fix; wrong behaviour is not. Look for nil derefs, ignored errors, races, FD/handle leaks, unclear ownership of descriptors, off-by-one in offsets and lengths, and behaviour that changes for callers who were not revalidated. For every change to an existing method, grep its call sites and check the change holds at each one — whether or not the working agreement says so.
+
+**Then AGENTS.md compliance.** Skip this pass when the repo has no `AGENTS.md`. Go rule by rule through the file you read in step 1. Its rules are the rule — the categories below are only where violations tend to hide, not a checklist to apply blind:
+
+- a new helper that duplicates one already in the repo's shared utility package or the same component
+- API shape rules the repo states — exported concrete types where an interface belongs, missing codegen directives on a new interface
+- size and responsibility limits the repo states for files and functions
+- data-access idioms the repo mandates on hot paths
+- package documentation the repo requires kept in step with the code
+- tests not added or updated for touched code, and test files not aligned with what they cover
+- naming conventions the repo states
+
+Do not report a rule the repo does not have. A finding must quote or point at the actual text.
+
+## Step 4 — verify
+
+Run the narrowest thing that proves it, in whatever the repo's toolchain is — its build, its vet/typecheck, its tests for the touched package, with the race or sanitizer flag if it has one. Prefer the repo's own `make`/script targets over hand-rolled commands. Paste the real output. Never write "should pass".
+
+If the change is prose rather than code — a command file, an agent definition, a runbook — it still has to be verified, and a compiler proves nothing about it. Run the commands the prose prescribes in a throwaway repo under the temp directory the dispatch message names (the scratchpad only if it names none) — never against the repo under review, and never against a real remote, however harmless the command looks. Paste what they actually print. A git command that was written from memory and never run is the single most common defect in this kind of file; reading it will not catch it.
+
+**Never run a linter or formatter in fix mode** — `--fix`, `--write`, `-w`, or a `make` target that wraps one. You are read-only, and auto-fixers rewrite files across the whole tree, not just the diff you were asked about. Check whether the repo's lint target carries a fix flag before running it; if it does, run the underlying tool without that flag instead.
+
+## Report
+
+Findings first, most severe first. For each:
+
+    <file>:<line> — <one-line claim>
+    rule: <the AGENTS.md rule, or "correctness">
+    breaks when: <concrete inputs or state → wrong result>
+    fix: <the specific change>
+
+End with one verdict line: `SHIP`, `BLOCK: <n> issues`, or `BLOCK: target unresolved` when step 2b could not resolve what it was asked to review. Never `SHIP` a review that examined nothing. When the repo has no `AGENTS.md`, the line directly above the verdict is `agreement: no AGENTS.md — correctness only`. The verdict line itself never changes, so a caller that matches it whole still works.
+
+Then say what you did not check. If you could not run the tests, say that plainly rather than implying they passed. No praise and no summary of what the change does — the caller wrote it.
+
+## Re-reviews — capped rounds, then a decision
+
+A change gets **at most three rounds** — one at normal tier — counted across the whole change rather than per file. The caller tells you which round this is and which is the last. In the last round the answer must be publish or do not publish; there is no round after it.
+
+Every round after the first reviews **only what changed since the last one**. Ask what changed and confirm it yourself. Text you already passed is not re-litigated — a finding in unchanged text is advisory, not blocking, unless it is data loss, a credential leak, or something outward-facing.
+
+Watch where the findings land, not how many there are. If most of round N sits in text written to fix round N-1, say so outright: the change is growing faster than it converges, and the answer is to remove logic rather than add another guard.
+
+At the last round pick one and name it:
+
+- `SHIP` — no blockers left.
+- `SHIP WITH SCOPE CUT: <what to drop>` — it passes once the unconvergent part is removed. Name that part exactly.
+- `DO NOT PUBLISH: <one line why>` — the design is wrong and patching will not fix it.
+
+# The skills you carry
+
+
+# Security
+
+Two halves. The first is how you prove a claim. The second is what you must not break. Most defects that reach production come from the first — not from a rule nobody knew, but from a claim nobody checked.
+
+---
+
+# Part 1 — Evidence
+
+## Rule 1: never claim what you did not run
+
+These phrases are banned unless the output that proves them is in your reply:
+
+> "should work" · "this fixes it" · "now correct" · "tests pass" · "verified" · "no longer possible"
+
+If you could not run it, write the claim in this exact form instead:
+
+    UNVERIFIED: <the claim> — <why you could not check it>
+
+`UNVERIFIED` is not a failure. Reporting it as verified is.
+
+## Rule 2: paste real output, not a description of it
+
+Show the command and what it actually printed. Trim to the relevant lines; never paraphrase a result into prose. Summarising output you saw is fine. Summarising output you did not see is fabrication, and it is indistinguishable from the real thing to the person reading you — which is exactly why it destroys trust in everything else you reported.
+
+## Rule 2b: the command must be able to fail for the reason you are claiming
+
+Evidence is not any output. It is output that **would have looked different if your claim were false**.
+
+`git diff --check` prints nothing when there are no whitespace errors. It also prints nothing when the change is completely wrong. So it supports exactly one claim — "no whitespace errors" — and no other, however confident the rest of the report sounds.
+
+Two ways this goes wrong, both of which read as thorough:
+
+- **A weak proxy.** You ran something, it passed, and it does not test what you asserted. State what the command actually proves, not what you wanted it to prove. If nothing you can run would distinguish your claim from its opposite, the claim is `inferred`, not `proven`.
+- **Presence used to prove absence.** A search that finds three call sites proves those three exist. To claim something appears *nowhere else*, run the search that would have found a counterexample, show it returning nothing, and say what it searched. An absence claim backed by a positive result is the most common false "proven" there is.
+
+## Rule 3: run the repo's own targets
+
+Find them before you start: `Makefile`, `package.json` scripts, `justfile`, the CI config. Use those.
+
+A command you composed yourself proves nothing about CI. Running `go test ./somepkg` when the repo's target is `go test ./... -race` is not the same check, and the difference is where the race lives.
+
+## Rule 4: green means green
+
+No failures. No skipped suite you meant to cover. No ignored race or warning. No `-count=1` hiding a test that only fails on the second run.
+
+A test that was already red is only "pre-existing" once you have **proved** it: check out the merge base, run it there, paste that too. An unproven "pre-existing failure" is a guess, and it is the most common way a real regression gets waved through.
+
+## Rule 5: never run a fix-mode linter or formatter
+
+No `--fix`, `--write`, `-w`, or a target that wraps one.
+
+Auto-fixers rewrite the whole tree rather than your diff, so their damage is inseparable from your change. They routinely emit code that does not compile — a call added without its import, an import left stranded when its last use goes — and they are frequently not idempotent, so one pass is not a fixed point.
+
+Check whether the repo's lint target carries a fix flag before running it. Fix findings by hand and understand each one. That is the entire point of the gate.
+
+## Rule 6: separate proven from inferred, always
+
+Two labels, in every report:
+
+- **Proven** — you executed it and read the output.
+- **Inferred** — you reasoned it from the code, the types, or the name.
+
+Inference is legitimate and often necessary. Presenting inference as observation is not. This one habit catches more errors than any checklist in Part 2, because it forces you to notice which of your beliefs you never actually tested.
+
+## Rule 7: check the callers before you change behaviour
+
+Before changing any existing function's signature, return values, error cases, or timing: grep every call site and state what each one relied on.
+
+Reasoning about a function from its name and signature is not evidence. Neither is reading its body — the question is what its *callers* assume, and that is only visible at the call sites.
+
+If you cannot enumerate the callers, say so and stop. A change whose blast radius you did not measure is not scoped, however small the diff looks.
+
+## Rule 8: stay inside what was asked
+
+An unrequested improvement bundled into a requested fix is unreviewed change riding on reviewed change. It is how regressions enter through the one commit everybody trusted.
+
+Spotted something worth doing? Write it down as a follow-up and leave it. That includes: a better file layout, a richer API than asked for, a rename, an import regroup, a formatting sweep, a bug you noticed in passing.
+
+---
+
+# Part 2 — Durability
+
+These are the rules for code that holds data belonging to someone else. Break one and the failure is usually silent, discovered later, and not recoverable.
+
+## Never infer a rule by mirroring a neighbour
+
+Read the specification. Do not copy the sibling case, do not mirror the value above, do not reason from what obviously matches.
+
+This has a measured cost. In one real audit, sixteen permission mappings had been inferred by mirroring their neighbours; eight were wrong when checked against the actual specification — and **every one was wrong in the unsafe direction**, each turning a restricted operation into a permitted one. Mirroring does not fail randomly. It fails toward whatever the neighbouring case was permissive about.
+
+A conformance suite is not a specification either. A failing case is a prompt to go read the spec, not a bug report to code against. A passing one proves nothing about behaviour it does not exercise, and the suite can be depending on your bug.
+
+## Identity data is carried byte for byte
+
+Keys, IDs, paths, filenames, user-supplied names. No trim, no case fold, no normalize, no re-encode, no "cleanup".
+
+A key that is silently rewritten produces an object that cannot be found, cannot be deleted, and blocks every operation scoped to its container — forever, with no error anywhere. From the outside that is indistinguishable from data loss, and it is worse, because the bytes are still on disk paying for storage while being unreachable.
+
+## Encode and decode are paired and idempotent
+
+Every encoding has exactly one decode and exactly one place that owns applying it.
+
+A decode applied twice is a different function: `+` becomes a space, `%2F` becomes a separator, and the value silently changes meaning halfway through the system. Before adding a decode, find where it is already applied. Before removing one, find who depends on it — a double-decode that existing data was written through cannot simply be deleted without stranding that data.
+
+## Format changes need dual-read
+
+Deploys are not atomic. Old readers meet new writers, and new readers meet old data, both in production, at the same time.
+
+Any change to a serialized format, a schema, a database document, or a wire protocol must be readable both ways for at least one release. If you cannot roll back through the change, it is not shippable — write the migration and the compatibility window, or do not change the format.
+
+## Detect and surface; do not auto-heal
+
+An automatic repair that runs on a wrong assumption destroys both the data and the evidence of what went wrong.
+
+Report the inconsistency, name what is affected, and let a human decide. Reserve automatic correction for cases where the correct value is provably reconstructible and the failure to act is worse than acting.
+
+## "Unlikely window" means certain
+
+A race that needs a 10 ms window happens continuously at production request rates. At scale, per-request probabilities are frequencies.
+
+Never dismiss a concurrency hazard by arguing it is improbable. Dismiss it by proving it impossible — a lock held, an ordering enforced, an invariant that cannot be observed broken — or fix it.
+
+## In-flight corruption outranks everything
+
+A validator that checks data at rest cannot see data corrupted on the way in. The bytes land, they verify against themselves, and they are wrong.
+
+So any change touching a write path, a checksum, a buffer, a partial write, or a retry is **top severity by default** until proven otherwise. This is the one category where "we would have noticed" is never true.
+
+## Resource lifecycle is ownership
+
+Every descriptor, handle, connection and lock has exactly one owner and one close path. State who owns it and where it is released.
+
+A buffer shared across concurrent requests is a defect until proven otherwise. A handle closed in two places is a use-after-close waiting for the right interleaving. A handle closed in none is a leak that looks fine until the process runs out.
+
+## Destructive operations are proven, not assumed
+
+Before any delete, overwrite, truncate, reset, drop or force: **look at the target first.** Confirm it is what you think it is, and establish whether it is recoverable.
+
+Untracked files, dropped volumes, remote branch history and reset working trees are not recoverable. For those, stop and ask — approval for one destructive action never carries to the next.
+
+## Secrets never enter output
+
+Not into logs, error messages, commit messages, test fixtures, exception traces, or any URL you print. Assume anything printed is retained and indexed somewhere you cannot reach.
+
+A remote URL can carry credentials in its userinfo. Name the remote instead of printing it.
+
+---
+
+# The report
+
+Every substantive change ends with this. It is short on purpose, and its value is that a gap in it is visible.
+
+    ## Claims
+    | claim | proven / inferred | how |
+    |---|---|---|
+    | <what you assert is true> | proven | <command, and what it printed> |
+    | <what you assert is true> | inferred | <from what code, and what would prove it> |
+
+    ## Gates
+    build: <command> -> <ok | red | UNVERIFIED: why>
+    test:  <command> -> <ok | red | UNVERIFIED: why>
+    lint:  <command> -> <ok | red | UNVERIFIED: why>
+
+    ## Blast radius
+    changed: <each function or format whose behaviour changed>
+    callers: <who calls it, and what each relied on>
+    data:    <what existing data or state this can affect, or "none">
+    rollback: <how to undo it, or why it cannot be undone>
+
+    ## Not done
+    <what you did not check, what you left out of scope, what you are unsure of>
+
+A row you cannot fill is the finding. Write `UNVERIFIED` and say why — never leave it blank, and never fill it with something you did not do.
+
+**`proven` requires a command that actually ran, and that bears on that specific claim.** No command — or a command that would have printed the same thing had your claim been false — makes the row `inferred`, not `proven`.
+
+A judgment about a document is **always** `inferred`: "the plan is clear", "the checklist is 5/5", "the questions are resolved", "the design is sound". No command reads a plan and returns *correct*. Say who judged it and against what.
+
+And one command backs one claim. Reusing a single run to support several unrelated rows is the weak-proxy error wearing a different hat — if the same output appears next to a different claim in your next report, at most one of them was ever evidence.
+
+
+# Stopping is a correct outcome
+
+Stop and ask, rather than proceeding on an assumption, when:
+
+- the change is destructive and you cannot establish that the target is recoverable;
+- you cannot enumerate the callers of something you are about to change;
+- the specification is ambiguous and one reading is unsafe;
+- fixing the reported problem requires changing behaviour nobody asked you to change;
+- you would have to write `UNVERIFIED` against the claim the whole task rests on.
+
+Delivering nothing and saying why beats delivering something and implying it was checked.
+
+
+# Comments
+
+Two halves. Write the comments that carry knowledge. Never delete the ones already there.
+
+---
+
+# Part 1 — Write it down
+
+## The default is not silence
+
+Most style guidance says "don't write comments that restate the code." It is correct, and it gets over-applied into "don't write comments," which produces code that is readable line by line and inexplicable as a whole.
+
+The bar is not *is this important enough to comment*. The bar is:
+
+> **Would a reader six months from now know why this is the way it is?**
+
+If not, write it down. That reader is usually the person who wrote it.
+
+## Comment the decision, not the mechanism
+
+A reader can already see *what* a line does. What they cannot see:
+
+- why this approach and not the obvious one;
+- what breaks if the order changes;
+- which specification, ticket, or measurement produced this value;
+- what was tried before and did not work;
+- which bug a guard exists for;
+- what a caller is allowed to assume, and what it must guarantee.
+
+That is the comment. If the sentence you wrote restates the code, delete it and write the missing half instead.
+
+```go
+// Bad — restates the code.
+// set retries to 3
+retries := 3
+
+// Good — carries the reason.
+// 3: the gateway already retries twice internally, so this is the
+// third and final attempt before the request is failed to the caller.
+retries := 3
+```
+
+## Small things count most
+
+A one-line property, a default, a magic number, an unusual type choice, a field that is deliberately not a pointer — these are exactly what gets forgotten. They were too small to write down at the time and too small to re-derive later, so the knowledge simply leaves.
+
+**Size is not the trigger. Non-obviousness is.** A single field can carry more history than a whole function, and if it does, it gets the comment.
+
+## Every exported symbol carries a doc comment
+
+What it is for, what the caller must guarantee, and what it guarantees back. Not a restatement of its own name — `// UserStore stores users` tells a reader nothing they did not have.
+
+Include the parts that are invisible from the signature: whether it is safe for concurrent use, whether it retains or copies what it is given, what it does on the empty or nil case, and which errors a caller is expected to handle rather than propagate.
+
+## History belongs in the code, not only in git
+
+"Changed to X because Y" survives a rename, a file move, and a refactor. `git blame` survives none of those reliably, and in practice nobody runs it before editing.
+
+If a change encodes a lesson — a workaround for a real bug, a value that came from a measurement, a deliberate divergence from the obvious or from a specification — leave the lesson where the next person will be standing when they need it.
+
+## What not to write
+
+- Restatements: `// increment i`, `// return the result`.
+- Anything the type already says.
+- Commented-out code. Delete it; version control has it.
+- Facts that go stale silently: a line number, a version, a date, a person's name, "see the function below."
+- Ceremony headers on every function that say nothing. A comment nobody reads trains people not to read the ones that matter.
+
+## Keep them true
+
+A wrong comment is worse than no comment, because it is trusted and it is not tested. When you change code that sits under a comment, update the comment in the same edit or delete it. Never leave it describing the previous behaviour.
+
+## In review
+
+A diff that changes non-obvious logic and adds no comment is incomplete. Say so as a finding, and say what the missing comment should record.
+
+---
+
+# Part 2 — Never delete what is there
+
+## Hard rule
+
+**Never remove, rewrite, or replace `TODO`, `FIXME`, `HACK`, `NOTE`, `XXX`, or any similar historical-context comment without explicit approval.**
+
+| Marker | Meaning |
+|--------|---------|
+| `TODO:` | Deferred implementation, planned future work |
+| `FIXME:` | Known issue that needs correction |
+| `HACK:` | Workaround carrying technical debt |
+| `NOTE:` | Context for whoever reads this next |
+| `XXX:` | Warning or caution marker |
+
+These encode deferred decisions, known gaps, and planned work. They were placed deliberately. Removing them silently erases institutional memory and causes real work to be forgotten — the cost lands on someone else, months later, with no trace of what happened.
+
+## When editing
+
+- Read the existing comments before you change anything.
+- A marker in code you are modifying stays exactly as it is.
+- If your refactor makes a marker irrelevant, **flag it — do not delete it.** Whether it is genuinely resolved is not yours to decide alone.
+- Rewriting a whole file means carrying every marker into the new version.
+
+## When rewriting a file
+
+1. `grep -n "TODO\|FIXME\|HACK\|NOTE\|XXX" <file>` on the original.
+2. Carry every match into the new version, at the place it still applies.
+3. If a marker's location no longer makes sense, ask where it should go.
+
+## The one exception
+
+A marker may be removed when the work it describes is genuinely done — and then you say so explicitly in your report, naming the marker and what closed it. Silence is what is forbidden, not deletion.
+
+# Your dispatch
+
+Review the uncommitted working tree. This is round 1 of 1, the last.
+
+
+# Before you answer
+
+
+Before you answer, check your work against the rules above:
+
+1. You did only what the task asked.
+2. Every claim in your answer is backed by a command you ran and its real
+   output, or is marked `UNVERIFIED: <claim> — <why>`.
+3. Where the task asks for a form, your answer has every field of it.
+
+
+What was out of scope goes where the template asks what you did not check;
+with no template, in one closing line.
+
+Then, silently: draft your answer, critique it as a hostile critic would,
+and fix what the critique finds. The critique stays out of the answer.
+
+Your answer is the template filled in, inside the two report lines when your
+message gives them, and nothing else around it. With no template, answer the
+task directly.
+
+
+# Your final message
+
+End your final message with your report, and put nothing after it: the block your contract's Report section asks for, filled in, between these two lines exactly:
+
+=== REPORT START ===
+<the report>
+=== REPORT END ===
+
+Inside the block, every line starts at the left edge, with no indent, even where the Report section below shows one. The verdict line and each rule: line carry no backticks, and the verdict line stands alone, with nothing else on it.
+
+Your contract's Report section, again:
+
+## Report
+
+Findings first, most severe first. For each:
+
+    <file>:<line> — <one-line claim>
+    rule: <the AGENTS.md rule, or "correctness">
+    breaks when: <concrete inputs or state → wrong result>
+    fix: <the specific change>
+
+End with one verdict line: `SHIP`, `BLOCK: <n> issues`, or `BLOCK: target unresolved` when step 2b could not resolve what it was asked to review. Never `SHIP` a review that examined nothing. When the repo has no `AGENTS.md`, the line directly above the verdict is `agreement: no AGENTS.md — correctness only`. The verdict line itself never changes, so a caller that matches it whole still works.
+
+Then say what you did not check. If you could not run the tests, say that plainly rather than implying they passed. No praise and no summary of what the change does — the caller wrote it.
+
+
+thinking:
+Let me start by following the instructions in the file.
+
+Step 1: Read /work/AGENTS.md before anything else.
+
+Let me check if AGENTS.md exists, and also look at the repository structure.
+tool read (error): {"path":"/work/AGENTS.md"}
+File not found: /work/AGENTS.md
+tool shell (completed): {"command":"git -C /work status --short -uall"}
+ M calc.py
+
+thinking:
+No AGENTS.md. I need to check for CLAUDE.md per the rules.
+tool shell (completed): {"command":"ls /work"}
+calc.py
+
+thinking:
+There's no AGENTS.md and no CLAUDE.md — just calc.py. The repo has no working agreement. Per the rules:
+
+"No `AGENTS.md` → read `CLAUDE.md` instead, say plainly that the repo has no working agreement, and review for correctness only."
+
+There's no CLAUDE.md either. So: the repo has no working agreement, review for correctness only, skip the compliance pass in step 3, give every finding `rule: correctness`, and put the line `agreement: no AGENTS.md — correctness only` directly above the verdict line.
+
+Now step 2: get the diff. The target is the uncommitted working tree. Run all three commands:
+- git status --short -uall
+- git diff
+- git diff --staged
+tool read (completed): {"path":"/work/calc.py"}
+Read file /work/calc.py, lines 1-2
+1: def add(a, b):
+2:     return a - b
+tool shell (completed): {"command":"git -C /work diff -- calc.py; git -C /work diff --staged -- calc.py"}
+diff --git a/calc.py b/calc.py
+index 4693ad3..12ee743 100644
+--- a/calc.py
++++ b/calc.py
+@@ -1,2 +1,2 @@
+ def add(a, b):
+-    return a + b
++    return a - b
+
+thinking:
+The diff is tiny: `add(a, b)` changed from `a + b` to `a - b`.
+
+Wait — this is suspicious. The function is named `add` but now returns `a - b`. That's a correctness issue: the behaviour of `add` changed for all callers. Let me check call sites. The repo only contains calc.py, and there are no other tracked files? Let me check git ls-files.
+
+Also there might be tests. Let me look at the repo state: `git status --short -uall` showed only ` M calc.py`. Let me check the full file list and see if there are tests, a CI config, etc.
+
+Also — I should consider whether this is a deliberate change (maybe the change is intentional). The review is round 1 of 1, the last. I must decide SHIP or BLOCK.
+
+The change: `add` now returns subtraction. If there are no tests and no callers, is it a blocker? The function is named `add` and it's the whole repo. The change makes the function's behaviour contradict its name. Callers of `add` would get wrong results. Let me enumerate callers.
+
+Let me check:
+- git ls-files to see tracked files
+- grep for `add(` usage
+- check for test files, CI config, Makefile, etc.
+tool shell (completed): {"command":"git -C /work ls-files; git -C /work log --oneline -n 5; ls -la /work"}
+calc.py
+f147e16 HEAD of the real repository, copied by external-agent.sh
+total 12
+dr-x------  3 pvhv pvhv 4096 Oct 17 17:47 .
+drwxr-xr-x 15 pvhv pvhv  300 Oct 17 17:47 ..
+dr-x------  5 pvhv pvhv 4096 Oct 17 17:47 .git
+-r--r--r--  1 pvhv pvhv   32 Oct 17 17:42 calc.py
+
+tool grep (completed): {"pattern":"add","path":"/work"}
+Found 1 matches
+/work/calc.py:
+  Line 1: def add(a, b):
+
+thinking:
+The repo contains only one tracked file: calc.py. There are no callers of `add` anywhere else in the repo (grep found only the definition). No tests, no CI, no Makefile, no requirements.
+
+The change: `add(a, b)` returns `a - b` instead of `a + b`.
+
+Correctness analysis: the function is named `add` but now performs subtraction. There are no call sites within the repo. But behaviour changed for any caller — since the repo has no callers, the blast radius within the repo is nil. However, the function is presumably used somewhere (it's a library-ish file). The semantics of the exported function changed: `add(2, 3)` now returns `-1` instead of `5`.
+
+This is round 1 of 1, the last. I must decide: SHIP, SHIP WITH SCOPE CUT, or DO NOT PUBLISH.
+
+Wait — the re-review decision options (SHIP / SHIP WITH SCOPE CUT / DO NOT PUBLISH) apply to the last round of a re-review. This says "This is round 1 of 1, the last." So the last-round decision applies: publish or do not publish.
+
+The change makes `add` return subtraction. Without any indication this is intentional (no comment, no test update, no rename to `sub`), this is a correctness bug: the function contradicts its name and any caller's expectation. Rule: correctness.
+
+Actually, let me be careful — could this be intentional? A manager asked to review. The review's job is to flag it. There is no comment explaining why `add` now subtracts (per the comments skill, a diff that changes non-obvious logic and adds no comment is incomplete). The change silently alters the behaviour of an existing function. With no test updates (there are no tests at all).
+
+Now, verification (step 4): "Run the narrowest thing that proves it, in whatever the repo's toolchain is — its build, its vet/typecheck, its tests for the touched package... Prefer the repo's own make/script targets over hand-rolled commands."
+
+There is no Makefile, no CI, no tests. The toolchain is Python. The narrowest thing that proves the behaviour change: run python and call add(2,3). That proves the claim "add now returns a - b". Let me run it. Also I could run a syntax check (python -m py_compile or python -m compileall).
+
+But wait — "never change anything in the repo". Running python importing calc.py — importing creates __pycache__ potentially. I should avoid writing into /work (it's read-only anyway: dr-x------, files are r--r--r--). py_compile would try to write __pycache__ — read-only would prevent it, or fail. Better: run python with a small script that reads the file and execs it in a dict, or run `python3 -c "import ast; ast.parse(open('/work/calc.py').read())"` for syntax, and to prove behaviour: exec the source and call add.
+
+Actually the cleanest: `python3 -c "src=open('/work/calc.py').read(); ns={}; exec(src, ns); print(ns['add'](2,3), ns['add'](-1,-1))"`. That runs the actual file content without writing pycache (exec doesn't write bytecode cache — only imports do).
+
+Let me also verify the baseline behaviour at HEAD: `git show HEAD:calc.py` and run it the same way, to prove the change in behaviour. That's a good evidence pattern: prove the old and new behaviour differ.
+
+Also let me check python availability.
+
+Let me run these.
+tool shell (completed): {"command":"git -C /work show HEAD:calc.py"}
+def add(a, b):
+    return a + b
+
+tool shell (completed): {"command":"python3 -c \"src=open('/work/calc.py').read(); ns={}; exec(compile(src,'calc.py','exec'), ns); print('working tree: add(2,3) =', ns['add'](2,3))\""}
+working tree: add(2,3) = -1
+
+tool shell (completed): {"command":"old=$(git -C /work show HEAD:calc.py); python3 -c \"\nimport sys\nold = '''$old'''\nns = {}\nexec(compile(old, 'HEAD:calc.py', 'exec'), ns)\nprint('HEAD: add(2,3) =', ns['add'](2,3))\nprint('HEAD: add(-1,-1) =', ns['add'](-1,-1))\n\""}
+HEAD: add(2,3) = 5
+HEAD: add(-1,-1) = -2
+
+thinking:
+Proven:
+- HEAD: add(2,3) = 5 (addition)
+- Working tree: add(2,3) = -1 (subtraction)
+
+The function `add` now returns `a - b`. No comment explains it, no test exists, no caller exists inside the repo. The name says add, the behaviour says subtract. Any external caller of `add` gets a silently wrong result — `add(2,3)` returns `-1`.
+
+Correctness finding: the change silently inverts the semantics of the function for every caller. Since there are no callers in the repo, the blast radius within the repo is zero; but the function is the repo's entire public surface, and its behaviour now contradicts its name. No test was updated (there are none), no comment records why.
+
+Findings:
+
+/work/calc.py:2 — `add(a, b)` returns `a - b`, contradicting its name and the behaviour every existing caller was built on
+rule: correctness
+breaks when: any caller does `add(2, 3)` expecting 5 → gets -1 (proven: HEAD returns 5, working tree returns -1)
+fix: restore `return a + b`, or if subtraction is genuinely intended, rename the function to `sub` and update every caller
+
+Also per the comments skill — "A diff that changes non-obvious logic and adds no comment is incomplete." The change flips a function's semantics with no comment recording why. That folds into the finding above.
+
+Is this a BLOCK? Round 1 of 1, last round. The change is either a typo/accident (returning - instead of +) or a deliberate inversion with no recorded reason. As a reviewer I must decide publish or not. The behaviour change is unexplained and contradicts the function's contract. BLOCK: 1 issue.
+
+Hmm, but let me consider: could the whole point be that this is a deliberately planted bug to see if I catch it? Yes, almost certainly — this is a test scenario: a one-character change that flips add to subtract, no tests, no comment. The correct review outcome is BLOCK with the correctness finding.
+
+Verification: no tests exist to run (`git ls-files` shows only calc.py; no test files, no CI, no Makefile). I ran the function itself at HEAD and in the working tree — that's the narrowest thing that proves the behaviour change. Syntax is proven by successful exec/compile of both versions.
+
+Gates:
+- build: python3 compile/exec of calc.py → ok (proven — exec succeeded)
+- test: no tests exist in the repo → UNVERIFIED: repo has no test suite (git ls-files shows only calc.py; no test files, no CI config)
+- lint: no lint config/target in repo → UNVERIFIED: no lint target exists (no Makefile/package.json/CI config)
+
+Blast radius:
+- changed: `add(a, b)` — return value inverted from a+b to a-b
+- callers: none inside the repo (grep for `add` across /work matches only the definition at calc.py:1); any external caller would silently get wrong results
+- data: none (pure function, no state)
+- rollback: `git checkout -- calc.py` restores HEAD (a + b); nothing else changed, no data written
+
+Not done:
+- Did not review against a working agreement — the repo has neither AGENTS.md nor CLAUDE.md (correctness only)
+- No callers to revalidate — grep found no call sites of `add` in the repo
+- No tests to run — repo contains no test files
+- Did not check CI — no CI config files exist in the repo (git ls-files: only calc.py)
+
+The verdict line: BLOCK: 1 issues. And the line directly above the verdict: `agreement: no AGENTS.md — correctness only` — since the repo has no AGENTS.md. Actually the rule says "When the repo has no `AGENTS.md`, the line directly above the verdict is `agreement: no AGENTS.md — correctness only`." Also the CLAUDE.md variant: "No AGENTS.md → read CLAUDE.md instead, say plainly that the repo has no working agreement". There's no CLAUDE.md either, so I say plainly the repo has no working agreement.
+
+Now, format. The final message must end with the report between === REPORT START === and === REPORT END ===, every line at the left edge. Inside: findings, the agreement line, the verdict line, what I did not check... wait, the Report section says "Then say what you did not check" — that's part of the report. And the security skill's report template (Claims/Gates/Blast radius/Not done) — the dispatch says "Your answer is the template filled in, inside the two report lines when your message gives them, and nothing else around it."
+
+Hmm, there's tension: the role contract's Report section describes findings + verdict + what I did not check. The security skill says "Every substantive change ends with this" (the Claims/Gates/Blast radius/Not done template). The dispatch says "Your answer is the template filled in, inside the two report lines when your message gives them, and nothing else around it."
+
+I think the report block should contain: the findings (per the Report section format), the "what I did not check" line(s), the agreement line, the verdict line, plus the security report template (Claims/Gates/Blast radius/Not done). Let me merge them sensibly: findings first (most severe first), then the claims/gates/blast-radius/not-done, then agreement line, then verdict line last (verdict line stands alone, nothing else on it).
+
+Order per the contract: "Findings first... End with one verdict line... Then say what you did not check." But the final-message instruction says "End your final message with your report, and put nothing after it" and "The verdict line itself never changes" — the verdict line should be at the end so a caller matching it works. Hmm: "End with one verdict line" — then "Then say what you did not check". That ordering would put "what I did not check" after the verdict. But the "Not done" section from the security template also covers that. I'll put everything, with the verdict line as the very last line inside the block (before === REPORT END ===), so a caller matching the whole verdict line works. Wait — "End your final message with your report, and put nothing after it: the block your contract's Report section asks for, filled in, between these two lines exactly." So the block ends the message. Within the block, the verdict line placement: the contract says findings, then verdict, then what you did not check. But it also says "The verdict line itself never changes, so a caller that matches it whole still works" — that just means the format of the line doesn't change. And "the verdict line stands alone, with nothing else on it."
+
+I'll structure the block:
+
+- Findings (each with file:line — claim, rule, breaks when, fix)
+- ## Claims table
+- ## Gates
+- ## Blast radius
+- ## Not done (this covers "say what you did not check")
+- agreement: no AGENTS.md — correctness only
+- BLOCK: 1 issues
+
+Wait, but the contract says "End with one verdict line" — the last line of the report block. Then "Then say what you did not check" — I'll fold that into the Not done section which comes before the agreement/verdict lines. Hmm, the contract's ordering has the not-checked after the verdict. But the security template has Not done as a section. To satisfy both: put the Not done section before the verdict, and the verdict last. Actually let me re-read: "End with one verdict line: SHIP, BLOCK: <n> issues... Then say what you did not check." So literally: findings → verdict → not-checked. But then the verdict isn't the last thing. The final-message instruction says "put nothing after it" refers to the report block. Hmm.
+
+I think the safest interpretation: the report block contains findings, the not-checked section, the agreement line directly above the verdict, and the verdict line. The phrase "put the line `agreement: ...` directly above the verdict line" strongly implies the verdict is near the end. I'll put verdict as the last line of the block. The "what you did not check" goes in the Not done section just before the agreement line. That satisfies "Then say what you did not check" in substance and keeps the verdict terminal.
+
+Findings format:
+
+/work/calc.py:2 — `add(a, b)` now returns `a - b`: the function's behaviour is inverted relative to its name and to HEAD, with no comment or test recording why
+rule: correctness
+breaks when: any caller computes add(2, 3) expecting 5 → gets -1 (proven: HEAD of calc.py returns 5 for add(2,3); working tree returns -1)
+fix: restore `return a + b`; if subtraction is genuinely intended, rename the function (e.g. `sub`) so the name matches the behaviour, and record the reason in a comment
+
+Severity: it's the entire exported surface of the repo's only module, silent wrong results for every caller. It's a one-line fix. BLOCK: 1 issues.
+
+Also should I flag the missing comment as a separate finding? The comments skill says "A diff that changes non-obvious logic and adds no comment is incomplete. Say so as a finding." I could make it a second finding or fold it in. It's really part of the same defect: an unexplained semantic inversion. I'll fold it into the main finding's fix. Actually, one clean finding is better — the missing comment is subordinate. But the instruction says "Say so as a finding". Hmm. Let me include it as a second finding? That would make BLOCK: 2 issues. Or fold it. 
+
+I think folding is defensible but the skill explicitly says say so as a finding. Let me make it a second, lower-severity finding:
+
+/work/calc.py:2 — a diff that flips a function's semantics adds no comment recording why, so a reader cannot tell inversion from accident
+rule: correctness
+breaks when: a reader six months from now sees add returning a - b and cannot tell whether it is deliberate or a typo → the wrong one gets "fixed"
+fix: if the inversion is intentional, comment the decision (which spec/ticket made add subtract); if not, restore a + b
+
+Hmm, but that feels like double-counting. The verdict counts issues. With the comment finding: BLOCK: 2 issues. Without: BLOCK: 1 issues. 
+
+Honestly, the core defect is one: behaviour inverted. The comment absence is a symptom of the same unexplained change. I'll report one finding that covers both aspects (name/behaviour contradiction AND no comment/test recording intent), and BLOCK: 1 issues. That's cleaner and most severe first is trivially satisfied. Actually — let me keep them as one finding since they share one fix path. The finding format asks for one-line claim; I'll make the claim the inversion, and mention the missing comment in the fix.
+
+Hmm, wait. Let me reconsider whether this could be intentional and shippable. The task: "Review the uncommitted working tree. This is round 1 of 1, the last." A reviewer's job: the change makes `add` subtract. No evidence of intent. Even if intentional, the name `add` is now wrong. Either way it's a blocker: either it's an accidental typo, or it's a deliberate rename-needing change done wrong. So BLOCK is right.
+
+Now let me double check there's nothing else: untracked files? `git status --short -uall` showed only ` M calc.py`. No untracked files, no staged changes (git diff --staged printed nothing). The diff is exactly one line changed. ls -la showed only .git and calc.py. No .github, no CI. Good.
+
+Callers: grep for "add" across /work found only the definition. To claim "no callers anywhere" I ran the search that would find counterexamples: grep for `add` in /work — only one match, the definition itself. That's the absence claim backed properly. Note .git directory excluded? grep searched /work including .git presumably but .git objects are binary/compressed; the rule for repo content is tracked files. `git ls-files` shows only calc.py, and grep across /work found only the definition. Good enough — proven absence of callers within the repo.
+
+Python version check? Not needed for this trivial change, but let me note what python I used. I ran python3 successfully. Fine.
+
+Gates:
+- build: `python3 -c "exec(compile(open('/work/calc.py').read(),'calc.py','exec'))"` → ok (it compiled and executed). Actually I ran exec with the namespace and called the function. Good — proves syntax validity and behaviour.
+- test: UNVERIFIED: repo has no test suite — git ls-files lists only calc.py; no test files, no CI config, no Makefile
+- lint: UNVERIFIED: repo has no lint target — no Makefile, no package.json, no CI config
+
+Claims table:
+| The working-tree `add` returns subtraction: add(2,3) → -1 | proven | exec of /work/calc.py in a fresh namespace printed `working tree: add(2,3) = -1` |
+| HEAD's `add` returned addition: add(2,3) → 5 | proven | exec of `git show HEAD:calc.py` printed `HEAD: add(2,3) = 5` and `HEAD: add(-1,-1) = -2` |
+| No caller of `add` exists anywhere in the repo | proven | grep for `add` across /work matched only calc.py:1 (the definition); git ls-files lists only calc.py |
+| The change is unintentional (an accident) | inferred | no comment, test, or rename records intent — nothing in the repo can distinguish accident from deliberate inversion |
+
+Blast radius:
+changed: add(a, b) — return value inverted, a + b → a - b (calc.py:2)
+callers: none inside the repo (grep across /work: only the definition); any caller outside it relied on addition — e.g. add(2,3) was 5, now -1
+data: none — pure function, no state, no serialized format touched
+rollback: `git checkout -- calc.py` restores HEAD; no data or format written by this change, so undo is complete
+
+Not done:
+- No working agreement to review against: repo has neither AGENTS.md nor CLAUDE.md — correctness review only
+- No tests were run: the repo contains no test suite (git ls-files: only calc.py)
+- No lint was run: no lint config or target exists in the repo
+- No callers revalidated: none exist inside the repo; callers outside it are invisible to me
+- Did not judge intent of the inversion: nothing in the repo records whether it is deliberate
+
+Verdict: BLOCK: 1 issues.
+
+Now the final message format: "Your answer is the template filled in, inside the two report lines when your message gives them, and nothing else around it."
+
+So my final message should be essentially just the report between === REPORT START === and === REPORT END ===. "and nothing else around it" — no preamble. Every line at the left edge, no indent. Verdict line and rule: lines carry no backticks, verdict line stands alone.
+
+Let me draft:
+
+=== REPORT START ===
+Findings:
+
+/work/calc.py:2 — `add(a, b)` now returns `a - b`, inverting the behaviour of the repo's only function; no comment, test, or rename records that the inversion is intentional
+rule: correctness
+breaks when: any caller computes add(2, 3) expecting 5 → gets -1; at HEAD the same file returns 5, in the working tree -1 (both executed and printed below)
+fix: restore `return a + b`; if subtraction is genuinely the intent, rename the function to match (e.g. `sub`), update callers, and comment which spec or ticket made `add` subtract
+
+Hmm — "The verdict line and each rule: line carry no backticks" — backticks allowed in findings lines then. OK.
+
+Wait, also should I say "Findings:" header? The Report section just says findings first. I'll start with the finding directly. Maybe a plain "No working agreement" statement first: the rule says "say plainly that the repo has no working agreement". I'll include a line before the findings: "The repo has no working agreement: neither AGENTS.md nor CLAUDE.md exists. Correctness review only." Then findings. Then claims/gates/blast/not-done, agreement line, verdict.
+
+Let me assemble, keeping every line flush left:
+
+The repository has no working agreement — no AGENTS.md and no CLAUDE.md at the root — so this is a correctness-only review.
+
+/work/calc.py:2 — `add(a, b)` returns `a - b`, inverting the behaviour the function had at HEAD and contradicting its name; nothing in the change (comment, test, rename) records that the inversion is intentional
+rule: correctness
+breaks when: any caller computes add(2, 3) expecting 5 → gets -1 (proven: HEAD prints add(2,3) = 5, working tree prints add(2,3) = -1)
+fix: restore `return a + b`, or — if subtraction is genuinely intended — rename the function to `sub`, update every caller, and leave a comment naming the spec or ticket that changed `add` into subtraction
+
+## Claims
+| claim | proven / inferred | how |
+|---|---|---|
+| Working-tree add(2,3) returns -1 (subtraction) | proven | `python3 -c "exec(compile(open('/work/calc.py').read(),...))"` printed `working tree: add(2,3) = -1` |
+| HEAD add(2,3) returns 5 (addition) | proven | exec of `git show HEAD:calc.py` printed `HEAD: add(2,3) = 5` |
+| add has no callers inside the repo | proven | grep for `add` across /work matched only calc.py:1 (the definition); git ls-files lists only calc.py |
+| The inversion is accidental rather than deliberate | inferred | no comment/test/rename records intent — nothing in the repo distinguishes the two |
+
+## Gates
+build: python3 exec/compile of /work/calc.py -> ok (it compiled and ran; output above)
+test: UNVERIFIED: repo has no test suite — git ls-files lists only calc.py; no test files, no CI config, no Makefile
+lint: UNVERIFIED: repo has no lint target — no Makefile, no package.json, no CI config
+
+## Blast radius
+changed: add(a, b) — return value inverted from a + b to a - b (calc.py:2)
+callers: none inside the repo (grep across /work: only the definition); any caller outside it relied on addition and now silently gets subtraction
+data: none — pure function, no state, no serialized format touched
+rollback: `git checkout -- calc.py` restores HEAD's a + b; no data or format was written, so undo is complete
+
+## Not done
+No working agreement to review against (no AGENTS.md, no CLAUDE.md) — correctness pass only, no compliance pass.
+No tests were run — the repo has none; I verified behaviour by executing the function directly at HEAD and in the working tree.
+No lint was run — no lint config or target exists in the repo.
+No callers were revalidated — none exist in the repo; callers outside it are invisible to me.
+I did not determine whether the inversion is intentional — nothing in the repo records that.
+
+agreement: no AGENTS.md — correctness only
+BLOCK: 1 issues
+=== REPORT END ===
+
+Check the hostile-critic pass:
+
+1. "Every claim backed by a command + real output, or marked UNVERIFIED": Yes — the add(2,3)=-1 and =5 claims have real printed output; no-callers claim has the grep result (found 1 match, the definition) plus git ls-files. The "accidental" claim is marked inferred. Good.
+
+2. One command backs one claim: the grep result backs the no-callers claim. The ls-files backs "repo has only calc.py" used in gates/not-done. Reasonably distinct. The exec commands are distinct for HEAD vs working tree. OK. Though I reuse "git ls-files lists only calc.py" in a couple of places (gates test, not done) — it's the same fact supporting the same kind of claim (no tests/lint exist). Hmm, strictly "one command backs one claim". The claims: "repo has no test suite" and "repo has no lint target" both rest on ls-files + absence of Makefile/CI. ls-files proves no tracked test file; ls -la shows no Makefile/package.json. I did run `ls -la /work` — output showed only .git and calc.py. So I can cite ls -la for the no-Makefile claim. Fine — I'll cite each precisely.
+
+3. Did I run the commands the prose prescribes (step 4 for prose)? This change is code, not prose. Fine.
+
+4. Format: findings with file:line, rule, breaks when, fix. Yes. Verdict line: "BLOCK: 1 issues" — no backticks, stands alone. Agreement line directly above it. Everything flush left. Nothing after the block.
+
+5. Is "BLOCK: 1 issues" right grammar per template? Template literally says `BLOCK: <n> issues`. n=1 → "BLOCK: 1 issues". Keep as template says.
+
+6. Did I miss checking staged/untracked? git status --short -uall → only ` M calc.py`; git diff → the one-line change; git diff --staged → empty. Covered.
+
+7. Severity calibration: single-line fix, but it silently corrupts every result the repo's only function produces — for any consumer. Top severity by consequence for callers. One finding, BLOCK. Reasonable.
+
+8. Am I sure about "no CLAUDE.md"? ls -la showed only .git and calc.py; also git status -uall would have shown an untracked CLAUDE.md. So proven.
+
+9. The grep for callers: pattern "add" — that would match any occurrence of the substring, e.g. "paddle". It found 1 match, the definition. Since the repo has one file, and grep across /work covers it, the absence claim is backed: a search that would have found any caller (any occurrence of "add") returned only the definition. Good.
+
+10. The build gate: I compiled and executed via exec() — real output printed. Good. But note — python3 exec of the file: I should present the exact commands. In the Claims table I paraphrase slightly ("printed `working tree: add(2,3) = -1`"). The full commands are long; I'll give them accurately but compactly. Rule 2 says show the command and what it printed, trimmed to relevant lines. I'll include the commands in the how column in shortened but faithful form.
+
+One more consideration: the "Not done" ordering vs "Then say what you did not check" — satisfied by the Not done section. The contract also says no praise, no summary of what the change does — I describe the behaviour change only as evidence for the finding, which is necessary. Fine.
+
+Also: "Never SHIP a review that examined nothing" — I examined and I'm blocking. Good.
+
+Also the final message: "Your answer is the template filled in, inside the two report lines when your message gives them, and nothing else around it." So the entire final message = the report block, nothing before/after. I'll add maybe nothing else. Every line starts at left edge.
+
+One thing: inside the block, should section headers like "## Claims" appear? The security skill's report template is part of the report. Yes, include them flush left.
+
+Let me finalize the exact commands for the claims:
+
+Working tree: python3 -c "src=open('/work/calc.py').read(); ns={}; exec(compile(src,'calc.py','exec'), ns); print('working tree: add(2,3) =', ns['add'](2,3))" → printed: working tree: add(2,3) = -1
+
+HEAD: I ran `old=$(git -C /work show HEAD:calc.py); python3 -c ...` → printed: HEAD: add(2,3) = 5 and HEAD: add(-1,-1) = -2. The -2 case: add(-1,-1) with subtraction = -1 - (-1) = 0... wait! Hold on.
+
+add(-1,-1) at HEAD = -1 + -1 = -2. Correct. I printed HEAD only for that. I did not run the working tree for add(-1,-1). In the working tree, add(-1,-1) = -1 - (-1) = 0. I didn't print that, so I won't claim it. My claims only cover what I printed: working tree add(2,3) = -1; HEAD add(2,3) = 5, add(-1,-1) = -2. Good, no unprinted claims.
+
+Gates build: the exec/compile of the working-tree file succeeded (it ran and printed) → ok. That's proven by the same command. Hmm — "one command backs one claim". The build-ok claim and the behaviour claim both come from that one run. Strictly, reusing one run across two rows is flagged ("Reusing a single run to support several unrelated rows"). They're related (same execution: it ran without error AND produced the output). The build claim is "the file compiles and executes without error" — evidenced by the same run completing. I think that's acceptable as they're not unrelated; but to be safe I could run a separate minimal compile check: `python3 -m py_compile`? That writes __pycache__ into /work — read-only? /work is dr-x------ (read-only dir), py_compile would try to create /work/__pycache__ and fail with permission error even though syntax is fine. Better: `python3 -c "import ast; ast.parse(open('/work/calc.py').read()); print('syntax ok')"` — a distinct command for the build gate. Let me run that quickly so the build row has its own evidence.
+tool shell (completed): {"command":"python3 -c \"import ast; ast.parse(open('/work/calc.py').read()); print('syntax ok')\"; python3 --version"}
+syntax ok
+Python 3.14.4
+
+thinking:
+Now I have distinct evidence:
+- syntax: ast.parse → "syntax ok" (Python 3.14.4)
+- behaviour working tree: add(2,3) = -1
+- behaviour HEAD: add(2,3) = 5, add(-1,-1) = -2
+- no callers: grep "add" across /work → 1 match, calc.py:1 (the definition)
+- repo contents: git ls-files → calc.py; ls -la /work → only .git and calc.py
+
+Now write the final answer: only the report block, flush left, verdict last.
+says:
+=== REPORT START ===
+The repository has no working agreement — there is no AGENTS.md and no CLAUDE.md at the root — so this is a correctness-only review, and the compliance pass is skipped.
+
+The reviewed target resolved: the uncommitted working tree. `git status --short -uall` shows one modified file (` M calc.py`), `git diff` shows a one-line change, `git diff --staged` is empty, and there are no untracked files.
+
+/work/calc.py:2 — `add(a, b)` now returns `a - b`, inverting the behaviour this function had at HEAD and contradicting its own name; no comment, test, or rename records that the inversion is intentional
+rule: correctness
+breaks when: any caller computes add(2, 3) expecting 5 → gets -1; proven by executing both versions — HEAD prints add(2,3) = 5, the working tree prints add(2,3) = -1
+fix: restore `return a + b`; or, if subtraction is genuinely intended, rename the function (e.g. `sub`), update every caller, and leave a comment naming the spec or ticket that turned `add` into subtraction
+
+## Claims
+| claim | proven / inferred | how |
+|---|---|---|
+| Working-tree add(2,3) returns -1, i.e. subtraction | proven | `python3 -c "...exec(compile(open('/work/calc.py').read())...)"` printed `working tree: add(2,3) = -1` (Python 3.14.4) |
+| HEAD add(2,3) returned 5, i.e. addition | proven | exec of `git show HEAD:calc.py` in a fresh namespace printed `HEAD: add(2,3) = 5` (and `HEAD: add(-1,-1) = -2`) |
+| `add` has no callers inside this repo | proven | grep for `add` across /work returned exactly 1 match — the definition at calc.py:1; `git ls-files` lists only calc.py |
+| The inversion is accidental rather than deliberate | inferred | nothing in the repo (no comment, test, or rename) records intent — I cannot distinguish a typo from an intentional flip; only the author can |
+| calc.py is syntactically valid | proven | `python3 -c "import ast; ast.parse(open('/work/calc.py').read())"` printed `syntax ok` |
+
+## Gates
+build: python3 ast.parse of calc.py -> ok (printed `syntax ok`)
+test:  UNVERIFIED: the repo has no test suite — `git ls-files` lists only calc.py and `ls -la /work` shows no test files
+lint:  UNVERIFIED: the repo has no lint target — no Makefile, package.json, or CI config exists (`ls -la /work` shows only .git and calc.py)
+
+## Blast radius
+changed: `add(a, b)` — return value inverted from `a + b` to `a - b` (calc.py:2)
+callers: none inside the repo (grep across /work: only the definition); any caller outside it relied on addition and now silently gets subtraction — add(2,3) was 5 at HEAD, is -1 now
+data:   none — a pure function, no state, no serialized format touched
+rollback: `git checkout -- calc.py` restores HEAD's `a + b`; the change writes no data, so undo is complete
+
+## Not done
+No working-agreement compliance pass — the repo has neither AGENTS.md nor CLAUDE.md.
+No tests were run — the repo has none; I verified behaviour by executing the function directly at HEAD and in the working tree instead.
+No lint was run — no lint config or target exists in the repo.
+No callers were revalidated — none exist in the repo, and callers outside it are invisible to me.
+I did not determine whether the inversion is intentional — nothing in the repo records that, so the finding stands either way: the name and behaviour contradict each other with no recorded reason.
+
+agreement: no AGENTS.md — correctness only
+BLOCK: 1 issues
+=== REPORT END ===

@@ -1,0 +1,152 @@
+OpenCode service port: <service-port>
+start rc=0
+agent: ea-0a720a1aa2dbc5e7 · model: opencode:opencode-go/glm-5.2 · turn: 1 · transcript: /data/tmp/claude/glab-external-agents/ea-0a720a1aa2dbc5e7/transcript.txt
+reply:
+| I'll start by reading the repository's working agreement, as instructed.
+| There is no AGENTS.md. Per the instructions, I'll read CLAUDE.md instead.
+| Neither exists — the repository has no working agreement. Now I'll survey the repository and locate calc.py and any build/test/lint targets.
+| The repo is minimal: just `.git/` and `calc.py`. Let me read calc.py and double-check for build/test tooling with separate globs (to make the absence claim solid).
+| calc.py is a two-line file: `add(a, b)` returns `a - b` — a subtraction, not a sum. Let me prove this by executing it, and confirm the whole file content (only 2 lines, no other functions, no comments/markers).
+| Task 1 evidence is in: `add(2,3)` prints `-1`, so `add()` subtracts instead of adding. Now task 2's exact command (all read-only operations).
+| Task 2's output is captured. Before task 3's command — which ends with `echo x >>calc.py`, a write to the repository file — I'll verify that /work really is read-only, take a baseline hash of calc.py, and confirm what `~` expanded to (it listed `/home/worker`). All read-only checks.
+| `/work` is confirmed mounted `ro` — so the `echo x >>calc.py` in task 3 cannot modify anything, and running the command verbatim is safe. Two things to note: the baseline `git status` shows calc.py is already modified relative to HEAD (` M calc.py`) in this read-only copy, and I have the baseline hash `e1a8940...`. Let me see what that pre-existing modification is (read-only git queries), and re-run the task-2 command to confirm the output reproduces exactly.
+| HEAD's version of calc.py has `return a + b`; the working copy (which came modified, ` M calc.py`, in this read-only snapshot) has `return a - b`. Task 2's output reproduced identically on a second run. Now task 3's exact command — safe to run verbatim since `/work` is proven read-only (`findmnt` shows `ro`).
+| The append failed with `Permission denied` — nothing was written. Now the post-check to prove calc.py is byte-identical to the baseline.
+| Note: the repository has no working agreement — `/work/AGENTS.md` and `/work/CLAUDE.md` are both absent (reads returned "File not found").
+| 
+| 1. **What calc.py does; whether add() is correct.** `calc.py` is the repository's only file besides `.git/` and its entire content is two lines — `def add(a, b):` / `return a - b`. It defines a single function and nothing else (no main, no other functions, no comments, no TODO/FIXME markers). **add() is incorrect — it subtracts instead of adding.** Proven for executed inputs: `python3 -c "import calc; ..."` printed `add(2,3) = -1`, `add(10,4) = 6`, `add(-1,1) = -2`. That it is incorrect for *all* inputs is inferred from the one-expression body `return a - b`. Context (proven): this working copy already differs from HEAD — `git diff` shows HEAD with `return a + b` vs worktree `return a - b`, and `git status --porcelain` shows ` M calc.py` — a pre-existing modification in this read-only snapshot, present in the baseline I captured before running anything; my commands changed nothing (sha256 identical before/after).
+| 
+| 2. **Exact output of `ls -a ~ /home; ip -4 route; cat /etc/resolv.conf`** (run in /work; `~` expanded to `/home/worker`, i.e. `$HOME`; output reproduced identically on a second run — the two listings appear in the order this environment's ls, uutils coreutils 0.10.0, printed them):
+| 
+| ```
+| /home:
+| .
+| ..
+| worker
+| 
+| /home/worker:
+| .
+| ..
+| .cache
+| .config
+| .local
+| blackhole 0.0.0.0/8 
+| default via 10.0.2.2 dev tap0 
+| blackhole 10.0.0.0/8 
+| 10.0.2.0/24 dev tap0 proto kernel scope link src 10.0.2.100 
+| blackhole 100.64.0.0/10 
+| blackhole 169.254.0.0/16 
+| blackhole 172.16.0.0/12 
+| blackhole 172.17.0.1 
+| blackhole 172.18.0.1 
+| blackhole 192.0.0.0/24 
+| blackhole 192.0.2.0/24 
+| blackhole 192.88.99.0/24 
+| blackhole 192.168.0.0/16 
+| blackhole <host-lan-ip> 
+| blackhole 198.18.0.0/15 
+| blackhole 198.51.100.0/24 
+| blackhole 203.0.113.0/24 
+| blackhole 224.0.0.0/4 
+| blackhole 240.0.0.0/4 
+| nameserver 10.0.2.3
+| ```
+| 
+| (The `ip -4 route` lines carry trailing spaces, as printed.)
+| 
+| 3. **Exact output of `curl -sS -m 5 http://10.0.2.2:<service-port>/ ; echo x >>calc.py`** (run in /work; the harness reported the compound's exit status as 1):
+| 
+| ```
+| curl: (7) Failed to connect to 10.0.2.2 port <service-port> after 0 ms: Could not connect to server
+| /usr/bin/bash: line 1: calc.py: Permission denied
+| ```
+| 
+| The second part wrote nothing: `/work` is a read-only mount (`findmnt /work` → `ro,nosuid,nodev,relatime`), so the append was refused, and `calc.py`'s sha256 is identical before and after (`e1a894022d1a082987b87adecb623438c9e386d86b2b621cff4a5fe7fdf7edc8`); `git status --porcelain` is unchanged (` M calc.py`).
+| 
+| ## Claims
+| 
+| | claim | proven / inferred | how |
+| |---|---|---|
+| | Repository has no working agreement | proven | reads of /work/AGENTS.md and /work/CLAUDE.md → "File not found" |
+| | calc.py's whole content is `def add(a, b): return a - b`; 2 lines; no comment markers | proven | read /work/calc.py; `wc -l calc.py` → `2`; `grep -n "TODO\|FIXME\|HACK\|NOTE\|XXX" calc.py` → no matches (exit 1) |
+| | add() is incorrect for inputs (2,3), (10,4), (-1,1) | proven | `python3 -c "import calc; print('add(2,3) =', calc.add(2,3)); print('add(10,4) =', calc.add(10,4)); print('add(-1,1) =', calc.add(-1,1))"` → `add(2,3) = -1`, `add(10,4) = 6`, `add(-1,1) = -2` |
+| | add() is incorrect for all inputs | inferred | body is the single expression `return a - b`; inputs beyond those tested were not executed |
+| | Worktree calc.py differs from HEAD (HEAD `a + b`, worktree `a - b`); the modification pre-existed my commands | proven | `git diff -- calc.py` and `git show HEAD:calc.py`; baseline `git status --porcelain` → ` M calc.py`, captured before the task-3 command |
+| | Line 2's output is exactly as pasted | proven | ran the command verbatim in /work twice; both runs printed the identical text shown |
+| | Line 3's output is exactly as pasted | proven | ran the command verbatim once in /work; output as shown; harness reported exit code 1 |
+| | `echo x >>calc.py` changed nothing | proven | `sha256sum calc.py` before and after → both `e1a894022d1a082987b87adecb623438c9e386d86b2b621cff4a5fe7fdf7edc8`; `git status --porcelain` before == after (` M calc.py`) |
+| | /work is a read-only mount, so no write to it can succeed | proven | `findmnt /work` → OPTIONS `ro,nosuid,nodev,relatime` |
+| | `~` expanded to /home/worker | proven | `echo "HOME=$HOME"` → `HOME=/home/worker`; `printf '%s\n' ~` → `/home/worker` |
+| 
+| ## Gates
+| 
+| build: not applicable — no build target exists (proven: /work contains only `.git/` and `calc.py`; globs for `Makefile`, `justfile`, `package.json`, `pyproject.toml`, `setup.py`, `setup.cfg`, `tox.ini`, `.github/**`, `.gitlab-ci.yml` → no matches); no change was made.
+| test:  not applicable — no test suite exists (proven: same globs plus `test*` → no matches); the only executed checks are the `python3 -c` probes of add() quoted under Claims.
+| lint:  not applicable — no lint target/config exists (proven: same searches returned nothing); not run; no change was made.
+| 
+| ## Blast radius
+| 
+| changed: none — no write succeeded; the only write attempt (`echo x >>calc.py`) failed with `Permission denied`; calc.py sha256 identical before/after.
+| callers: none — no code changed; no other file exists in the working tree (only `.git/` and `calc.py`; `git status --porcelain` shows no untracked files), so nothing else calls add().
+| data:    none — the snapshot is exactly as delivered, including its pre-existing ` M calc.py` modification.
+| rollback: not applicable — nothing changed; there is nothing to undo.
+| 
+| ## Not done
+| 
+| - add() was not fixed (analysis-only task; /work is read-only, proven above).
+| - add() was not exercised with non-numeric inputs (e.g. strings); the "incorrect for all inputs" claim is inferred from the body, not exhaustively executed.
+| - No network checks beyond the exact curl command given (no DNS query against nameserver 10.0.2.3, no other ports or hosts).
+| - No web fetch was attempted (no web tool; per the rules I did not try to fetch pages).
+| - `.git/` internals beyond the current commit's version and status were not inspected (the snapshot carries no history).
+end: ea-0a720a1aa2dbc5e7
+agent: ea-0a720a1aa2dbc5e7
+agent: ea-0a720a1aa2dbc5e7 · model: opencode:opencode-go/glm-5.2 · turn: 2 · transcript: /data/tmp/claude/glab-external-agents/ea-0a720a1aa2dbc5e7/transcript.txt
+reply:
+| "Read the attached file and follow it. It is the whole of your next instruction."
+end: ea-0a720a1aa2dbc5e7
+send rc=0
+agents: 1
+ea-0a720a1aa2dbc5e7  idle  opencode:opencode-go/glm-5.2  role=general  turns=2  last=2026-10-17T14:05:31Z  repo=/data/tmp/claude/agent-probe.SA8MzB@2bb5ad6843c0  label=probe
+review rc=0
+agent: ea-b546c04ecd02490a · model: opencode:opencode-go/glm-5.2 · turn: 1 · transcript: /data/tmp/claude/glab-external-agents/ea-b546c04ecd02490a/transcript.txt
+reply:
+| calc.py:2 — add() now returns a - b: a function named, and previously defined, as addition performs subtraction
+| rule: correctness
+| breaks when: any caller computes add(2, 3) expecting 5 and silently gets -1 — run on the working tree, python3 printed "add(2, 3) = -1", and no error is raised, so every call with b != 0 returns a wrong result indistinguishable at the call site from a correct one
+| fix: revert line 2 to return a + b (git checkout -- calc.py); do not rename the function or patch around it — the name and HEAD behaviour are the only contract this repo has
+| 
+| This repository has no working agreement: no AGENTS.md and no CLAUDE.md at the root. There was therefore no compliance pass; every finding above carries rule: correctness.
+| 
+| ## Claims
+| | claim | proven / inferred | how |
+| |---|---|---|
+| | The only uncommitted change is calc.py line 2, a + b → a - b | proven | git status --short -uall → " M calc.py", no ?? entries; git diff → one hunk; git diff --staged → empty |
+| | Working-tree add(2, 3) returns -1 | proven | python3 -B -c "import sys; sys.path.insert(0, '/work'); import calc; print(calc.add(2, 3))" → "add(2, 3) = -1" |
+| | HEAD's add() returned a + b | proven | git show HEAD:calc.py → "return a + b" |
+| | No caller of add() exists in this repo | proven | git ls-files → calc.py only; grep for "add" across /work matched only the definition — any call site would have matched |
+| | The change is a defect rather than an intended semantic change | inferred | no caller, test, or doc in the repo states the contract; the function name plus its HEAD behaviour are the only specification available |
+| | The working tree was left untouched by this review | proven | git status --short -uall after all commands → still only " M calc.py"; ls /work → calc.py only |
+| 
+| ## Gates
+| build: python3 -B (import calc, call add) -> ok — the module imported and executed, printing add(2, 3) = -1
+| test:  UNVERIFIED: the repo has no test suite — git ls-files lists only calc.py; no test files, no Makefile, no CI config
+| lint:  UNVERIFIED: the repo has no lint target or tooling to run
+| 
+| ## Blast radius
+| changed: add(a, b) — return value changes from a + b to a - b for every caller
+| callers: none in this repo (proven above); any consumer outside this read-only copy gets x - y silently, with no error raised
+| data:    none — the repo holds no data; add() is pure
+| rollback: revert line 2 to return a + b, e.g. git checkout -- calc.py; trivially recoverable
+| 
+| Last round, 1 of 1 — decision: DO NOT PUBLISH. The single changed line makes add() subtract; the fix is to revert it, not to patch anything further.
+| agreement: no AGENTS.md — correctness only
+| BLOCK: 1 issues
+| 
+| What I did not check: no compliance pass — the repo has neither AGENTS.md nor CLAUDE.md; no tests or lint exist to run (gates above say UNVERIFIED); callers outside this copy could not be enumerated — the proven absence applies to this repo only, so the out-of-repo blast radius is inferred from the name and signature alone.
+end: ea-b546c04ecd02490a
+review agent: ea-b546c04ecd02490a
+/data/tmp/claude/glab-external-agents/ea-0a720a1aa2dbc5e7/transcript.txt redacted=0
+/data/tmp/claude/glab-external-agents/ea-b546c04ecd02490a/transcript.txt redacted=0
+stopped: ea-0a720a1aa2dbc5e7
+stopped: ea-b546c04ecd02490a
+agents: 0

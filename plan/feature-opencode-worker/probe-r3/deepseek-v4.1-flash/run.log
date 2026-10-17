@@ -1,0 +1,22 @@
+OpenCode service port: <service-port>
+external-agent: BACKEND ERROR: provider.invalid-request: Upstream request failed: This Go model requires Global regions. Select Global in your workspace's Privacy settings to use it.
+start rc=7
+agent: ea-df5d9ed3d1fa07ee · model: opencode:opencode-go/deepseek-v4.1-flash · turn: 1 · transcript: /data/tmp/claude/glab-external-agents/ea-df5d9ed3d1fa07ee/transcript.txt
+end: ea-df5d9ed3d1fa07ee
+agent: ea-df5d9ed3d1fa07ee
+agent: ea-df5d9ed3d1fa07ee · model: opencode:opencode-go/deepseek-v4.1-flash · turn: 2 · transcript: /data/tmp/claude/glab-external-agents/ea-df5d9ed3d1fa07ee/transcript.txt
+end: ea-df5d9ed3d1fa07ee
+external-agent: BACKEND ERROR: provider.invalid-request: Upstream request failed: This Go model requires Global regions. Select Global in your workspace's Privacy settings to use it.
+send rc=7
+agents: 1
+ea-df5d9ed3d1fa07ee  idle  opencode:opencode-go/deepseek-v4.1-flash  role=general  turns=2  last=2026-10-17T14:07:58Z  repo=/data/tmp/claude/agent-probe.sV7XnU@5eeff9d3fb41  label=probe
+review rc=7
+external-agent: BACKEND ERROR: provider.invalid-request: Upstream request failed: This Go model requires Global regions. Select Global in your workspace's Privacy settings to use it.
+agent: ea-ca68050e1b9a2aa9 · model: opencode:opencode-go/deepseek-v4.1-flash · turn: 1 · transcript: /data/tmp/claude/glab-external-agents/ea-ca68050e1b9a2aa9/transcript.txt
+end: ea-ca68050e1b9a2aa9
+review agent: ea-ca68050e1b9a2aa9
+/data/tmp/claude/glab-external-agents/ea-df5d9ed3d1fa07ee/transcript.txt redacted=0
+/data/tmp/claude/glab-external-agents/ea-ca68050e1b9a2aa9/transcript.txt redacted=0
+stopped: ea-df5d9ed3d1fa07ee
+stopped: ea-ca68050e1b9a2aa9
+agents: 0
