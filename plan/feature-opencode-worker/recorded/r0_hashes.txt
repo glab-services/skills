@@ -1,0 +1,9 @@
+8706b8e96358d730 external-worker.sh
+79632ce5fb358e8c external-worker.test.sh
+7c9ba98ca737d9bd workers-SKILL.md
+14f9335ecbe7a86f profiles/deepseek-flash.md
+50a903aaebecc89b profiles/deepseek-pro.md
+775bd6d7fa735d98 profiles/default.md
+f1e28823b0468464 profiles/glm.md
+a85aed484f850b30 profiles/kimi.md
+e7098bbe5e1bac23 tracked.diff

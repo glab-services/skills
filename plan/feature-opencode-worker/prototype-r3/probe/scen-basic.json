@@ -1,0 +1,9 @@
+[
+ [{"tool":"bash","args":{"command":"env | cut -d= -f1 | sort | paste -sd' ' -; echo SEP; ls -a / /home 2>&1 | paste -sd' ' -","description":"env"}},
+  {"tool":"edit","args":{"filePath":"/work/a.txt","oldString":"a","newString":"b"}},
+  {"tool":"bash","args":{"command":"echo x > /work/new.txt; echo rc=$?","description":"write"}},
+  {"tool":"read","args":{"filePath":"/etc/hostname"}},
+  {"tool":"webfetch","args":{"url":"https://example.com","format":"text"}},
+  {"text":"turn one reply, users={nuser}"}],
+ [{"text":"turn two reply, users={nuser}"}]
+]

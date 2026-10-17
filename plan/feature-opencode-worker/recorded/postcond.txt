@@ -1,0 +1,46 @@
+f627bd611ec81085 755 plugins/glab/scripts/external-agent.sh
+dd3dadc3c0637447 755 tests/external-agent.test.sh
+a2e6651ce7d43418 644 plugins/glab/skills/external-agents/SKILL.md
+2fef943d62b3235d 644 plugins/glab/skills/external-agents/profiles/default.md
+17d69a12cb4d6a83 644 plugins/glab/skills/external-agents/profiles/kimi.md
+6602002840265520 644 plugins/glab/skills/external-agents/profiles/glm.md
+b4525d9b4e2b2e76 644 plugins/glab/skills/external-agents/profiles/deepseek-pro.md
+543c11b2e37b7435 644 plugins/glab/skills/external-agents/profiles/deepseek-flash.md
+82c7e2b7f7a92e30 plugins/glab/skills/manager/SKILL.md
+a88f34d1b697df7a plugins/glab/commands/review.md
+8976d4b68e1ef3b2 plugins/glab/commands/ship.md
+1ec2bf5ff7c5ddcc plugins/glab/commands/develop.md
+c4c65f33ffa2d988 AGENTS.md
+afece4ca69a2dc6c README.md
+300dc7c5e8359221 plugins/glab/.claude-plugin/plugin.json
+files under external-agents: plugins/glab/skills/external-agents/profiles/deepseek-flash.md plugins/glab/skills/external-agents/profiles/deepseek-pro.md plugins/glab/skills/external-agents/profiles/default.md plugins/glab/skills/external-agents/profiles/glm.md plugins/glab/skills/external-agents/profiles/kimi.md plugins/glab/skills/external-agents/SKILL.md
+rev-2 paths left: 0
+rev2-build: 8706b8e96358d730 79632ce5fb358e8c 7c9ba98ca737d9bd 14f9335ecbe7a86f 50a903aaebecc89b 775bd6d7fa735d98 f1e28823b0468464 a85aed484f850b30 e7098bbe5e1bac23
+manager '## Rule 5 ' 7
+manager '## Rule 6 ' 1
+manager '## When subagent dispatch is not available' 1
+manager '## Stage 5 ' 1
+manager '## What you never do' 1
+rule 6 headings: 1
+plugins/glab/commands/review.md 1
+plugins/glab/commands/ship.md 2
+plugins/glab/commands/develop.md 0
+version 0.4.0
+census exit codes: plugins/glab/commands/ship.md plugins/glab/scripts/external-agent.sh plugins/glab/skills/external-agents/SKILL.md plugins/glab/skills/manager/SKILL.md README.md tests/external-agent.test.sh
+census verdicts: plugins/glab/agents/reviewer.md plugins/glab/commands/ship.md plugins/glab/scripts/external-agent.sh plugins/glab/skills/manager/SKILL.md tests/external-agent.test.sh
+census token: plugins/glab/skills/external-agents/SKILL.md plugins/glab/skills/manager/SKILL.md tests/external-agent.test.sh
+census allowlist: plugins/glab/scripts/external-agent.sh plugins/glab/skills/external-agents/profiles/deepseek-flash.md plugins/glab/skills/external-agents/profiles/deepseek-pro.md plugins/glab/skills/external-agents/profiles/glm.md plugins/glab/skills/external-agents/profiles/kimi.md README.md tests/external-agent.test.sh
+census limits: AGENTS.md plugins/glab/scripts/external-agent.sh plugins/glab/skills/external-agents/SKILL.md README.md tests/external-agent.test.sh
+census state dir: AGENTS.md plugins/glab/scripts/external-agent.sh plugins/glab/skills/external-agents/SKILL.md README.md tests/external-agent.test.sh
+census default cli: AGENTS.md plugins/glab/skills/external-agents/SKILL.md README.md
+census use balance: AGENTS.md plugins/glab/skills/external-agents/SKILL.md README.md
+census what the copy sends: AGENTS.md plugins/glab/scripts/external-agent.sh plugins/glab/skills/external-agents/SKILL.md README.md
+census grok: AGENTS.md plugins/glab/scripts/external-agent.sh README.md tests/external-agent.test.sh
+census send correction: AGENTS.md plugins/glab/commands/ship.md plugins/glab/skills/external-agents/SKILL.md plugins/glab/skills/manager/SKILL.md
+census manual rule, external: plugins/glab/skills/external-agents/SKILL.md plugins/glab/skills/manager/SKILL.md
+census not run against a real model: AGENTS.md README.md
+guard: model ids in payload prose 0
+guard: grok in allowlist 0
+guard: rev-2 names 0
+guard: invisible characters 0
+guard: known positive for that search 1

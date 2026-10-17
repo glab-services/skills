@@ -1,0 +1,16 @@
+889b804
+ M AGENTS.md
+ M README.md
+ M plugins/glab/.claude-plugin/plugin.json
+ M plugins/glab/commands/develop.md
+ M plugins/glab/commands/review.md
+ M plugins/glab/commands/ship.md
+ M plugins/glab/skills/manager/SKILL.md
+?? plugins/glab/scripts/external-worker.sh
+?? plugins/glab/skills/workers/SKILL.md
+?? plugins/glab/skills/workers/profiles/deepseek-flash.md
+?? plugins/glab/skills/workers/profiles/deepseek-pro.md
+?? plugins/glab/skills/workers/profiles/default.md
+?? plugins/glab/skills/workers/profiles/glm.md
+?? plugins/glab/skills/workers/profiles/kimi.md
+?? tests/external-worker.test.sh

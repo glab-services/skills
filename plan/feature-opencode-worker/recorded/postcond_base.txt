@@ -1,0 +1,48 @@
+absent plugins/glab/scripts/external-agent.sh
+absent tests/external-agent.test.sh
+absent plugins/glab/skills/external-agents/SKILL.md
+absent plugins/glab/skills/external-agents/profiles/default.md
+absent plugins/glab/skills/external-agents/profiles/kimi.md
+absent plugins/glab/skills/external-agents/profiles/glm.md
+absent plugins/glab/skills/external-agents/profiles/deepseek-pro.md
+absent plugins/glab/skills/external-agents/profiles/deepseek-flash.md
+ed9eec82eacf2be2 plugins/glab/skills/manager/SKILL.md
+05e6dd2c3d2b0d9e plugins/glab/commands/review.md
+90d4bcc35aa6f9bc plugins/glab/commands/ship.md
+1ec2bf5ff7c5ddcc plugins/glab/commands/develop.md
+95dcd01617a47e6d AGENTS.md
+ef5eb869e8345134 README.md
+cece74810913bece plugins/glab/.claude-plugin/plugin.json
+find: ‘plugins/glab/skills/external-agents’: No such file or directory
+files under external-agents: 
+rev-2 paths left: 0
+rev2-build: 
+manager '## Rule 5 ' 0
+manager '## Rule 6 ' 0
+manager '## When subagent dispatch is not available' 0
+manager '## Stage 5 ' 0
+manager '## What you never do' 0
+rule 6 headings: 0
+plugins/glab/commands/review.md 0
+plugins/glab/commands/ship.md 0
+plugins/glab/commands/develop.md 0
+version 0.3.0
+census exit codes: 
+census verdicts: plugins/glab/agents/reviewer.md plugins/glab/commands/ship.md plugins/glab/skills/manager/SKILL.md
+census token: 
+census allowlist: 
+census limits: 
+census state dir: 
+census default cli: 
+census use balance: 
+census what the copy sends: 
+census grok: 
+census send correction: 
+census manual rule, external: plugins/glab/skills/manager/SKILL.md
+census not run against a real model: 
+guard: model ids in payload prose 0
+/usr/bin/grep: plugins/glab/scripts/external-agent.sh: No such file or directory
+guard: grok in allowlist 
+guard: rev-2 names 0
+guard: invisible characters 0
+guard: known positive for that search 1

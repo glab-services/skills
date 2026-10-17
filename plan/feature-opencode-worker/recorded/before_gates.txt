@@ -1,0 +1,24 @@
+plugins/memory-sync/scripts/memory-sync.sh rc=0
+plugins/glab/scripts/manager-bootstrap.sh rc=0
+tests/memory-sync.test.sh rc=0
+rc=0
+PASS 35/35
+✔ Validation passed
+✔ Validation passed
+✔ Validation passed
+  Skills (14)  analyze, audit, bootstrap, comments, commit, develop, integrate, manager, plan, plan-first, push, review, security, ship
+  Agents (5)  reviewer, integrator, developer, analyzer, committer
+  Hooks (1)  SessionStart  (harness-only — no model context cost)
+  Skills (1)  sync-memory
+  Agents (0)
+  Hooks (4)  SessionStart, SessionEnd, PostToolUse, Stop  (harness-only — no model context cost)
+glab = glab
+memory-sync = memory-sync
+plugins/glab/hooks/hooks.json:0
+plugins/memory-sync/hooks/hooks.json:0
+rc=1
+plugins/memory-sync/scripts/memory-sync.sh:1
+plugins/memory-sync/skills/sync-memory/SKILL.md:1
+README.md:1
+rc=0
+rc=1
