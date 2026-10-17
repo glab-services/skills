@@ -85,12 +85,15 @@ real reviewer's first report fail the check.
     verdicts in backticks — a literal copy is exit 8. Add one sentence to
     `reviewer_tail` in `external-agent.sh`: inside the block every line
     starts at the left edge, no indent, no backticks, the verdict line alone.
+    *Status (developer, 2026-10-17):* done in `fix-external-report-lines`.
 14. **`profiles/kimi.md`: "Every claim in your answer names its `file:line`"
     is absolute.** Claims backed by command output, the verdict and the
     not-checked lines have none; a model may invent one. Say "every claim
     about the code".
+    *Status (developer, 2026-10-17):* done in `fix-external-report-lines`.
 15. **`profiles/glm.md`: "plan, then analyse, then act"** goes to a
     read-only agent. Say "then answer".
+    *Status (developer, 2026-10-17):* done in `fix-external-report-lines`.
 16. **Truncation before redaction.** `opencode_error` cuts to 300 characters
     and the renderer slices to 500/2000 before `redact_stream`, so a key the
     raw pass missed and that crosses the cut keeps its prefix. Redact first,
@@ -125,3 +128,18 @@ real reviewer's first report fail the check.
     with no template the out-of-scope note goes "in one closing line". That
     line is about where the note goes, not about the report shape, so P1
     holds (analyze round 3 found it; the code conforms).
+
+## From the report-lines fix
+
+24. `tests/external-agent.test.sh` failed once, 1 of 47, in the planner's
+    baseline run at `8cb2a92`, with the case not captured, while the planner
+    was also running mutants; 8 manager runs and 3 planner runs passed.
+    Likely a timing-sensitive case under load. Next time it fails, keep the
+    full output to name the case.
+25. **The left-edge sentence still bans indent on every line** of the report
+    block (`external-agent.sh` `reviewer_tail`), while the check reads only
+    the markers, the verdict line and `^rule: `. A model may flatten an
+    indented code quote in a finding's free text; the check never fails on
+    it. Narrow to "the verdict line and each rule: line start at the left
+    edge", and change E48's `sl` with it. Advisory from the one review round
+    of `fix-external-report-lines` (`SHIP`); not changed after review.
