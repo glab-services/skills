@@ -49,11 +49,15 @@ is never printed and is redacted from what the agent returns. Each agent's
 transcript stays readable under `$TMPDIR/glab-external-agents/` until the
 manager stops it.
 
-External agents have been tested against a stub and against the real
-`opencode` with no network, and have not yet run against a real model: that
-is the live probe in `plan/feature-opencode-worker/plan-r3.md` (L1), which you
-run with your own key. Until it has, treat the first real session as the
-test it is.
+External agents have been tested against a stub, against the real `opencode`
+with no network, and in one live probe on 2026-10-17
+(`plan/feature-opencode-worker/probe-r3.md`): the five Kimi and GLM models
+each answered a task, a `send` and a review through the sandbox, on a
+one-file test repository.
+Not yet shown: any reply from a DeepSeek model (both were refused upstream
+before their first turn); how any model does on a real repository, a long
+brief or a Go limit; and whether the profiles make a reply better. Treat the
+first real session of any of these as the test it is.
 
 ## Install
 

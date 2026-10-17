@@ -42,6 +42,7 @@ task directly.
   architecture, parameter, context-size, cost or training claim. Those are
   unverified, and some are wrong: a persona does not select a model's experts.
 - UNVERIFIED: that this text makes a real reply better. No reply from this
-  family has been captured. The user's live probe (L1 in
-  `plan/feature-opencode-worker/plan-r3.md`) captures one transcript; tune
-  this profile from what it shows, and cite that transcript here.
+  family has been captured: in the live probe of 2026-10-17
+  (`plan/feature-opencode-worker/probe-r3/`), `deepseek-v4.1-flash` was refused
+  upstream before its first turn. Tune this profile from the first transcript
+  a run captures, and cite that transcript here.

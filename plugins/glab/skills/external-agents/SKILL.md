@@ -129,9 +129,10 @@ message, so do not paste them into the brief.
 
 The script frames it with the reviewer's own contract and report section, and
 returns the report block alone. It checks the block's form, not its
-judgement: exactly one verdict line, and for `BLOCK: <n> issues` an n of at
-least 1 and at least n findings with a `rule:` line — advisory findings carry
-one too and are not counted in n. On exit 0 that is the reviewer's report:
+judgement: exactly one verdict line, and for `BLOCK: <n> issues` (or
+`BLOCK: 1 issue`) an n of at least 1 and at least n findings with a `rule:`
+line — advisory findings carry one too and are not counted in n. On exit 0
+that is the reviewer's report:
 match its verdict as `/glab:review` and `/glab:ship` say. On exit 8 the
 report is missing or malformed: `send` the same agent one message naming the
 gaps from stderr and asking for the report again — it keeps its context, as a

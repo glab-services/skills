@@ -56,7 +56,7 @@ without the variable that directory is the live `~/.claude`.
     jq -r '.plugins[] | .name + " " + .source' .claude-plugin/marketplace.json | while read -r n s; do echo "$n = $(jq -r .name "$s/.claude-plugin/plugin.json")"; done
     command grep -c user_config plugins/*/hooks/hooks.json; echo "rc=$?"
     command grep -c -F 'not yet confirmed' plugins/memory-sync/scripts/memory-sync.sh plugins/memory-sync/skills/sync-memory/SKILL.md README.md; echo "rc=$?"
-    command grep -c -F 'not yet run against a real model' README.md; echo "rc=$?"
+    command grep -c -F 'Not yet shown: any reply from a DeepSeek model' README.md; echo "rc=$?"
     command grep -rH --include='*.md' '^name: .*:' plugins; echo "rc=$?"
 
 The first line finds the CLI. When there is none it stops the block with the
@@ -75,7 +75,7 @@ Green is:
 - `glab = glab` and `memory-sync = memory-sync`. Validation does not compare a marketplace entry with the plugin it points at; it passes with a wrong name and with a directory that does not exist;
 - `:0` after each `hooks.json`, then `rc=1`. `grep -c` exits 1 when it counts nothing, and nothing is the green result here. A `${user_config.…}` in a hook command passes validation and fails when the hook runs;
 - a count of `1` or more after each of the three files, then `rc=0`. Read the counts, not the `rc`: `grep -c` exits 0 as soon as one file matches. The phrase is the hedge on `CLAUDE_CODE_SESSIONEND_HOOKS_TIMEOUT_MS` — documented as the override for the `SessionEnd` budget, not yet shown to cover a hook that a plugin provides — and no other gate notices when the script comment, the skill or the README starts stating it as fact;
-- `1`, then `rc=0`, from the line after the `not yet confirmed` one. The sentence says the external agents have not yet run against a real model; it stays until the user's live probe (`plan/feature-opencode-worker/plan-r3.md`, L1) has run, and no other gate notices when it is dropped or reworded into a claim that they have.
+- `1`, then `rc=0`, from the line after the `not yet confirmed` one. The sentence says what the live probe of 2026-10-17 (`plan/feature-opencode-worker/probe-r3.md`) did not show: a reply from a DeepSeek model, a real repository, a long brief, a Go limit, the profiles' effect. It changes only when a later run has shown one of them, and no other gate notices when it is dropped or reworded into a claim that one has been shown.
 - no line, then `rc=1`, from the last command. A frontmatter `name:` that carries the plugin prefix passes validation and `plugin details`, and nothing else catches it.
 
 The Markdown files have no gate. A change to one is verified by running the
@@ -178,8 +178,8 @@ repo and to nothing else.
   `README.md`); the one exit-8 `send` correction of an external reviewer
   (`glab:manager` Rule 5, `plugins/glab/commands/ship.md`, the skill); the
   missing-`AGENTS.md` fallback, which the first message of
-  `external-agent.sh` also states; the sentence that external agents have not
-  yet run against a real model (`README.md`, pinned by its gate line above).
+  `external-agent.sh` also states; the sentence on what the live probe did
+  not show (`README.md`, pinned by its gate line above).
 - **Comments and recorded incidents are kept.** Update them when the thing
   they describe changes; do not delete them.
 - **Tests clean up by PID.** A test kills only processes it started itself,

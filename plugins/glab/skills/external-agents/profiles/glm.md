@@ -41,7 +41,8 @@ task directly.
   directives (OpenCode handles tools), `[INSERT …]` placeholders, and every
   architecture, parameter, context-size, cost or training claim. Those are
   unverified, and some are wrong: a persona does not select a model's experts.
-- UNVERIFIED: that this text makes a real reply better. No reply from this
-  family has been captured. The user's live probe (L1 in
-  `plan/feature-opencode-worker/plan-r3.md`) captures one transcript; tune
-  this profile from what it shows, and cite that transcript here.
+- UNVERIFIED: that this text makes a real reply better. Replies from this
+  family were captured in the live probe of 2026-10-17, for `glm-5.3`,
+  `glm-5.3-flash` and `glm-5.2` (`plan/feature-opencode-worker/probe-r3/`),
+  but only with this profile, so nothing compares them with a reply without
+  it. Tune this profile from those transcripts, and cite them here.

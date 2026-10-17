@@ -23,7 +23,7 @@ Match the verdict **whole**, never by prefix — `SHIP WITH SCOPE CUT` starts wi
 
 - Exactly `SHIP` → go to step 3.
 - `SHIP WITH SCOPE CUT: <what to drop>` → go to step 3 with the named part removed from the scope, and tell me what you dropped. Never commit the named part.
-- `BLOCK: <n> issues` or `BLOCK: target unresolved` → stop here. Show the findings and ask what I want fixed. Do not commit. Do not start fixing anything unless I say so.
+- `BLOCK: <n> issues`, `BLOCK: 1 issue` or `BLOCK: target unresolved` → stop here. Show the findings and ask what I want fixed. Do not commit. Do not start fixing anything unless I say so.
 - `DO NOT PUBLISH: <why>` → stop. Do not commit, and do not offer a fix round; the reviewer is saying the design is wrong.
 - No clear verdict, or the reviewer errored → first the report check of `glab:manager` Rule 5: resume the reviewer once, asking only for the missing fields. Still no clear verdict → treat it as BLOCK and say which it was. An external reviewer's report check is the script's: on its exit 8 `send` the same agent the gaps once, as `glab:external-agents` says — not a round; any other non-zero exit except 2 (USAGE, fixed and run again) is the reviewer erroring, reported and not retried.
 

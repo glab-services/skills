@@ -83,7 +83,7 @@ Findings first, most severe first. For each:
     breaks when: <concrete inputs or state → wrong result>
     fix: <the specific change>
 
-End with one verdict line: `SHIP`, `BLOCK: <n> issues`, or `BLOCK: target unresolved` when step 2b could not resolve what it was asked to review. Never `SHIP` a review that examined nothing. When the repo has no `AGENTS.md`, the line directly above the verdict is `agreement: no AGENTS.md — correctness only`. The verdict line itself never changes, so a caller that matches it whole still works.
+End with one verdict line: `SHIP`, `BLOCK: <n> issues` (for one issue, `BLOCK: 1 issue` is the same verdict), or `BLOCK: target unresolved` when step 2b could not resolve what it was asked to review. Never `SHIP` a review that examined nothing. When the repo has no `AGENTS.md`, the line directly above the verdict is `agreement: no AGENTS.md — correctness only`. The verdict line itself never changes, so a caller that matches it whole still works.
 
 Then say what you did not check. If you could not run the tests, say that plainly rather than implying they passed. No praise and no summary of what the change does — the caller wrote it.
 

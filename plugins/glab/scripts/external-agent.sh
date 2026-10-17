@@ -682,11 +682,18 @@ finish_turn() {
       || gaps+=("no block between '$REPORT_START' and '$REPORT_END'")
     if [ ${#gaps[@]} -eq 0 ]; then
       # The verdict set is the one plugins/glab/agents/reviewer.md states.
-      verdicts=$(command grep -cE '^(SHIP|SHIP WITH SCOPE CUT: .+|BLOCK: [0-9]+ issues|BLOCK: target unresolved|DO NOT PUBLISH: .+)$' <<<"$text")
+      # `BLOCK: 1 issue` is the same verdict as `BLOCK: 1 issues`: both Kimi
+      # models wrote the singular in the live probe
+      # (plan/feature-opencode-worker/probe-r3.md, finding 1). For one only:
+      # no template and no reviewer writes `BLOCK: 3 issue`, and accepting it
+      # would widen the check past what was seen.
+      verdicts=$(command grep -cE '^(SHIP|SHIP WITH SCOPE CUT: .+|BLOCK: 1 issue|BLOCK: [0-9]+ issues|BLOCK: target unresolved|DO NOT PUBLISH: .+)$' <<<"$text")
       if [ "$verdicts" -ne 1 ]; then
         gaps+=("expected exactly one verdict line, found $verdicts")
       else
-        n=$(sed -n 's/^BLOCK: \([0-9][0-9]*\) issues$/\1/p' <<<"$text")
+        # Both forms, each matched whole as in the set above, so a line out of
+        # form, such as `BLOCK: 3 issue` beside a SHIP, is never read as a count.
+        n=$(sed -n -e 's/^BLOCK: \([0-9][0-9]*\) issues$/\1/p' -e 's/^BLOCK: \(1\) issue$/\1/p' <<<"$text")
         if [ -n "$n" ]; then
           # Every finding carries a rule: line; advisory ones do too and are
           # not counted in n (plugins/glab/agents/reviewer.md), so the report

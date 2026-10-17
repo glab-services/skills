@@ -124,6 +124,10 @@ case $scen in
 	rev-short) text "$(printf '=== REPORT START ===\na.txt:1 — x\nrule: correctness\nbreaks when: y\nfix: z\nBLOCK: 2 issues\n=== REPORT END ===')" ;;
 	rev-advisory) text "$(printf '=== REPORT START ===\na.txt:1 — x\nrule: correctness\nbreaks when: y\nfix: z\nadvisory: b.txt:2 — w\nrule: correctness\nBLOCK: 1 issues\n=== REPORT END ===')" ;;
 	rev-zero) text "$(printf '=== REPORT START ===\nBLOCK: 0 issues\n=== REPORT END ===')" ;;
+	# The singular verdict, for one issue and for two (E49).
+	rev-one) text "$(printf '=== REPORT START ===\na.txt:1 — x\nrule: correctness\nbreaks when: y\nfix: z\nBLOCK: 1 issue\n=== REPORT END ===')" ;;
+	rev-one-bare) text "$(printf '=== REPORT START ===\nBLOCK: 1 issue\n=== REPORT END ===')" ;;
+	rev-two-singular) text "$(printf '=== REPORT START ===\na.txt:1 — x\nrule: correctness\nbreaks when: y\nfix: z\nb.txt:2 — w\nrule: correctness\nbreaks when: y\nfix: z\nBLOCK: 2 issue\n=== REPORT END ===')" ;;
 	fds) text "marker-fds=$(markers)" ;;
 	# What a turn leaves in its $HOME, outside the data directory and in it (E41).
 	plant) mkdir -p "$HOME/.config/x" && touch "$HOME/planted" "$HOME/.config/x/f" "$data/kept" && text planted ;;
@@ -503,8 +507,8 @@ ok=1
 # The backticks are part of the text searched for: each verdict is quoted
 # that way in the agent file.
 # shellcheck disable=SC2016
-for v in '`SHIP`' '`SHIP WITH SCOPE CUT: <what to drop>`' '`BLOCK: <n> issues`' '`BLOCK: target unresolved`' '`DO NOT PUBLISH: <one line why>`'; do command grep -qF -- "$v" "$W/plugin/agents/reviewer.md" || ok=0; done
-command grep -qF -- 'SHIP|SHIP WITH SCOPE CUT: .+|BLOCK: [0-9]+ issues|BLOCK: target unresolved|DO NOT PUBLISH: .+' "$SCRIPT" || ok=0
+for v in '`SHIP`' '`SHIP WITH SCOPE CUT: <what to drop>`' '`BLOCK: <n> issues`' '`BLOCK: 1 issue`' '`BLOCK: target unresolved`' '`DO NOT PUBLISH: <one line why>`'; do command grep -qF -- "$v" "$W/plugin/agents/reviewer.md" || ok=0; done
+command grep -qF -- 'SHIP|SHIP WITH SCOPE CUT: .+|BLOCK: 1 issue|BLOCK: [0-9]+ issues|BLOCK: target unresolved|DO NOT PUBLISH: .+' "$SCRIPT" || ok=0
 [ "$ok" = 1 ] && OK=1
 t E34 "the verdicts the script accepts are the ones the reviewer's file states"
 
@@ -515,7 +519,7 @@ files=$(find "$W/plugin/skills/external-agents/profiles" -maxdepth 1 -name '*.md
 [ -n "$named" ] && [ "$named" = "$files" ] && OK=1
 t E35 "every profile file is named by an allowlist line, and every named profile exists"
 
-# E37-E48 were added after E36 was written, and run before it: E36 checks
+# E37-E49 were added after E36 was written, and run before it: E36 checks
 # what every case left behind, so it stays last.
 
 # A start whose first turn is running: a send is busy, and stop ends the start.
@@ -644,6 +648,20 @@ for k in 1 2; do
 done; stop_all
 [ "$r1" = 8 ] && [ "$r2" = 8 ] && [ "$ok" = 1 ] && OK=1
 t E48 "every reviewer message, the first and each send, says after the two report lines that the block's lines start at the left edge: no indent, no backticks on the verdict and rule: lines, and the verdict alone"
+
+# Both Kimi models wrote the verdict for one issue in the singular in the live
+# probe. It is accepted for one only, and its count is checked as the
+# plural's is: without the second sed expression rev-one-bare would pass.
+M=opencode-go/kimi-k3 start rev-one --role reviewer; r1=$RC o1=$(reply)
+stop_all
+M=opencode-go/kimi-k3 start rev-one-bare --role reviewer; r2=$RC e2=$ERR
+stop_all
+M=opencode-go/kimi-k3 start rev-two-singular --role reviewer; r3=$RC e3=$ERR
+stop_all
+[ "$r1" = 0 ] && [ "$(tail -n 1 <<<"$o1")" = 'BLOCK: 1 issue' ] \
+	&& [ "$r2" = 8 ] && command grep -qF 'verdict says 1 issues, the report has 0 findings' <<<"$e2" \
+	&& [ "$r3" = 8 ] && command grep -qF 'expected exactly one verdict line, found 0' <<<"$e3" && OK=1
+t E49 "BLOCK: 1 issue is accepted with its count checked, as BLOCK: 1 issues is; BLOCK: 2 issue is malformed (8)"
 
 [ "$FP" = "$(fingerprint)" ] && [ "$(agents)" = 0 ] && [ "$(leftovers)" = "$BASE_PROCS" ] && [ ! -e "$W/ran-on-host" ] && OK=1
 t E36 "after every case: the real repository is unchanged byte for byte, no agent is left, and no sandbox, slirp4netns or stub process runs"
