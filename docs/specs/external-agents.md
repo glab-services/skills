@@ -9,8 +9,9 @@ constants and comments own the commands, output, exit codes, state, isolation
 and limits; `opencode_models()` owns the allowlist), the
 `glab:external-agents` skill (`plugins/glab/skills/external-agents/SKILL.md`)
 and its `profiles/`, `glab:manager` Rules 5 and 6, `tests/external-agent.test.sh`,
-and `README.md` *Requirements*. Stated as of `6838133` (`glab` `0.4.2`);
-where this file and an owning file disagree, the owning file is right.
+and `README.md` *Requirements*. Stated as of `6838133` (`glab` `0.4.2`), its
+`feature-docs-specs` lines as of `09d2787` (`glab` `0.5.0`); where this file
+and an owning file disagree, the owning file is right.
 
 ## How it works now
 
@@ -381,6 +382,8 @@ Owned by `opencode_models()` in the script, one line per model —
 - [fix-probe-findings/plan.md D3] The pinned phrase `Not yet shown: any reply from a DeepSeek model`, on one line; the sentence lists every hedge of the probe's *Not verified*.
 - [fix-probe-findings/plan.md D5] A case of its own, E49, with three stub scenarios (`rev-one`, `rev-one-bare`, `rev-two-singular`).
 - [fix-probe-findings/plan.md spent] decision-4, decision-5, decision-6, D4 — the `0.4.2` bump, the masking of the probe's host values (done, and recorded in the probe record), the order of the records and fix commits, and the factual correction of the profiles' *Notes*, all done in that change.
+- [feature-docs-specs/plan.md D6] The offline run and the live-run procedure live in this spec, *Offline run* and *Live runs*, their blocks copied byte for byte from the records; the runner stays a block the user saves and runs as a script, not a tracked file, because an executable that calls a real model would sit in the tree with no gate over it.
+- [feature-docs-specs/questions.md Q1] A: the user's prompting notes went with `feature-opencode-worker`'s folder and stay in history at `51043c4`; *Profiles* and each profile's `## Notes` cite them there (the user's, 2026-10-17).
 
 ## Known limits and not verified
 
@@ -659,7 +662,6 @@ reviewer found the one uncommitted bug. All five said the repository has no
 
 ## Open follow-ups
 
-- [fix-probe-findings/plan.md follow-up-1] `AGENTS.md`'s live-run rule read "the live probe in that plan, which the user runs with their own key; no agent runs it", but the manager ran L1 at the user's instruction; a working-agreement rule, the user's call → `feature-docs-specs`.
 - [fix-probe-findings/plan.md follow-up-2] A start refused upstream lists with `turns=2` — the same item as `[feature-opencode-worker/probe-r3.md 4]`; open.
 - [fix-probe-findings/plan.md follow-up-4] Re-tune the profiles from the probe's transcripts — the same item as `[feature-opencode-worker/follow-ups.md 12]`; open.
 - [fix-probe-findings/result.md E49] For a singular verdict the gap message reads `verdict says 1 issues, …` (the message prints n before `issues`), and E49 pins that text, as E19 pins the plural; if the message is ever reworded, the script and both cases change in one commit — open, accepted as worded.
@@ -703,6 +705,7 @@ reviewer found the one uncommitted bug. All five said the repository has no
 - [feature-opencode-worker/probe-r3.md 3] DeepSeek refused upstream for want of the Global region — closed by the user's decision to leave it (`[fix-probe-findings/plan.md decision-2]`); the end date stands.
 - [feature-opencode-worker/probe-r3.md 5] The README's "not yet run against a real model" was out of date — closed by `5321d76`: the sentence and its gate line say what the probe did and did not show.
 - [feature-opencode-worker/probe-r3.md 6] Timing, 7–9 minutes per model — closed: information.
+- [fix-probe-findings/plan.md follow-up-1] `AGENTS.md`'s live-run rule read "the live probe in that plan, which the user runs with their own key; no agent runs it", but the manager ran L1 at the user's instruction — closed by `feature-docs-specs`: `AGENTS.md`'s live-run exception, the user's wording (it runs only when the user says so in chat for that run and names the models; the user runs it, or the manager session does at that instruction, as a script; no dispatched agent runs it).
 
 ## Incidents
 
@@ -740,3 +743,4 @@ reviewer found the one uncommitted bug. All five said the repository has no
   - [fix-probe-findings/plan.md L333] Follow-ups (out of scope, not done here) → `[fix-probe-findings/plan.md follow-up-1]` to `follow-up-4`.
   - [fix-probe-findings/result.md L226] Follow-ups → `[fix-probe-findings/result.md E49]`.
   - [fix-probe-findings/result.md L238] Not done → the probe records commit landed before the fix (`51043c4`, then `5321d76`); mutants m1–m3 not re-run and the line-number drift: nothing open.
+- 2026-10-18 · feature-docs-specs · recorded in `docs/specs/workflow.md`, its primary area; here it closed `[fix-probe-findings/plan.md follow-up-1]` and carried `[feature-docs-specs/plan.md D6]` and `[feature-docs-specs/questions.md Q1]` · plan: `git ls-tree -r --name-only 09d2787 -- plan/feature-docs-specs/` (one file: `git show 09d2787:plan/feature-docs-specs/<file>`)

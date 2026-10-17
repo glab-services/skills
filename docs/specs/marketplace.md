@@ -6,8 +6,9 @@ this repo is tested without installing anything, the gates, the rules of
 `AGENTS.md`, the per-machine host file, and the records of changes to these.
 Owned by `.claude-plugin/marketplace.json`, both
 `plugins/<name>/.claude-plugin/plugin.json`, `AGENTS.md`, `README.md` and
-`host.example.md`. Stated as of `6838133`; where this file and an owning file
-disagree, the owning file is right and this spec is out of date.
+`host.example.md`. Stated as of `6838133`, its versions and its
+`docs/specs/` and `plan/` bullet as of `09d2787`; where this file and an owning file disagree, the
+owning file is right and this spec is out of date.
 
 ## How it works now
 
@@ -24,7 +25,7 @@ disagree, the owning file is right and this spec is out of date.
   skill, `sync-memory`, no agent, hooks on `SessionStart`, `SessionEnd`,
   `PostToolUse` and `Stop`.
 - **Versions.** Each `plugin.json` carries an explicit `version` — `glab`
-  `0.4.2`, `memory-sync` `0.1.0` at `6838133`. A change under
+  `0.5.0` (raised by `fed95f9`), `memory-sync` `0.1.0`, at `09d2787`. A change under
   `plugins/<name>/` raises that plugin's version in the same commit, because
   an installed copy is pinned to the version string and nothing else
   delivers a change (`AGENTS.md` *Rules*). `claude plugin validate --strict`
@@ -67,10 +68,31 @@ disagree, the owning file is right and this spec is out of date.
   against a real model, the hook contract of `memory-sync.sh`, the *One fact,
   one value* list, comments and incidents kept, tests that clean up by PID,
   the version rule, Conventional Commits.
-- **`plan/`**, as of `6838133`, holds the records of each change, tracked and
-  kept (`AGENTS.md` *Rules*: "`plan/` is tracked and permanent");
-  `plan/SESSION-HANDOFF.md` is untracked. `feature-docs-specs` changes this
-  rule.
+- **`docs/specs/` and `plan/`** (`AGENTS.md` *Layout* and *Rules*, the
+  `plan/` rule; `README.md` *Working on this repo*), as of `09d2787`. `docs/specs/` holds
+  one spec per area — this file (the marketplace, this repo's layout, gates
+  and rules), `workflow.md`, `memory-sync.md`, `external-agents.md` — with
+  how the area works now, the decisions that still bind, what is not
+  verified, every follow-up open or closed, each tagged
+  `[<slug>/<file> <id>]`, and its incidents. A spec states a fact as of its
+  last record and names the file that owns it, so it is not one of the
+  *One fact* files. `plan/` is the working area: a change's `plan/<slug>/`
+  is committed with the change, and after its push the record
+  (`glab:manager` Stage 8, `docs/specs/workflow.md`) updates the spec of
+  each area it touched. `glab` never removes the folder; this repo's
+  `AGENTS.md` does, by its own rule: once the change has landed on
+  `origin/main`, the manager session — not a `glab` step — removes the
+  folder by its exact path in a `docs(repo)` commit, after checking that it
+  is tracked, clean (`git status --short -uall -- plan/<slug>/` prints
+  nothing) and identical on `origin/main`
+  (`git diff --quiet origin/main -- plan/<slug>/`), and the spec's *Records*
+  line names the last commit on `origin/main` that holds it. It is read
+  back without touching the tree: one file `git show <sha>:plan/<slug>/<file>`,
+  the list `git ls-tree -r --name-only <sha> -- plan/<slug>/`, the whole
+  folder through `git archive` into a new directory under `$TMPDIR`. No
+  untracked file under `plan/` is removed; `plan/SESSION-HANDOFF.md` is
+  never committed. Until `feature-docs-specs` the rule was "`plan/` is
+  tracked and permanent".
 
 ## Decisions that still bind
 
@@ -102,6 +124,10 @@ disagree, the owning file is right and this spec is out of date.
 
 - [bug-reviewer-findings/follow-ups.md 17] `AGENTS.md` *No secrets* names the placeholder as `<profile, or delete this key>`, which reads oddly outside the JSON example — open: `AGENTS.md` at `6838133` still reads so; a cleaner wording is the user's call.
 - [bug-reviewer-findings/follow-ups.md 20] No `.gitignore`, and no Markdown lint, so the prose files have no gate — open: `git show 6838133:.gitignore` finds no such file; a Markdown gate is out of scope for `feature-docs-specs` too.
+- [feature-docs-specs/follow-ups.md 1] `AGENTS.md:225`: the `git archive` read-back extracts into a directory it never prints. Suggested: `t=$(mktemp -d "${TMPDIR:?}/plan.XXXXXX") && git archive <sha> plan/<slug>/ | tar -x -C "$t" && echo "$t"` — open.
+- [feature-docs-specs/follow-ups.md 3] `README.md:226`: the `plan/` row says "removed once each change is recorded", while `AGENTS.md` removes a folder only once it has landed on `origin/main`. Suggested: "removed after each change has landed, under this repo's `AGENTS.md`" — open; the conformance round 3/4 hand-off named the same line.
+- [feature-docs-specs/follow-ups.md 6] `AGENTS.md:220-224`: the repo's removal rule should name the forms that are never valid — never `plan/`, `plan/.`, or a slug outside `[A-Za-z0-9._-]`; review round 2 measured that `plan/./` removes every folder under `plan/` (*Incidents*) — open.
+- [feature-docs-specs/follow-ups.md 8] The *Records* lines of every spec, the transcript citations of `docs/specs/external-agents.md` *Profiles* and *Live runs* and its rev2-build line under *Incidents*, and the list form of `AGENTS.md`'s `plan/` rule: `git ls-tree -r --name-only <sha> -- plan/<slug>/` prints nothing, with exit 0, when run from a subdirectory. Suggested: add `--full-tree`, in the specs and `AGENTS.md` in the same commit — open.
 
 ## Closed follow-ups
 
@@ -125,6 +151,7 @@ disagree, the owning file is right and this spec is out of date.
 - **The CLI writes into its config directory even for `plugin validate`** (proven in a throwaway directory, feature-plugin-marketplace findings §1), so a `claude` command without `CLAUDE_CONFIG_DIR` writes into the live `~/.claude`.
 - **A wrapped phrase defeats a per-line gate.** The hedge gate first counted `0` in the script: the plan's comment wrapped `not yet confirmed` over two lines, and `grep -F` reads one line at a time (feature-plugin-marketplace `result-slice-D.md`, *Blocked*). The comment was re-wrapped so the phrase sits on one line.
 - **`;` instead of `&&` hid a syntax error.** The first gate line printed `rc=0` for a script that failed `bash -n`, because the `rc` was `test -x`'s; it is now `bash -n "$s" && test -x "$s"` (`AGENTS.md` *Gates*).
+- **A removal path that is not exact removes all of `plan/`** (`feature-docs-specs`, review rounds 1 and 2, measured in throwaway repos): with an empty slug, `git rm -r -n -- "plan/$slug/"` listed every file under `plan/`, `rc=0`, and so did `plan/../` and `plan/./`. The `plan/` rule removes a folder by its exact path, after checking it is tracked, clean and identical on `origin/main`; the forms that are never valid are not yet named (`[feature-docs-specs/follow-ups.md 6]`).
 
 ## Records
 
@@ -143,3 +170,4 @@ disagree, the owning file is right and this spec is out of date.
   - [feature-plugin-marketplace/result-slice-S.md L199] Follow-ups → `[feature-plugin-marketplace/result-slice-S.md 1]`, `4`, `5` here; `2`, `3` in `docs/specs/memory-sync.md`.
   - [feature-plugin-marketplace/result-slice-S.md L212] Not done → `[feature-plugin-marketplace/plan.md smoke-test-2]` and `smoke-test-3` (substitution, hooks firing, the `SessionEnd` cut-off), in `docs/specs/memory-sync.md`.
 - 2026-10-05 · bug-reviewer-findings · recorded in `docs/specs/memory-sync.md`, its primary area; its marketplace items (follow-ups 15, 17, 20, 21; questions Q1, Q4, Q5, Q8) are tagged above · plan: `git ls-tree -r --name-only 2aeb46d -- plan/bug-reviewer-findings/` (one file: `git show 2aeb46d:plan/bug-reviewer-findings/<file>`)
+- 2026-10-18 · feature-docs-specs · recorded in `docs/specs/workflow.md`, its primary area; it added `docs/specs/` and rewrote the `plan/` rule (*How it works now*), and its repo items (follow-ups 1, 3, 6, 8) are tagged above · plan: `git ls-tree -r --name-only 09d2787 -- plan/feature-docs-specs/` (one file: `git show 09d2787:plan/feature-docs-specs/<file>`)

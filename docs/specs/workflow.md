@@ -4,14 +4,16 @@ The `glab` workflow: how a session runs a change through plan, analysis,
 development, integration, review, commit and push, at the depth a tier
 gives it; the rules of `glab:manager`; the agents and commands; the user's
 choice of model for the developer and reviewer; and what happens to a
-change's plan files. Owned by `plugins/glab/skills/manager/SKILL.md`,
+change's plan files, up to the record that moves what stays true into an
+area spec. Owned by `plugins/glab/skills/manager/SKILL.md`,
 `plugins/glab/skills/plan-first/SKILL.md`,
-`plugins/glab/skills/bootstrap/SKILL.md`, the agents under
-`plugins/glab/agents/`, the commands under `plugins/glab/commands/`, and
-`plugins/glab/scripts/manager-bootstrap.sh` (the `SessionStart` hook text).
-The external agents are in `docs/specs/external-agents.md`. Stated as of
-`6838133` (`glab` `0.4.2`), before `feature-docs-specs`; where this file and
-an owning file disagree, the owning file is right.
+`plugins/glab/skills/bootstrap/SKILL.md`, `plugins/glab/skills/audit/SKILL.md`,
+the agents under `plugins/glab/agents/`, the commands under
+`plugins/glab/commands/`, and `plugins/glab/scripts/manager-bootstrap.sh`
+(the `SessionStart` hook text). The external agents are in
+`docs/specs/external-agents.md`. Stated as of `09d2787` (`glab` `0.5.0`), the
+record of `feature-docs-specs`; where this file and an owning file disagree,
+the owning file is right.
 
 ## How it works now
 
@@ -26,9 +28,14 @@ an owning file disagree, the owning file is right.
   1b Analyze the plan (`/glab:analyze`, plan only), 2 Develop
   (`/glab:develop`), 3 Analyze conformance, 4 Integrate (`/glab:integrate`),
   5 Review (`/glab:review`), 6 Commit (`/glab:commit`), 7 Push
-  (`/glab:push`, no push agent). Each handoff is one line,
-  `slug · stage · round n/max · verdict`, with `model <m>` on a develop or
-  review line.
+  (`/glab:push`, no push agent), 8 Record (after the push: `glab:developer`
+  on the record, `glab:analyzer` on what it carried, then `/glab:commit`; it
+  leaves on the record commit verified, then pushed on the user's go-ahead).
+  A change with a plan folder goes on from Stage 7 to Stage 8. Each handoff
+  is one line, `slug · stage · round n/max · verdict`, with `model <m>` on a
+  develop or review line. Without subagent dispatch each stage is a fresh
+  session, `<slug> record` among them. The bootstrap diagram ends on `record`,
+  and the hook text reads `-> push -> record at full tier`.
 - **The tier** (`glab:manager` *Pick the tier*), the first line of `plan.md`
   with its reason; no tier line means full. **Full**: a schema or data
   migration, a stored or wire format, code that decides who may do what,
@@ -40,10 +47,13 @@ an owning file disagree, the owning file is right.
   conformance stage, the milestone test at integrate, one review round whose
   findings are fixed once. **Trivial**: Rule 1's five lines, done directly.
   An analyzer or reviewer that finds a full-tier trigger raises the tier;
-  only the user lowers one. The tier table's **Spec** row reads "a short
-  entry: what it does, why, what is open" (normal) and "the same entry,
-  checked by independent readers" (full), with no stage, owner or place
-  (`[sync-local-edits/follow-ups.md 10]`).
+  only the user lowers one. The tier table's **8 Record** row: none at
+  trivial; at normal, "after the push: the area spec updated and
+  `glab:analyzer`'s check that every follow-up, decision and incident is
+  carried, in one docs commit"; at full, "the same, with one `glab:reviewer`
+  pass on the spec diff alone". It replaced the **Spec** row of `6838133`
+  ("a short entry", "checked by independent readers"), which had no stage,
+  owner or place (`[sync-local-edits/follow-ups.md 10]`, now closed).
 - **The rules of `glab:manager`**, one line each:
   - Rule 0 — read `AGENTS.md` first (or `CLAUDE.md`, saying there is no
     agreement), and make every dispatched agent read it, with
@@ -68,8 +78,10 @@ an owning file disagree, the owning file is right.
   - Rule 6 — an external agent is the user's call, read-only, its reply
     untrusted (`docs/specs/external-agents.md`).
 - **Agents** (`plugins/glab/agents/`): `glab:developer` (builds the named
-  steps, writes `plan/{slug}/result.md` and `follow-ups.md`, never stages),
-  `glab:analyzer` (plan-only and conformance analysis), `glab:integrator`
+  steps, writes `plan/{slug}/result.md` and `follow-ups.md`, never stages;
+  at the record it updates the area specs only and writes no `result.md`),
+  `glab:analyzer` (plan-only and conformance analysis, and the record check
+  of Stage 8), `glab:integrator`
   (the real running system, local only), `glab:reviewer` (correctness and
   `AGENTS.md` rules, gets the target and nothing else; its verdict lines are
   one fact with `ship.md`, the manager and the external-agent validator),
@@ -94,19 +106,53 @@ an owning file disagree, the owning file is right.
   dispatch for that model (a three-row table: `opus`/default/`fable`,
   `sonnet`, `haiku`, plus a row for an external reviewer), and checks every
   report against the role's contract, resuming the agent once for missing
-  fields. "For this task" ends with that task's push; "for the session" with
-  the session. Every other role gets no `model` parameter. The pipeline does
+  fields. "For this task" ends with that task's record (Stage 8), or with its
+  push when it has no plan folder; "for the session" with the session. Every other role gets no `model` parameter. The pipeline does
   not bend: the manager still runs the gates, the reviewer still gets only
   the target, push still waits for the user.
 - **Plan files** (`glab:plan-first`): `plan/{slug}/` holds `findings.md`,
   `questions.md`, `plan.md`, the developer's `result.md` and
   `follow-ups.md`, `integration.md`, and `waived.md` when the user waives
-  planning. Its rule at `6838133`: "Plan files are working files. When the
-  task ships, what stays true goes into the repo's spec as a short entry —
-  what it does, why, what is open — and the plan folder is then removed under
-  the repo's own rule for that. A repo that keeps no specs, or keeps specs but
-  has no rule for removing plan folders, keeps its plans. Never remove an
-  untracked plan file." No stage writes that entry (`[sync-local-edits/follow-ups.md 10]`).
+  planning; a waiver's folder is recorded like a plan's. The rule is
+  "**Plan files are working files; the spec is what stays.**" Step 1 reads
+  the spec of each area the change touches first — its decisions still
+  bind, its known limits still hold, its open follow-ups may already
+  describe the task. Step 3's `plan.md` includes `## Record`: the area spec
+  or specs the change updates once it is pushed, any audit file under
+  `plan/` it acts on, and what the entry will say; `/glab:plan` reports the
+  spec it names. A follow-up stays in `follow-ups.md` until the record moves
+  it into the area spec. Specs live in `docs/specs/`, one file per area,
+  unless the repo's `AGENTS.md` names another place. A plan folder whose
+  `plan.md` has no `## Record` was written before the repo followed the rule
+  and is not recorded. An audit file stays where `glab:audit` writes it;
+  the plan that acts on it names it in `## Record`, and its open items reach
+  the spec at that change's record (`glab:audit` *After Writing*, item 4).
+- **Stage 8 — Record** (`glab:manager` *Stage 8 — Record*), after Stage 7
+  has confirmed the push. `glab:developer` is dispatched for the record
+  alone — the slug, the area specs the plan's `## Record` names (for a
+  waiver, the ones the manager names), any audit file it names — and
+  updates each spec from the folder's files: how the area works now, the
+  decisions that still bind, what is not verified, every follow-up still
+  open, every binding decision and every incident with its source file and
+  number. It changes nothing inside the folder, removes nothing and writes
+  no `result.md`; its report is the reply, and Step 3's gates run as for any
+  change (`agents/developer.md` *The record — `glab:manager` Stage 8*). `glab:analyzer` then runs the
+  record check at every tier: its contract is the folder and the audit file,
+  each item `carried` (with the spec's `file:line`) or `missing`, ending
+  `CONFORMS` or `DIVERGES: <n> steps`; `DIVERGES` goes back to the developer
+  once and to the analyzer again, then to the user (`agents/analyzer.md`
+  *The record check — `glab:manager` Stage 8*). At full tier one `glab:reviewer` pass on the spec diff
+  alone follows, its findings fixed once and checked by the analyzer. Then
+  `/glab:commit` with the spec files and `/glab:push` on its own go-ahead:
+  an ordinary docs change. A decision made at this stage goes in the
+  dispatch and the spec, not in `plan.md`. **The record never removes
+  `plan/{slug}/` or an audit file**; whether a recorded folder is then
+  removed, and how, is the repo's own `AGENTS.md` decision, carried out
+  outside the stage, and the manager's *What you never do* says so. The
+  bootstrap's `record` bullet: "the plan folder stays unless the repo's
+  `AGENTS.md` says otherwise"; its handoff step looks in the area specs for
+  what a finished change left open. This repo's own rule — the manager
+  session removes a landed folder — is in `docs/specs/marketplace.md`.
 
 ## Decisions that still bind
 
@@ -139,7 +185,7 @@ an owning file disagree, the owning file is right.
 - [sync-local-edits/result-followups.md D6] After an amendment, the develop handoff re-runs the plan's next stage.
 - [sync-local-edits/result-followups.md D8] `/glab:analyze` says "If the plan is amended".
 - [sync-local-edits/result-followups.md D9] The planner decides each choice and records it with its reason; the manager reviews those lines and may overrule one, recording the overrule as a new line.
-- [sync-local-edits/result-followups.md D10] Only its `glab:plan-first` half stands: a repo that keeps specs but has no rule for removing plan folders keeps its plans. Its manager half — the Spec row's stage, owner and place — was removed by the review's scope cut (`[sync-local-edits/follow-ups.md 10]`).
+- [sync-local-edits/result-followups.md D10] Only its `glab:plan-first` half stands, reworded by `feature-docs-specs`: no `glab` step removes a plan folder, and whether a recorded one is removed is the repo's own `AGENTS.md` decision (it said: a repo that keeps specs but has no rule for removing plan folders keeps its plans). Its manager half — the Spec row's stage, owner and place — was removed by the review's scope cut; Stage 8 now gives the record a stage, owner and place (`[sync-local-edits/follow-ups.md 10]`, closed).
 - [sync-local-edits/result-followups.md D11] The 1b row's "Leaves on" reads "`BUILDABLE`, or one amendment at normal tier".
 - [sync-local-edits/result-followups.md D12] Bootstrap points to *Pick the tier* for the full-tier triggers and names the four as Rule 3's ask-conditions; `review.md` says Stage 5 sends findings back; the hook text says "at full tier".
 - [sync-local-edits/result-followups.md spent] D7 — the waiver routing it decided was removed by the review's scope cut (`[sync-local-edits/follow-ups.md 7]`, reopened).
@@ -148,31 +194,62 @@ an owning file disagree, the owning file is right.
 - [bug-reviewer-findings/questions.md Q3] The review round cap is 3 everywhere, `/glab:ship` stating the same number so the standalone path is capped too (later "at most three — one at normal tier").
 - [bug-reviewer-findings/questions.md Q7] With no `AGENTS.md`, every agent and command falls back to `CLAUDE.md` and says so; the reviewer reviews correctness only and puts `agreement: no AGENTS.md — correctness only` on its own line above an unchanged verdict line, because `/glab:ship` matches the verdict line whole.
 - [bug-reviewer-findings/questions.md Q10] `manager-bootstrap.sh`'s text matches the bootstrap rules (load `glab:bootstrap`; agents carry `glab:security` and `glab:comments`); the two stay one fact.
+- [feature-docs-specs/plan.md U1] Specs live in `docs/specs/`, one per area, living: how the area works now, why (the decisions that still bind), known limits and what is not verified, and its open follow-ups (the user's).
+- [feature-docs-specs/plan.md U2] `plan/<slug>/` is committed during the work and removed after the change has landed, with the spec naming the commit that holds it; `plan/SESSION-HANDOFF.md` stays untracked (the user's) — the removal is this repo's rule, done by the manager session, not by `glab` (`[feature-docs-specs/plan.md U10]`).
+- [feature-docs-specs/plan.md U4] The rule goes into the payload wherever it describes the plan lifecycle; the default for installers is `docs/specs/`, and a repo's own `AGENTS.md` may name another place (the user's) — its "removal after the push" default was cut by `[feature-docs-specs/plan.md U10]`.
+- [feature-docs-specs/plan.md U9] The default for installers is the user's decision (U4), not the planner's.
+- [feature-docs-specs/plan.md U10] Scope cut (the user's, 2026-10-18): in the payload, Stage 8 "Record" is the spec only — the developer writes the spec from `plan/<slug>/`, `glab:analyzer` checks at every tier that nothing was dropped, and it is committed as a docs change; `glab` never removes `plan/<slug>/` or an audit file, and whether a folder is removed is the repo's own `AGENTS.md` decision; this repo's `AGENTS.md` keeps a short rule under which the manager session removes a landed folder (`docs/specs/marketplace.md`).
+- [feature-docs-specs/plan.md U11] Retrieval is read-only everywhere: one file `git show <sha>:plan/<slug>/<file>`, the list `git ls-tree -r --name-only <sha> -- plan/<slug>/`, the whole folder `git archive <sha> plan/<slug>/ | tar -x -C "$(mktemp -d "${TMPDIR:?}/plan.XXXXXX")"`; no `git restore` into the repo (the user's).
+- [feature-docs-specs/plan.md D1] Four areas — `marketplace.md`, `workflow.md`, `memory-sync.md`, `external-agents.md` — following the plugin boundary; `AGENTS.md`'s `plan/` rule names them.
+- [feature-docs-specs/plan.md D2] Fixed headings and greppable tags: every follow-up, question and open list keeps its source as `[<slug>/<file> <id>]`, so "none lost" is a search, not a judgment.
+- [feature-docs-specs/plan.md D3] A spec names the last commit that holds the folder, not the removal commit, because a commit cannot carry its own hash; in this repo that is the last commit on `origin/main` that holds it (`AGENTS.md`, the `plan/` rule).
+- [feature-docs-specs/plan.md D4] Stage 8 — Record, after Stage 7: `glab:developer` writes the spec from the folder and changes nothing inside it, so it writes no `result.md`; at full tier one `glab:reviewer` pass on the spec diff alone is what "checked by independent readers" now means; the commit goes out on its own go-ahead — its removal by `glab:committer` was cut (`[feature-docs-specs/plan.md U10]`, D34).
+- [feature-docs-specs/plan.md D5] Installer wording: specs in `docs/specs/` unless the repo's `AGENTS.md` names another place, and a folder from before the rule (a `plan.md` with no `## Record`) is not recorded; its removal clauses moved to the repo's own `AGENTS.md` (`[feature-docs-specs/plan.md U10]`), where no untracked file under `plan/` is removed.
+- [feature-docs-specs/plan.md D8] Payload text cites the spec, named with its repository, never a `plan/` path or a commit of this repo: an installer can follow neither.
+- [feature-docs-specs/plan.md D10] A spec is not one of the *One fact* files: it states a fact as of its last record and names the file that owns it; `AGENTS.md`'s `plan/` rule says so.
+- [feature-docs-specs/plan.md D11] Closed items migrate too, under *Closed follow-ups* with their evidence (`AGENTS.md`: every follow-up, open or closed).
+- [feature-docs-specs/plan.md D16] An audit file is a working file too: its still-open items go into the area spec when the change that acts on it is recorded — its removal by that record commit was cut (`[feature-docs-specs/plan.md U10]`).
+- [feature-docs-specs/plan.md D22] A model choice "for this task" ends with the task's record, not its push; a task with no plan folder ends with its push. Only `manager/SKILL.md` Rule 5 states the duration.
+- [feature-docs-specs/plan.md D26] An audit file stays where `glab:audit` puts it, directly under `plan/`; the plan's `## Record` names it and Stage 8 hands it to the developer and the analyzer as a source — its removal by the committer was cut (`[feature-docs-specs/plan.md U10]`).
+- [feature-docs-specs/plan.md D27] The record check is `glab:analyzer`, at every tier, with the folder's tracked files as its contract (the payload reads every file: `[feature-docs-specs/follow-ups.md 2]`); one fix round, then the analyzer again; still `DIVERGES` → the user. The full-tier reviewer pass stays, on the spec diff alone.
+- [feature-docs-specs/plan.md D28] A pre-rule folder is one whose `plan.md` has no `## Record`; a waiver's folder has no `plan.md` and is recorded.
+- [feature-docs-specs/plan.md D32] Tags are matched as items: only a line that starts with `- [tag]` counts, a tag inside another item is a cross-reference, and no tag sits under both *Open* and *Closed follow-ups*.
+- [feature-docs-specs/plan.md D33] Stage 6 does not commit `plan/{slug}/`: nothing in the payload needs plan files in git, since the record reads the folder from disk; whether plan files are committed is the repo's convention (this repo's `AGENTS.md`: they are).
+- [feature-docs-specs/plan.md D34] `committer.md`, `commit.md`, `push.md` and `ship.md` carry no record text: the record commit is an ordinary docs commit.
+- [feature-docs-specs/plan.md D35] The record check ends in the analyzer's existing verdicts: `CONFORMS`, or `DIVERGES: <n> steps`, each missing item one step.
+- [feature-docs-specs/plan.md D36] The record is an ordinary docs change, through the normal commit and push stages; a decision made at Stage 8 goes in the dispatch and the spec, not in `plan.md`.
+- [feature-docs-specs/plan.md spent] U3, U5, U6, U7, U8, D7, D9, D12, D13, D14, D15, D17, D18, D19, D20, D21, D23, D24, D25, D29, D30, D31 — scoping and sequencing of that change: the migration of the seven folders, the live-run wording (applied in `AGENTS.md`; `docs/specs/external-agents.md`), the 0.5.0 bump and the `plugin.json` description, the commit split, the check script and its modes, the record's result file; U7 and D25 were superseded by U10 and U11 (the payload names no commit and checks no landing). D6 and `[feature-docs-specs/questions.md Q1]` bind in `docs/specs/external-agents.md`.
 
 ## Known limits and not verified
 
 - [feature-model-switch/plan.md I1] That the Agent tool on the manager's host takes `model` with the values `sonnet`, `opus`, `haiku`, `fable`, ranked above the definition's frontmatter — read from the tool definition given to one session; it depends on the Claude Code version and host. Its documentation citations (F1–F7, F16) were not re-fetched by the developer (`result.md` *Not done*).
 - [feature-model-switch/plan.md I4] That a plugin agent honours the per-dispatch `model` — inferred from the docs' list of fields a plugin agent ignores; no live dispatch on `haiku` has been seen running on `haiku`. Rule 5 says so in its own text; `/tasks` would show it.
 - That the user's local edits ported by `sync-local-edits` were exactly their 2026-10-08 change: inferred from the dispatch and the file times, not from a record of the edit (`[sync-local-edits/result.md L219]`).
-- The removal of plan folders depends on a repo rule that, at `6838133`, no stage carries out (`[sync-local-edits/follow-ups.md 10]`).
-- UNVERIFIED: that a repo which squash-merges keeps the commit a spec names as "the last commit that holds the folder" — on a squash it may live only on the branch or inside the squash commit; reasoned (`feature-docs-specs` findings, *Inferred*), not tested.
+- No `glab` stage removes a plan folder: Stage 8 writes the spec only, and a repo that wants its folders removed says how in its own `AGENTS.md` (`[feature-docs-specs/plan.md U10]`). A repo with no such rule keeps every recorded folder in its tree. This repo's rule is in `docs/specs/marketplace.md`.
+- Stage 8 names no commit and checks no landing: it starts once Stage 7 has confirmed the push, and the record reads the folder from disk, so a squash or rebase merge does not change what it records. Naming the commit that holds a removed folder is the repo's own rule; this repo's names the last commit on `origin/main` that holds it, after `git diff --quiet origin/main -- plan/<slug>/`. In a throwaway repo a squash merge left the branch commit off `origin/main` and the folder on it, and `git log -1 --format=%h origin/main -- plan/<slug>/` gave the squash commit (feature-docs-specs findings, *Amendment — review round 1/3*).
+- [feature-docs-specs/plan.md unverified] Not shown, as of the record: that an installed `0.5.0` runs Stage 8 as written (needs a session on an installed copy); that every incident of the seven migrated folders reached a spec and each migrated status is true (the check script proves tags and presence, not truth); that the payload texts read well; and the back-out's inference that an installed `0.5.0` ignores a move back to `0.4.2`. The squash-merge item of that list is answered above.
+- [feature-docs-specs/findings.md inferred] The specs, the payload text and `AGENTS.md` are prose: no command judges them correct. An installed copy follows the rule only from `0.5.0`; the agents that built and recorded `feature-docs-specs` ran the installed `0.4.2`, so its folders were removed under `0.4.2` contracts, and its record (X1) was dispatched with Stage 8's steps in the message.
 
 ## Open follow-ups
 
 - [sync-local-edits/follow-ups.md 7] `commands/develop.md:67`: a `waived.md` has no tier line, so the waiver path has no next stage — reopened: the routing to `/glab:integrate` was removed by the review's scope cut, because a waiver has no plan and no tier, and the integrator, the integrate scope and the review cap need both. A fix has to give a waiver a tier and an integrator input first.
-- [sync-local-edits/follow-ups.md 10] The spec entry has no stage, owner or location; "checked by independent readers" is undefined; plan-folder removal depends on a repo rule that may not exist — reopened by the scope cut (the manager's spec-entry paragraph dispatched the developer outside any plan step, and a re-dispatch overwrites `result.md`); the plan-first half stayed → `feature-docs-specs`.
 - [sync-local-edits/follow-ups.md 13] `glab:manager` Rule 0c seam note and Stage 1, `glab:plan-first`: "may overrule one" conflicts with Rule 4, where a relayed decision binds and the surface owner has the last word. Suggested: except a line recording another session's decision — open.
 - [sync-local-edits/follow-ups.md 14] Stage 1: recording an overrule as a new line leaves steps built on the old choice. Suggested: send the plan back to the planning agent to amend them — open.
 - [sync-local-edits/follow-ups.md 15] Rule 3 still reads as "the manager writes the decision line", while Stage 1 says the planner writes it. Suggested: one clause, during planning the planner writes it and the manager reviews it — open.
 - [sync-local-edits/follow-ups.md 16] `commands/integrate.md:10`: the integrator agent is never told the normal-tier scope (milestone test only). Suggested: "Say which in the dispatch." — open.
-- [sync-local-edits/follow-ups.md 17] `scripts/manager-bootstrap.sh:17`: "-> push at full tier" can read as "push only at full tier", and Stage 1b is missing. Suggested: "At full tier work moves through plan -> analyze -> develop -> …" — open.
+- [sync-local-edits/follow-ups.md 17] `scripts/manager-bootstrap.sh:17`: "-> commit -> push -> record at full tier" (as at `09d2787`; it read "-> push at full tier" when raised) can read as "only at full tier", and Stage 1b is missing. Suggested: "At full tier work moves through plan -> analyze -> develop -> …" — open.
 - [sync-local-edits/follow-ups.md 18] `AGENTS.md` *One fact*: the analysis round caps are stated in the manager and bootstrap but not listed. Suggested: add them as a known case — open.
 - [sync-local-edits/follow-ups.md 19] `commands/develop.md:67`, `commands/ship.md:32`: after a normal-tier review fix the develop handoff re-runs integrate and review, while the manager says the gates are the only check on that fix; `/glab:ship` has no normal-tier exception. Suggested: align with Stage 5 — open.
 - [bug-reviewer-findings/follow-ups.md 16] `reviewer.md` and `integrator.md` fell back to "the scratchpad" while `CLAUDE.md` and bootstrap said "`$TMPDIR` if set, scratchpad otherwise" — changed since, not shown fixed: both now say "the temp directory the dispatch message names (the scratchpad only if it names none)" (`reviewer.md:73`, `integrator.md:39` at `6838133`); whether that agrees with bootstrap's wording was not re-checked.
 - [bug-reviewer-findings/follow-ups.md 18] Cosmetic: `agents/developer.md:15` calls the fallback file "the working agreement" in passing; `commands/commit.md:6` has two dashes in a row — open: re-read at `6838133`, `commit.md:6` still reads `— say so) — the commit format`, and `developer.md:15` still reads `(or CLAUDE.md if the repo has none — say so) — the working agreement`.
-- [bug-reviewer-findings/follow-ups.md 19] Bootstrap's grep hazard ("leading alternation returns zero matches") did not reproduce in three attempts and is worded as observed — open: `bootstrap/SKILL.md:151` still reads "observed returning **zero matches with no error**".
+- [bug-reviewer-findings/follow-ups.md 19] Bootstrap's grep hazard ("leading alternation returns zero matches") did not reproduce in three attempts and is worded as observed — open: `bootstrap/SKILL.md:156` (at `09d2787`; `:151` at `6838133`) still reads "observed returning **zero matches with no error**".
 - [bug-reviewer-findings/result-review1-prose.md L109] Bootstrap's one-line check could name the host file as a fifth item — open, not asked for: at `6838133` it names four (agreement and constants, gates, stage, what the previous session left).
 - [bug-reviewer-findings/result-slice2.md L99] `agents/reviewer.md`'s description (`:3`) still speaks of `AGENTS.md` only, beside the `CLAUDE.md` fallback in its body — open, cosmetic.
+- [feature-docs-specs/follow-ups.md 2] `agents/analyzer.md:56` and `agents/developer.md:98`: the record reads every file of `plan/<slug>/`, untracked ones included, so a scratch file holding host values could reach a committed spec (`glab:security`). Suggested: read `git ls-files -- plan/<slug>/` and name any untracked file in the report instead — open, for one small payload change of its own.
+- [feature-docs-specs/follow-ups.md 4] `skills/bootstrap/SKILL.md:125`: "what a finished change left open is there, not in `plan/`" is wrong in a repo that keeps its plans, which is `glab`'s default. Suggested: "is there; `plan/` may still hold the working files" — open.
+- [feature-docs-specs/follow-ups.md 5] `skills/manager/SKILL.md:127` against Stage 8's "not in `plan.md`": a model the user names for the record's developer has nowhere to be recorded. Suggested: one clause in Rule 5 — for Stage 8 the instruction lives in the conversation only, as for a `/glab:review` with no plan — open.
+- [feature-docs-specs/follow-ups.md 7] Commits rule: `fed95f9` holds two logical changes of the payload, the Stage 8 record and the re-pointed citations, committed as one under `0.5.0` — open, an advisory of review round 3/3; nothing to undo now, a reminder for the next payload change.
+- [feature-docs-specs/result-SM.md 3] Facts the specs state as of their record that move with their owners and that no gate ties to the specs (`[feature-docs-specs/plan.md D10]` accepts this): `PASS 35/35` and `PASS 49/49`, the allowlist and DeepSeek's end date, 2026-10-31, the `glab` version — open: each record has to re-read them.
 
 ## Closed follow-ups
 
@@ -186,6 +263,11 @@ an owning file disagree, the owning file is right.
 - [sync-local-edits/follow-ups.md 9] Manager and plan-first disagreed on who decides a planning choice — fixed (D9).
 - [sync-local-edits/follow-ups.md 11] The 1b row's "Leaves on" ignored normal tier's one amendment — fixed (D11).
 - [sync-local-edits/follow-ups.md 12] Wording in bootstrap, `review.md` and the hook was narrower than the manager's — fixed (D12).
+- [sync-local-edits/follow-ups.md 10] The spec entry had no stage, owner or location; "checked by independent readers" was undefined; plan-folder removal depended on a repo rule that may not exist (reopened by the scope cut of 2026-10-16) — closed by `feature-docs-specs`: Stage 8 names its stage, owner, place and readers (`glab:developer` writes the area spec under `docs/specs/`, `glab:analyzer` checks it at every tier, one `glab:reviewer` pass at full tier), and removal is the repo's own `AGENTS.md` decision.
+- [feature-docs-specs/follow-ups.md 9] The specs described the lifecycle as of `6838133`; the record had also to update the pipeline bullet and the Rule 5 duration sentence of this file, besides what `plan.md` X1 listed — closed: done in this record (*How it works now*, the pipeline and the model rule).
+- [feature-docs-specs/follow-ups.md 10] A stray `__pycache__/fixes-r2.cpython-314.pyc` in the plan folder — closed: removed by the manager before commit; `git ls-tree -r --name-only 09d2787 -- plan/feature-docs-specs/` lists no `__pycache__`.
+- [feature-docs-specs/result-SM.md 1] The record had to move every mention of `[sync-local-edits/follow-ups.md 10]`, not one bullet — closed: *How it works now*, the D10 line and *Known limits* now state Stage 8; its *Records* section line keeps the history of the reopening.
+- [feature-docs-specs/result-SM.md 2] `[bug-reviewer-findings/follow-ups.md 18]`'s status differed from that change's `findings.md` — closed: re-read at `09d2787`, `agents/developer.md:15` and `commands/commit.md:6` still read as the item quotes, so the spec's status (open) is the tree's.
 
 ## Incidents
 
@@ -193,6 +275,8 @@ an owning file disagree, the owning file is right.
 - **Why Stage 1b exists, and the 40-of-45 post-condition**: told in `glab:manager` *Stage 1b — Analyze the plan* (a step that could not be built found only by a developer's whole run; a check expecting 40 patterns, exactly what a tree with one step skipped produces). Pointed at, not copied.
 - **A regex prefixed a path**: porting the user's edits, the substitution that put `glab:` back turned `plan/{slug}/plan.md` into `plan/{slug}/glab:plan.md` in two manager lines; it was caught by checking that every `/glab:` has a backtick before it, and fixed before the change was installed (`sync-local-edits` `result.md`, *Stages*).
 - **One review verdict set, stated four times**: the model-switch review fix named the three last-round verdicts in Rule 5 against its own D22, so the set was then stated in Rule 5, Stage 5, `ship.md` and `reviewer.md` with no *One fact* case (`feature-model-switch` `result.md`, *Tension with the plan*). `AGENTS.md` now lists the reviewer's verdict lines as a known case.
+- **Review round 1 fixes added the machinery round 2 blocked** (`feature-docs-specs`, 2026-10-18): round 1 asked for a guarded removal, so its fixes gave the payload a committer `git rm` with a guard, default-branch and `merge-base --is-ancestor` preconditions and a `git restore` instruction; round 2 returned `BLOCK 4` and `BLOCK 1`, every finding in that fix code. The user cut the scope (`[feature-docs-specs/plan.md U10]`, `U11`): Stage 8 records the spec only, retrieval is read-only, and round 3 removed logic and added no guard. The four files the cut returned to the base were checked equal to `6838133`.
+- **The planner's write into its own plan folder was refused** (`feature-docs-specs`): it wrote the plan files under `$TMPDIR` with a `SHA256SUMS` file, and the manager verified and copied them in.
 
 ## Records
 
@@ -204,3 +288,15 @@ an owning file disagree, the owning file is right.
   - [feature-model-switch/result.md L96] Follow-ups → nothing open ("None").
   - [feature-model-switch/result.md L100] Not done → the commit split: done (`1f12a37`, `889b804`); `[feature-model-switch/plan.md I1]` and `[feature-model-switch/plan.md I4]`, with the unchecked doc citations, under *Known limits*.
 - 2026-10-05 · bug-reviewer-findings · recorded in `docs/specs/memory-sync.md`; its workflow items (questions Q3, Q7, Q10; follow-ups 16, 18, 19; two open items from its result files) are tagged above · plan: `git ls-tree -r --name-only 2aeb46d -- plan/bug-reviewer-findings/` (one file: `git show 2aeb46d:plan/bug-reviewer-findings/<file>`)
+- 2026-10-18 · feature-docs-specs · one spec per area in `docs/specs/`, the seven plan folders migrated into them and removed; `glab` `0.5.0` gains Stage 8, the record, which writes the area spec and never removes a plan folder; this repo's `AGENTS.md` keeps the removal for the manager session · change e3e0d69 fed95f9 196ff22 · records 09d2787 · plan: `git ls-tree -r --name-only 09d2787 -- plan/feature-docs-specs/` (one file: `git show 09d2787:plan/feature-docs-specs/<file>`)
+  - [feature-docs-specs/follow-ups.md L1] Follow-ups (review round 3/3 advisories) → `2`, `4`, `5`, `7` open and `9`, `10` closed, here; `1`, `3`, `6`, `8` open in `docs/specs/marketplace.md`.
+  - [feature-docs-specs/plan.md L504] Not in this plan → the migrated follow-ups it did not fix stay under their own tags; the Markdown gate is `[bug-reviewer-findings/follow-ups.md 20]` (`docs/specs/marketplace.md`); the profile re-tune `[feature-opencode-worker/follow-ups.md 12]`, DeepSeek's end date `[feature-opencode-worker/plan-r3.md not-in-plan-4]` (`docs/specs/external-agents.md`); the smoke test `[feature-plugin-marketplace/plan.md smoke-test-1]`; a `docs/constants.md` and a spec index were not asked for; `plan/SESSION-HANDOFF.md` stays untracked — nothing new open.
+  - [feature-docs-specs/plan.md L511] UNVERIFIED, in one place → `[feature-docs-specs/plan.md unverified]`; its squash-merge item answered under *Known limits*.
+  - [feature-docs-specs/findings.md L443] Inferred behaviour → `[feature-docs-specs/findings.md inferred]`; its squash-merge item answered under *Known limits*.
+  - [feature-docs-specs/result-PR.md L31] Blocked → nothing.
+  - [feature-docs-specs/result-PR.md L113] Follow-ups → none written; so too its round sections at `L251`, `L305` and `L418` ("None.").
+  - [feature-docs-specs/result-PR.md L117] Not done → the other slice and the commits: done (`e3e0d69`, `fed95f9`, `196ff22`, `09d2787`); B2: checked; the record: this record; its UNVERIFIED → `[feature-docs-specs/plan.md unverified]`.
+  - [feature-docs-specs/result-SM.md L59] Blocked → none.
+  - [feature-docs-specs/result-SM.md L254] Follow-ups → `[feature-docs-specs/result-SM.md 1]` and `2` closed, `3` open, here.
+  - [feature-docs-specs/result-SM.md L273] Not done → the other slice, the commits and the record: done; B2 checked without `git fetch`: history; its UNVERIFIED → `[feature-docs-specs/plan.md unverified]`.
+  - [feature-docs-specs/result-SM.md L368] Follow-ups (review round 1 fixes) → none new.
