@@ -1,7 +1,0 @@
-[
- {"tool":"bash","args":{"command":"echo hook > .git/hooks/pre-commit; echo rc1=$?; git config core.fsmonitor evil; echo rc2=$?; git -c user.name=a -c user.email=a@a commit --allow-empty -m y; echo rc3=$?; git update-ref refs/heads/evil HEAD; echo rc4=$?","description":"git writes"}},
- {"tool":"bash","args":{"command":"cd / && ls home; echo rc5=$?; cd / && ls; echo; cd ~ && ls -a","description":"look around"}},
- {"tool":"bash","args":{"command":"P=$(printf '/ho%s' me) && ls $P; echo rc6=$?; cat /proc/1/cmdline | tr '\\0' ' '; echo","description":"evasion"}},
- {"tool":"bash","args":{"command":"echo new > b.txt; mkdir -p d && echo x > d/c.txt; echo rc7=$?","description":"write in tree"}},
- {"text":"=== REPORT START ===\nsteps: 1 done\nBUILT\n=== REPORT END ===\n"}
-]

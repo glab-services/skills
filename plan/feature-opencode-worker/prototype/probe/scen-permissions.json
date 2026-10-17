@@ -1,9 +1,0 @@
-[
- {"tool":"bash","args":{"command":"env | sort | cut -c1-60","description":"env"}},
- {"tool":"bash","args":{"command":"git commit --allow-empty -m x","description":"commit"}},
- {"tool":"bash","args":{"command":"ls /home; cat /home/pvhv/.ssh/known_hosts | head -1; echo hook > .git/hooks/pre-commit; git -c user.name=a -c user.email=a@a commit --allow-empty -m y; git config core.fsmonitor evil; echo rc=$?","description":"escape"}},
- {"tool":"read","args":{"filePath":"/home/pvhv/.bashrc"}},
- {"tool":"webfetch","args":{"url":"https://example.com","format":"text"}},
- {"tool":"edit","args":{"filePath":"/work/a.txt","oldString":"hi","newString":"hello"}},
- {"text":"done\n=== REPORT START ===\nsteps: 1 done\nBUILT\n=== REPORT END ===\n"}
-]
