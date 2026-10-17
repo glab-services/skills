@@ -9,7 +9,8 @@ and this file disagree about how to work *in this repo*, this file wins.
 
 - `.claude-plugin/marketplace.json` — the marketplace. It lists both plugins.
 - `plugins/glab/` — the workflow plugin: its skills, agents and commands,
-  `hooks/hooks.json` and `scripts/manager-bootstrap.sh`.
+  `hooks/hooks.json`, `scripts/manager-bootstrap.sh` and
+  `scripts/external-agent.sh`.
 - `plugins/memory-sync/` — the memory sync plugin: its one skill,
   `hooks/hooks.json`, `scripts/memory-sync.sh` and `settings.example.json`.
 - `tests/`, `plan/`, `host.example.md`, `README.md` and this file belong to
@@ -17,16 +18,23 @@ and this file disagree about how to work *in this repo*, this file wins.
 
 ## Gates
 
-The test creates its work directory under `$TMPDIR`. Export `TMPDIR` to the
-temp directory your host file names first, then run all three, in order, and
-paste what they print:
+The tests create their work directories under `$TMPDIR`. Export `TMPDIR` to
+the temp directory your host file names first, then run all four, in order,
+and paste what they print:
 
-    for s in plugins/memory-sync/scripts/memory-sync.sh plugins/glab/scripts/manager-bootstrap.sh tests/memory-sync.test.sh; do bash -n "$s" && test -x "$s"; echo "$s rc=$?"; done
-    shellcheck plugins/memory-sync/scripts/memory-sync.sh plugins/glab/scripts/manager-bootstrap.sh tests/memory-sync.test.sh; echo "rc=$?"
+    for s in plugins/memory-sync/scripts/memory-sync.sh plugins/glab/scripts/manager-bootstrap.sh plugins/glab/scripts/external-agent.sh tests/memory-sync.test.sh tests/external-agent.test.sh; do bash -n "$s" && test -x "$s"; echo "$s rc=$?"; done
+    shellcheck plugins/memory-sync/scripts/memory-sync.sh plugins/glab/scripts/manager-bootstrap.sh plugins/glab/scripts/external-agent.sh tests/memory-sync.test.sh tests/external-agent.test.sh; echo "rc=$?"
     bash tests/memory-sync.test.sh plugins/memory-sync/scripts/memory-sync.sh
+    bash tests/external-agent.test.sh plugins/glab/scripts/external-agent.sh </dev/null
 
-Green is: three `rc=0` lines; `rc=0` with no findings; every line `ok`, last
-line `PASS n/n`. The `test -x` is there because a hook script that has lost
+Green is: five `rc=0` lines; `rc=0` with no findings; every line of each test
+`ok`, and its last line `PASS n/n`. `tests/external-agent.test.sh` runs its
+stub inside the script's real sandbox, with a real network namespace, so it
+needs a `bwrap` that can create namespaces here, `slirp4netns` installed,
+and `python3` for its host-side listeners;
+without any of them, its cases fail, which is a red gate, not a skip. It also
+starts two listeners on this host, on ports the kernel picks, and proves the
+sandbox cannot reach them. The `test -x` is there because a hook script that has lost
 its execute bit passes every other gate and then fails when the hook runs. It
 is joined to `bash -n` with `&&` so that the `rc` printed is the syntax
 check's when that fails; with `;` a syntax error printed `rc=0`.
@@ -48,6 +56,7 @@ without the variable that directory is the live `~/.claude`.
     jq -r '.plugins[] | .name + " " + .source' .claude-plugin/marketplace.json | while read -r n s; do echo "$n = $(jq -r .name "$s/.claude-plugin/plugin.json")"; done
     command grep -c user_config plugins/*/hooks/hooks.json; echo "rc=$?"
     command grep -c -F 'not yet confirmed' plugins/memory-sync/scripts/memory-sync.sh plugins/memory-sync/skills/sync-memory/SKILL.md README.md; echo "rc=$?"
+    command grep -c -F 'not yet run against a real model' README.md; echo "rc=$?"
     command grep -rH --include='*.md' '^name: .*:' plugins; echo "rc=$?"
 
 The first line finds the CLI. When there is none it stops the block with the
@@ -61,11 +70,12 @@ the end. `CLAUDE_CONFIG_DIR` is never exported empty.
 Green is:
 
 - three `✔ Validation passed` lines;
-- for `glab`: `Skills (14)` naming the six skills and the eight commands, `Agents (5)`, and `Hooks (1)  SessionStart`;
+- for `glab`: `Skills (15)` naming the seven skills and the eight commands, `Agents (5)`, and `Hooks (1)  SessionStart`;
 - for `memory-sync`: `Skills (1)  sync-memory`, `Agents (0)`, and `Hooks (4)  SessionStart, SessionEnd, PostToolUse, Stop`;
 - `glab = glab` and `memory-sync = memory-sync`. Validation does not compare a marketplace entry with the plugin it points at; it passes with a wrong name and with a directory that does not exist;
 - `:0` after each `hooks.json`, then `rc=1`. `grep -c` exits 1 when it counts nothing, and nothing is the green result here. A `${user_config.…}` in a hook command passes validation and fails when the hook runs;
 - a count of `1` or more after each of the three files, then `rc=0`. Read the counts, not the `rc`: `grep -c` exits 0 as soon as one file matches. The phrase is the hedge on `CLAUDE_CODE_SESSIONEND_HOOKS_TIMEOUT_MS` — documented as the override for the `SessionEnd` budget, not yet shown to cover a hook that a plugin provides — and no other gate notices when the script comment, the skill or the README starts stating it as fact;
+- `1`, then `rc=0`, from the line after the `not yet confirmed` one. The sentence says the external agents have not yet run against a real model; it stays until the user's live probe (`plan/feature-opencode-worker/plan-r3.md`, L1) has run, and no other gate notices when it is dropped or reworded into a claim that they have.
 - no line, then `rc=1`, from the last command. A frontmatter `name:` that carries the plugin prefix passes validation and `plugin details`, and nothing else catches it.
 
 The Markdown files have no gate. A change to one is verified by running the
@@ -79,7 +89,9 @@ fakes and to any coverage percentage. It applies to the shell scripts in this
 repo and to nothing else.
 
 - **A stub executable placed first on `PATH` is the allowed way to fake an
-  external CLI** such as `aws`. `tests/memory-sync.test.sh` does this.
+  external CLI** such as `aws`. `tests/memory-sync.test.sh` does this; so does
+  `tests/external-agent.test.sh`, which passes its stub `opencode` to the
+  script with `--cli`, since the script takes the CLI's path, not `PATH`'s.
 - **Coverage is reported as a list, not a number.** No tool measures it for
   bash. For each plan step, name the test cases that cover it; name each
   change no case covers, and why that is accepted.
@@ -91,6 +103,12 @@ repo and to nothing else.
   `<profile, or delete this key>`.
 - **Never run `memory-sync.sh` against a real backend from this repo.** Use
   the stub in `tests/memory-sync.test.sh`.
+- **Never run `external-agent.sh` against a real model from this repo.** Use
+  the stub in `tests/external-agent.test.sh`, or the offline run in
+  `plan/feature-opencode-worker/plan-r3.md` *After*, whose sandbox has no
+  network and whose key is a dummy in a throwaway home. The one exception is
+  the live probe in that plan, which the user runs with their own key; no
+  agent runs it.
 - **Nothing is copied into `~/.claude` or removed from it by an agent, and no
   agent installs a plugin.** No agent runs `claude plugin install`, `claude plugin marketplace
   add`, `claude plugin enable` or `claude plugin configure`, in a shell or
@@ -130,7 +148,38 @@ repo and to nothing else.
   `model` parameter without the user's instruction (`glab:manager` Rule 5 and
   its handoff-line format in `plugins/glab/skills/manager/SKILL.md`,
   `plugins/glab/commands/develop.md`, `plugins/glab/commands/review.md`,
-  `plugins/glab/commands/ship.md`).
+  `plugins/glab/commands/ship.md`, and the same rule for external agents in
+  `plugins/glab/skills/external-agents/SKILL.md`); the external reviewer's record line and
+  its `<backend>:<model>` token (`glab:manager` Rule 5 in
+  `plugins/glab/skills/manager/SKILL.md`,
+  `plugins/glab/skills/external-agents/SKILL.md`, and the `model:` field of
+  the header line in `plugins/glab/scripts/external-agent.sh` and its test's
+  E01); the exit codes of `external-agent.sh` (its header,
+  `tests/external-agent.test.sh`,
+  `plugins/glab/skills/external-agents/SKILL.md`,
+  `plugins/glab/skills/manager/SKILL.md`, `plugins/glab/commands/ship.md`,
+  `README.md`); the reviewer's verdict lines
+  (`plugins/glab/agents/reviewer.md`, `plugins/glab/skills/manager/SKILL.md`,
+  `plugins/glab/commands/ship.md`, the validator in
+  `plugins/glab/scripts/external-agent.sh`, and case E34 of its test); the
+  external model allowlist and its end dates (the script, its test, the
+  profile files under `plugins/glab/skills/external-agents/profiles/` that
+  its lines name, and `README.md`); the sandbox's limits and its network
+  helper (the script's constants and header, its test's E10, E11, E13 and E42,
+  `plugins/glab/skills/external-agents/SKILL.md`, `README.md`, and the
+  *Gates* section of this file); where agents live,
+  `$TMPDIR/glab-external-agents/` (the script, its test, the
+  `glab:external-agents` skill, `README.md`); the CLI's default path,
+  `~/.opencode/bin/opencode` (the skill, `README.md`); the "Use balance"
+  warning (the skill, `README.md`); what the copy holds and may send — the
+  tracked and untracked-but-not-ignored files, the index, HEAD's tree, never
+  an ignored file (the script's header, the skill, `README.md`); Grok refused
+  for its 30 days' retention (the script's allowlist comment, its test's E29,
+  `README.md`); the one exit-8 `send` correction of an external reviewer
+  (`glab:manager` Rule 5, `plugins/glab/commands/ship.md`, the skill); the
+  missing-`AGENTS.md` fallback, which the first message of
+  `external-agent.sh` also states; the sentence that external agents have not
+  yet run against a real model (`README.md`, pinned by its gate line above).
 - **Comments and recorded incidents are kept.** Update them when the thing
   they describe changes; do not delete them.
 - **Tests clean up by PID.** A test kills only processes it started itself,

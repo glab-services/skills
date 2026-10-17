@@ -13,7 +13,7 @@ Read `AGENTS.md` at the repo root (or `CLAUDE.md` if the repo has none — say s
 
 `/glab:ship` only ever reviews the working tree. $ARGUMENTS narrows it to a path. If it looks like a branch name or a revision range, stop and tell me to use `/glab:review` instead — reviewing committed history and then committing the dirty tree are not the same scope, and pairing them lets unreviewed work through under a passing verdict.
 
-Use the **glab:reviewer** agent on the uncommitted working tree, narrowed to $ARGUMENTS when that is set. Narrowed means the whole working-tree view restricted to that path — worktree, index and untracked files alike. The agent owns that procedure; do not restate it here. If I named a model for the reviewer, pass it as the Agent tool's `model` parameter in every round; if I named none, pass none, and never choose one yourself (`glab:manager` Rule 5).
+Use the **glab:reviewer** agent on the uncommitted working tree, narrowed to $ARGUMENTS when that is set. Narrowed means the whole working-tree view restricted to that path — worktree, index and untracked files alike. The agent owns that procedure; do not restate it here. If I named a model for the reviewer, pass it as the Agent tool's `model` parameter in every round; if I named none, pass none, and never choose one yourself (`glab:manager` Rule 5). If I named an external reviewer instead, run every round through the `glab:external-agents` skill, with the same target.
 
 Show me its report verbatim: every finding and the verdict line. Do not summarise it, do not soften it, do not add praise, do not re-rank its severities.
 
@@ -25,7 +25,7 @@ Match the verdict **whole**, never by prefix — `SHIP WITH SCOPE CUT` starts wi
 - `SHIP WITH SCOPE CUT: <what to drop>` → go to step 3 with the named part removed from the scope, and tell me what you dropped. Never commit the named part.
 - `BLOCK: <n> issues` or `BLOCK: target unresolved` → stop here. Show the findings and ask what I want fixed. Do not commit. Do not start fixing anything unless I say so.
 - `DO NOT PUBLISH: <why>` → stop. Do not commit, and do not offer a fix round; the reviewer is saying the design is wrong.
-- No clear verdict, or the reviewer errored → first the report check of `glab:manager` Rule 5: resume the reviewer once, asking only for the missing fields. Still no clear verdict → treat it as BLOCK and say which it was.
+- No clear verdict, or the reviewer errored → first the report check of `glab:manager` Rule 5: resume the reviewer once, asking only for the missing fields. Still no clear verdict → treat it as BLOCK and say which it was. An external reviewer's report check is the script's: on its exit 8 `send` the same agent the gaps once, as `glab:external-agents` says — not a round; any other non-zero exit except 2 (USAGE, fixed and run again) is the reviewer erroring, reported and not retried.
 
 If I ask you to fix anything, return to step 1 and re-run the reviewer on the amended tree. A commit only ever follows a `SHIP` verdict on the exact tree being committed — a fix that was never reviewed is the case this command exists to catch.
 

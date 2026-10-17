@@ -6,7 +6,7 @@ to S3.
 
 | Plugin | What it adds |
 |---|---|
-| `glab` | Skills `glab:bootstrap`, `glab:manager`, `glab:security`, `glab:comments`, `glab:plan-first`, `glab:audit` · agents `glab:developer`, `glab:analyzer`, `glab:integrator`, `glab:reviewer`, `glab:committer` · commands `/glab:plan`, `/glab:develop`, `/glab:analyze`, `/glab:integrate`, `/glab:review`, `/glab:commit`, `/glab:push`, `/glab:ship` · a `SessionStart` hook that injects the session bootstrap rules |
+| `glab` | Skills `glab:bootstrap`, `glab:manager`, `glab:security`, `glab:comments`, `glab:plan-first`, `glab:audit`, `glab:external-agents` · agents `glab:developer`, `glab:analyzer`, `glab:integrator`, `glab:reviewer`, `glab:committer` · commands `/glab:plan`, `/glab:develop`, `/glab:analyze`, `/glab:integrate`, `/glab:review`, `/glab:commit`, `/glab:push`, `/glab:ship` · a script, `external-agent.sh`, that runs read-only external agents on a model you name (OpenCode Go) · a `SessionStart` hook that injects the session bootstrap rules |
 | `memory-sync` | Skill `memory-sync:sync-memory` · hooks on four events that run `memory-sync.sh` |
 
 In `glab` the skills, agents and commands are one set: `glab:manager`
@@ -23,6 +23,37 @@ enabled.
 Linux with bash. `jq` is optional: the `glab` hook falls back to plain text
 without it. `memory-sync` also needs GNU coreutils (`timeout`, `stat`,
 `date`), util-linux `flock`, `rsync` and the AWS CLI. macOS is not supported.
+
+External agents in `glab` (`glab:external-agents`) run only when you ask the
+manager for one, naming the model, and then also need: bubblewrap (`bwrap`)
+able to create namespaces on your host, `slirp4netns` for the sandbox's own
+network, util-linux (`nsenter`, `setpriv`, `lsns`, `flock`), iproute2 (`ip`),
+`git`, `jq`, GNU `tar` and `timeout`, and OpenCode's native binary (the
+installer puts it at `~/.opencode/bin/opencode`; a launcher script does not run
+in the sandbox) with an OpenCode Go key stored by `opencode auth login`. On
+Debian or Ubuntu: `sudo apt install bubblewrap slirp4netns`. Without a working
+`slirp4netns` the script refuses to start an agent (exit 9). Keep the OpenCode
+console's "Use balance" switch off, or a Go limit spends paid balance.
+
+What an external agent can send, and to whom: your working tree's tracked and
+untracked-but-not-ignored files, the index and the tree of your current
+commit — no other branch, tag or history, and never an ignored file — and
+every message the manager sends it, may reach the provider of the model you
+named. The script runs only Kimi and GLM models, and DeepSeek models until
+2026-10-31, after which it refuses them until their data policy has been
+checked again; Grok is refused, because its provider keeps prompts for 30
+days. The agent works on a read-only copy, in a sandbox whose network reaches
+the internet and nothing on your host or local network. The OpenCode Go key
+is inside that sandbox, where the model can read it and could send it out; it
+is never printed and is redacted from what the agent returns. Each agent's
+transcript stays readable under `$TMPDIR/glab-external-agents/` until the
+manager stops it.
+
+External agents have been tested against a stub and against the real
+`opencode` with no network, and have not yet run against a real model: that
+is the live probe in `plan/feature-opencode-worker/plan-r3.md` (L1), which you
+run with your own key. Until it has, treat the first real session as the
+test it is.
 
 ## Install
 
@@ -180,7 +211,7 @@ share one lock. Uninstalling the plugin leaves those files in place.
 | `.claude-plugin/marketplace.json` | The marketplace: lists both plugins |
 | `plugins/` | The two plugins. Payload: written for the sessions of whoever installs them |
 | `host.example.md` | Template for the per-machine `~/.claude/host.md` |
-| `tests/` | Stub-based test for `memory-sync.sh` |
+| `tests/` | Stub-based tests for `memory-sync.sh` and `external-agent.sh` |
 | `plan/` | Planning records |
 
 To try a change without installing anything, load the plugins for one session:
