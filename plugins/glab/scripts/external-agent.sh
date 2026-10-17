@@ -493,8 +493,13 @@ EOF
   [ "$2" != default ] && section "$profiles/$2.md" '## After the contract'
   if [ "$1" = reviewer ]; then reviewer_tail; fi
 }
+# finish_turn checks the block line by line from the left edge: the verdict
+# line whole, and `^rule: ` for each finding. The Report section below indents
+# its finding template four spaces and quotes the verdicts in backticks, so a
+# reviewer that copied it as shown would be exit 8; the sentence after the two
+# lines says so before that section is shown.
 reviewer_tail() {
-  printf '\n# Your final message\n\nEnd your final message with your report, and put nothing after it: the block your contract'"'"'s Report section asks for, filled in, between these two lines exactly:\n\n%s\n<the report>\n%s\n\nYour contract'"'"'s Report section, again:\n\n' "$REPORT_START" "$REPORT_END"
+  printf '\n# Your final message\n\nEnd your final message with your report, and put nothing after it: the block your contract'"'"'s Report section asks for, filled in, between these two lines exactly:\n\n%s\n<the report>\n%s\n\nInside the block, every line starts at the left edge, with no indent, even where the Report section below shows one. The verdict line and each rule: line carry no backticks, and the verdict line stands alone, with nothing else on it.\n\nYour contract'"'"'s Report section, again:\n\n' "$REPORT_START" "$REPORT_END"
   report_section "$plugin/agents/reviewer.md"
 }
 

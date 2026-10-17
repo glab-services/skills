@@ -515,7 +515,7 @@ files=$(find "$W/plugin/skills/external-agents/profiles" -maxdepth 1 -name '*.md
 [ -n "$named" ] && [ "$named" = "$files" ] && OK=1
 t E35 "every profile file is named by an allowlist line, and every named profile exists"
 
-# E37-E47 were added after E36 was written, and run before it: E36 checks
+# E37-E48 were added after E36 was written, and run before it: E36 checks
 # what every case left behind, so it stays last.
 
 # A start whose first turn is running: a send is busy, and stop ends the start.
@@ -624,6 +624,26 @@ for mp in opencode-go/kimi-k3:kimi opencode-go/glm-5.3:glm opencode-go/deepseek-
 done; rm -f "$W/today"
 [ "$ok" = 1 ] && OK=1
 t E47 "for a reviewer on each family's profile, the profile's text is sent and both report lines follow it"
+
+# The report check reads the block from the left edge, while the Report
+# section a reviewer is shown indents its template and quotes the verdicts in
+# backticks; every reviewer message, the first and a send, says so after the
+# two report lines and before that section. Only what the manager sent is
+# read, turn by turn: the stub's reply echoes the prompt after it. The
+# sentence is the script's own, word for word, so a rewording fails here too.
+ok=1; sl='Inside the block, every line starts at the left edge, with no indent, even where the Report section below shows one. The verdict line and each rule: line carry no backticks, and the verdict line stands alone, with nothing else on it.'
+M=opencode-go/glm-5.3 start prompt --role reviewer; A=$ID r1=$RC
+send "$A" prompt; r2=$RC
+for k in 1 2; do
+	txt=$(awk -v h="## turn $k " 'index($0, h) == 1 {t = 1; next} t && /^manager:$/ {on = 1; next} on && /^says:$/ {exit} on' "$STATE/$A/transcript.txt")
+	le=$(command grep -n -m1 -x -F '=== REPORT END ===' <<<"$txt" | cut -d: -f1)
+	lx=$(command grep -n -m1 -x -F -- "$sl" <<<"$txt" | cut -d: -f1)
+	la=$(command grep -n -m1 -x -F "Your contract's Report section, again:" <<<"$txt" | cut -d: -f1)
+	{ [ -n "$le" ] && [ -n "$lx" ] && [ -n "$la" ] && [ "$le" -lt "$lx" ] && [ "$lx" -lt "$la" ]; } \
+		|| { ok=0; echo "   E48 turn $k: end=$le sentence=$lx again=$la"; }
+done; stop_all
+[ "$r1" = 8 ] && [ "$r2" = 8 ] && [ "$ok" = 1 ] && OK=1
+t E48 "every reviewer message, the first and each send, says after the two report lines that the block's lines start at the left edge: no indent, no backticks on the verdict and rule: lines, and the verdict alone"
 
 [ "$FP" = "$(fingerprint)" ] && [ "$(agents)" = 0 ] && [ "$(leftovers)" = "$BASE_PROCS" ] && [ ! -e "$W/ran-on-host" ] && OK=1
 t E36 "after every case: the real repository is unchanged byte for byte, no agent is left, and no sandbox, slirp4netns or stub process runs"

@@ -7,9 +7,9 @@ wrote: secondary advice, not yet checked against a reply. See *Notes*.
 
 ## Before the contract
 
-Work in three steps: plan, then analyse, then act. The plan comes first and
-is for you: the task's hard constraints, and what lies outside it, which you
-leave alone.
+Work in three steps: plan, then analyse, then answer. The plan comes first
+and is for you: the task's hard constraints, and what lies outside it, which
+you leave alone.
 
 ## After the contract
 
@@ -31,7 +31,8 @@ task directly.
   fill-in prompt templates in a documentation style: secondary advice, not
   observed here. Only what fits an OpenCode agent that reads a repository and
   fills a fixed report inside the script's template was taken: plan, analyse,
-  act, with the task's hard constraints and what is out of scope settled
+  act (said here as "then answer": the agent is read-only and changes
+  nothing), with the task's hard constraints and what is out of scope settled
   before starting, and the silent self-check that all four profiles share.
 - Left out: the notes' own answer shapes (traces, final-answer, summary and
   blind-spot sections), a visible `<thinking>` block in the answer (the
