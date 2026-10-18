@@ -19,7 +19,8 @@
 #   external-agent.sh stop <agent id>
 #   external-agent.sh check --backend <name> --cli <path>
 #
-# stdout of start and send, in this order and nothing else:
+# stdout of start and send is empty on exits 2-5, 9, 10 and 11. On exits 0,
+# 6, 7, 8 and 12 it is, in this order and nothing else:
 #   agent: <id> · model: <backend>:<model> · turn: <n> · transcript: <file>
 #                   for codex, <model> is the model that ran, as its header
 #                   block named it; else the one asked for, else `default`
@@ -43,7 +44,9 @@
 #   end: <id>       always the last line
 # Every line the model wrote starts with "| ", and no line the script writes
 # does, so nothing in a reply can pass for a field of the script's.
-# stderr  one line `external-agent: <CODE>: <reason>` on every exit 2-12. A
+# stderr  one line `external-agent: <CODE>: <reason>` on every exit 2-12,
+#         beside any line a tool the script runs prints there, such as tar's
+#         for a file it cannot read. A
 #         signal ends it with 128 + the signal and no line: 129 HUP, 130 INT,
 #         143 TERM - the last is a turn that `stop` ended.
 # exit    0 OK · 2 USAGE · 3 UNKNOWN BACKEND · 4 UNAVAILABLE · 5 MODEL REFUSED ·
@@ -67,8 +70,11 @@
 # OpenCode:
 # - The agent never sees the real repository. It gets a copy of the working
 #   tree's tracked and untracked-but-not-ignored files, an index equal to the
-#   real one, and the tree of the real HEAD as one parentless commit: no other
-#   branch, tag, remote or older commit. Ignored files never leave the host.
+#   real one, and the tree of the real HEAD as one parentless commit, on the
+#   branch HEAD names, so that name resolves there, to that commit: no other
+#   branch, tag, remote or older commit. Ignored files never leave the host,
+#   and no nested repository does: an untracked one is left out, and a
+#   submodule is an empty directory.
 #   The copy is built with git plumbing and tar only, under a git environment
 #   that ignores the user's global and system config and turns off fsmonitor,
 #   so no hook, filter, textconv or diff driver runs on the host; then it is
@@ -93,11 +99,18 @@
 # - Per process: files up to 64 MiB, 4 GiB of data memory; 256 processes in
 #   the sandbox; a 256 MiB /tmp. The copy and $HOME are on disk under TMPDIR
 #   and are bounded per file, not in total; total memory is not bounded. Of
-#   the backend's stdout and of its stderr, at most 16 MiB per turn reach the
-#   disk; a turn that writes more is cut there and is exit 7.
+#   the backend's stdout and of its stderr, the first 16 MiB per turn are
+#   kept; a turn that writes more is cut there and is exit 7. The cap counts
+#   the bytes before the key is redacted, so what reaches the disk can be
+#   longer: stderr up to 1.25 times the cap, and a turn's transcript.jsonl
+#   up to 10 times, or 20 times when jq fails (OUT_BYTES).
 # - The backend's key is inside the sandbox, because the CLI needs it, and the
-#   model can read it there. It is never on a command line and never printed;
-#   it is redacted from everything this script writes or prints.
+#   model can read it there. It is never on a command line and never printed.
+#   Written out, it is redacted from everything this script writes or prints;
+#   JSON-escaped, from the reply and both transcripts, where transcript.jsonl
+#   keeps an event that holds it as {"type":"redacted"}; until run/ is
+#   removed, run/turn.out still holds it escaped. A key the model writes in
+#   any other form is not recognised.
 # Codex (the user chose it to run as a Claude subagent does):
 # - It runs on this host, in the real repository, with its working directory
 #   at the top, and sees what the user can read: the working tree with its
@@ -123,7 +136,9 @@
 #   block Codex prints on stderr is read back: it must name sandbox
 #   `read-only`, or `workspace-write [workdir]` for a developer, and approval
 #   `never`. A block that names another sandbox or approval is exit 12 and the
-#   reply is withheld; a turn whose block is missing, or has no well-formed
+#   reply is withheld, checked before the output cap and the timeout, so such
+#   a turn is 12 even when it also wrote too much or ran too long; a turn
+#   whose block is missing, or has no well-formed
 #   model or session id, is exit 7.
 # - A developer's turn is followed by a change report. Before and after it,
 #   dev_state records the index, the untracked files that are not ignored, and
@@ -132,12 +147,22 @@
 #   the config, hooks/, info/, the
 #   core.hooksPath directory and every .git below the top; the `changed:` and
 #   `git:` lines say what differs. It runs no git status, filter, fsmonitor or
-#   hook, and at most the turn's --timeout, 300 s at most. It reports a change
+#   hook. Each snapshot runs for at most the turn's --timeout, 300 s at most,
+#   and 5 s more to end it, and dev_refuse's search for another .git, before
+#   every developer turn and once more at start, for at most 300 s; nothing
+#   bounds their sum. It reports a change
 #   once the turn is over and prevents none. It sees an ignored entry made or
 #   removed, by name, but not a write to an ignored file, other than in the
-#   core.hooksPath directory, nor a change
+#   core.hooksPath directory or a changed value git reads from a file the
+#   config includes - not a change that keeps every value, such as a comment,
+#   nor one to a file included under a condition that does not hold yet, such
+#   as another branch's includeIf onbranch: - nor a change
 #   that Codex itself, outside its command sandbox, makes to anything but the
-#   paths it lists and what it digests. A developer is refused (2 at start, 4
+#   paths it lists and what it digests. Ignored is what the repository's own
+#   rules and config ignore, and $XDG_CONFIG_HOME/git/ignore when that config
+#   names no core.excludesFile: hostgit reads no global or system config, so
+#   a file only their core.excludesFile ignores is untracked here. A
+#   developer is refused (2 at start, 4
 #   before a later turn) when the state root under TMPDIR is in the
 #   repository, or when the work tree holds a .git other than the top's.
 # - Every turn ignores the user's config.toml and rules, which could turn the
@@ -161,9 +186,9 @@
 #   process that holds it, by PID: after every turn, in cleanup, before every
 #   send, and at every stop. The last two end what a turn left when its script
 #   was SIGKILLed.
-# - Of its stdout and its stderr, at most 16 MiB per turn reach the disk, as
-#   for OpenCode; files, processes and memory are not limited by this script,
-#   and nothing is redacted.
+# - Of its stdout and its stderr, at most 16 MiB per turn reach the disk, cut
+#   as for OpenCode; nothing is redacted, so nothing grows past the cap; files,
+#   processes and memory are not limited by this script.
 # The adapter functions are called as "${backend}_<name>" and cleanup() by
 # trap, which shellcheck cannot follow; SC2329 would flag each one.
 # shellcheck disable=SC2329
@@ -202,6 +227,16 @@ readonly NPROC=256
 # otherwise fill the disk under TMPDIR. Past it the stream is cut at a line
 # boundary, so no part of a line - of the key least of all - reaches the disk
 # unredacted, and the turn is exit 7. slirp4netns's log is cut at the same size.
+# The cap counts the bytes as they come, before redaction, which replaces a
+# key of at least 8 characters (read_secret) with the 10 of <redacted>: what
+# is written can be up to 1.25 times as long
+# [fix-external-agent-claims/claims.md 11]. In transcript.jsonl, opencode_raw
+# writes a line it replaces as the 20 bytes of {"type":"redacted"} and its
+# newline, whatever the line's length. The shortest such line when jq works
+# is a backslash and its newline, 2 bytes, not one JSON value, so a turn's
+# transcript.jsonl can reach 10 times OUT_BYTES; when jq fails every line
+# is replaced, an empty one of 1 byte too, so 20 times
+# [fix-external-agent-claims/review-r2.md R2-1].
 readonly OUT_BYTES=16777216
 # 16 MiB: the largest file a developer's change report hashes. A larger one is
 # compared by its size, times and inode instead: a hash reads the whole file,
@@ -320,8 +355,13 @@ trap 'exit 143' TERM
 # printed text read differently from its bytes.
 readonly JQ_CLEAN='def clean: gsub("[\u0000-\u0008\u000b-\u001f\u007f-\u009f\u200b-\u200f\u2028\u2029\u202a-\u202e\u2066-\u2069]"; "");'
 clean() { jq -Rr "$JQ_CLEAN"' clean'; }
-# The key is replaced line by line as the stream is written, so no unredacted
-# copy reaches the disk, even when this script is killed mid-turn. With a flag
+# The key, as written out, is replaced line by line as the stream is written,
+# so no copy of it in that form reaches the disk, even when this script is
+# killed mid-turn. A key the model wrote JSON-escaped is whole only once
+# decoded: run/turn.out holds it so until run/ is removed - when the call
+# ends, or after a SIGKILL at the next send or stop - and what is kept or
+# printed is redacted again after decoding (opencode_raw, the renderer, the
+# reply). With a flag
 # file, it is also the cap of OUT_BYTES: head bounds what awk can be handed,
 # so one endless line cannot fill memory either; awk passes whole lines only
 # while they fit, and creates the flag when more came. It then exits, which
@@ -430,7 +470,12 @@ dev_state() { # dev_state <top>
 # - HEAD, the branch it names and every ref;
 # - the config, as bytes and as git reads it, includes and the worktree
 #   config included and none of the user's: a core.hooksPath, core.fsmonitor
-#   or filter set in an included file the agent can write is a change too;
+#   or filter set in an included file the agent can write is a change too.
+#   An included file's own bytes are not digested, so a change that keeps
+#   every value, such as a comment, is none; nor is a write to a file
+#   included under a condition that does not hold yet, such as another
+#   branch's includeIf onbranch:, whose values git does not list until it
+#   does [fix-external-agent-claims/plan.md F1];
 # - hooks/, the core.hooksPath directory, relative to the top as git takes
 #   it (husky's is an ignored work-tree directory) [review-r1.md X3], and
 #   info/, whose exclude and attributes change what git reads [T5]: each
@@ -651,9 +696,37 @@ opencode_render() { # opencode_render <turn jsonl> — the readable transcript o
 }
 # OpenCode runs in this script's sandbox, on the copy.
 opencode_isolation() { echo sandbox; }
-# Its raw transcript is the turn's JSON events, as they came.
+# Its raw transcript is the turn's JSON events, as they came, but for an
+# event that holds the key once decoded. The stream was redacted on its way
+# to the disk on the key's literal bytes only, and a key the model wrote
+# JSON-escaped - \u004b for a K, or \" for a quote in the key - is whole only
+# once jq has decoded it [feature-opencode-worker/follow-ups.md 10, 17]
+# [fix-external-agent-claims/claims.md 10]. jq decodes each line and says
+# whether any string in it, an object key included, holds the key; awk then
+# writes every other line byte for byte, and that one as the event
+# {"type":"redacted"}. Not re-encoded: jq's encoding is not the backend's,
+# and writes a DEL as \u007f, six bytes for one, which would break the
+# OUT_BYTES bound on the disk [fix-external-agent-claims/plan.md D1]. A line
+# that is not exactly one JSON value - half of an event split over two
+# lines or two events on one line, which the script's other readers decode
+# as they read the file as a stream, or one past jq's depth limit, which no
+# reader decodes - fails fromjson here. A JSON string cannot span lines, so
+# a key escaped in one is
+# on a line that holds a backslash (code point 92): such a line is written
+# as {"type":"redacted"}, and one without a backslash, whose strings hold no
+# escape and whose written-out key was redacted on the way to the disk, as
+# it came [fix-external-agent-claims/review-r1.md C1]. jq prints one verdict
+# per line; a line without a "-" verdict, as when jq fails, is written as
+# {"type":"redacted"}, so a failure hides the turn and does not leak it. The
+# key reaches jq in its environment, never on its command line.
+# shellcheck disable=SC2016
+readonly JQ_HOLDS_KEY='def holds_key: $ENV.K != "" and ([.. | strings, (objects | keys[])] | any(contains($ENV.K)));'
 opencode_raw_name() { echo transcript.jsonl; }
-opencode_raw() { cat "$run/turn.out"; }
+opencode_raw() {
+  awk 'FILENAME == ARGV[1] {v[FNR] = $0; next} {if (v[FNR] == "-") print; else print "{\"type\":\"redacted\"}"}' \
+    <(K=$secret jq -R -r "$JQ_HOLDS_KEY"' try (fromjson | if holds_key then "k" else "-" end) catch (if explode | any(. == 92) then "k" else "-" end)' "$run/turn.out") \
+    "$run/turn.out"
+}
 # Its events do not say which model ran; the header names the one asked for.
 opencode_ran() { :; }
 # The session id form 2.0.31 prints, checked before send passes one back.
@@ -1432,7 +1505,8 @@ run_host() { # run_host <session or ->; sets rc
 # The first line start and send print. The model is the one the backend
 # reported it ran, else the one asked for, else the backend's own default,
 # which it did not name. A developer's change report follows it, once its
-# turn has run: header is called only after a turn, on exits 0, 6, 7 and 12.
+# turn has run: header is called only after a turn, on exits 0, 6, 7, 8 and
+# 12; the change report on 0, 6, 7 and 12, since a developer is never 8.
 header() { # header <agent id> <backend> <model asked for, or empty>
   printf 'agent: %s · model: %s:%s · turn: %s · transcript: %s\n' "$1" "$2" "${turn_model:-${3:-default}}" "$turn" "$adir/transcript.txt"
   if [ "$(meta role)" = developer ] && [ -f "$run/state.after" ]; then dev_report "$run/state.before" "$run/state.after"; fi
@@ -1442,6 +1516,15 @@ finish_turn() {
   local backend model id err gaps=() text n found verdicts reported
   backend=$(meta backend) model=$(meta model) id=$(meta id)
   local s
+  # A host backend's own report of its sandbox, before anything it printed is
+  # used, and before the output cap and the timeout: a turn whose header
+  # names another sandbox or approval is 12 whatever else it did, where a
+  # flood or a hang would otherwise report it as 7 or 6
+  # [fix-external-agent-claims/claims.md 13]. The header block is in the
+  # first 20 lines of stderr, which the cap keeps; a turn that timed out
+  # before Codex printed it has no block, which codex_verify lets pass, so it
+  # is still a timeout.
+  if [ "$isolation" = host ]; then "${backend}_verify" "$id" "$model"; fi
   for s in stdout stderr; do
     if [ -e "$run/capped.$$.$s" ]; then
       header "$id" "$backend" "$model"; echo "end: $id"; die 7 'BACKEND ERROR' "$backend wrote more than $((OUT_BYTES / 1048576)) MiB on its $s in one turn; what came after that was not kept"
@@ -1453,8 +1536,6 @@ finish_turn() {
   if { [ "$rc" -eq 124 ] || [ "$rc" -eq 137 ]; } && [ $((SECONDS - turn_start)) -ge "$timeout_s" ]; then
     header "$id" "$backend" "$model"; echo "end: $id"; die 6 TIMEOUT "no reply within $timeout_s s"
   fi
-  # A host backend's own report of its sandbox, before anything it printed is used.
-  if [ "$isolation" = host ]; then "${backend}_verify" "$id" "$model"; fi
   err=$("${backend}_error" "$run/turn.out" | redact_stream)
   if [ "$rc" -gt 128 ] && [ "$rc" -lt 160 ]; then
     header "$id" "$backend" "$model"; echo "end: $id"

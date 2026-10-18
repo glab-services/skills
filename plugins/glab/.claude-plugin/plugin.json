@@ -1,6 +1,6 @@
 {
   "name": "glab",
-  "version": "0.7.0",
+  "version": "0.7.1",
   "description": "The glab workflow: plan, develop, analyze, integrate, review, commit, push and record through dedicated agents, with evidence and comment discipline",
   "author": {
     "name": "glab-services"

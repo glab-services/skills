@@ -157,6 +157,11 @@ case $scen in
 	look) text "planted=$(probe test -e "$HOME/planted") config-x=$(probe test -e "$HOME/.config/x") kept=$(probe test -e "$data/kept") home=$(ls -A "$HOME" | paste -sd' ' -)" ;;
 	# The key, JSON-escaped: whole only once decoded (E14).
 	leak-escaped) k=$(key); printf '{"type":"text","sessionID":"%s","part":{"type":"text","text":"escaped \\u%04x%s here"}}\n' "$sid" "'${k:0:1}" "${k:1}" ;;
+	# The key escaped on a line that holds no one whole event: an event split
+	# over two lines, two events on one line; and as an object key (E86).
+	leak-split) k=$(key); printf '{"type":"text","sessionID":"%s","part":{"type":"text","text":\n"split \\u%04x%s here"}}\n' "$sid" "'${k:0:1}" "${k:1}" ;;
+	leak-two) k=$(key); printf '{"type":"noise","sessionID":"%s"} {"type":"text","sessionID":"%s","part":{"type":"text","text":"two \\u%04x%s here"}}\n' "$sid" "$sid" "'${k:0:1}" "${k:1}" ;;
+	leak-objkey) k=$(key); printf '{"type":"noise","sessionID":"%s","\\u%04x%s":1}\n' "$sid" "'${k:0:1}" "${k:1}"; text "objkey sent" ;;
 	exit124) exit 124 ;;
 	# A backend that dies by SIGKILL at once, long before any timeout (E38).
 	selfkill) kill -KILL $$ ;;
@@ -250,7 +255,7 @@ if [ "$ww" = 1 ]; then
 fi
 hm=$model ha=never hid=$sid
 case $scen in
-	ro-net) hs='read-only (network access enabled)' ;;
+	ro-net|ro-net-flood|ro-net-slow) hs='read-only (network access enabled)' ;;
 	ro-appr) ha=on-request ;;
 	# Headers a developer must not accept, and one a general agent must not (E73).
 	ww-tmp) hs='workspace-write [workdir, /tmp, $TMPDIR]' ;;
@@ -348,6 +353,10 @@ case $scen in
 	fds) m=0; for f in /proc/$$/fd/*; do case $(readlink "$f") in *fd-marker*) m=$((m + 1)) ;; esac; done; echo "marker-fds=$m" ;;
 	flood-out) yes flood | head -c 17M ;;
 	flood-err) head -c 17M /dev/zero | tr '\0' x >&2 ;;
+	# A header naming another sandbox, then more than the cap on stdout, or a
+	# turn past --timeout: the sandbox check comes first (E85).
+	ro-net-flood) yes flood | head -c 17M ;;
+	ro-net-slow) exec sleep 30 ;;
 	*) echo "stub codex: no scenario [$scen]" ;;
 esac
 STUB
@@ -726,7 +735,7 @@ files=$(find "$W/plugin/skills/external-agents/profiles" -maxdepth 1 -name '*.md
 [ -n "$named" ] && [ "$named" = "$files" ] && OK=1
 t E35 "every profile file is named by an allowlist line, and every named profile exists"
 
-# E37-E84 were added after E36 was written, and run before it: E36 checks
+# E37-E86 were added after E36 was written, and run before it: E36 checks
 # what every case left behind, so it stays last.
 
 # A start whose first turn is running: a send is busy, and stop ends the start.
@@ -783,7 +792,7 @@ stop_all
 	&& [ "$sz" -gt 0 ] && [ "$sz" -le 16777216 ] && [ "$lastbyte" = 0a ] \
 	&& [ "$r2" = 7 ] && command grep -qF 'BACKEND ERROR: opencode wrote more than 16 MiB on its stderr in one turn' <<<"$e2" \
 	&& [ "$(leftovers)" = "$BASE_PROCS" ] && OK=1
-t E42 "at most 16 MiB of a turn's stdout and of its stderr reach the disk, in whole lines; a turn that writes more is a backend error (7)"
+t E42 "the first 16 MiB of a turn's stdout and of its stderr are kept, in whole lines; a turn that writes more is a backend error (7)"
 
 # A second repository, whose tracked file comes to sit under a symlinked directory.
 R2=$W/repo2; git init -q -b main "$R2"; mkdir "$R2/sub" "$W/outside"; printf 'in\n' >"$R2/sub/f.txt"; printf 'OUTSIDE-TEXT\n' >"$W/outside/f.txt"
@@ -1427,6 +1436,65 @@ CR=$D cstart dev-ignore --role developer; r1=$RC o1=$OUT; stop_all
 k1=0; [ -f "$D/pkg/zz/new.txt" ] && [ -z "$(git -C "$D" ls-files -o --exclude-standard)" ] && k1=1
 [ "$k1" = 1 ] && [ "$r1" = 0 ] && [ "$(sed -n '2,6p' <<<"$o1")" = "$(printf '%s\n' 'changed: !! pkg/' 'changed: !! pkg/zz/' 'changed: !! pkg/zz/.gitignore' 'changed: !! pkg/zz/new.txt' 'git: unchanged')" ] && OK=1
 t E84 "files a .gitignore written in the turn hides are listed as ignored (!!), not changed: none"
+
+# [fix-external-agent-claims/claims.md 13] The sandbox check comes before the
+# output cap and the timeout: a header naming another sandbox is 12 either way.
+cstart ro-net-flood; r1=$RC e1=$ERR o1=$OUT; stop_all
+cstart ro-net-slow --timeout 2; r2=$RC e2=$ERR o2=$OUT; stop_all
+[ "$r1" = 12 ] && command grep -qF "NOT READ-ONLY: codex reported sandbox 'read-only (network access enabled)'" <<<"$e1" && ! command grep -qx 'reply:' <<<"$o1" \
+	&& [ "$r2" = 12 ] && command grep -qF "NOT READ-ONLY: codex reported sandbox 'read-only (network access enabled)'" <<<"$e2" && ! command grep -qx 'reply:' <<<"$o2" \
+	&& [ "$(leftovers)" = "$BASE_PROCS" ] && OK=1
+t E85 "a Codex turn whose header names another sandbox is not read-only (12) even when it also wrote past the 16 MiB cap or ran past --timeout: the sandbox check comes first"
+
+# [fix-external-agent-claims/claims.md 10] transcript.jsonl, decoded, holds no
+# key: not one the model JSON-escaped, nor one whose quote and backslash any
+# JSON encoder escapes. The second key is stored for this case only.
+start leak-escaped; A=$ID; r1=$RC
+j1=$(jq -R -r 'fromjson? | (.. | strings), (.. | objects | keys[])' "$STATE/$A/transcript.jsonl")
+x1=0; command grep -qxF '{"type":"redacted"}' "$STATE/$A/transcript.jsonl" && x1=1
+stop_all
+K2='KEY-q"uo\te-0123'
+mv "$W/home/stub-auth.json" "$W/auth.keep"
+jq -cn --arg k "$K2" '[{id: "cred_1", integrationID: "opencode-go", label: "default", active: true, value: {type: "key", key: $k}}]' >"$W/home/stub-auth.json"
+start leak; A=$ID; r2=$RC o2=$OUT
+j2=$(jq -R -r 'fromjson? | (.. | strings), (.. | objects | keys[])' "$STATE/$A/transcript.jsonl")
+x2=0; command grep -qxF '{"type":"redacted"}' "$STATE/$A/transcript.jsonl" && x2=1
+stop_all
+mv "$W/auth.keep" "$W/home/stub-auth.json"
+# The whole file decoded as a stream, as the script's own readers decode it,
+# object keys included [fix-external-agent-claims/review-r1.md C1, C2]: an
+# event split over two lines, two events on one line, the key as an object
+# key. Each must be written as {"type":"redacted"} and leave no key.
+ok3=1
+for sc in leak-split leak-two leak-objkey; do
+	start "$sc"; A=$ID
+	js=$(jq -r '(.. | strings), (.. | objects | keys[])' "$STATE/$A/transcript.jsonl" 2>/dev/null)
+	{ [ "$RC" = 0 ] && ! command grep -qF "$KEY" <<<"$js" && ! command grep -qF "$KEY" "$STATE/$A/transcript.jsonl" \
+		&& command grep -qxF '{"type":"redacted"}' "$STATE/$A/transcript.jsonl"; } || { ok3=0; echo "   E86 $sc: rc=$RC"; }
+	# Once leak-split's second line is redacted, the stream check above
+	# decodes nothing of that event, so the case also shows that it came in
+	# two lines and that the reply decoded it (review-r2.md, advisory).
+	case $sc in leak-split) { [ "$(wc -l <"$STATE/$A/transcript.jsonl")" = 2 ] && has 'split <redacted> here'; } \
+		|| { ok3=0; echo "   E86 leak-split: not two lines, or no decoded reply"; } ;; esac
+	stop_all
+done
+# [fix-external-agent-claims/review-r2.md R2-3] A jq first on the script's
+# PATH that fails only opencode_raw's call, the one whose program holds
+# holds_key, and runs the real jq for every other: then every line of the
+# turn is {"type":"redacted"}, and no key is left.
+rjq=$(command -v jq)
+# The $* and $@ are the wrapper's own (SC2016).
+# shellcheck disable=SC2016
+printf '#!/bin/sh\ncase "$*" in *holds_key*) exit 1 ;; esac\nexec '"'"'%s'"'"' "$@"\n' "$rjq" >"$W/bin/jq"; chmod +x "$W/bin/jq"
+start leak-split; A=$ID; r4=$RC f4=$STATE/$A/transcript.jsonl
+j4=$(jq -r '(.. | strings), (.. | objects | keys[])' "$f4" 2>/dev/null)
+k4=0; [ "$(wc -l <"$f4")" = 2 ] && ! command grep -qvxF '{"type":"redacted"}' "$f4" && ! command grep -qF "$KEY" "$f4" && ! command grep -qF "$KEY" <<<"$j4" && k4=1
+rm -f "$W/bin/jq"
+stop_all
+[ "$r1" = 0 ] && [ -n "$j1" ] && ! command grep -qF "$KEY" <<<"$j1" && [ "$x1" = 1 ] \
+	&& [ "$r2" = 0 ] && [ -n "$j2" ] && ! command grep -qF "$K2" <<<"$j2" && [ "$x2" = 1 ] && ! command grep -qF "$K2" <<<"$o2" \
+	&& [ "$ok3" = 1 ] && [ "$r4" = 0 ] && [ "$k4" = 1 ] && OK=1
+t E86 "transcript.jsonl holds no key once decoded, line by line or as a stream: an event with the key JSON-escaped, or with a key whose quote and backslash every encoder escapes, split over two lines, sharing a line or as an object key, is written as {\"type\":\"redacted\"}, and every line is when jq fails"
 
 [ "$FP" = "$(fingerprint)" ] && [ "$(agents)" = 0 ] && [ "$(leftovers)" = "$BASE_PROCS" ] && [ ! -e "$W/ran-on-host" ] && OK=1
 t E36 "after every case: the real repository is unchanged byte for byte, no agent is left, and no sandbox, slirp4netns, stub or Codex stub process runs"

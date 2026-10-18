@@ -37,7 +37,9 @@ An OpenCode agent also needs: bubblewrap (`bwrap`) able to create namespaces
 on your host, `slirp4netns` for the sandbox's own network, util-linux
 (`nsenter`, `setpriv`, `lsns`, `flock`), iproute2 (`ip`), `git`, `jq`, GNU
 `tar` and `timeout`, and OpenCode's native binary (the installer puts it at
-`~/.opencode/bin/opencode`; a launcher script does not run in the sandbox)
+`~/.opencode/bin/opencode`; a launcher script runs in the sandbox only when
+everything it starts lies under `/usr`, `/bin`, `/sbin`, `/lib`, `/lib64` or
+`/etc`)
 with an OpenCode Go key stored by `opencode auth login`. On Debian or Ubuntu:
 `sudo apt install bubblewrap slirp4netns`. Without a working `slirp4netns` the
 script refuses to start an OpenCode agent (exit 9). Keep the OpenCode
@@ -63,7 +65,8 @@ git dir, or, most likely, a `.git` inside an ignored dependency directory.
 
 What an OpenCode agent can send, and to whom: your working tree's tracked and
 untracked-but-not-ignored files, the index and the tree of your current
-commit — no other branch, tag or history, and never an ignored file — and
+commit — no other branch, tag or history, never an ignored file and never a
+nested repository — and
 every message the manager sends it, may reach the provider of the model you
 named. For OpenCode, the script runs only Kimi and GLM models, and DeepSeek models until
 2026-10-31, after which it refuses them until their data policy has been
@@ -71,7 +74,9 @@ checked again; Grok is refused, because its provider keeps prompts for 30
 days. The agent works on a read-only copy, in a sandbox whose network reaches
 the internet and nothing on your host or local network. The OpenCode Go key
 is inside that sandbox, where the model can read it and could send it out; it
-is never printed and is redacted from what the agent returns. Each agent's
+is never printed and is redacted from what the agent returns, where it
+appears written out or JSON-escaped; a key the model writes in any other
+form, such as base64, is not recognised. Each agent's
 transcript stays readable under `$TMPDIR/glab-external-agents/` until the
 manager stops it.
 
@@ -97,7 +102,15 @@ A change to .git is reported after each turn — a commit, a ref, the
 config, a hook, `info/`, the `core.hooksPath` directory, or a new `.git`
 below the top — and the manager stops on it; the script does not
 prevent it. A write to an ignored file is not reported, except in the
-`core.hooksPath` directory or in a file the git config includes. The agent
+`core.hooksPath` directory, or a changed value git reads from a file the
+git config includes. A change there that leaves every value as it was,
+such as a comment, is not reported, nor is a change to a file the config
+includes only under a condition that does not hold yet, such as an
+`includeIf "onbranch:…"` for another branch. Ignored here means ignored
+by the repository's own rules and config, or by `~/.config/git/ignore`
+(`$XDG_CONFIG_HOME/git/ignore`) when that config names no
+`core.excludesFile`: a file that only a `core.excludesFile` in your
+global or system git config ignores is reported as untracked. The agent
 can make a path ignored itself, with a `.gitignore` of its own: a new
 ignored entry is reported by name, but not what is written in it.
 After each developer turn the manager is shown one `changed:` line per

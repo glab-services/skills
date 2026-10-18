@@ -40,9 +40,12 @@ another model instead is the user's call.
   to run without it, and keeps its agents under `$TMPDIR/glab-external-agents/`.
 - **OpenCode.**
   - The CLI path: the one the user gave, or `~/.opencode/bin/opencode`, where
-    the OpenCode installer puts its native binary. Say which you used. A
-    launcher script in its place cannot run in the sandbox (it fails as exit
-    7).
+    the OpenCode installer puts its native binary. Say which you used. The
+    script follows its links and mounts that one file in the sandbox, which
+    holds nothing else of your home: a launcher script runs there only when
+    its interpreter and everything it starts lie under `/usr`, `/bin`,
+    `/sbin`, `/lib`, `/lib64` or `/etc`; one that starts a program anywhere
+    else, as a package manager's launcher does, fails (exit 7).
   - Run `"<this skill's base directory>/../../scripts/external-agent.sh" check
     --backend opencode --cli <path>` once. It prints the CLI, the tools it
     found, `key: stored` — never the key — and the models allowed. Any other
@@ -90,7 +93,15 @@ another model instead is the user's call.
     config, a hook, `info/`, the `core.hooksPath` directory, or a new `.git`
     below the top — and the manager stops on it; the script does not
     prevent it. A write to an ignored file is not reported, except in the
-    `core.hooksPath` directory or in a file the git config includes. The agent
+    `core.hooksPath` directory, or a changed value git reads from a file the
+    git config includes. A change there that leaves every value as it was,
+    such as a comment, is not reported, nor is a change to a file the config
+    includes only under a condition that does not hold yet, such as an
+    `includeIf "onbranch:…"` for another branch. Ignored here means ignored
+    by the repository's own rules and config, or by `~/.config/git/ignore`
+    (`$XDG_CONFIG_HOME/git/ignore`) when that config names no
+    `core.excludesFile`: a file that only a `core.excludesFile` in your
+    global or system git config ignores is reported as untracked. The agent
     can make a path ignored itself, with a `.gitignore` of its own: a new
     ignored entry is reported by name, but not what is written in it.
   - The effort: run `printenv CLAUDE_CODE_EFFORT_LEVEL`. When it prints
@@ -157,9 +168,13 @@ another model instead is the user's call.
 
 ## Reading what comes back
 
-The exit code decides. stderr carries one line, `external-agent: <CODE>: <reason>`.
+The exit code decides. On exits 2-12 stderr carries one line from the
+script, `external-agent: <CODE>: <reason>`; a tool the script runs, such as
+`tar` when it cannot read a file it copies, can print lines of its own there
+too. The script's line is the one that starts `external-agent: `.
 
-stdout of `start` and `send`: the **first line** is
+stdout of `start` and `send` is empty on exits 2-5, 9, 10 and 11. On exits
+0, 6, 7, 8 and 12 the **first line** is
 `agent: <id> · model: <backend>:<model> · turn: <n> · transcript: <file>`, on
 exit 0 the next is `reply:`, and the **last line** is `end: <id>` with the
 same id. Take the id, the model and the transcript path from those two lines
@@ -181,7 +196,8 @@ Or `changed: none`,
 or `changed: unreadable`, always with `git: changed`, when the state after
 the turn could not be read within the turn's `--timeout`, 300 s at most;
 then `git: unchanged`, or `git: changed` when `HEAD`, a ref, the git
-config (its includes too), a hook, `info/`, the `core.hooksPath` directory,
+config (its bytes, and every value git reads from it and from the files it
+includes), a hook, `info/`, the `core.hooksPath` directory,
 or any `.git` below the top changed. Exits 6, 7 and 12 print them too: the
 turn ran, and its changes are in the tree.
 
@@ -217,19 +233,27 @@ page:
 
 **The transcript is for the user.** `<file>` from the first line holds every
 turn: what you sent, the model's reasoning where it sends any, each tool call
-and its output, and the reply — with the key redacted and control characters
-removed. A Codex transcript is not redacted: it holds whatever Codex printed.
-When the user wants to see how a model worked, give them that path; it is
-there until `stop`.
+and the reply — with the key redacted and control characters removed. Of an
+OpenCode tool call it shows the first 500 characters of the input and the
+first 2000 of the output; `transcript.jsonl` beside it keeps every event
+whole, but writes one that holds the key once decoded — the model wrote it
+JSON-escaped — as `{"type":"redacted"}`. A Codex transcript is not
+redacted: it holds whatever Codex printed,
+and `transcript.log` beside it keeps each turn's stderr and stdout as they
+came. When the user wants to see how a model worked, give them that path;
+it is there until `stop`.
 
 ## The reviewer role
 
 When Rule 5 has recorded an external reviewer, each review round is its own
 agent: `start --role reviewer`, with the brief Stage 5 gives — the target, the
 round and which round is the last, and for a fan-out reviewer its dimension,
-nothing else. An OpenCode reviewer's copy holds `HEAD` and the
-working tree only, so its target is the working tree or a path in it; a branch
-or range target cannot resolve there — tell the user instead of starting one.
+nothing else. An OpenCode reviewer's copy holds the working tree and one
+commit with `HEAD`'s tree and no parent, on the branch `HEAD` names, so its
+target is the working tree or a path in it. That branch's name resolves
+there, but to that one commit, not to its history, and no other branch, tag
+or range resolves at all: for a branch or range target, tell the user
+instead of starting one.
 A Codex reviewer works in the repository itself, so it can take one.
 
 Every agent, of any role, is told to read the repository's `AGENTS.md`
@@ -240,8 +264,9 @@ message, so do not paste them into the brief.
 The script frames it with the reviewer's own contract and report section, and
 returns the report block alone. It checks the block's form, not its
 judgement: exactly one verdict line, and for `BLOCK: <n> issues` (or
-`BLOCK: 1 issue`) an n of at least 1 and at least n findings with a `rule:`
-line — advisory findings carry one too and are not counted in n. On exit 0
+`BLOCK: 1 issue`) an n of at least 1 and at least n lines that start
+`rule: ` — it counts those lines and does not check that each belongs to a
+finding; advisory findings carry one too and are not counted in n. On exit 0
 that is the reviewer's report:
 match its verdict as `/glab:review` and `/glab:ship` say. On exit 8 the
 report is missing or malformed: `send` the same agent one message naming the
@@ -300,7 +325,9 @@ refuses the role (exit 2).
 - **What it may send.** The copy: the working tree's tracked files and its
   untracked files that are not ignored, the index, and the tree of `HEAD` as
   one commit — no other branch, tag or history. Ignored files are never
-  copied. Everything in the copy, and every message you send, may reach the
+  copied, and neither is a nested repository: an untracked one is left out,
+  and a submodule is an empty directory. Everything in the copy, and every
+  message you send, may reach the
   model's provider. Only the models in the script's allowlist run, each until
   the end date its line gives.
 - **What it cannot do.** The copy is read-only, `.git` included, and is built
@@ -322,12 +349,18 @@ refuses the role (exit 2).
 - **Its key.** The OpenCode Go key is inside the sandbox, because the CLI
   needs it, and the model can read it there and send it out. It is never on a
   command line and never printed, and it is redacted from the reply and both
-  transcripts.
+  transcripts where it appears as itself: written out, or JSON-escaped in an
+  event, which `transcript.jsonl` then keeps as `{"type":"redacted"}`. A key
+  the model writes in any other form, such as base64, is not recognised.
 - **Its limits.** Files up to 64 MiB, a 256 MiB `/tmp`, 256 processes, and
-  4 GiB of data memory per process; at most 16 MiB of the backend's stdout
-  and 16 MiB of its stderr per turn reach the disk, and a turn that writes
-  more is exit 7. Total memory, and the disk the copy and its session use
-  under `TMPDIR`, are not limited.
+  4 GiB of data memory per process; of the backend's stdout and of its
+  stderr, the first 16 MiB per turn are kept, and a turn that writes more is
+  exit 7. The 16 MiB are counted before the key is redacted, which can make
+  what reaches the disk longer: `transcript.jsonl` writes each line it
+  redacts as one 20-byte event whatever the line's length, so one turn
+  there can reach 10 times 16 MiB, about 160 MiB, and 20 times if `jq`
+  fails. Total memory,
+  and the disk the copy and its session use under `TMPDIR`, are not limited.
 
 **Codex.**
 
@@ -356,14 +389,26 @@ refuses the role (exit 2).
   a digest of `HEAD`, the refs, the
   git config, the hooks, `info/`, the `core.hooksPath` directory and every
   `.git` below the top; it prints the `changed:` and `git:` lines from the
-  difference. It runs no `git status`, filter, fsmonitor or hook, and takes
-  at most the turn's `--timeout`, 300 s at most. It sees an ignored entry
-  made or removed, by name — the agent can make a path ignored itself — but
-  not a write to an ignored file, other than in the `core.hooksPath`
-  directory or in a file the git config includes, nor a write
+  difference. It runs no `git status`, filter, fsmonitor or hook. Each of
+  its two snapshots, before the turn and after it, runs for at most the
+  turn's `--timeout`, 300 s at most, and 5 s more to end it; before every
+  developer turn, and once more at `start`, the search for another `.git`
+  runs for at most 300 s. Nothing bounds their sum. It sees an ignored
+  entry made or removed, by name — the agent can make a path ignored
+  itself — but not a write to an ignored file, other than in the
+  `core.hooksPath` directory or a changed value git reads from a file the
+  git config includes; not a change to an included file that leaves every
+  value as it was, such as a comment, nor one to a file included only under
+  a condition that does not hold yet, such as an `includeIf "onbranch:…"`
+  for another branch; nor a write
   Codex itself — which runs outside its command sandbox — makes anywhere but
-  the paths it lists and what it digests. A change to `.git` is reported
-  after the turn, not prevented by the script.
+  the paths it lists and what it digests. Ignored means what the
+  repository's own rules and config ignore, and `~/.config/git/ignore`
+  (`$XDG_CONFIG_HOME/git/ignore`) when that config names no
+  `core.excludesFile`; a file that only your global or system
+  `core.excludesFile` ignores is untracked to the report, and listed as
+  `??` when it changes. A change to `.git` is reported after the turn, not
+  prevented by the script.
 - **Its network.** Its commands have no IP network,
   and a connect to a Unix-domain socket by path was refused
   (measured offline with `codex sandbox`); datagram and abstract sockets
@@ -382,12 +427,16 @@ refuses the role (exit 2).
   applies. Of that, the script checks only the sandbox and the approval
   policy the header reports.
 - **Its limits.** At most 16 MiB of Codex's stdout and 16 MiB of its stderr
-  per turn reach the disk, and a turn that writes more is exit 7; and the
+  per turn reach the disk, and a turn that writes more is exit 7, or 12 when
+  its header names another sandbox or approval (*What is checked*); and the
   timeout. Files, processes and memory are not limited by the script.
 - **What is checked.** Every turn, the header block Codex prints must say
   `sandbox: read-only` — for a developer, exactly
   `sandbox: workspace-write [workdir]` — and `approval: never`, or the reply
-  is withheld (exit 12); its model and its session id are checked for their form (exit 7); and
+  is withheld (exit 12). That is checked first: a turn that also ran past
+  its `--timeout` or past the output cap is 12, not 6 or 7, and a turn that
+  timed out before Codex printed its header is 6. Its model and its session
+  id are checked for their form (exit 7); and
   the reviewer's report, as for OpenCode.
 - **Its state.** The agent's directory under `$TMPDIR/glab-external-agents/`,
   with no `work/` and no `data/`. Its session lives in Codex's own history
