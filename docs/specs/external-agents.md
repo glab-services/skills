@@ -1097,20 +1097,23 @@ Owned by `opencode_models()` in the script, one line per model —
   (*Live runs*), Codex's default model at effort `high`, one general start
   and one `send` in this repository; `README.md` says so since `33a28df`
   (`[feature-codex-agent/record.md readme-stale]`, closed).
-- **No developer turn has run against a real model.** The Codex developer
-  role has been tested against the stub (E72–E84) and its sandbox offline
-  with `codex sandbox` and one offline `start` (M1–M5); no live developer
-  run has been made, and only the user starts one (`README.md`: "The
-  developer role has been tested against a stub, and its sandbox offline
-  with `codex sandbox`.").
-- [feature-external-developer/integration.md unverified] *Still UNVERIFIED* after Stage 4, each needing a live run or more than `start`: whether Codex itself, outside its command sandbox, changes a ref or `.git` during a real turn, which would print `git: changed` every turn; how a real model does as a developer; the report's lines on exits 0, 6 and 12 with the real binary (only 7 ran; the stub covers the rest); a developer `send` with the real binary.
-- [feature-external-developer/plan.md after-4] *After* step 4, the same two items written `UNVERIFIED` for `integration.md`: Codex itself changing a ref during a real turn, and how a real model does as a developer — both for a live run, which only the user starts.
+- **A developer turn has run against a real model** — closed by `[probe-codex-dev/probe-codex-dev.md]`:
+  "No developer turn has run against a real model" held until the two live
+  developer runs of 2026-10-18 (*Live runs*), on a throwaway three-file
+  repository. Before them the role was tested against the stub (E72–E84)
+  and its sandbox offline (M1–M5). `README.md` at `7390a87` still says only
+  "The developer role has been tested against a stub, and its sandbox
+  offline with `codex sandbox`." — true, but no longer the whole of it.
+- [probe-codex-dev/probe-codex-dev.md observed] An external developer follows the `glab:developer` contract and changes nothing without `plan/<slug>/plan.md` or a waiver: in run 1, given a bare brief and no plan, it changed nothing and answered `BLOCKED: no contract; provide plan.md or waived.md`. Observed in one run of one model; the script does not enforce it — the contract the developer receives does.
+- [probe-codex-dev/probe-codex-dev.md not-shown] Not shown by the live developer runs: a turn that leaves a process running, so the sweep killed nothing; a turn that writes `.git` or makes a nested repository (M3 and the stub tests cover those offline); any repository other than a three-file toy.
+- [feature-external-developer/integration.md unverified] *Still UNVERIFIED* after Stage 4, each needing a live run or more than `start`: whether Codex itself, outside its command sandbox, changes a ref or `.git` during a real turn, which would print `git: changed` every turn — not seen in the four live developer turns, each `git: unchanged` with HEAD, `.git/config` and the hooks unchanged (`[probe-codex-dev/probe-codex-dev.md]`), so not shown either way beyond them; how a real model does as a developer — shown on a toy repository only (`[probe-codex-dev/probe-codex-dev.md]`); the report's lines on exits 0, 6 and 12 with the real binary — exit 0 shown live (`[probe-codex-dev/probe-codex-dev.md]`), 6 and 12 still the stub's only; a developer `send` with the real binary — shown (`[probe-codex-dev/probe-codex-dev.md]`).
+- [feature-external-developer/plan.md after-4] *After* step 4, the same two items written `UNVERIFIED` for `integration.md`: Codex itself changing a ref during a real turn, and how a real model does as a developer — both for a live run, which only the user starts. The live developer runs (`[probe-codex-dev/probe-codex-dev.md]`) showed `git: unchanged` on every turn and one model building a two- and a one-step task on a toy repository; neither is shown on a real repository.
 - [feature-external-developer/plan.md not-covered] Not covered by any case, accepted in the plan: the report on exits 6 and 7 (`header` is the one place it is printed, and E73 shows it on 12 through the same call); `dev_snap` (and before it `dev_state`) failing before the turn, exit 4, which needs E82's stand-in armed before the turn; `dev_refuse`'s "cannot resolve" and 300 s search-limit branches; `config list: none`; the `${t%/}` advisory, which needs a repository whose top is `/`; the real sandbox, Stage 4's. The developer also named `config: none` as not exercised, and `dev_git`'s fixed words (`head: none`, `symref: none`, an absent hooks directory) as exercised once by hand only (`result-p1-p4.md` *Tests*).
 - **The inspection and the user's own filters**: since R4.7 the manager's inspection runs `cat-file blob`, which applies no filter, and no `git diff` (`[feature-external-developer/result-p5-p7.md L171]` under *Open follow-ups*).
-- [feature-codex-agent/plan.md unverified] *UNVERIFIED, in one place*, and what has settled each since: that Codex's read-only sandbox starts on this host, refuses writes, allows reads outside the repository and gives commands no network — S1 (on the host, under `codex sandbox`); that the real header block is as findings §9.2 gives it, every `--disable` name is accepted, the repository's trusted `.codex/` layer stays off under the script's argv (D26; that `--ignore-user-config` alone drops the trust entry is inferred, since the argv differs in more flags) and `exec resume <id>` continues and prints the same id — O1 offline, and L1 with a real model; that `login status` exits 0 for a real login — L1's `login: stored`; that `codex exec`, like `codex sandbox`, passes `shell_environment_policy.set` to its sandbox helper, so D31's sweep finds a real turn's helper — **still UNVERIFIED** (`[feature-codex-agent/probe-codex-l1.md not-verified]`; if it fails, D31's rejected scope is the fallback and needs the user's yes); that a keyring login works under `--ignore-user-config` — L1 ran with the user's login under the flag, but which store it uses is not recorded; that `check`'s predicted default is the model that runs — L1, `gpt-6.1-sol` both; reroutes, an unsupported effort level, a real turn obeying read-only, and the model honouring "Read nothing outside <top>" — not shown.
+- [feature-codex-agent/plan.md unverified] *UNVERIFIED, in one place*, and what has settled each since: that Codex's read-only sandbox starts on this host, refuses writes, allows reads outside the repository and gives commands no network — S1 (on the host, under `codex sandbox`); that the real header block is as findings §9.2 gives it, every `--disable` name is accepted, the repository's trusted `.codex/` layer stays off under the script's argv (D26; that `--ignore-user-config` alone drops the trust entry is inferred, since the argv differs in more flags) and `exec resume <id>` continues and prints the same id — O1 offline, and L1 with a real model; that `login status` exits 0 for a real login — L1's `login: stored`; that `codex exec`, like `codex sandbox`, passes `shell_environment_policy.set` to its sandbox helper, so D31's sweep finds a real turn's helper — shown by the live developer runs: on three of the four turns the model ran `printenv GLAB_EXTERNAL_AGENT` in its sandbox and it printed the agent's id (run 1's second turn repeated the value without running the command, `transcript.log`) (`[probe-codex-dev/probe-codex-dev.md]`); that the sweep then kills a real leftover is still not shown (`[feature-codex-agent/probe-codex-l1.md not-verified]`); that a keyring login works under `--ignore-user-config` — L1 ran with the user's login under the flag, but which store it uses is not recorded; that `check`'s predicted default is the model that runs — L1, `gpt-6.1-sol` both; reroutes, an unsupported effort level, a real turn obeying read-only, and the model honouring "Read nothing outside <top>" — not shown.
 - [feature-codex-agent/findings.md unverified] §9.6's list of what needs a model: that a real turn obeys read-only, that its commands really have no network, that a reroute shows in the header or output, that the default is the one `check` predicts (since shown by L1), and the effort fallback on a model without the level — the rest still open. Revision 1's other UNVERIFIED items (§3) concerned the superseded copy-based design, the login mechanisms and the per-turn `CODEX_HOME`, which revision 2 dropped.
-- [feature-codex-agent/integration.md open] *Items these runs leave open* and *Still unverified after round 3*: what the script itself leaves after a killed host turn mid-command with the real Codex (the stub covers the call sites: E60, E69, E70); `check`'s `default:`/`models:` lines from `debug models` without `--bundled` — shown online by L1 (seven listed models, against the bundled catalog's eight: no `gpt-5.5`), the offline fallback still not run; a real `login status` rc 0 (since L1) and a keyring login; the live-run items above; whether `codex sandbox` contacted the network on the host, for an update check, not measured; that a real `codex exec` turn passes `set` to its helper; that a command which unsets the marker still ends with its helper, not re-measured after findings §9.9 C2c. Inferred, not measured: which of D4's flags turned off the MCP endpoint direct Codex tried in O1.
-- [feature-codex-agent/probe-codex-l1.md not-verified] That a real `exec` turn's commands carry the marker while they run: L1's turns ended cleanly, nothing was alive at the three check points, so finding 0 marked processes does not tell a passed marker from a missing one, and the sweep was not exercised on a real turn. Proving it needs a turn ended by `stop` while a command runs (`[feature-codex-agent/plan.md unverified]`).
+- [feature-codex-agent/integration.md open] *Items these runs leave open* and *Still unverified after round 3*: what the script itself leaves after a killed host turn mid-command with the real Codex (the stub covers the call sites: E60, E69, E70); `check`'s `default:`/`models:` lines from `debug models` without `--bundled` — shown online by L1 (seven listed models, against the bundled catalog's eight: no `gpt-5.5`), the offline fallback still not run; a real `login status` rc 0 (since L1) and a keyring login; the live-run items above; whether `codex sandbox` contacted the network on the host, for an update check, not measured; that a real `codex exec` turn passes `set` to its helper — since shown (`[probe-codex-dev/probe-codex-dev.md]`); that a command which unsets the marker still ends with its helper, not re-measured after findings §9.9 C2c. Inferred, not measured: which of D4's flags turned off the MCP endpoint direct Codex tried in O1.
+- [feature-codex-agent/probe-codex-l1.md not-verified] That a real `exec` turn's commands carry the marker while they run: L1's turns ended cleanly, nothing was alive at the three check points, so finding 0 marked processes does not tell a passed marker from a missing one, and the sweep was not exercised on a real turn. The marker half is closed by `[probe-codex-dev/probe-codex-dev.md]`: in the live developer runs the turn's own command, `printenv GLAB_EXTERNAL_AGENT`, printed the agent's id — run on both turns of run 2 and the first of run 1; run 1's second turn repeated the value without running it (`transcript.log`). Still open: a real turn that leaves a process running, so that the sweep kills something — in those runs nothing was left after either turn or after `stop` (0 marked processes each time), so the sweep killed nothing. Proving it needs a turn ended by `stop` while a command runs (`[feature-codex-agent/plan.md unverified]`).
 - [feature-codex-agent/plan.md not-covered] Not covered by any case, accepted in the plan's coverage list: `codex_check`'s exit 4 for a missing tool; `opencode_secret_hint`'s tail; a host repository with no commit (D28); the real Codex's header, flags, trust default, catalog and resume (O1), its sandbox (S1) and the real helper dying to the sweep (O2; the stub's `setsid` child stands in, E60 and E69); the D13 names the test does not set; a script killed and never `stop`ped, whose leftovers run until the next `stop` of that agent; `cleanup`'s `host_turn` sweep (`[feature-codex-agent/review-r2.md R2-c]`); C2's `trap '' HUP INT TERM` and C-A, races with a second signal or a concurrent `stop`; P5–P10 are text, checked by the plan's searches. The developer added: a relative `--cli` for Codex; `CODEX_BLOCK_AWK` rejecting a non-`key: value` line inside the block; `run_host`'s `cd … || exit 1`; a PID reused between `sweep_agent`'s two reads; `check`'s own sweep killing anything (`result-p1-p4.md` *Tests*, *Round 2*).
 - [feature-codex-agent/result-p5-p10.md L578] The socket wording names datagram and abstract sockets as not measured; still not named anywhere in the payload: seqpacket sockets, `socketpair`, and a descriptor passed in from outside (integration round 4).
 - [feature-opencode-worker/probe-r3.md not-verified] *Not verified* by the probe: DeepSeek's behaviour (refused before any turn); how the models behave on a real repository, a long brief or a Go limit; the profiles' effect — no run without profiles to compare against.
@@ -1784,7 +1787,56 @@ handoff.
 - [feature-codex-agent/probe-codex-l1.md settled] Settled: the real Codex 0.163.0 accepts the script's `exec` and `exec resume` argv; it prints the header block in the form the script parses; `--effort high` reaches it as `reasoning effort: high`; its default model is read back and recorded (`codex:gpt-6.1-sol`); resume continues the session; no marked process was left after a turn or after `stop`. Also in its files, not in its *Settled* list: `check`'s predicted default is the model that ran, and the user's real login gives `login: stored` (`check.out`, `start.out`).
 
 Not settled by L1, and kept under *Known limits*: that a real `exec` turn's
-commands carry the marker while they run.
+commands carry the marker while they run — since shown by the live developer
+runs below (`[probe-codex-dev/probe-codex-dev.md]`); a sweep that kills a real leftover is still not shown.
+
+### 2026-10-18 — developer runs (Codex)
+
+Run by the manager session at the user's instruction in chat, "then go to
+test this one", and then "Yes, rerun with a plan", as scripts, never pasted,
+with the user's own Codex login; Codex's default model, the session's effort,
+`high`; code under test `glab` 0.7.0 (`74c5830`). Each run started
+`--role developer` on a **throwaway git repository** under the temp
+directory, never the user's repository. The record:
+`git show 7390a87:plan/probe-codex-dev/probe-codex-dev.md`; its files, masked
+(`<home>`, `<user>`, `<uid>`, `<tmp>`, `<session-uuid>`) and scanned for
+tokens and key prefixes, none found:
+`git ls-tree -r --name-only 7390a87 -- plan/probe-codex-dev/` (per run,
+`run1/` and `run2/`: `runner.sh.txt`, `rc.txt`, `brief.md`, `msg.md`,
+`check.out`, `start.out`, `send.out`, `list.out`, `stop.out`,
+`status.after-start`, `status.after-send`, `transcript.log`,
+`transcript.txt` and their stderr files). Each runner builds the throwaway
+repository, runs `check`, a `start`, a `send` and `stop`, scans
+`/proc/*/environ` for the agent's marker after each, and compares `HEAD`,
+`.git/config` and the hooks list before and after; run 2's adds
+`plan/test/plan.md` (P1–P3) to the repository.
+
+| run | step | rc | what it showed |
+|---|---|---|---|
+| 1, a bare brief, no plan | `check` | 0 | `login: stored`, `sandbox: read-only starts`, `default: gpt-6.1-sol (predicted)` |
+| 1 | `start` | 0, 33 s | `changed: none`, `git: unchanged`; the reply `BLOCKED: no contract; provide plan.md or waived.md`; the repository's own `git status` empty |
+| 1 | `send` | 0, 17 s | `changed: none`, `git: unchanged`; still blocked |
+| 2, with `plan/test/plan.md` | `start` (P1, P2) | 0, 58 s | `BUILT`; `changed:  M calc.py`, `changed: ?? notes.txt`, `git: unchanged`; the repository's own `git status` ` M calc.py`, `?? notes.txt` |
+| 2 | `send` (P3) | 0, 24 s | `BUILT`; only what that turn changed, `changed:  M calc.py`, `git: unchanged` |
+| both | `stop` | 0 | the agent's directory gone |
+
+On every turn Codex's header read `model: gpt-6.1-sol`, `approval: never`,
+`sandbox: workspace-write [workdir]` and `reasoning effort: high`, which the
+script accepts. The marker was shown on three of the four turns: asked to,
+the model ran `printenv GLAB_EXTERNAL_AGENT` in its sandbox, which printed
+the agent's id — on both turns of run 2 and the first of run 1; run 1's
+second turn repeated the value from its first without running the command
+(each run's `transcript.log`). Marked processes after `start`, after `send` and after `stop`:
+`0` each time, in both runs. `HEAD`, `.git/config` and the hooks list were
+unchanged after each run; the user's own repository was unchanged (only
+the untracked handoff). Run 2's result was correct: `calc.sub(5, 3) == 2`,
+the docstring "Return a minus b.", `notes.txt` reading `sub added`.
+
+- [probe-codex-dev/probe-codex-dev.md settled] Proven on a real Codex turn: the developer header `workspace-write [workdir]`, which the script accepts; the change report on real edits — a modified file, a new file — matching git, per turn; `git: unchanged` when `.git` is untouched; the marker reaching the turn's commands, which closes the marker half of `[feature-codex-agent/probe-codex-l1.md not-verified]`; cleanup after each turn and at `stop`, with nothing left after either run.
+
+Observed, and not shown, are under *Known limits*
+(`[probe-codex-dev/probe-codex-dev.md observed]`,
+`[probe-codex-dev/probe-codex-dev.md not-shown]`).
 
 ## Open follow-ups
 
@@ -1831,7 +1883,6 @@ commands carry the marker while they run.
 - [feature-external-developer/plan.md not-in-plan-3] Reporting writes to ignored files: the report lists an ignored entry made or removed by name, not a write inside one (F3, R4.3) — open.
 - [feature-external-developer/plan.md not-in-plan-4] An OpenCode developer — open.
 - [feature-external-developer/plan.md not-in-plan-5] `check` proving that workspace-write starts, as it does for read-only — open.
-- [feature-external-developer/plan.md not-in-plan-6] A live Codex developer run, only on the user's instruction — open (*Known limits*).
 - [feature-external-developer/plan.md not-in-plan-7] Splitting a develop stage across external developers, or an external and a Claude developer together — open.
 - [feature-external-developer/result-p1-p4.md L292] A tracked symlink is always code ` M` when its line changes: its target is not hashed against the index — open (R4.4 states it as the meaning of ` M`).
 - [feature-external-developer/result-p1-p4.md L293] A tracked file above 16 MiB is ` M` whenever its metadata changes, even if its content is unchanged — open (stated in R4.4's wording).
@@ -1883,6 +1934,7 @@ commands carry the marker while they run.
 - [feature-external-developer/result-p5-p7.md L207] `realpath -e`, a new requirement, was not in README — closed in round 3: README and the skill's Codex prerequisites name a `realpath` that takes `-e`.
 - [feature-external-developer/record.md round-3-inspection] Review round 3 advisory (manager's Stage 8 dispatch record): the inspection wording — `diff -u -- - <path>`, never open a link or a special file, include each `!!` path — closed: taken with the user's approval (`[feature-external-developer/questions.md review-r3]`), in the skill's *The developer role* and `develop.md`.
 - [feature-external-developer/record.md round-3-skill-l64] Review round 3 advisory (manager's Stage 8 dispatch record): the skill's `check` exit-4 text should also name `<tool> not found` — closed: taken in the scope-cut round; `SKILL.md:65-66` at `33a28df` reads "Exit 4 with `<tool> not found` is a missing tool: tell the user the line, and stop."
+- [feature-external-developer/plan.md not-in-plan-6] A live Codex developer run, only on the user's instruction — closed by `[probe-codex-dev/probe-codex-dev.md]`: two runs at the user's instruction, on a throwaway repository, run 1 blocked by the contract with no plan, run 2 `BUILT` (*Live runs*, 2026-10-18 — developer runs).
 
 ## Incidents
 
@@ -1970,3 +2022,5 @@ commands carry the marker while they run.
   - [feature-external-developer/result-p5-p7.md L112] Follow-ups → `1`, `2`, `3`, `5` closed, `4` open.
   - [feature-external-developer/result-p5-p7.md L169] Unverified (round 2) → `[feature-external-developer/result-p5-p7.md L171]` open; the version-match note on the header settled.
   - [feature-external-developer/integration.md L298] Still UNVERIFIED → `[feature-external-developer/integration.md unverified]`.
+- 2026-10-18 · probe-codex-dev · the first live Codex developer runs, on a throwaway repository: run 1 blocked by the contract with no plan, run 2 `BUILT`; `workspace-write [workdir]`, the change report matching git per turn, `git: unchanged`, the marker carried, nothing left · records 7390a87 · plan: `git ls-tree -r --name-only 7390a87 -- plan/probe-codex-dev/` (one file: `git show 7390a87:plan/probe-codex-dev/<file>`; the whole folder: `git archive 7390a87 plan/probe-codex-dev/ | tar -x -C "$(mktemp -d "${TMPDIR:?}/plan.XXXXXX")"`). `7390a87` is the last commit on `origin/main` that holds it: the record commit removes the folder.
+  - [probe-codex-dev/probe-codex-dev.md L49] What this settles → `[probe-codex-dev/probe-codex-dev.md settled]` (*Live runs*), `observed` and `not-shown` (*Known limits*); closes `[feature-external-developer/plan.md not-in-plan-6]` and the marker half of `[feature-codex-agent/probe-codex-l1.md not-verified]`.
