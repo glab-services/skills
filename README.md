@@ -6,7 +6,7 @@ to S3.
 
 | Plugin | What it adds |
 |---|---|
-| `glab` | Skills `glab:bootstrap`, `glab:manager`, `glab:security`, `glab:comments`, `glab:plan-first`, `glab:audit`, `glab:external-agents` · agents `glab:developer`, `glab:analyzer`, `glab:integrator`, `glab:reviewer`, `glab:committer` · commands `/glab:plan`, `/glab:develop`, `/glab:analyze`, `/glab:integrate`, `/glab:review`, `/glab:commit`, `/glab:push`, `/glab:ship` · a script, `external-agent.sh`, that runs read-only external agents on a model you name (OpenCode Go) · a `SessionStart` hook that injects the session bootstrap rules |
+| `glab` | Skills `glab:bootstrap`, `glab:manager`, `glab:security`, `glab:comments`, `glab:plan-first`, `glab:audit`, `glab:external-agents` · agents `glab:developer`, `glab:analyzer`, `glab:integrator`, `glab:reviewer`, `glab:committer` · commands `/glab:plan`, `/glab:develop`, `/glab:analyze`, `/glab:integrate`, `/glab:review`, `/glab:commit`, `/glab:push`, `/glab:ship` · a script, `external-agent.sh`, that runs read-only external agents — OpenCode Go in a sandbox of its own, or Codex in its own read-only sandbox — on a model you name, or Codex's default · a `SessionStart` hook that injects the session bootstrap rules |
 | `memory-sync` | Skill `memory-sync:sync-memory` · hooks on four events that run `memory-sync.sh` |
 
 In `glab` the skills, agents and commands are one set: `glab:manager`
@@ -32,21 +32,32 @@ without it. `memory-sync` also needs GNU coreutils (`timeout`, `stat`,
 `date`), util-linux `flock`, `rsync` and the AWS CLI. macOS is not supported.
 
 External agents in `glab` (`glab:external-agents`) run only when you ask the
-manager for one, naming the model, and then also need: bubblewrap (`bwrap`)
-able to create namespaces on your host, `slirp4netns` for the sandbox's own
-network, util-linux (`nsenter`, `setpriv`, `lsns`, `flock`), iproute2 (`ip`),
-`git`, `jq`, GNU `tar` and `timeout`, and OpenCode's native binary (the
-installer puts it at `~/.opencode/bin/opencode`; a launcher script does not run
-in the sandbox) with an OpenCode Go key stored by `opencode auth login`. On
-Debian or Ubuntu: `sudo apt install bubblewrap slirp4netns`. Without a working
-`slirp4netns` the script refuses to start an agent (exit 9). Keep the OpenCode
+manager for one, naming the model — or, for Codex, leaving it to Codex's default.
+An OpenCode agent also needs: bubblewrap (`bwrap`) able to create namespaces
+on your host, `slirp4netns` for the sandbox's own network, util-linux
+(`nsenter`, `setpriv`, `lsns`, `flock`), iproute2 (`ip`), `git`, `jq`, GNU
+`tar` and `timeout`, and OpenCode's native binary (the installer puts it at
+`~/.opencode/bin/opencode`; a launcher script does not run in the sandbox)
+with an OpenCode Go key stored by `opencode auth login`. On Debian or Ubuntu:
+`sudo apt install bubblewrap slirp4netns`. Without a working `slirp4netns` the
+script refuses to start an OpenCode agent (exit 9). Keep the OpenCode
 console's "Use balance" switch off, or a Go limit spends paid balance.
 
-What an external agent can send, and to whom: your working tree's tracked and
+A Codex agent needs the Codex CLI, logged in by you (`~/.local/bin/codex`,
+or the path you give the manager), bubblewrap able to create user
+namespaces for Codex's own sandbox, util-linux (`setpriv`, `setsid`,
+`flock`), `timeout`, `git` and `jq`; it needs no `slirp4netns` and no key.
+Codex runs any model id you name, or Codex's own default when you name none —
+the script checks only the id's form, and refuses `default`, the word its output uses for Codex's own default.
+If Codex's read-only sandbox cannot start on your host, or a turn reports
+any other sandbox or an approval policy other than `never`, the script stops
+with exit 12 (NOT READ-ONLY).
+
+What an OpenCode agent can send, and to whom: your working tree's tracked and
 untracked-but-not-ignored files, the index and the tree of your current
 commit — no other branch, tag or history, and never an ignored file — and
 every message the manager sends it, may reach the provider of the model you
-named. The script runs only Kimi and GLM models, and DeepSeek models until
+named. For OpenCode, the script runs only Kimi and GLM models, and DeepSeek models until
 2026-10-31, after which it refuses them until their data policy has been
 checked again; Grok is refused, because its provider keeps prompts for 30
 days. The agent works on a read-only copy, in a sandbox whose network reaches
@@ -55,6 +66,19 @@ is inside that sandbox, where the model can read it and could send it out; it
 is never printed and is redacted from what the agent returns. Each agent's
 transcript stays readable under `$TMPDIR/glab-external-agents/` until the
 manager stops it.
+
+A Codex agent runs on this machine, in your repository, under Codex's
+own read-only sandbox, with your own Codex login, which the script never
+reads. What it reads goes to OpenAI under your ChatGPT account's data controls:
+the repository, with its history and its ignored files, and any file its
+commands open, outside the repository too —
+credential files such as Codex's own login, SSH keys and cloud keys included.
+Check whether "Improve the model for everyone" is on. Its commands
+change no file, while Codex itself keeps the session under `~/.codex`, with
+everything the model read, and `stop` does not remove it. Its commands have
+no IP network, and a connect to a Unix-domain socket by path was refused
+(measured offline with `codex sandbox`); datagram and abstract sockets not measured.
+Its transcript is not redacted.
 
 External agents have been tested against a stub, against the real `opencode`
 with no network, and in one live probe on 2026-10-17
@@ -65,6 +89,9 @@ Not yet shown: any reply from a DeepSeek model (both were refused upstream
 before their first turn); how any model does on a real repository, a long
 brief or a Go limit; and whether the profiles make a reply better. Treat the
 first real session of any of these as the test it is.
+
+Codex agents have been tested against a stub and offline against the real
+`codex`; none has run against a real model yet.
 
 ## Install
 

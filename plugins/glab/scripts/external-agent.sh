@@ -1,12 +1,17 @@
 #!/usr/bin/env bash
-# external-agent.sh — start, continue, list and stop read-only external agents:
-# an OpenCode session (today) on a model the user named, working on a sandboxed
-# read-only copy of a repository. The glab:external-agents skill is the
+# external-agent.sh — start, continue, list and stop read-only external agents
+# on two backends: an OpenCode session on a model the user named, working on a
+# sandboxed read-only copy of a repository; or a Codex session on this host,
+# working in the repository itself under Codex's own read-only sandbox, on the
+# model the user named or Codex's default. The glab:external-agents skill is the
 # caller's manual, and tests/external-agent.test.sh pins every behaviour here.
 #
 #   external-agent.sh start --backend <name> --model <id> --cli <path> --brief <file>
 #                           [--role general|reviewer] [--label <text>] [--repo <dir>]
-#                           [--timeout <seconds>]
+#                           [--timeout <seconds>] [--effort <level>]
+#                           --model is optional for codex, which then runs its
+#                           own default; --effort low|medium|high|xhigh|max|ultra
+#                           is taken by codex only
 #   external-agent.sh send <agent id> --message <file> [--timeout <seconds>]
 #   external-agent.sh list
 #   external-agent.sh stop <agent id>
@@ -14,26 +19,33 @@
 #
 # stdout of start and send, in this order and nothing else:
 #   agent: <id> · model: <backend>:<model> · turn: <n> · transcript: <file>
+#                   for codex, <model> is the model that ran, as its header
+#                   block named it; else the one asked for, else `default`
 #   reply:          (exit 0 only)
 #   | <one line of the model's reply per line, control characters removed>
 #   end: <id>       always the last line
 # Every line the model wrote starts with "| ", and no line the script writes
 # does, so nothing in a reply can pass for a field of the script's.
-# stderr  one line `external-agent: <CODE>: <reason>` on every exit 2-11. A
+# stderr  one line `external-agent: <CODE>: <reason>` on every exit 2-12. A
 #         signal ends it with 128 + the signal and no line: 129 HUP, 130 INT,
 #         143 TERM - the last is a turn that `stop` ended.
 # exit    0 OK · 2 USAGE · 3 UNKNOWN BACKEND · 4 UNAVAILABLE · 5 MODEL REFUSED ·
 #         6 TIMEOUT · 7 BACKEND ERROR · 8 MALFORMED REPORT · 9 NO ISOLATED NETWORK ·
-#         10 UNKNOWN AGENT · 11 BUSY
+#         10 UNKNOWN AGENT · 11 BUSY · 12 NOT READ-ONLY
 #
 # State: $TMPDIR/glab-external-agents/<id>/ holds agent.json (written by this
 # script only), work/ (the copy), data/ (the backend's data directory: its
 # session database), transcript.jsonl and transcript.txt (redacted, readable
 # by the user until stop), and run/ for the turn in progress, the turn's own
 # $HOME included. stop moves it aside as .stopping.<id> and removes that.
+# A Codex agent has no work/ and no data/: its raw transcript is
+# transcript.log (each turn's stderr and stdout, not redacted), beside
+# transcript.txt, and its session stays in Codex's own history under
+# ~/.codex, which stop does not touch.
 #
 # Isolation, and why each part is there (docs/specs/external-agents.md in the
 # glab-services/skills repository, *Isolation* and *Measurements*):
+# OpenCode:
 # - The agent never sees the real repository. It gets a copy of the working
 #   tree's tracked and untracked-but-not-ignored files, an index equal to the
 #   real one, and the tree of the real HEAD as one parentless commit: no other
@@ -67,6 +79,48 @@
 # - The backend's key is inside the sandbox, because the CLI needs it, and the
 #   model can read it there. It is never on a command line and never printed;
 #   it is redacted from everything this script writes or prints.
+# Codex (the user chose it to run as a Claude subagent does):
+# - It runs on this host, in the real repository, with its working directory
+#   at the top, and sees what the user can read: the working tree with its
+#   history and its ignored files, and, through its commands, files outside
+#   the repository too. The user accepted that. It uses its own login under
+#   ~/.codex; this script never reads, copies, exports or redacts a token, and
+#   never writes ~/.codex. Codex writes its own state there, as it does for the
+#   user.
+# - Codex's own read-only sandbox is the containment: its commands change no
+#   file, and have no IP network, and
+#   a connect to a Unix-domain socket by path was refused (measured offline
+#   with `codex sandbox`); datagram and abstract sockets not measured. Codex
+#   itself reaches OpenAI, and keeps the session, what the model read
+#   included, under ~/.codex. Every turn
+#   asks for sandbox_mode read-only and approval_policy never, and the header
+#   block Codex prints on stderr is read back: a block that names another
+#   sandbox or approval is exit 12 and the reply is withheld; a turn whose
+#   block is missing, or has no well-formed model or session id, is exit 7.
+# - Every turn ignores the user's config.toml and rules, which could turn the
+#   sandbox off or a tool on, and turns off web search, apps, plugins, hooks,
+#   memories, the browser and computer tools, image generation and
+#   multi-agent: they run outside Codex's command sandbox or reach past the
+#   repository. With the user's config ignored, no project is trusted, so the
+#   repository's own .codex/ config, hooks and rules do not load either.
+# - Its environment is an allowlist: the path, home, user, temp, Codex home,
+#   XDG, D-Bus, proxy and certificate variables when set, LANG=C.UTF-8 and
+#   TERM=dumb; no other variable of the caller's, whose environment may hold
+#   Claude's credentials. The values are exported, never on a command line.
+# - The turn runs as setpriv --pdeathsig KILL -- setsid timeout ... setpriv
+#   --pdeathsig KILL -- codex, in a process group of its own whose id is the
+#   started pid. After every turn, and when this script ends, the whole group
+#   gets TERM, then KILL. That is not enough on its own: Codex's sandbox
+#   helper and the commands under it start a session and group of their own,
+#   and outlive the group kill and SIGTERM or SIGINT to Codex. So every
+#   process of the turn carries GLAB_EXTERNAL_AGENT=<agent id>, exported and
+#   passed through shell_environment_policy.set, and sweep_agent kills each
+#   process that holds it, by PID: after every turn, in cleanup, before every
+#   send, and at every stop. The last two end what a turn left when its script
+#   was SIGKILLed.
+# - Of its stdout and its stderr, at most 16 MiB per turn reach the disk, as
+#   for OpenCode; files, processes and memory are not limited by this script,
+#   and nothing is redacted.
 # The adapter functions are called as "${backend}_<name>" and cleanup() by
 # trap, which shellcheck cannot follow; SC2329 would flag each one.
 # shellcheck disable=SC2329
@@ -106,9 +160,6 @@ readonly NPROC=256
 # boundary, so no part of a line - of the key least of all - reaches the disk
 # unredacted, and the turn is exit 7. slirp4netns's log is cut at the same size.
 readonly OUT_BYTES=16777216
-# Where the backend keeps its data inside the sandbox's $HOME: the one
-# directory bound from the agent's state, so that its sessions outlive a turn.
-readonly DATA_IN_HOME=.local/share/opencode
 # Never routed from the sandbox: this-network, RFC 1918, CGNAT, link-local,
 # IETF and documentation ranges, benchmarking, multicast and reserved. The
 # slirp4netns network 10.0.2.0/24 is more specific than 10.0.0.0/8 and stays
@@ -126,15 +177,31 @@ die() { # die <exit code> <CODE> <reason>
 }
 
 # --- state of this invocation, for cleanup -------------------------------------
-adir='' run='' started_ok=1 child='' holder='' slirp='' sandbox_pid='' gfd='' xfd='' authd=''
+adir='' run='' started_ok=1 child='' holder='' slirp='' sandbox_pid='' gfd='' xfd='' authd='' cmark='' host_turn=''
 cleanup() {
+  # A second HUP, INT or TERM while this runs would run `exit` inside the
+  # trap and skip the rest: a helper left running, an unfinished start left
+  # behind. A host cleanup takes seconds, so they are ignored from here on.
+  trap '' HUP INT TERM
   [ -n "$gfd" ] && exec {gfd}>&-
   [ -n "$xfd" ] && exec {xfd}>&-
   # Each of these is a process this invocation started; never a name or pattern.
   [ -n "$holder" ] && kill -KILL "$holder" 2>/dev/null
   [ -n "$slirp" ] && kill -TERM "$slirp" 2>/dev/null
   [ -n "$child" ] && kill -KILL "$child" 2>/dev/null
-  [ -n "$sandbox_pid" ] && kill -TERM "$sandbox_pid" 2>/dev/null && wait "$sandbox_pid" 2>/dev/null
+  if [ -n "$sandbox_pid" ] && [ "$isolation" = host ]; then
+    # A host turn's whole process group, as run_host ends every turn.
+    kill -TERM -- -"$sandbox_pid" 2>/dev/null
+    for _ in $(seq 20); do kill -0 -- -"$sandbox_pid" 2>/dev/null || break; sleep 0.1; done
+    kill -KILL -- -"$sandbox_pid" 2>/dev/null
+  else
+    [ -n "$sandbox_pid" ] && kill -TERM "$sandbox_pid" 2>/dev/null && wait "$sandbox_pid" 2>/dev/null
+  fi
+  # What left the group: Codex's sandbox helper and its commands. host_turn
+  # stays set until run_host's own sweep has returned, so a signal during that
+  # sweep still gets one here [feature-codex-agent/plan.md D31].
+  [ -n "$host_turn" ] && sweep_agent "$host_turn"
+  [ -n "$cmark" ] && sweep_agent "$cmark"
   [ -n "$slirp" ] && wait "$slirp" 2>/dev/null
   [ -n "$run" ] && [ -d "$run" ] && rm -rf "$run"
   [ -n "$authd" ] && [ -d "$authd" ] && rm -rf "$authd"
@@ -142,6 +209,53 @@ cleanup() {
   if [ "$started_ok" -eq 0 ] && [ -n "$adir" ] && [ -d "$adir" ]; then
     chmod -R u+rwX "$adir" 2>/dev/null; rm -rf "$adir"
   fi
+}
+# Codex's sandbox helper, and every command under it, start a session and a
+# process group of their own, so a host turn's group kill misses them, and
+# they outlive SIGTERM and SIGINT to Codex too
+# [feature-codex-agent/findings.md §9.9]. Every process of a host turn
+# therefore carries GLAB_EXTERNAL_AGENT=<marker>, and this kills each process
+# of this uid that holds that exact environment entry, by PID: its start time
+# is read, then the entry and the start time are checked again, so a PID
+# reused in between is not killed. The entries are compared whole, as the
+# NUL-separated records environ holds, so no value that contains a newline
+# can pass for one. Only a pass that killed something gets a second one,
+# 1 s later, for what was starting during it; a sweep that finds nothing,
+# as for every OpenCode agent, costs one scan of /proc. Killing the helper
+# also ends its PID namespace, so a command that unset the marker ends with
+# it. It prints nothing.
+sweep_agent() { # sweep_agent <marker>
+  local pass d pid st hit
+  for pass in 1 2; do
+    if [ "$pass" = 2 ]; then [ -n "$hit" ] || break; sleep 1; fi
+    hit=''
+    for d in /proc/[0-9]*; do
+      [ -O "$d" ] || continue
+      environ_has "$d" "GLAB_EXTERNAL_AGENT=$1" || continue
+      pid=${d#/proc/}
+      st=$(proc_start "$pid") || continue
+      if environ_has "$d" "GLAB_EXTERNAL_AGENT=$1" && [ "$(proc_start "$pid")" = "$st" ]; then
+        kill -KILL "$pid" 2>/dev/null && hit=1
+      fi
+    done
+  done
+  return 0
+}
+# True when /proc/<pid>/environ holds <entry> whole; a process this uid
+# cannot read is skipped silently.
+environ_has() { # environ_has </proc/<pid>> <entry>
+  local x e=()
+  mapfile -d '' -t e 2>/dev/null <"$1/environ" || return 1
+  for x in "${e[@]}"; do [ "$x" = "$2" ] && return 0; done
+  return 1
+}
+# Field 22 of /proc/<pid>/stat, the start time; the name in parentheses may
+# hold spaces, so the fields are counted after its closing one.
+proc_start() { # proc_start <pid>
+  local s f
+  s=$(cat "/proc/$1/stat" 2>/dev/null) || return 1
+  s=${s##*) }; read -r -a f <<<"$s"
+  [ -n "${f[19]:-}" ] && printf '%s\n' "${f[19]}"
 }
 trap cleanup EXIT
 trap 'exit 129' HUP
@@ -179,9 +293,18 @@ hostgit() {
 
 # --- backend adapters -----------------------------------------------------------
 # Everything that depends on the backend is in this section, one function set
-# per backend: <b>_models, <b>_secret, <b>_secret_var, <b>_env, <b>_argv,
-# <b>_session, <b>_text, <b>_error, <b>_render. A new backend is a new set plus
-# one line in known_backend and a stub in the test.
+# per backend. <b>_isolation says where the backend runs, and the common flow
+# branches on it: `sandbox`, in this script's bwrap sandbox on a verified copy
+# (OpenCode), or `host`, on this host in the repository itself, under the
+# backend's own sandbox (Codex).
+# - Every backend: <b>_isolation, <b>_model_allowed, <b>_effort_ok,
+#   <b>_session_ok, <b>_raw_name, <b>_raw, <b>_ran, <b>_check, <b>_argv,
+#   <b>_env, <b>_session, <b>_text, <b>_error and <b>_render.
+# - A sandbox backend also: <b>_models, <b>_secret, <b>_secret_var,
+#   <b>_secret_hint and <b>_mounts.
+# - A host backend also: <b>_verify.
+# A new backend is a new set plus one line in known_backend, one in
+# model_optional if `--model` may be left out, and a stub in the test.
 
 # One line per allowed model: <model id> <profile> <last day it may be used, or ->.
 # Source: https://opencode.ai/docs/go/ read 2026-10-16. Every line is a model
@@ -287,8 +410,257 @@ opencode_render() { # opencode_render <turn jsonl> — the readable transcript o
     elif .type == "error" then "error: " + ((.error.type // "") + " " + (.error.message // "") | clean)
     else empty end' "$1" 2>/dev/null
 }
+# OpenCode runs in this script's sandbox, on the copy.
+opencode_isolation() { echo sandbox; }
+# Its raw transcript is the turn's JSON events, as they came.
+opencode_raw_name() { echo transcript.jsonl; }
+opencode_raw() { cat "$run/turn.out"; }
+# Its events do not say which model ran; the header names the one asked for.
+opencode_ran() { :; }
+# The session id form 2.0.31 prints, checked before send passes one back.
+opencode_session_ok() { [[ $1 =~ ^ses_[A-Za-z0-9]{1,64}$ ]]; }
+# OpenCode takes no effort level from this script.
+opencode_effort_ok() { return 1; }
+# The end of read_secret's message when no key is stored.
+opencode_secret_hint() { # opencode_secret_hint <cli>
+  printf '%s' "run \`$1 auth login\` for OpenCode Go"
+}
+# Where the backend keeps its data inside the sandbox's $HOME: the one
+# directory bound from the agent's state, so that its sessions outlive a turn.
+readonly DATA_IN_HOME=.local/share/opencode
+# The sandbox's binds that are OpenCode's own, NUL-separated: its data
+# directory, and its config directory as an empty read-only mount.
+opencode_mounts() {
+  printf '%s\0' --bind "$adir/data" "/home/worker/$DATA_IN_HOME" \
+    --ro-bind "$run/empty" /home/worker/.config/opencode
+}
+opencode_model_allowed() { # opencode_model_allowed <model> — sets profile
+  local line until_day today
+  line=$(opencode_models | awk -v m="$1" '$1 == m')
+  [ -n "$line" ] || die 5 'MODEL REFUSED' "$1 is not allowed; allowed: $(opencode_models | awk '{print $1}' | paste -sd' ' -)"
+  read -r _ profile until_day <<<"$line"
+  # The clock decides, in UTC. The test crosses an end date with a `date` stub
+  # first on PATH; there is no variable that overrides it.
+  today=$(date -u +%F) || die 4 UNAVAILABLE "date failed"
+  if [ "$until_day" != - ] && [[ $today > $until_day ]]; then
+    die 5 'MODEL REFUSED' "$1 was allowed until $until_day; re-check its data policy before moving the date"
+  fi
+}
+opencode_check() { # opencode_check <cli> — what check prints after cli:
+  net_tools
+  echo "tools: slirp4netns nsenter setpriv lsns ip bwrap timeout flock"
+  # No agent exists here, so the lookup gets a directory of its own under the
+  # state root, removed straight after.
+  read_secret opencode "$1" "$root/check.$$"
+  echo "key: stored"
+  echo "models: $(opencode_models | awk '{print $1 ($3 == "-" ? "" : " (until " $3 ")")}' | paste -sd, - | sed 's/,/, /g')"
+}
 
-known_backend() { case $1 in opencode) return 0 ;; *) return 1 ;; esac; }
+# --- Codex ----------------------------------------------------------------------
+# The evidence for the choices below is [feature-codex-agent/findings.md §9.2]
+# and [feature-codex-agent/findings.md §9.8], which the record of that change
+# carries into docs/specs/external-agents.md.
+# Codex runs on this host, in the repository itself, under its own read-only
+# sandbox and with its own login, which this script never reads.
+codex_isolation() { echo host; }
+# Its raw transcript keeps each turn's stderr, the header block included, and
+# its stdout, the final message, under a line that names the turn and stream.
+codex_raw_name() { echo transcript.log; }
+codex_raw() {
+  printf '=== turn %s stderr ===\n' "$turn"; cat "$run/stderr.txt"
+  printf '=== turn %s stdout ===\n' "$turn"; cat "$run/turn.out"
+}
+# The levels Codex's config takes for model_reasoning_effort. Which of them a
+# model supports is check's list; the manager maps the session's level onto it.
+codex_effort_ok() { case $1 in low|medium|high|xhigh|max|ultra) return 0 ;; *) return 1 ;; esac; }
+# The header prints the session id as a UUID; resume takes one.
+codex_session_ok() { [[ $1 =~ ^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$ ]]; }
+# Any model id the user names, by form only: Codex has no allowlist here, and
+# no model at all means Codex's own default
+# [feature-codex-agent/questions.md Q5]. `default` is the word the header and
+# list print for that case, not an id: as --model it would be sent as
+# `-m default`, so it is refused.
+codex_model_allowed() { # codex_model_allowed <model or empty> — sets profile
+  profile=default
+  [ "$1" != default ] || die 5 'MODEL REFUSED' "default is not a Codex model id; leave --model out for Codex's default"
+  [ -z "$1" ] || [[ $1 =~ ^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$ ]] \
+    || die 5 'MODEL REFUSED' "$(printf '%q' "$1" | head -c 80) is not a Codex model id"
+}
+# Every turn, first or continued, runs read-only with no approval prompt and
+# without what could reach past Codex's command sandbox:
+# - --ignore-user-config and --ignore-rules: the user's config.toml could turn
+#   the sandbox off or a tool on. Under them no project is trusted, so the
+#   repository's own .codex/ config, hooks and rules stay off too.
+# - web search, apps, plugins, the browsers, computer use, image generation,
+#   hooks, memories, multi-agent and MCP dependency installs run outside the
+#   command sandbox or reach past the repository, so each is off. Every name
+#   is in 0.163.0's `codex features list`.
+# - history, telemetry, feedback and the update check are off: none of them
+#   is the user's task.
+# - shell_environment_policy.set carries the agent's marker (sweep_agent) to
+#   Codex's sandbox helper and its commands: an exported variable stops at
+#   Codex's bwrap under inherit="core". The key's last segment has no `.`,
+#   which a -c key would be split at.
+# --color never is taken by `exec` only, not by `exec resume`. The prompt is
+# stdin (`-`), so no part of it is on a command line.
+codex_argv() { # codex_argv <cli> <model or empty> <session or ->
+  local f effort
+  effort=$(meta effort)
+  if [ "$3" = - ]; then printf '%s\0' "$1" exec --color never; else printf '%s\0' "$1" exec resume; fi
+  printf '%s\0' --ignore-user-config --ignore-rules \
+    -c 'sandbox_mode="read-only"' -c 'approval_policy="never"' \
+    -c 'web_search="disabled"' -c 'shell_environment_policy.inherit="core"' -c 'history.persistence="none"' \
+    -c analytics.enabled=false -c feedback.enabled=false -c 'otel.metrics_exporter="none"' \
+    -c check_for_update_on_startup=false -c "shell_environment_policy.set.GLAB_EXTERNAL_AGENT=\"$(meta id)\""
+  for f in apps plugins remote_plugin browser_use browser_use_external computer_use in_app_browser \
+    image_generation hooks memories multi_agent skill_mcp_dependency_install; do
+    printf '%s\0' --disable "$f"
+  done
+  if [ -n "$2" ]; then printf '%s\0' -m "$2"; fi
+  if [ -n "$effort" ]; then printf '%s\0' -c "model_reasoning_effort=\"$effort\""; fi
+  if [ "$3" != - ]; then printf '%s\0' "$3"; fi
+  printf '%s\0' -
+}
+# The environment of the Codex process: what it needs to find itself, its
+# login and the network, each name only when it is set, and nothing else of
+# the caller's, whose environment may hold Claude's credentials. The marker
+# marks the outer chain for sweep_agent.
+codex_env() { # codex_env <marker>
+  local v
+  for v in PATH HOME USER LOGNAME TMPDIR CODEX_HOME XDG_CONFIG_HOME XDG_DATA_HOME XDG_STATE_HOME XDG_CACHE_HOME \
+    XDG_RUNTIME_DIR DBUS_SESSION_BUS_ADDRESS HTTPS_PROXY HTTP_PROXY NO_PROXY ALL_PROXY https_proxy http_proxy \
+    no_proxy all_proxy SSL_CERT_FILE SSL_CERT_DIR; do
+    if [ -n "${!v+x}" ]; then printf '%s=%s\n' "$v" "${!v}"; fi
+  done
+  printf '%s\n' LANG=C.UTF-8 TERM=dumb "GLAB_EXTERNAL_AGENT=$1"
+}
+# Codex's human output prints a header block on stderr before the turn starts:
+# "OpenAI Codex v<version>", "--------", one "key: value" line per setting
+# (workdir, model, provider, approval, sandbox, reasoning effort, reasoning
+# summaries, session id) and "--------" again; its --json stream names no
+# model, which is why this backend reads the human output. Only the first
+# version line within the first 20 lines opens it, and only a whole block
+# counts: a block later in the stream, as a command's output or the model's
+# reply could print one, is text, not settings. Its input has SGR removed.
+# part=block prints the block's key: value lines, or nothing; part=rest prints
+# what follows the block, or all of stderr when there is none.
+# shellcheck disable=SC2016
+readonly CODEX_BLOCK_AWK='
+  { l[NR] = $0 }
+  part == "block" && !s && NR <= 20 && /^OpenAI Codex v[0-9]/ { s = NR }
+  part == "block" && ((!s && NR >= 20) || (s && NR > s + 1 && $0 == "--------")) { exit }
+  END {
+    s = 0; e = 0
+    for (i = 1; i <= NR && i <= 20; i++) if (l[i] ~ /^OpenAI Codex v[0-9]/) { s = i; break }
+    if (s && l[s + 1] == "--------")
+      for (j = s + 2; j <= NR; j++) {
+        if (l[j] == "--------") { e = j; break }
+        if (l[j] !~ /^[A-Za-z][A-Za-z _-]*:( |$)/) break
+      }
+    if (part == "block") { if (e) for (k = s + 2; k < e; k++) print l[k]; exit }
+    for (k = e + 1; k <= NR; k++) print l[k]
+  }'
+codex_block() { sed 's/\x1b\[[0-9;]*m//g' "$run/stderr.txt" 2>/dev/null | awk -v part=block "$CODEX_BLOCK_AWK"; }
+codex_field() { # codex_field <key> — the value of the block's first line with exactly that key
+  codex_block | awk -v k="$1" 'index($0, k ": ") == 1 {print substr($0, length(k) + 3); exit}'
+}
+# The model that ran and the session it ran in, each only in its own form: the
+# header is Codex's, but it is read as untrusted as the rest of the stream.
+codex_ran() { local m; m=$(codex_field model); if [[ $m =~ ^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$ ]]; then printf '%s\n' "$m"; fi; }
+codex_session() { local s; s=$(codex_field 'session id'); if codex_session_ok "$s"; then printf '%s\n' "$s"; fi; }
+# stdout holds the final agent message only.
+codex_text() { cat "$1"; }
+# A failed turn says why on a stderr line that starts "ERROR: "; the last one
+# after the block is the reason. An exit 0 is no error, whatever a command
+# printed.
+codex_error() { # codex_error <stdout file>
+  [ "$rc" -ne 0 ] || return 0
+  sed 's/\x1b\[[0-9;]*m//g' "$run/stderr.txt" 2>/dev/null | awk -v part=rest "$CODEX_BLOCK_AWK" \
+    | sed -n 's/^ERROR: //p' | tail -n 1 | cut -c1-300 | clean
+}
+codex_render() { # codex_render <stdout file> — the readable transcript of one turn
+  printf 'codex: model=%s sandbox=%s approval=%s effort=%s session=%s\n' "$(codex_field model)" "$(codex_field sandbox)" \
+    "$(codex_field approval)" "$(codex_field 'reasoning effort')" "$(codex_field 'session id')" | clean
+  sed 's/\x1b\[[0-9;]*m//g' "$run/stderr.txt" 2>/dev/null | awk -v part=rest "$CODEX_BLOCK_AWK" | clean
+  printf 'says:\n'; clean <"$1"
+}
+# The read-only check of every Codex turn. A managed config or MDM sits above
+# the session's -c flags and could still change the sandbox, so what Codex
+# reports is what decides. `read-only` with no suffix also means its commands
+# had no network: Codex appends " (network access enabled)" otherwise.
+codex_verify() { # codex_verify <agent id> <model asked for, or empty>
+  local sb ap
+  [ -n "$(codex_block)" ] || return 0
+  sb=$(codex_field sandbox) ap=$(codex_field approval)
+  [ "$sb" = read-only ] && [ "$ap" = never ] && return 0
+  header "$1" codex "$2"; echo "end: $1"
+  die 12 'NOT READ-ONLY' "codex reported sandbox '$(printf '%s' "$sb" | head -c 80 | clean)' and approval '$(printf '%s' "$ap" | head -c 80 | clean)'; its reply is withheld"
+}
+# check's Codex commands run under the user's own Codex config: only exec and
+# exec resume take --ignore-user-config. `login status` exits 0 for every
+# logged-in mode and 1 otherwise, and its text is never printed. `debug models`
+# refreshes the catalog with Codex's login and falls back to the bundled one;
+# its default is predicted as the first listed model by priority, and the
+# header of a turn is what names the model that ran.
+# One of check's Codex commands, run from <dir> with the turns' environment
+# for <marker>, values exported rather than on a command line, under
+# `timeout 60` and with stdin at end-of-file.
+codex_cmd() { # codex_cmd <dir> <marker> <command...>
+  (
+    local benv
+    mapfile -t benv < <(codex_env "$2")
+    cd "$1" || exit 1
+    shift 2
+    while IFS= read -r v; do unset "$v" 2>/dev/null; done < <(compgen -e)
+    for kv in "${benv[@]}"; do export "${kv?}"; done
+    exec timeout 60 "$@" </dev/null
+  )
+}
+codex_check() { # codex_check <cli>
+  local t err out
+  for t in setpriv setsid timeout flock; do
+    command -v "$t" >/dev/null || die 4 UNAVAILABLE "$t not found; see the README's Requirements"
+  done
+  echo "tools: setpriv setsid timeout flock"
+  # A directory of its own under the state root, which cleanup removes.
+  authd=$root/check.$$
+  { rm -rf "$authd" && mkdir -m 700 "$authd"; } || die 4 UNAVAILABLE "cannot create $authd"
+  # check's own marker, global so that cleanup sweeps it too.
+  cmark=check-$(od -An -N8 -tx1 /dev/urandom | tr -d ' \n') || die 4 UNAVAILABLE "no random marker"
+  err=$(codex_cmd "$authd" "$cmark" "$1" login status 2>&1 >/dev/null) \
+    || die 4 UNAVAILABLE "Codex is not logged in; log in with \`codex login\` yourself"
+  echo "login: stored"
+  local src=0
+  err=$(codex_cmd "$authd" "$cmark" "$1" sandbox -c 'sandbox_mode="read-only"' \
+    -c "shell_environment_policy.set.GLAB_EXTERNAL_AGENT=\"$cmark\"" -- /bin/true 2>&1 >/dev/null) || src=$?
+  # The only command here that starts Codex's sandbox helper; once swept,
+  # cleanup has nothing of check's left to sweep.
+  sweep_agent "$cmark"; cmark=''
+  [ "$src" -eq 0 ] \
+    || die 12 'NOT READ-ONLY' "Codex's read-only sandbox does not start on this host: $(command grep -v -m1 '^WARNING:' <<<"$err" | cut -c1-300 | clean)"
+  echo "sandbox: read-only starts"
+  # stderr is dropped here: only the catalog on stdout is read. The catalog
+  # is fetched from outside, so only a slug in the model-id form that
+  # codex_model_allowed takes, and only a level that codex_effort_ok takes,
+  # is printed, and the lines are cleaned like any other untrusted text.
+  if out=$(codex_cmd "$authd" "$cmark" "$1" debug models 2>/dev/null | jq -r '[.models[] | select(.visibility == "list")
+         | select(.slug | strings | test("^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$"))] | sort_by(.priority)
+       | if length == 0 then error("no listed model") else
+         "default: \(.[0].slug) (predicted)",
+         "models: " + (map(.slug + " (" + ([.supported_reasoning_levels[]?.effort | strings
+           | select(IN("low", "medium", "high", "xhigh", "max", "ultra"))] | join(" ")) + ")") | join(", "))
+       end' 2>/dev/null); then
+    printf '%s\n' "$out" | clean
+  else
+    echo "models: unavailable"
+  fi
+  rm -rf "$authd"; authd=''
+}
+
+known_backend() { case $1 in codex|opencode) return 0 ;; *) return 1 ;; esac; }
+known_list() { echo 'codex, opencode'; }
+# A pure case, so that it can run before the backend name is checked.
+model_optional() { case $1 in codex) return 0 ;; *) return 1 ;; esac; }
 
 # --- common checks --------------------------------------------------------------
 need_tmpdir() {
@@ -313,16 +685,7 @@ set_meta() { # set_meta <jq filter> [jq args...]
     || die 4 UNAVAILABLE "cannot update $adir/agent.json"
 }
 model_allowed() { # model_allowed <backend> <model> — sets profile
-  local line until_day today
-  line=$("${1}_models" | awk -v m="$2" '$1 == m')
-  [ -n "$line" ] || die 5 'MODEL REFUSED' "$2 is not allowed; allowed: $("${1}_models" | awk '{print $1}' | paste -sd' ' -)"
-  read -r _ profile until_day <<<"$line"
-  # The clock decides, in UTC. The test crosses an end date with a `date` stub
-  # first on PATH; there is no variable that overrides it.
-  today=$(date -u +%F) || die 4 UNAVAILABLE "date failed"
-  if [ "$until_day" != - ] && [[ $today > $until_day ]]; then
-    die 5 'MODEL REFUSED' "$2 was allowed until $until_day; re-check its data policy before moving the date"
-  fi
+  "${1}_model_allowed" "$2"
 }
 cli_ok() { [ -f "$1" ] && [ -x "$1" ]; }
 read_secret() { # read_secret <backend> <cli> <directory to create, empty, and run the lookup from>
@@ -331,7 +694,7 @@ read_secret() { # read_secret <backend> <cli> <directory to create, empty, and r
   secret=$("${1}_secret" "$2" "$authd") || secret=''
   rm -rf "$authd"; authd=''
   # A key with whitespace could not be redacted reliably, and an empty one not at all.
-  [[ $secret =~ ^[[:graph:]]{8,}$ ]] || { secret=''; die 4 UNAVAILABLE "no $1 key stored; run \`$2 auth login\` for OpenCode Go"; }
+  [[ $secret =~ ^[[:graph:]]{8,}$ ]] || { secret=''; die 4 UNAVAILABLE "no $1 key stored; $("${1}_secret_hint" "$2")"; }
 }
 net_tools() {
   local t
@@ -457,10 +820,33 @@ body() { awk 'NR == 1 && /^---$/ {fm = 1; next} fm && /^---$/ {fm = 0; next} !fm
 section() { awk -v h="$2" 'index($0, h) == 1 {on = 1; next} on && /^## / {on = 0} on' "$1"; }
 report_section() { awk '/^## Report/ {on = 1} on && /^## / && !/^## Report/ {on = 0} on' "$1"; }
 first_prompt() { # first_prompt <role> <profile> <brief>
-  local profiles=$plugin/skills/external-agents/profiles
+  local profiles=$plugin/skills/external-agents/profiles line
   section "$profiles/default.md" '## Before the contract'
   [ "$2" != default ] && section "$profiles/$2.md" '## Before the contract'
-  cat <<'EOF'
+  if [ "$isolation" = host ]; then
+    # The text holds the repository's top as @TOP@. The replacement is quoted:
+    # with patsub_replacement on, as in bash 5.3, an unquoted one would turn an
+    # & in the path into the matched @TOP@.
+    while IFS= read -r line; do printf '%s\n' "${line//@TOP@/"$top"}"; done <<'EOF'
+
+# Where you are working
+
+- You are working in the repository at @TOP@ itself: the user's real
+  working tree, its history and its ignored files, not a copy. Codex runs
+  you in its read-only sandbox: you can read files and run commands, and
+  you cannot change any file. You are not asked to.
+- Your commands can also read files outside the repository. Read nothing
+  outside @TOP@ unless your task names it: what you read is sent to the
+  model's provider.
+- Your commands have no network. You have no web tool: do not try to fetch
+  pages.
+- Read @TOP@/AGENTS.md before anything else: it is the repository's
+  working agreement. If there is none, read @TOP@/CLAUDE.md and say in
+  your answer that the repository has no working agreement.
+
+EOF
+  else
+    cat <<'EOF'
 
 # Where you are working
 
@@ -476,6 +862,7 @@ first_prompt() { # first_prompt <role> <profile> <brief>
   that the repository has no working agreement.
 
 EOF
+  fi
   if [ "$1" = reviewer ]; then
     printf '# Your role contract\n\n'; body "$plugin/agents/reviewer.md"
     printf '\n# The skills you carry\n\n'
@@ -512,9 +899,9 @@ sandbox_args() { # sandbox_args <cli>
     --ro-bind-try /lib /lib --ro-bind-try /lib64 /lib64 --ro-bind /etc /etc \
     --ro-bind "$run/resolv.conf" "$(readlink -f /etc/resolv.conf)" \
     --proc /proc --dev /dev \
-    --bind "$run/home" /home/worker --bind "$adir/data" "/home/worker/$DATA_IN_HOME" \
-    --ro-bind "$run/empty" /home/worker/.config/opencode \
-    --size "$TMP_BYTES" --tmpfs /tmp \
+    --bind "$run/home" /home/worker
+  "${backend}_mounts"
+  printf '%s\0' --size "$TMP_BYTES" --tmpfs /tmp \
     --ro-bind "$1" /opt/glab/backend --ro-bind "$run/message.md" /opt/glab/message.md \
     --ro-bind "$adir/work" /work --chdir /work --info-fd 5
 }
@@ -580,10 +967,29 @@ wire_network() {
   done
   kill -KILL "$holder" 2>/dev/null; wait "$holder" 2>/dev/null; holder=''
 }
-run_turn() { # run_turn <session or -> <title>; sets rc, turn
-  local cli backend model sb argv benv rfd line jfd efd jpid epid
+run_turn() { # run_turn <session or -> <title>; sets rc, turn, turn_model
+  local cli backend model
   cli=$(meta cli) backend=$(meta backend) model=$(meta model)
   cli_ok "$cli" || die 4 UNAVAILABLE "the backend CLI $cli is gone"
+  turn=$(( $(meta turns) + 1 )) turn_model=''
+  if [ "$isolation" = host ]; then run_host "$1"; else run_sandboxed "$1" "$2"; fi
+  "${backend}_raw" >>"$adir/$("${backend}_raw_name")"
+  # The model the backend reports it ran, when it reports one in its form;
+  # list shows the last one.
+  turn_model=$("${backend}_ran")
+  # shellcheck disable=SC2016
+  [ -z "$turn_model" ] || set_meta '.ran = $r' --arg r "$turn_model"
+  { printf '\n## turn %s · %s:%s · %s\n\n' "$turn" "$backend" "${turn_model:-${model:-default}}" "$(date -u +%FT%TZ)"
+    printf 'manager:\n'; redact_stream <"$run/message.md" | clean
+    # The rendered text is redacted again: the raw stream was, but a key the
+    # model wrote JSON-escaped is only whole once jq has decoded it.
+    printf '\n'; "${backend}_render" "$run/turn.out" | redact_stream
+  } >>"$adir/transcript.txt"
+  # shellcheck disable=SC2016
+  set_meta '.turns = $t | .last = $l' --argjson t "$turn" --arg l "$(date -u +%FT%TZ)"
+}
+run_sandboxed() { # run_sandboxed <session or -> <title>; sets rc
+  local sb argv benv rfd line jfd efd jpid epid
   # run/ is new for every turn, and so is the $HOME made in it: nothing a turn
   # writes there is left for the next, and only data/ is bound back in.
   { printf 'nameserver 10.0.2.3\n' >"$run/resolv.conf" && mkfifo "$run/ready" "$run/go" && mkdir "$run/empty" "$run/home"; } \
@@ -591,12 +997,11 @@ run_turn() { # run_turn <session or -> <title>; sets rc, turn
   mapfile -d '' sb < <(sandbox_args "$cli")
   mapfile -d '' argv < <("${backend}_argv" /opt/glab/backend "$model" "$1" "$2" /opt/glab/message.md)
   mapfile -t benv < <("${backend}_env")
-  turn=$(( $(meta turns) + 1 ))
   # Both streams are capped and redacted on their way to the disk. The two
   # filters are children of this script and end when the sandbox closes its
   # side, or at the cap.
-  exec {jfd}> >(redact_stream "$run/capped.stdout" >"$run/turn.jsonl"); jpid=$!
-  exec {efd}> >(redact_stream "$run/capped.stderr" >"$run/stderr.txt"); epid=$!
+  exec {jfd}> >(redact_stream "$run/capped.$$.stdout" >"$run/turn.out"); jpid=$!
+  exec {efd}> >(redact_stream "$run/capped.$$.stderr" >"$run/stderr.txt"); epid=$!
   exec {rfd}<>"$run/ready" {gfd}<>"$run/go"
   (
     # A clean environment built here rather than with `env -i K=V`, so that no
@@ -641,43 +1046,109 @@ run_turn() { # run_turn <session or -> <title>; sets rc, turn
   child=''
   kill -TERM "$slirp" 2>/dev/null; wait "$slirp" 2>/dev/null; slirp=''
   exec {xfd}>&-; xfd=''
-  cat "$run/turn.jsonl" >>"$adir/transcript.jsonl"
-  { printf '\n## turn %s · %s:%s · %s\n\n' "$turn" "$backend" "$model" "$(date -u +%FT%TZ)"
-    printf 'manager:\n'; redact_stream <"$run/message.md" | clean
-    # The rendered text is redacted again: the raw stream was, but a key the
-    # model wrote JSON-escaped is only whole once jq has decoded it.
-    printf '\n'; "${backend}_render" "$run/turn.jsonl" | redact_stream
-  } >>"$adir/transcript.txt"
-  # shellcheck disable=SC2016
-  set_meta '.turns = $t | .last = $l' --argjson t "$turn" --arg l "$(date -u +%FT%TZ)"
+}
+# On the host, in the repository itself: no copy, no bwrap and no network
+# helper; the backend's own sandbox is the containment, and its verify adapter
+# checks what the backend reports of it.
+run_host() { # run_host <session or ->; sets rc
+  local repo argv benv jfd efd jpid epid
+  repo=$(meta repo)
+  [ "$(hostgit -C "$repo" rev-parse --show-toplevel 2>/dev/null)" = "$repo" ] \
+    || die 4 UNAVAILABLE "$repo is no longer the repository the agent started in"
+  mapfile -d '' argv < <("${backend}_argv" "$cli" "$model" "$1")
+  mapfile -t benv < <("${backend}_env" "$(meta id)")
+  # Both streams are capped on their way to the disk, as in the sandbox. The
+  # filters do not keep the agent's lock: if this script is SIGKILLed, they
+  # live as long as a process of the turn holds the streams, and stop, whose
+  # sweep ends that process, must still be able to take the lock
+  # [feature-codex-agent/plan.md D31]. The cap flags carry this script's pid:
+  # a filter left by a killed turn writes into the same run/ path, and its
+  # flag must not fail the next turn.
+  exec {jfd}> >(exec {lk}>&-; redact_stream "$run/capped.$$.stdout" >"$run/turn.out"); jpid=$!
+  exec {efd}> >(exec {lk}>&-; redact_stream "$run/capped.$$.stderr" >"$run/stderr.txt"); epid=$!
+  host_turn=$(meta id)
+  (
+    # No descriptor this script inherited reaches the backend; only the two
+    # streams stay, and the exec below points stdin at the message.
+    for f in /proc/"$BASHPID"/fd/*; do
+      f=${f##*/}
+      case $f in 0|1|2|"$jfd"|"$efd") ;; *) { exec {f}>&-; } 2>/dev/null ;; esac
+    done
+    # The backend's environment is its env adapter's allowlist only, exported
+    # here so that no value appears on a command line.
+    while IFS= read -r v; do unset "$v" 2>/dev/null; done < <(compgen -e)
+    for kv in "${benv[@]}"; do export "${kv?}"; done
+    cd -- "$repo" || exit 1
+    # exec, so that the started pid is setsid's: setsid does not fork here,
+    # because this subshell is not a process group leader, so the new group's
+    # id is that pid, and every process of the turn is in it unless it leaves.
+    # setpriv and setsid exec into timeout, which keeps the first death
+    # signal: if this script dies, timeout gets SIGKILL. timeout forks the
+    # backend, and a fork clears it, hence the second setpriv: if timeout
+    # dies, the backend does.
+    exec setpriv --pdeathsig KILL -- setsid timeout --kill-after=10 "$timeout_s" \
+      setpriv --pdeathsig KILL -- "${argv[@]}" <"$run/message.md" >&"$jfd" 2>&"$efd" {jfd}>&- {efd}>&-
+  ) &
+  sandbox_pid=$! turn_start=$SECONDS
+  exec {jfd}>&- {efd}>&-
+  wait "$sandbox_pid"; rc=$?
+  # The whole group, before the filters are waited for: a process the backend
+  # left behind would hold its streams open, and the wait would never end.
+  # timeout's own group handling is not relied on (uutils 0.10.0 here).
+  kill -TERM -- -"$sandbox_pid" 2>/dev/null
+  for _ in $(seq 20); do kill -0 -- -"$sandbox_pid" 2>/dev/null || break; sleep 0.1; done
+  kill -KILL -- -"$sandbox_pid" 2>/dev/null; sandbox_pid=''
+  # Then what left the group [feature-codex-agent/plan.md D31]: Codex's
+  # sandbox helper and its commands, which would otherwise hold the streams,
+  # and the wait below, open.
+  sweep_agent "$host_turn"; host_turn=''
+  wait "$jpid" "$epid" 2>/dev/null
+}
+# The first line start and send print. The model is the one the backend
+# reported it ran, else the one asked for, else the backend's own default,
+# which it did not name.
+header() { # header <agent id> <backend> <model asked for, or empty>
+  printf 'agent: %s · model: %s:%s · turn: %s · transcript: %s\n' "$1" "$2" "${turn_model:-${3:-default}}" "$turn" "$adir/transcript.txt"
 }
 # Prints the outcome of the turn just run and exits with its code.
 finish_turn() {
-  local backend model id err gaps=() text n found verdicts
+  local backend model id err gaps=() text n found verdicts reported
   backend=$(meta backend) model=$(meta model) id=$(meta id)
-  header() { printf 'agent: %s · model: %s:%s · turn: %s · transcript: %s\n' "$id" "$backend" "$model" "$turn" "$adir/transcript.txt"; }
   local s
   for s in stdout stderr; do
-    if [ -e "$run/capped.$s" ]; then
-      header; echo "end: $id"; die 7 'BACKEND ERROR' "$backend wrote more than $((OUT_BYTES / 1048576)) MiB on its $s in one turn; what came after that was not kept"
+    if [ -e "$run/capped.$$.$s" ]; then
+      header "$id" "$backend" "$model"; echo "end: $id"; die 7 'BACKEND ERROR' "$backend wrote more than $((OUT_BYTES / 1048576)) MiB on its $s in one turn; what came after that was not kept"
     fi
   done
   # 124 is timeout's own status and 137 its SIGKILL after the grace, but a
   # backend can exit 124 itself or be killed inside, so either is a timeout
   # only once the limit has passed.
   if { [ "$rc" -eq 124 ] || [ "$rc" -eq 137 ]; } && [ $((SECONDS - turn_start)) -ge "$timeout_s" ]; then
-    header; echo "end: $id"; die 6 TIMEOUT "no reply within $timeout_s s"
+    header "$id" "$backend" "$model"; echo "end: $id"; die 6 TIMEOUT "no reply within $timeout_s s"
   fi
-  err=$("${backend}_error" "$run/turn.jsonl" | redact_stream)
+  # A host backend's own report of its sandbox, before anything it printed is used.
+  if [ "$isolation" = host ]; then "${backend}_verify" "$id" "$model"; fi
+  err=$("${backend}_error" "$run/turn.out" | redact_stream)
   if [ "$rc" -gt 128 ] && [ "$rc" -lt 160 ]; then
-    header; echo "end: $id"
+    header "$id" "$backend" "$model"; echo "end: $id"
     die 7 'BACKEND ERROR' "$backend was killed by signal $((rc - 128)) ($(kill -l $((rc - 128)) 2>/dev/null || echo unknown))${err:+; $err}"
   fi
   if [ -n "$err" ] || [ "$rc" -ne 0 ]; then
-    header; echo "end: $id"; die 7 'BACKEND ERROR' "${err:-$backend exited $rc with no error event; see the transcript}"
+    header "$id" "$backend" "$model"; echo "end: $id"; die 7 'BACKEND ERROR' "${err:-$backend exited $rc with no error event; see the transcript}"
+  fi
+  reported=$("${backend}_session" "$run/turn.out")
+  # A host turn is trusted only with a well-formed model and session from its
+  # header block, the first turn included.
+  if [ "$isolation" = host ] && { [ -z "$turn_model" ] || [ -z "$reported" ]; }; then
+    header "$id" "$backend" "$model"; echo "end: $id"; die 7 'BACKEND ERROR' "$backend printed no header block naming its model and session"
+  fi
+  # A backend given a session it does not find may start a new one silently, as
+  # Codex does; a continued turn is accepted only in the session recorded.
+  if [ "$turn" -gt 1 ] && [ "$reported" != "$(meta session)" ]; then
+    header "$id" "$backend" "$model"; echo "end: $id"; die 7 'BACKEND ERROR' "$backend continued another session (${reported:-none}) instead of $(meta session)"
   fi
   # Decoded, cleaned and then redacted, for the reason the transcript is.
-  text=$("${backend}_text" "$run/turn.jsonl" | clean | redact_stream)
+  text=$("${backend}_text" "$run/turn.out" | clean | redact_stream)
   if [ "$(meta role)" = reviewer ]; then
     text=$(awk -v s="$REPORT_START" -v e="$REPORT_END" '$0 == s {on = 1; b = ""; next} $0 == e && on {on = 0; last = b; got = 1; next} on {b = b $0 "\n"} END {if (got) printf "%s", last; else exit 1}' <<<"$text") \
       || gaps+=("no block between '$REPORT_START' and '$REPORT_END'")
@@ -706,10 +1177,10 @@ finish_turn() {
       fi
     fi
     if [ ${#gaps[@]} -gt 0 ]; then
-      header; echo "end: $id"; die 8 'MALFORMED REPORT' "$(IFS=';'; echo "${gaps[*]}")"
+      header "$id" "$backend" "$model"; echo "end: $id"; die 8 'MALFORMED REPORT' "$(IFS=';'; echo "${gaps[*]}")"
     fi
   fi
-  header
+  header "$id" "$backend" "$model"
   echo 'reply:'
   [ -n "$text" ] && while IFS= read -r l; do printf '| %s\n' "$l"; done <<<"$text"
   echo "end: $id"
@@ -750,54 +1221,76 @@ turn_alive() { # turn_alive <agent dir>; sets tpid
 }
 
 cmd_start() {
-  local backend='' model='' cli='' brief='' role=general label='' repo=. top id
+  local backend='' model='' cli='' brief='' role=general label='' repo=. top id effort=''
   timeout_s=$DEFAULT_TIMEOUT
   while [ $# -gt 0 ]; do
     case $1 in
-      --backend|--model|--cli|--brief|--role|--label|--repo|--timeout)
+      --backend|--model|--cli|--brief|--role|--label|--repo|--timeout|--effort)
         [ $# -ge 2 ] || die 2 USAGE "$1 needs a value"
         case $1 in
           --backend) backend=$2 ;; --model) model=$2 ;; --cli) cli=$2 ;; --brief) brief=$2 ;;
           --role) role=$2 ;; --label) label=$2 ;; --repo) repo=$2 ;; --timeout) parse_timeout "$2" ;;
+          --effort) effort=$2 ;;
         esac
         shift 2 ;;
       *) die 2 USAGE "unknown argument: $(printf '%s' "$1" | head -c 40 | clean)" ;;
     esac
   done
   case $role in general|reviewer) ;; *) die 2 USAGE "--role must be general or reviewer" ;; esac
-  [ -n "$model" ] || die 2 USAGE "--model is required"
+  [ -n "$model" ] || model_optional "$backend" || die 2 USAGE "--model is required"
   [ -f "$brief" ] && [ -r "$brief" ] || die 2 USAGE "--brief must name a readable file"
   [ -z "$label" ] || [[ $label =~ ^[[:print:]]{1,80}$ ]] || die 2 USAGE "--label must be 1-80 printable ASCII characters"
   need_tmpdir
   top=$(hostgit -C "$repo" rev-parse --show-toplevel 2>/dev/null) || die 2 USAGE "--repo is not inside a git work tree"
-  known_backend "$backend" || die 3 'UNKNOWN BACKEND' "no adapter for backend '$backend' (known: opencode)"
+  known_backend "$backend" || die 3 'UNKNOWN BACKEND' "no adapter for backend '$backend' (known: $(known_list))"
+  isolation=$("${backend}_isolation")
+  [ -z "$effort" ] || "${backend}_effort_ok" "$effort" || die 2 USAGE "--effort is not taken by the $backend backend, or $effort is not a level"
   model_allowed "$backend" "$model"
   [ -n "$cli" ] || die 2 USAGE "--cli is required: the path of the $backend binary"
-  { cli=$(readlink -f -- "$cli") && cli_ok "$cli"; } || die 4 UNAVAILABLE "the $backend CLI is not an executable file: $cli"
-  net_tools
+  if [ "$isolation" = sandbox ]; then
+    { cli=$(readlink -f -- "$cli") && cli_ok "$cli"; } || die 4 UNAVAILABLE "the $backend CLI is not an executable file: $cli"
+    net_tools
+  else
+    # Absolute, but not resolved: a link the backend's updates move, such as
+    # Codex's current link, is followed at every turn.
+    [[ $cli == /* ]] || cli=$PWD/$cli
+    cli_ok "$cli" || die 4 UNAVAILABLE "the $backend CLI is not an executable file: $cli"
+  fi
   id=ea-$(od -An -N8 -tx1 /dev/urandom | tr -d ' \n') || die 4 UNAVAILABLE "no random id"
   adir=$root/$id
   started_ok=0
-  mkdir -m 700 "$adir" "$adir/data" "$adir/run" || die 4 UNAVAILABLE "cannot create $adir"
+  if [ "$isolation" = sandbox ]; then
+    mkdir -m 700 "$adir" "$adir/data" "$adir/run" || die 4 UNAVAILABLE "cannot create $adir"
+  else
+    mkdir -m 700 "$adir" "$adir/run" || die 4 UNAVAILABLE "cannot create $adir"
+  fi
   run=$adir/run
   lock_agent
   # The key lookup runs in a directory of the agent's own; a start that
   # cannot read the key leaves nothing, as every unfinished start does.
-  read_secret "$backend" "$cli" "$adir/auth"
-  jq -n --arg id "$id" --arg b "$backend" --arg m "$model" --arg p "$profile" --arg r "$role" --arg l "$label" \
-    --arg c "$cli" --arg t "$top" --arg now "$(date -u +%FT%TZ)" \
-    '{id: $id, backend: $b, model: $m, profile: $p, role: $r, label: $l, cli: $c, repo: $t,
+  if [ "$isolation" = sandbox ]; then read_secret "$backend" "$cli" "$adir/auth"; fi
+  jq -n --arg id "$id" --arg b "$backend" --arg m "$model" --arg e "$effort" --arg p "$profile" --arg r "$role" \
+    --arg l "$label" --arg c "$cli" --arg t "$top" --arg now "$(date -u +%FT%TZ)" \
+    '{id: $id, backend: $b, model: $m, effort: $e, ran: "", profile: $p, role: $r, label: $l, cli: $c, repo: $t,
       head: "", branch: "", created: $now, last: $now, turns: 0, session: "", ready: false}' >"$adir/agent.json" \
     || die 4 UNAVAILABLE "cannot write $adir/agent.json"
-  copy_repo "$top" "$adir/work" || die 4 UNAVAILABLE "could not copy $top: $why"
-  # The copy is read-only for everyone, this script included, until stop.
-  chmod -R a-w "$adir/work" || die 4 UNAVAILABLE "cannot make the copy read-only"
+  if [ "$isolation" = sandbox ]; then
+    copy_repo "$top" "$adir/work" || die 4 UNAVAILABLE "could not copy $top: $why"
+    # The copy is read-only for everyone, this script included, until stop.
+    chmod -R a-w "$adir/work" || die 4 UNAVAILABLE "cannot make the copy read-only"
+  else
+    # The backend works in the repository itself, which needs no commit: one
+    # with none records an empty head and branch.
+    head_short=$(hostgit -C "$top" rev-parse -q --verify HEAD) || head_short=''
+    head_short=${head_short:0:12}
+    branch=$(hostgit -C "$top" symbolic-ref -q HEAD) || branch=''
+  fi
   # shellcheck disable=SC2016
   set_meta '.head = $h | .branch = $br' --arg h "$head_short" --arg br "$branch"
   first_prompt "$role" "$profile" "$brief" >"$run/message.md" || die 4 UNAVAILABLE "cannot write the prompt"
   run_turn - "${label:-glab external agent}"
   # shellcheck disable=SC2016
-  set_meta '.session = $s | .ready = true' --arg s "$("${backend}_session" "$run/turn.jsonl")"
+  set_meta '.session = $s | .ready = true' --arg s "$("${backend}_session" "$run/turn.out")"
   started_ok=1
   finish_turn
 }
@@ -822,14 +1315,24 @@ cmd_send() {
   # and is busy (11), not unknown; only an agent nobody holds and that never
   # finished starting is 10.
   lock_agent
+  # Only once the lock shows the directory is live: a stop that ran in
+  # between would leave no agent.json to read, and bash's own message would
+  # break the one stderr line.
+  isolation=$("$(meta backend)_isolation")
   [ "$(meta ready)" = true ] || die 10 'UNKNOWN AGENT' "agent $id did not finish starting; stop it"
   local session backend
   session=$(meta session) backend=$(meta backend)
-  [[ $session =~ ^ses_[A-Za-z0-9]{1,64}$ ]] || die 10 'UNKNOWN AGENT' "agent $id has no session to continue; stop it and start another"
+  "${backend}_session_ok" "$session" || die 10 'UNKNOWN AGENT' "agent $id has no session to continue; stop it and start another"
   model_allowed "$backend" "$(meta model)"
-  net_tools
-  read_secret "$backend" "$(meta cli)" "$adir/auth"
+  if [ "$isolation" = sandbox ]; then
+    net_tools
+    read_secret "$backend" "$(meta cli)" "$adir/auth"
+  fi
   run=$adir/run
+  # A turn whose script was SIGKILLed may have left its helper and its
+  # stream filters running, and they would write into the new run/
+  # [feature-codex-agent/plan.md D31].
+  if [ "$isolation" = host ]; then sweep_agent "$id"; fi
   { rm -rf "$run" && mkdir -m 700 "$run"; } || die 4 UNAVAILABLE "cannot create $run"
   { cat "$message" && if [ "$(meta role)" = reviewer ]; then reviewer_tail; fi; } >"$run/message.md" \
     || die 4 UNAVAILABLE "cannot write the message"
@@ -851,7 +1354,7 @@ cmd_list() {
     elif [ ! -f "$d/agent.json" ] || [ "$(jq -r '.ready' "$d/agent.json" 2>/dev/null)" != true ]; then state=broken
     else state=idle; fi
     lines+=$(jq -r --arg d "$(basename "$d")" --arg s "$state" "$JQ_CLEAN"'
-      "\($d)  \($s)  \(.backend // "?"):\(.model // "?")  role=\(.role // "?")  turns=\(.turns // 0)  last=\(.last // "?")  repo=\(.repo // "?")@\(.head // "?")  label=\(.label // "")" | clean' \
+      "\($d)  \($s)  \(.backend // "?"):\(if (.ran // "") != "" then .ran elif (.model // "") != "" then .model else "default" end)  role=\(.role // "?")  turns=\(.turns // 0)  last=\(.last // "?")  repo=\(.repo // "?")@\(.head // "?")  label=\(.label // "")" | clean' \
       "$d/agent.json" 2>/dev/null || printf '%s  %s' "$(basename "$d")" "$state")$'\n'
   done
   echo "agents: $n"
@@ -864,13 +1367,22 @@ cmd_stop() {
   [[ $1 =~ ^ea-[0-9a-f]{16}$ ]] || die 2 USAGE "not an agent id: $(printf '%s' "$1" | head -c 40 | clean)"
   adir=$root/$1
   [ -d "$adir" ] || die 10 'UNKNOWN AGENT' "no agent $1"
-  local tpid gone=$root/.stopping.$1
+  local tpid sb gone=$root/.stopping.$1
   { exec {lk}>>"$adir/lock"; } 2>/dev/null || { [ -d "$adir" ] || die 10 'UNKNOWN AGENT' "no agent $1"; die 4 UNAVAILABLE "cannot open $adir/lock"; }
   if ! flock -n "$lk"; then
     # A turn is running: signal the process that runs it, if the recorded pid
     # is still that process.
     turn_alive "$adir" && kill -TERM "$tpid" 2>/dev/null
     flock -w 30 "$lk" || die 11 BUSY "agent $1 did not end its turn within 30 s"
+  fi
+  # Whatever a host turn left running when its script was SIGKILLed, and so
+  # ran no cleanup [feature-codex-agent/plan.md D31]. No process of an
+  # OpenCode agent carries the marker, so an agent whose agent.json names a
+  # sandbox backend is not swept; one whose agent.json is missing, or names
+  # no backend this script knows, is.
+  sb=$(jq -r '.backend // empty' "$adir/agent.json" 2>/dev/null) || sb=''
+  if [ -z "$sb" ] || ! known_backend "$sb" || [ "$("${sb}_isolation")" != sandbox ]; then
+    sweep_agent "$1"
   fi
   # A start stopped in its first turn removes its own agent as it ends; then
   # the file locked here is no longer the live lock, and the agent is stopped.
@@ -895,21 +1407,23 @@ cmd_check() {
     esac
   done
   need_tmpdir
-  known_backend "$backend" || die 3 'UNKNOWN BACKEND' "no adapter for backend '$backend' (known: opencode)"
-  { cli=$(readlink -f -- "$cli") && cli_ok "$cli"; } || die 4 UNAVAILABLE "the $backend CLI is not an executable file: ${cli:-unset}"
+  known_backend "$backend" || die 3 'UNKNOWN BACKEND' "no adapter for backend '$backend' (known: $(known_list))"
+  isolation=$("${backend}_isolation")
+  # Resolved for a sandbox backend, whose sandbox binds that one file; only
+  # made absolute for a host backend, as start does.
+  if [ "$isolation" = sandbox ]; then
+    { cli=$(readlink -f -- "$cli") && cli_ok "$cli"; } || die 4 UNAVAILABLE "the $backend CLI is not an executable file: ${cli:-unset}"
+  else
+    { [ -n "$cli" ] && { [[ $cli == /* ]] || cli=$PWD/$cli; } && cli_ok "$cli"; } \
+      || die 4 UNAVAILABLE "the $backend CLI is not an executable file: ${cli:-unset}"
+  fi
   echo "cli: $cli"
-  net_tools
-  echo "tools: slirp4netns nsenter setpriv lsns ip bwrap timeout flock"
-  # No agent exists here, so the lookup gets a directory of its own under the
-  # state root, removed straight after.
-  read_secret "$backend" "$cli" "$root/check.$$"
-  echo "key: stored"
-  echo "models: $("${backend}_models" | awk '{print $1 ($3 == "-" ? "" : " (until " $3 ")")}' | paste -sd, - | sed 's/,/, /g')"
+  "${backend}_check" "$cli"
 }
 
 cmd=${1:-}
 [ $# -gt 0 ] && shift
-secret='' root='' profile='' head_short='' branch='' why='' turn=0 rc=0 timeout_s=$DEFAULT_TIMEOUT lk='' turn_start=0
+secret='' root='' profile='' head_short='' branch='' why='' turn=0 rc=0 timeout_s=$DEFAULT_TIMEOUT lk='' turn_start=0 isolation='' turn_model=''
 case $cmd in
   start) cmd_start "$@" ;;
   send) cmd_send "$@" ;;

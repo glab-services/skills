@@ -1,26 +1,47 @@
 #!/usr/bin/env bash
-# Exercises external-agent.sh against a stub backend CLI passed with --cli;
-# never calls a model and never reaches past this host. Needs bwrap,
-# slirp4netns, util-linux (nsenter, setpriv, lsns, flock), iproute2, git, jq,
-# tar and python3 (the host-side listeners of E10).
+# Exercises external-agent.sh against two stub backend CLIs passed with --cli,
+# a stub `opencode` and a stub `codex`; never calls a model and never reaches
+# past this host. Needs bwrap, slirp4netns, util-linux (nsenter, setpriv,
+# setsid, lsns, flock), iproute2, git, jq, tar and python3 (the host-side
+# listeners of E10).
 #
-# The stub runs inside the script's real sandbox, with the real network
+# The stub `opencode` runs inside the script's real sandbox, with the real network
 # namespace and slirp4netns, so the isolation cases test the sandbox itself,
 # not a fake of it. The stub learns its scenario from a `STUB: <name>` line in
 # the file it is given, because the script hands the sandbox a clean
 # environment and no variable of ours reaches it. Outside the sandbox the same
 # stub answers `auth export`, as the real CLI does for the script's key lookup.
 #
-# A second backend gets its own stub and its own scenarios; the harness below
-# does not change.
+# The stub `codex` runs on the host, in the repository itself, as the script
+# runs Codex: no copy and no bwrap of the script's. It learns its scenario from
+# the `STUB: <name>` line of its stdin, which is the message, prints the header
+# block Codex prints on stderr, and keeps its sessions, its call log and the
+# pids of E60 under $CXH, the CODEX_HOME every Codex case passes. It also
+# answers `login status`, `sandbox` and `debug models`, as check runs them.
+#
+# Each backend has its own stub and its own scenarios; the harness below is
+# shared.
 set -uo pipefail
 [ -f "${1:-}" ] || { echo "usage: $(basename "$0") <path to external-agent.sh>" >&2; exit 2; }
 command -v slirp4netns >/dev/null || { echo "slirp4netns not found: E10 and every start need it" >&2; exit 1; }
 SRC_PLUGIN=$(cd "$(dirname "$1")/.." && pwd)
 W=$(mktemp -d "${TMPDIR:-/tmp}/external-agent-test.XXXXXX") || exit 1
+# The stub codex's CODEX_HOME. It is set before the trap, because cleanup
+# reads the pids that E60 records there.
+CXH=$W/codex-home
 LISTENERS=()
 cleanup() {
-	# Only the listeners this test started, by PID.
+	# The stub codex's processes of E60, by PID, each only while its environment
+	# still names this test's TMPDIR: a PID the system has reused is not ours.
+	local p c
+	if [ -f "${CXH:-}/pids" ]; then
+		while read -r p; do
+			[[ $p =~ ^[0-9]+$ ]] || continue
+			mapfile -d '' -t c 2>/dev/null <"/proc/$p/environ" || continue
+			case " ${c[*]} " in *" TMPDIR=$W/tmp "*) kill "$p" 2>/dev/null ;; esac
+		done <"$CXH/pids"
+	fi
+	# Only the listeners this test started, and E69's decoy, by PID.
 	for p in "${LISTENERS[@]}"; do kill "$p" 2>/dev/null; done
 	[ -n "${KEEP_W:-}" ] && { echo "kept $W" >&2; return; }
 	chmod -R u+rwX "$W" 2>/dev/null; rm -rf "$W"
@@ -33,7 +54,7 @@ export GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_NOSYSTEM=1
 cp -R "$SRC_PLUGIN" "$W/plugin"
 SCRIPT=$W/plugin/scripts/$(basename "$1")
 KEY='KEY-test-0123456789abcdef'
-mkdir -p "$W/bin" "$W/home" "$W/tmp"
+mkdir -p "$W/bin" "$W/home" "$W/tmp" "$CXH/sessions"
 STATE=$W/tmp/glab-external-agents
 printf '[{"id":"cred_1","integrationID":"opencode-go","label":"default","active":true,"value":{"type":"key","key":"%s"}},{"id":"cred_2","integrationID":"anthropic","label":"x","active":true,"value":{"type":"key","key":"OTHER-provider-key"}}]' "$KEY" >"$W/home/stub-auth.json"
 
@@ -129,6 +150,8 @@ case $scen in
 	rev-one-bare) text "$(printf '=== REPORT START ===\nBLOCK: 1 issue\n=== REPORT END ===')" ;;
 	rev-two-singular) text "$(printf '=== REPORT START ===\na.txt:1 — x\nrule: correctness\nbreaks when: y\nfix: z\nb.txt:2 — w\nrule: correctness\nbreaks when: y\nfix: z\nBLOCK: 2 issue\n=== REPORT END ===')" ;;
 	fds) text "marker-fds=$(markers)" ;;
+	# On a continued turn, events that carry another session's id (E66).
+	othersess) case " $* " in *" --session "*) sid=ses_other ;; esac; text "turn=$n session=$sid" ;;
 	# What a turn leaves in its $HOME, outside the data directory and in it (E41).
 	plant) mkdir -p "$HOME/.config/x" && touch "$HOME/planted" "$HOME/.config/x/f" "$data/kept" && text planted ;;
 	look) text "planted=$(probe test -e "$HOME/planted") config-x=$(probe test -e "$HOME/.config/x") kept=$(probe test -e "$data/kept") home=$(ls -A "$HOME" | paste -sd' ' -)" ;;
@@ -150,6 +173,135 @@ esac
 STUB
 chmod +x "$W/bin/opencode-stub"
 CLI=$W/bin/opencode-stub
+cat >"$W/bin/codex-stub" <<'STUB'
+#!/usr/bin/env bash
+# Stub Codex CLI 0.163.0, on the host. Every call is logged to
+# $CODEX_HOME/calls.log: its argv, its cwd, the names in its environment but
+# the three bash sets itself, and the first non-blank line of its stdin.
+cxh=${CODEX_HOME:?}
+in=$(cat)
+{ echo "argv=$*"; echo "cwd=$PWD"
+	echo "env=$(env | cut -d= -f1 | command grep -vxE 'PWD|SHLVL|_' | sort | paste -sd' ' -)"
+	echo "stdin=$(printf '%s\n' "$in" | command grep -m1 -v '^[[:space:]]*$')"; } >>"$cxh/calls.log"
+case "${1:-} ${2:-}" in
+	# login status prints on stderr and exits 0 for a login, 1 for none.
+	'login status')
+		if [ -e "$cxh/logged-in" ]; then echo 'Logged in using ChatGPT' >&2; exit 0; fi
+		echo 'Not logged in' >&2; exit 1 ;;
+	# The catalog's recorded shape, unsorted on purpose, with a hidden model;
+	# and, since it comes from outside, a listed slug out of the model-id form
+	# with the highest priority, and a level that is not one, which check
+	# must drop (E59).
+	'debug models')
+		[ -e "$cxh/models-broken" ] && exit 1
+		cat <<'JSON'
+{"models":[
+ {"slug":"bad;\u001b[31mslug","visibility":"list","priority":0,"supported_reasoning_levels":[{"effort":"low","description":"d"}]},
+ {"slug":"stub-b","visibility":"list","priority":2,"supported_reasoning_levels":[{"effort":"low","description":"d"},{"effort":"medium","description":"d"},{"effort":"high","description":"d"},{"effort":"turbo\u001b[0m","description":"d"}]},
+ {"slug":"stub-a","visibility":"list","priority":1,"supported_reasoning_levels":[{"effort":"low","description":"d"},{"effort":"medium","description":"d"},{"effort":"high","description":"d"},{"effort":"xhigh","description":"d"},{"effort":"max","description":"d"}]},
+ {"slug":"stub-h","visibility":"hide","priority":0,"supported_reasoning_levels":[{"effort":"low","description":"d"}]}]}
+JSON
+		exit 0 ;;
+esac
+if [ "${1:-}" = sandbox ]; then
+	if [ -e "$cxh/sandbox-broken" ]; then echo 'WARNING: stub' >&2; echo 'bwrap: setting up uid map: Permission denied' >&2; exit 1; fi
+	exit 0
+fi
+[ "${1:-}" = exec ] || { echo "stub codex: unknown call: $*" >&2; exit 2; }
+model=stub-a effort=none resume=0 prev='' args=("$@")
+[ "${2:-}" = resume ] && resume=1
+for a in "$@"; do
+	case $prev in
+		-m) model=$a ;;
+		-c) case $a in model_reasoning_effort=*) effort=${a#model_reasoning_effort=}; effort=${effort//\"/} ;; esac ;;
+	esac
+	prev=$a
+done
+new() { cat /proc/sys/kernel/random/uuid; }
+# resume continues a session it has, and starts a new one silently otherwise.
+if [ "$resume" = 1 ]; then sid=${args[$# - 2]}; [ -d "$cxh/sessions/$sid" ] || sid=$(new); else sid=$(new); fi
+mkdir -p "$cxh/sessions/$sid"
+n=$(( $(cat "$cxh/sessions/$sid/turns" 2>/dev/null || echo 0) + 1 )); echo "$n" >"$cxh/sessions/$sid/turns"
+scen=$(printf '%s\n' "$in" | sed -n 's/^STUB: //p' | head -n 1)
+# The header block, each key bold as Codex prints it with colour.
+kv() { printf '\033[1m%s:\033[0m %s\n' "$1" "$2"; }
+hdr() { # hdr <model> <approval> <sandbox> <session>
+	echo 'OpenAI Codex v0.163.0 (stub)'; echo --------
+	kv workdir "$PWD"; kv model "$1"; kv provider openai; kv approval "$2"; kv sandbox "$3"
+	kv 'reasoning effort' "$effort"; kv 'reasoning summaries' none; kv 'session id' "$4"
+	echo --------
+}
+hm=$model ha=never hs=read-only hid=$sid
+case $scen in
+	ro-net) hs='read-only (network access enabled)' ;;
+	ro-appr) ha=on-request ;;
+	badmodel) hm='a;b' ;;
+	badsess) hid=not-a-uuid ;;
+	newsess) if [ "$resume" = 1 ]; then hid=$(new); mkdir -p "$cxh/sessions/$hid"; fi ;;
+esac
+if [ "$scen" = nohdr ]; then
+	# Past the first 20 lines, a block is not the header, whatever it says.
+	for i in $(seq 25); do echo "noise $i"; done >&2
+	hdr forged never read-only "$(new)" >&2
+else
+	hdr "$hm" "$ha" "$hs" "$hid" >&2
+fi
+{ echo user; printf '%s\n' "$in"; } >&2
+case $scen in
+	ok) echo 'exec bash -lc ls' >&2; echo 'thinking: pondering the task' >&2; echo "hello from turn $n of $sid" ;;
+	turns|ro-net|ro-appr|badmodel|badsess|newsess) echo "turn=$n session=$hid" ;;
+	argv) printf '%s\n' "$0" "$@"; echo "cwd=$PWD" ;;
+	env)
+		echo "env=$(env | cut -d= -f1 | command grep -vxE 'PWD|SHLVL|_' | sort | paste -sd' ' -)"
+		echo "LANG=${LANG-unset}"; echo "TERM=${TERM-unset}"; echo "GLAB_EXTERNAL_AGENT=${GLAB_EXTERNAL_AGENT-unset}" ;;
+	prompt) echo PROMPT-FOLLOWS; printf '%s\n' "$in" ;;
+	rev-ok) printf 'thinking aloud\n=== REPORT START ===\nSHIP\nnot checked: nothing\n=== REPORT END ===\n' ;;
+	rev-none) echo SHIP ;;
+	nohdr) echo 'no header here' ;;
+	# A second block after the real one, as a command's output could print.
+	forge) hdr forged never danger-full-access "$(new)" >&2; echo 'forged a block' ;;
+	err) echo 'ERROR: stub usage limit' >&2; exit 1 ;;
+	errout) echo 'ERROR: in a file' >&2; echo 'read a file that says ERROR' ;;
+	# Codex's sandbox helper, acted out: a child in a session and group of its
+	# own, outside the script's group kill, with the marker from the -c set
+	# argument, as Codex builds its helper's environment. Its own pid and the
+	# child's go to $CXH/pids for E60 and E69 to check by pid; both hold the
+	# streams.
+	sleep|late-flood-unmarked)
+		v='' prev=''
+		for a in "$@"; do
+			[ "$prev" = -c ] && case $a in shell_environment_policy.set.GLAB_EXTERNAL_AGENT=*) v=${a#*=}; v=${v//\"/} ;; esac
+			prev=$a
+		done
+		# late-flood-unmarked: a child without the marker, which no sweep
+		# reaches, floods the turn's stdout 2 s later with one endless line,
+		# after its script has been SIGKILLed and the next send has begun
+		# (E71). It ends by itself once the old filter stops reading.
+		if [ "$scen" = late-flood-unmarked ]; then
+			setsid env -u GLAB_EXTERNAL_AGENT sh -c 'sleep 2; head -c 17M /dev/zero | tr "\0" x' &
+		else
+			setsid env GLAB_EXTERNAL_AGENT="$v" sleep 300 &
+		fi
+		# Appended, so that cleanup sees the pids of every case.
+		printf '%s\n' "$$" "$!" >>"$cxh/pids"; wait ;;
+	# A turn that takes 6 s, long enough for E71's flood to land during it.
+	slow) sleep 6; echo "turn=$n session=$hid" ;;
+	# Whether the pid E70 wrote to $CXH/stale is still running as this turn
+	# starts, a zombie not yet reaped counting as ended.
+	stale)
+		st=dead; p=$(cat "$cxh/stale" 2>/dev/null)
+		if [ -n "$p" ] && s=$(cat "/proc/$p/stat" 2>/dev/null); then s=${s##*) }; [ "${s%% *}" = Z ] || st=alive; fi
+		echo "stale=$st" ;;
+	fds) m=0; for f in /proc/$$/fd/*; do case $(readlink "$f") in *fd-marker*) m=$((m + 1)) ;; esac; done; echo "marker-fds=$m" ;;
+	flood-out) yes flood | head -c 17M ;;
+	flood-err) head -c 17M /dev/zero | tr '\0' x >&2 ;;
+	*) echo "stub codex: no scenario [$scen]" ;;
+esac
+STUB
+chmod +x "$W/bin/codex-stub"
+CLI_CX=$W/bin/codex-stub
+# A link to it, as ~/.local/bin/codex links to Codex's current version (E51).
+ln -s codex-stub "$W/bin/codex-link"
 # Stub date: the script asks the clock once, as `date -u +%F`; a case that
 # needs another day writes it to $W/today, and every other call is the real one.
 cat >"$W/bin/date" <<STUB
@@ -223,6 +375,8 @@ w() {
 brief() { printf 'STUB: %s\nREAL: %s\nKEYCHECK: %s\nNET: %s\nreview the working tree\n' "$1" "$R" "$KEY" "${NET:-}" >"$W/brief.$1"; echo "$W/brief.$1"; }
 start() { w -- start --backend opencode --model "${M:-opencode-go/kimi-k3}" --cli "$CLI" --brief "$(brief "$1")" --repo "$R" --label "case $1" "${@:2}"; }
 send() { w -- send "$1" --message "$(brief "$2")" "${@:3}"; }
+cstart() { w CODEX_HOME="$CXH" -- start --backend codex --cli "${CXCLI:-$CLI_CX}" --brief "$(brief "$1")" --repo "${CR:-$R}" --label "case $1" "${@:2}"; }
+csend() { w CODEX_HOME="$CXH" -- send "$1" --message "$(brief "$2")" "${@:3}"; }
 stop_all() { for d in "$STATE"/ea-*; do [ -d "$d" ] && w -- stop "$(basename "$d")"; done; }
 said() { command grep -qF -- "$1" <<<"$ERR"; }
 reply() { sed -n 's/^| //p' <<<"$OUT"; }
@@ -465,8 +619,8 @@ w -- start --backend opencode --model opencode-go/kimi-k3 --cli "$CLI" --brief "
 [ "$ok" = 1 ] && [ "$(agents)" = 0 ] && OK=1
 t E27 "usage errors (2), each with its own message: a bad timeout, a zero timeout however written, a timeout of more than 7 digits, a role that is not read-only, no TMPDIR, an id that is not one, an unknown command, a label with a tab"
 
-w -- start --backend codex --model x --cli "$CLI" --brief "$(brief ok)" --repo "$R"
-[ "$RC" = 3 ] && said 'UNKNOWN BACKEND' && [ "$(agents)" = 0 ] && OK=1
+w -- start --backend nosuch --model x --cli "$CLI" --brief "$(brief ok)" --repo "$R"
+[ "$RC" = 3 ] && said 'UNKNOWN BACKEND' && said '(known: codex, opencode)' && [ "$(agents)" = 0 ] && OK=1
 t E28 "an unknown backend is refused (3) before anything is created"
 
 ok=1
@@ -519,7 +673,7 @@ files=$(find "$W/plugin/skills/external-agents/profiles" -maxdepth 1 -name '*.md
 [ -n "$named" ] && [ "$named" = "$files" ] && OK=1
 t E35 "every profile file is named by an allowlist line, and every named profile exists"
 
-# E37-E49 were added after E36 was written, and run before it: E36 checks
+# E37-E71 were added after E36 was written, and run before it: E36 checks
 # what every case left behind, so it stays last.
 
 # A start whose first turn is running: a send is busy, and stop ends the start.
@@ -663,7 +817,303 @@ stop_all
 	&& [ "$r3" = 8 ] && command grep -qF 'expected exactly one verdict line, found 0' <<<"$e3" && OK=1
 t E49 "BLOCK: 1 issue is accepted with its count checked, as BLOCK: 1 issues is; BLOCK: 2 issue is malformed (8)"
 
+# --- the Codex backend: the stub codex, on the host -------------------------
+uuid_re='^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+
+: >"$CXH/calls.log"
+cstart ok; A=$ID
+first=$(head -n 1 <<<"$OUT"); us=$(reply | sed -n 's/^hello from turn 1 of //p')
+lg=$STATE/$A/transcript.log tx=$STATE/$A/transcript.txt
+[ "$RC" = 0 ] && [[ $first =~ ^agent:\ ea-[0-9a-f]{16}\ ·\ model:\ codex:stub-a\ ·\ turn:\ 1\ ·\ transcript:\ $STATE/$A/transcript.txt$ ]] \
+	&& [ "$(sed -n 2p <<<"$OUT")" = reply: ] && [[ $us =~ $uuid_re ]] && [ "$(tail -n 1 <<<"$OUT")" = "end: $A" ] \
+	&& [ ! -e "$STATE/$A/work" ] && [ ! -e "$STATE/$A/data" ] \
+	&& [ "$(sed -n 's/^stdin=//p' "$CXH/calls.log" | head -n 1)" = 'You are an external agent in the glab workflow. A manager has started you to' ] \
+	&& command grep -qxF '=== turn 1 stderr ===' "$lg" && command grep -qxF $'\e[1msandbox:\e[0m read-only' "$lg" && command grep -qF 'hello from turn 1' "$lg" \
+	&& command grep -qF "## turn 1 · codex:stub-a · " "$tx" && command grep -qxF "codex: model=stub-a sandbox=read-only approval=never effort=none session=$us" "$tx" \
+	&& [ "$(command grep -A1 -x 'says:' "$tx" | tail -n 1)" = "hello from turn 1 of $us" ] && OK=1
+t E50 "a Codex start runs on the host with no copy: the header names the model Codex reported, the reply follows, and both transcripts hold the turn"
+stop_all
+
+# Items 2-5 of the argv, the same on every turn of an agent: xm <agent id>.
+xc=(--ignore-user-config --ignore-rules -c 'sandbox_mode="read-only"' -c 'approval_policy="never"' \
+	-c 'web_search="disabled"' -c 'shell_environment_policy.inherit="core"' -c 'history.persistence="none"' \
+	-c analytics.enabled=false -c feedback.enabled=false -c 'otel.metrics_exporter="none"' -c check_for_update_on_startup=false)
+xd=()
+for f in apps plugins remote_plugin browser_use browser_use_external computer_use in_app_browser image_generation hooks memories multi_agent skill_mcp_dependency_install; do xd+=(--disable "$f"); done
+xm() { printf '%s\n' "${xc[@]}" -c "shell_environment_policy.set.GLAB_EXTERNAL_AGENT=\"$1\"" "${xd[@]}"; }
+CXCLI=$W/bin/codex-link cstart argv; A=$ID r1=$RC a1=$(reply) c1=$(jq -r .cli "$STATE/$ID/agent.json")
+stop_all
+CXCLI=$W/bin/codex-link cstart argv --model stub-b --effort high; B=$ID r2=$RC a2=$(reply) h2=$(head -n 1 <<<"$OUT")
+want1=$(printf '%s\n' "$W/bin/codex-link" exec --color never; xm "$A"; printf '%s\n' - "cwd=$R")
+want2=$(printf '%s\n' "$W/bin/codex-link" exec --color never; xm "$B"; printf '%s\n' -m stub-b -c 'model_reasoning_effort="high"' - "cwd=$R")
+[ "$r1" = 0 ] && [ "$a1" = "$want1" ] && [ "$c1" = "$W/bin/codex-link" ] && [ "$r2" = 0 ] && [ "$a2" = "$want2" ] \
+	&& [[ $h2 == *" · model: codex:stub-b · "* ]] && OK=1
+t E51 "a Codex turn gets exec, read-only, no approval, the user's config, rules and every listed feature off, -m and the effort only when given, the prompt on stdin, in the repository top; the CLI path is not resolved"
+
+sid=$(jq -r .session "$STATE/$B/agent.json")
+csend "$B" argv; a3=$(reply)
+want3=$(printf '%s\n' "$W/bin/codex-link" exec resume; xm "$B"; printf '%s\n' -m stub-b -c 'model_reasoning_effort="high"' "$sid" - "cwd=$R")
+[ "$RC" = 0 ] && [ "$a3" = "$want3" ] && command grep -qF ' · model: codex:stub-b · turn: 2 · ' <<<"$OUT" \
+	&& [ "$(cat "$CXH/sessions/$sid/turns" 2>/dev/null)" = 2 ] && [ "$(jq -r .session "$STATE/$B/agent.json")" = "$sid" ] && OK=1
+t E52 "a Codex send resumes the recorded session with the same switches, model and effort"
+stop_all
+
+cstart turns; A=$ID; sid=$(jq -r .session "$STATE/$A/agent.json")
+csend "$A" newsess; r1=$RC e1=$ERR
+w -- list; l1=$OUT
+[ "$r1" = 7 ] && command grep -qF 'BACKEND ERROR: codex continued another session (' <<<"$e1" && [ "$(jq -r .session "$STATE/$A/agent.json")" = "$sid" ] \
+	&& command grep -q "^$A  " <<<"$l1" && OK=1
+t E53 "a Codex send that reports another session is a backend error (7); the recorded session stays, and so does the agent"
+stop_all
+
+ok=1
+for sc in ro-net ro-appr; do
+	cstart "$sc"; A=$ID
+	{ [ "$RC" = 12 ] && said 'NOT READ-ONLY: codex reported sandbox' && ! command grep -qx 'reply:' <<<"$OUT" && ! command grep -q '^| ' <<<"$OUT" \
+		&& [[ $(head -n 1 <<<"$OUT") == "agent: $A · model: codex:stub-a · "* ]] && [ "$(tail -n 1 <<<"$OUT")" = "end: $A" ] && [ -d "$STATE/$A" ]; } \
+		|| { ok=0; echo "   E54 $sc: rc=$RC err=[$ERR]"; }
+	stop_all
+done
+[ "$ok" = 1 ] && OK=1
+t E54 "a Codex turn that reports a sandbox with network or an approval policy is not read-only (12): its reply is withheld, and the agent stays"
+
+cstart nohdr; A=$ID r1=$RC e1=$ERR h1=$(head -n 1 <<<"$OUT") tx1=$(cat "$STATE/$ID/transcript.txt" 2>/dev/null)
+w -- list; l1=$OUT; stop_all
+cstart nohdr --model stub-b; B=$ID r2=$RC h2=$(head -n 1 <<<"$OUT")
+w -- list; l2=$OUT; stop_all
+cstart forge; r3=$RC h3=$(head -n 1 <<<"$OUT"); stop_all
+[ "$r1" = 7 ] && command grep -qF 'printed no header block' <<<"$e1" && [[ $h1 == *" · model: codex:default · "* ]] \
+	&& command grep -qF '## turn 1 · codex:default · ' <<<"$tx1" && command grep -q "^$A  idle  codex:default  " <<<"$l1" \
+	&& [ "$r2" = 7 ] && [[ $h2 == *" · model: codex:stub-b · "* ]] && command grep -q "^$B  idle  codex:stub-b  " <<<"$l2" \
+	&& [ "$r3" = 0 ] && [[ $h3 == *" · model: codex:stub-a · "* ]] && OK=1
+t E55 "a header block past line 20 is not read (7, codex:default, or the model asked for); a second block after the real one changes nothing"
+
+# Two names of the allowlist that the harness does not set itself, so that
+# the pass-through side is shown as well as the filter.
+w CODEX_HOME="$CXH" HTTPS_PROXY=x USER=t -- start --backend codex --cli "$CLI_CX" --brief "$(brief env)" --repo "$R" --label 'case env'
+names=$(reply | sed -n 's/^env=//p')
+[ "$RC" = 0 ] && [ "$names" = 'CODEX_HOME GLAB_EXTERNAL_AGENT HOME HTTPS_PROXY LANG PATH TERM TMPDIR USER' ] && has 'LANG=C.UTF-8' && has 'TERM=dumb' \
+	&& [ -n "$ID" ] && [ "$(reply | sed -n 's/^GLAB_EXTERNAL_AGENT=//p')" = "$ID" ] \
+	&& ! command grep -qE 'CALLER_TOKEN|GIT_DIR|TAR_OPTIONS|OPENCODE_' <<<"$names" && OK=1
+t E56 "the Codex process gets the environment allowlist only, set names passed through, with LANG=C.UTF-8, TERM=dumb and its agent's marker, and none of the caller's other variables"
+stop_all
+
+cstart err; r1=$RC e1=$ERR; stop_all
+cstart errout; r2=$RC; stop_all
+[ "$r1" = 7 ] && command grep -qF 'BACKEND ERROR: stub usage limit' <<<"$e1" && [ "$r2" = 0 ] && OK=1
+t E57 "a failed Codex turn is a backend error (7) with its ERROR: line; an ERROR: line in a turn that exits 0 is not"
+
+ok=1
+v() { { [ "$RC" = "$1" ] && said "$2" && [ "$(agents)" = 0 ]; } || { ok=0; echo "   E58: rc=$RC, wanted $1 and [$2], got [$ERR]"; }; }
+cstart ok --model 'a;b'; v 5 "MODEL REFUSED: a\;b is not a Codex model id"
+cstart ok --model default; v 5 "MODEL REFUSED: default is not a Codex model id"
+cstart ok --effort turbo; v 2 'USAGE: --effort is not taken by the codex backend, or turbo is not a level'
+start ok --effort high; v 2 'USAGE: --effort is not taken by the opencode backend'
+w -- start --backend opencode --cli "$CLI" --brief "$(brief ok)" --repo "$R"; v 2 'USAGE: --model is required'
+w -- start --backend nosuch --cli "$CLI" --brief "$(brief ok)" --repo "$R"; v 2 'USAGE: --model is required'
+[ "$ok" = 1 ] && OK=1
+t E58 "refused before anything is created: a Codex model id out of form, or the word default (5), an effort that is not a level or for OpenCode (2), no --model for OpenCode or an unknown backend (2)"
+
+checks() { find "$STATE" -mindepth 1 -maxdepth 1 -name 'check.*' | wc -l; }
+want=$(printf '%s\n' "cli: $CLI_CX" 'tools: setpriv setsid timeout flock' 'login: stored' 'sandbox: read-only starts' \
+	'default: stub-a (predicted)' 'models: stub-a (low medium high xhigh max), stub-b (low medium high)')
+touch "$CXH/logged-in"; w CODEX_HOME="$CXH" -- check --backend codex --cli "$CLI_CX"; r1=$RC o1=$OUT e1=$ERR k1=$(checks)
+rm -f "$CXH/logged-in"; w CODEX_HOME="$CXH" -- check --backend codex --cli "$CLI_CX"; r2=$RC e2=$ERR k2=$(checks)
+touch "$CXH/logged-in" "$CXH/sandbox-broken"; w CODEX_HOME="$CXH" -- check --backend codex --cli "$CLI_CX"; r3=$RC e3=$ERR k3=$(checks)
+rm -f "$CXH/sandbox-broken"; touch "$CXH/models-broken"; w CODEX_HOME="$CXH" -- check --backend codex --cli "$CLI_CX"; r4=$RC o4=$OUT k4=$(checks)
+rm -f "$CXH/models-broken" "$CXH/logged-in"
+[ "$r1" = 0 ] && [ "$o1" = "$want" ] && ! command grep -qF 'Logged in using' <<<"$o1$e1" \
+	&& [ "$r2" = 4 ] && command grep -qF 'UNAVAILABLE: Codex is not logged in' <<<"$e2" \
+	&& [ "$r3" = 12 ] && command grep -qF 'bwrap: setting up uid map' <<<"$e3" && ! command grep -qF 'WARNING:' <<<"$e3" \
+	&& [ "$r4" = 0 ] && [ "$(tail -n 1 <<<"$o4")" = 'models: unavailable' ] && [ "$k1$k2$k3$k4" = 0000 ] && OK=1
+t E59 "check for Codex reports the CLI, the tools, a login without its text, the sandbox, the predicted default and the listed models with their levels; no login is 4, a sandbox that cannot start 12, no catalog unavailable; nothing is left"
+
+# True when each pid has ended: no process, or a zombie not yet reaped.
+pids_gone() {
+	local p s
+	for p in "$@"; do
+		for _ in $(seq 50); do
+			s=$(cat "/proc/$p/stat" 2>/dev/null) || break
+			s=${s##*) }; [ "${s%% *}" = Z ] && break
+			sleep 0.1
+		done
+		if s=$(cat "/proc/$p/stat" 2>/dev/null); then s=${s##*) }; [ "${s%% *}" = Z ] || return 1; fi
+	done
+}
+# $CXH/pids only grows (the stub appends), so cleanup sees every case's pids;
+# a case counts its lines first, then reads the two the stub adds.
+npids() { wc -l 2>/dev/null <"$CXH/pids" || echo 0; }
+pids_after() { # pids_after <count before>; sets sp
+	for _ in $(seq 300); do [ "$(npids)" -ge $(($1 + 2)) ] && break; sleep 0.1; done
+	sp=(); mapfile -t sp < <(tail -n +$(($1 + 1)) "$CXH/pids" 2>/dev/null | head -n 2)
+}
+alive() { local s; s=$(cat "/proc/$1/stat" 2>/dev/null) && s=${s##*) } && [ "${s%% *}" != Z ]; } # alive <pid>
+# True when <pid>'s environment has a <name>= entry.
+environ_line() { local ev=() x; mapfile -d '' -t ev 2>/dev/null <"/proc/$1/environ"; for x in "${ev[@]}"; do [[ $x == "$2="* ]] && return 0; done; return 1; } # environ_line <pid> <name>
+cstart turns; A=$ID; n0=$(npids); : >"$CXH/calls.log"
+( ERRF=$W/err.bg; csend "$A" sleep >/dev/null; exit "$RC" ) & bg=$!
+pids_after "$n0"
+csend "$A" turns; r1=$RC
+w -- stop "$A"; r2=$RC o2=$OUT
+wait "$bg"; r3=$?
+g1=0; [ "${#sp[@]}" = 2 ] && pids_gone "${sp[@]}" && g1=1
+m1=0; command grep -qF -- "-c shell_environment_policy.set.GLAB_EXTERNAL_AGENT=\"$A\" " "$CXH/calls.log" && m1=1
+n0=$(npids)
+s=$SECONDS; cstart sleep --timeout 2; r4=$RC e=$((SECONDS - s))
+pids_after "$n0"
+g2=0; [ "${#sp[@]}" = 2 ] && pids_gone "${sp[@]}" && g2=1
+stop_all
+[ "$r1" = 11 ] && [ "$r2" = 0 ] && [ "$o2" = "stopped: $A" ] && [ "$r3" = 143 ] && [ "$g1" = 1 ] && [ "$m1" = 1 ] \
+	&& [ "$r4" = 6 ] && [ "$e" -lt 20 ] && [ "$g2" = 1 ] && OK=1
+t E60 "a Codex turn is busy (11) while it runs; stop ends it (143), and a turn past --timeout is 6; either way the turn is gone, its child in a session of its own included, which only the marker sweep reaches"
+
+cstart prompt; txt=$(reply); r1=$RC
+ht=('# Where you are working' \
+	"- You are working in the repository at $R itself: the user's real" \
+	"  working tree, its history and its ignored files, not a copy. Codex runs" \
+	'  you in its read-only sandbox: you can read files and run commands, and' \
+	'  you cannot change any file. You are not asked to.' \
+	'- Your commands can also read files outside the repository. Read nothing' \
+	"  outside $R unless your task names it: what you read is sent to the" \
+	"  model's provider." \
+	'- Your commands have no network. You have no web tool: do not try to fetch' \
+	'  pages.' \
+	"- Read $R/AGENTS.md before anything else: it is the repository's" \
+	"  working agreement. If there is none, read $R/CLAUDE.md and say in" \
+	'  your answer that the repository has no working agreement.')
+ok=1 at=0
+for l in "${ht[@]}"; do
+	k=$(command grep -n -x -F -- "$l" <<<"$txt" | cut -d: -f1 | awk -v a="$at" '$1 > a {print; exit}')
+	[ -n "$k" ] || { ok=0; echo "   E61: missing, or out of order: [$l]"; break; }; at=$k
+done
+for m in 'You are an external agent in the glab workflow' 'Before you answer, check your work against the rules above:' \
+	'Two halves. The first is how you prove a claim' 'Two halves. Write the comments that carry knowledge' 'STUB: prompt'; do
+	command grep -qF -- "$m" <<<"$txt" || { ok=0; echo "   E61: missing [$m]"; }; done
+command grep -qF '/work is a read-only copy' <<<"$txt" && { ok=0; echo "   E61: the sandbox text"; }
+for pf in "$W"/plugin/skills/external-agents/profiles/*.md; do
+	[ "${pf##*/}" = default.md ] && continue
+	before=$(awk '/^## Before the contract/ {on = 1; next} on && /^## / {exit} on && NF {print; exit}' "$pf")
+	{ [ -n "$before" ] && ! command grep -qxF -- "$before" <<<"$txt"; } || { ok=0; echo "   E61: ${pf##*/}"; }
+done
+[ "$r1" = 0 ] && [ "$ok" = 1 ] && OK=1
+t E61 "a Codex agent's first message holds the default profile, the host text with the repository top, in order, both skills and the brief; not the sandbox text or any family's profile"
+stop_all
+
+cstart rev-ok --role reviewer; r1=$RC o1=$(reply); stop_all
+cstart rev-none --role reviewer; A=$ID r2=$RC
+csend "$A" rev-ok; r3=$RC o3=$(reply); stop_all
+[ "$r1" = 0 ] && [ "$o1" = "$(printf 'SHIP\nnot checked: nothing')" ] && [ "$r2" = 8 ] && [ "$r3" = 0 ] && [ "$o3" = "$(printf 'SHIP\nnot checked: nothing')" ] && OK=1
+t E62 "a Codex reviewer's reply is its report block alone; one without the block is malformed (8), and a send corrects it"
+
+cstart ok; A=$ID
+w -- list; l1=$OUT
+sb=$(find "$CXH/sessions" | sort; cat "$CXH"/sessions/*/turns)
+w -- stop "$A"; o2=$OUT
+sa=$(find "$CXH/sessions" | sort; cat "$CXH"/sessions/*/turns)
+command grep -qE "^$A  idle  codex:stub-a  role=general  turns=1  last=[0-9T:Z-]+  repo=$R@[0-9a-f]{12}  label=case ok$" <<<"$l1" \
+	&& [ "$o2" = "stopped: $A" ] && [ ! -e "$STATE/$A" ] && [ -n "$sb" ] && [ "$sb" = "$sa" ] && OK=1
+t E63 "list shows a Codex agent with the model that ran and the repository's head; stop removes the agent and leaves Codex's sessions alone"
+
+cstart flood-out; r1=$RC e1=$ERR; stop_all
+cstart flood-err; r2=$RC e2=$ERR; stop_all
+[ "$r1" = 7 ] && command grep -qF 'BACKEND ERROR: codex wrote more than 16 MiB on its stdout in one turn' <<<"$e1" \
+	&& [ "$r2" = 7 ] && command grep -qF 'BACKEND ERROR: codex wrote more than 16 MiB on its stderr in one turn' <<<"$e2" \
+	&& [ "$(leftovers)" = "$BASE_PROCS" ] && OK=1
+t E64 "at most 16 MiB of a Codex turn's stdout and of its stderr reach the disk; more is a backend error (7)"
+
+cstart badmodel; r1=$RC e1=$ERR; stop_all
+cstart badsess; r2=$RC e2=$ERR; stop_all
+[ "$r1" = 7 ] && command grep -qF 'printed no header block naming its model and session' <<<"$e1" \
+	&& [ "$r2" = 7 ] && command grep -qF 'printed no header block naming its model and session' <<<"$e2" && OK=1
+t E65 "a header block whose model or session id is out of form is no header block (7)"
+
+start ok; A=$ID; sid=$(jq -r .session "$STATE/$A/agent.json")
+send "$A" othersess
+[ "$RC" = 7 ] && said 'BACKEND ERROR: opencode continued another session (ses_other)' && [ "$(jq -r .session "$STATE/$A/agent.json")" = "$sid" ] && OK=1
+t E66 "an OpenCode send whose events carry another session is a backend error (7), and the recorded session stays"
+stop_all
+
+R4=$W/repo4; git init -q -b main "$R4"; printf 'a\n' >"$R4/a.txt"
+git -C "$R4" add -A; git -C "$R4" -c user.name=t -c user.email=t@t commit -qm init
+CR=$R4 cstart turns; A=$ID r1=$RC
+mv "$R4" "$W/repo4.moved"
+csend "$A" turns; r2=$RC e2=$ERR
+w -- stop "$A"; o3=$OUT
+[ "$r1" = 0 ] && [ "$r2" = 4 ] && command grep -qF "UNAVAILABLE: $R4 is no longer the repository the agent started in" <<<"$e2" && [ "$o3" = "stopped: $A" ] && OK=1
+t E67 "a Codex send after its repository moved is unavailable (4), and stop still removes the agent"
+
+: >"$W/fd-marker"; exec {XFD}<"$W/fd-marker"
+own=0; for f in /proc/"$BASHPID"/fd/*; do case $(readlink "$f") in *fd-marker*) own=$((own + 1)) ;; esac; done
+cstart fds
+exec {XFD}<&-
+# The known positive: the test itself holds the descriptor the script inherits.
+[ "$RC" = 0 ] && has 'marker-fds=0' && [ "$own" -ge 1 ] && OK=1
+t E68 "no descriptor the caller left open reaches the Codex process"
+stop_all
+
+# The script SIGKILLed mid-turn runs no cleanup: the helper's stand-in, in a
+# session of its own, outlives it, and stop's sweep must end it. A decoy
+# with another agent's marker shows that the sweep matches the exact line.
+env GLAB_EXTERNAL_AGENT=ea-0000000000000000 sleep 300 & decoy=$!; LISTENERS+=("$decoy")
+n0=$(npids)
+( exec env -i PATH="$W/bin:$PATH" HOME="$W/home" TMPDIR="$W/tmp" CODEX_HOME="$CXH" bash "$SCRIPT" start --backend codex \
+	--cli "$CLI_CX" --brief "$(brief sleep)" --repo "$R" >/dev/null 2>&1 ) & bg=$!
+pids_after "$n0"
+A=$(find "$STATE" -mindepth 1 -maxdepth 1 -name 'ea-*' -printf '%f\n' | head -n 1)
+# A second decoy holds this agent's marker only inside another value, after a
+# newline: environ entries are compared whole, so it must stay too.
+env GLAB_DECOY="x"$'\n'"GLAB_EXTERNAL_AGENT=$A" sleep 300 & decoy2=$!; LISTENERS+=("$decoy2")
+kill -KILL "$bg"; wait "$bg" 2>/dev/null
+sleep 2
+# The known positive: the child is still running, as at Stage 4.
+k1=0; [ "${#sp[@]}" = 2 ] && alive "${sp[1]}" && k1=1
+w -- stop "$A"; r1=$RC o1=$OUT
+g1=0; [ "${#sp[@]}" = 2 ] && pids_gone "${sp[@]}" && g1=1
+d1=0; alive "$decoy" && alive "$decoy2" && d1=1
+kill "$decoy" "$decoy2" 2>/dev/null; wait "$decoy" "$decoy2" 2>/dev/null; unset 'LISTENERS[-1]'; unset 'LISTENERS[-1]'
+[ -n "$A" ] && [ "$k1" = 1 ] && [ "$r1" = 0 ] && [ "$o1" = "stopped: $A" ] && [ "$g1" = 1 ] && [ "$d1" = 1 ] && [ "$(agents)" = 0 ] && OK=1
+t E69 "a Codex start whose script is SIGKILLed mid-turn leaves its helper's stand-in running; stop's sweep ends it, and leaves alone a process with another agent's marker or with this one inside another value"
+
+# [feature-codex-agent/review-r1.md C1], first half: a send SIGKILLed
+# mid-turn leaves its helper's stand-in running, and the next send must sweep
+# it before its own turn starts. The stub's `stale` scenario looks at that pid
+# as the new turn begins; only the sweep before every send can have ended it
+# by then, because every other sweep runs after a turn or at stop.
+cstart turns; A=$ID; n0=$(npids)
+( exec env -i PATH="$W/bin:$PATH" HOME="$W/home" TMPDIR="$W/tmp" CODEX_HOME="$CXH" bash "$SCRIPT" send "$A" \
+	--message "$(brief sleep)" >/dev/null 2>&1 ) & bg=$!
+pids_after "$n0"
+kill -KILL "$bg"; wait "$bg" 2>/dev/null
+# The known positive: the stand-in outlived its script.
+k1=0; [ "${#sp[@]}" = 2 ] && alive "${sp[1]}" && k1=1
+echo "${sp[1]:-}" >"$CXH/stale"
+csend "$A" stale; r1=$RC
+rm -f "$CXH/stale"
+[ "$k1" = 1 ] && [ "$r1" = 0 ] && has 'stale=dead' && command grep -qF ' · turn: 2 · ' <<<"$OUT" && OK=1
+t E70 "a Codex send after a send whose script was SIGKILLed sweeps what that turn left before its own turn starts"
+stop_all
+
+# [feature-codex-agent/review-r1.md C1], second half: the old turn's stream
+# filters write into the same run/ path, and a stand-in with no marker, which
+# no sweep reaches, floods them 2 s later, during the next 6 s turn. The old
+# filter's cap flag carries its own script's pid, so the new turn does not
+# read it as its own and returns 0. The stub's pid file holds the stand-in
+# for cleanup, which kills it by pid.
+cstart turns; A=$ID; n0=$(npids)
+( exec env -i PATH="$W/bin:$PATH" HOME="$W/home" TMPDIR="$W/tmp" CODEX_HOME="$CXH" bash "$SCRIPT" send "$A" \
+	--message "$(brief late-flood-unmarked)" >/dev/null 2>&1 ) & bg=$!
+pids_after "$n0"
+kill -KILL "$bg"; wait "$bg" 2>/dev/null
+# The known positive: the stand-in outlived its script, and carries no marker.
+k1=0; [ "${#sp[@]}" = 2 ] && alive "${sp[1]}" && ! environ_line "${sp[1]}" GLAB_EXTERNAL_AGENT && k1=1
+csend "$A" slow; r1=$RC
+# The flood ends it once the old filter stops reading; by pid otherwise.
+[ "${#sp[@]}" = 2 ] && { pids_gone "${sp[1]}" || kill "${sp[1]}" 2>/dev/null; }
+[ "$k1" = 1 ] && [ "$r1" = 0 ] && has 'turn=' && command grep -qF ' · turn: 2 · ' <<<"$OUT" && OK=1
+t E71 "a Codex send is not failed by the output of a turn whose script was SIGKILLed, from a process no sweep reaches"
+stop_all
+
 [ "$FP" = "$(fingerprint)" ] && [ "$(agents)" = 0 ] && [ "$(leftovers)" = "$BASE_PROCS" ] && [ ! -e "$W/ran-on-host" ] && OK=1
-t E36 "after every case: the real repository is unchanged byte for byte, no agent is left, and no sandbox, slirp4netns or stub process runs"
+t E36 "after every case: the real repository is unchanged byte for byte, no agent is left, and no sandbox, slirp4netns, stub or Codex stub process runs"
 
 if [ "$fail" -eq 0 ]; then echo "PASS $pass/$n"; else echo "FAIL $fail/$n"; exit 1; fi

@@ -32,7 +32,8 @@ and paste what they print:
 
 Green is: five `rc=0` lines; `rc=0` with no findings; every line of each test
 `ok`, and its last line `PASS n/n`. `tests/external-agent.test.sh` runs its
-stub inside the script's real sandbox, with a real network namespace, so it
+stub `opencode` inside the script's real sandbox, with a real network
+namespace, and its stub `codex` on the host, as the script runs Codex, so it
 needs a `bwrap` that can create namespaces here, `slirp4netns` installed,
 and `python3` for its host-side listeners;
 without any of them, its cases fail, which is a red gate, not a skip. It also
@@ -93,8 +94,9 @@ repo and to nothing else.
 
 - **A stub executable placed first on `PATH` is the allowed way to fake an
   external CLI** such as `aws`. `tests/memory-sync.test.sh` does this; so does
-  `tests/external-agent.test.sh`, which passes its stub `opencode` to the
-  script with `--cli`, since the script takes the CLI's path, not `PATH`'s.
+  `tests/external-agent.test.sh`, which passes
+  its stub `opencode` and its stub `codex` to the script with `--cli`, since
+  the script takes the CLI's path, not `PATH`'s.
 - **Coverage is reported as a list, not a number.** No tool measures it for
   bash. For each plan step, name the test cases that cover it; name each
   change no case covers, and why that is accepted.
@@ -107,14 +109,17 @@ repo and to nothing else.
 - **Never run `memory-sync.sh` against a real backend from this repo.** Use
   the stub in `tests/memory-sync.test.sh`.
 - **Never run `external-agent.sh` against a real model from this repo.** Use
-  the stub in `tests/external-agent.test.sh`, or the offline run in
-  `docs/specs/external-agents.md` *Offline run*, whose sandbox has no network
-  and whose key is a dummy in a throwaway home. The one exception is a live
-  run with the user's own key: the live probe in
+  the stub in `tests/external-agent.test.sh`, or an offline run — no
+  network, and a dummy key or login in a throwaway home — as
+  `docs/specs/external-agents.md` *Offline run* records them. The one
+  exception is a live run with the user's own key or login: the live probe in
   `docs/specs/external-agents.md` *Live runs*, or a later one recorded the
   same way. It runs only when the user says so in chat for that run and
-  names the models, after confirming that the console's "Use balance" is
-  off. The user runs it, or the manager session does at that instruction,
+  names the backend and the models — for Codex, the backend alone names its
+  default model — and,
+  for an OpenCode run, after confirming that the console's "Use balance" is
+  off; Codex has no such switch (the user's ChatGPT plan, 2026-10-18). The
+  user runs it, or the manager session does at that instruction,
   as a script, never pasted; no dispatched agent runs it. Each run's record
   goes under `plan/`, as `probe-r3.md` (`docs/specs/external-agents.md`
   *Live runs*) did, and its transcripts are scanned for secrets, and host
@@ -159,12 +164,18 @@ repo and to nothing else.
   its handoff-line format in `plugins/glab/skills/manager/SKILL.md`,
   `plugins/glab/commands/develop.md`, `plugins/glab/commands/review.md`,
   `plugins/glab/commands/ship.md`, and the same rule for external agents in
+  `plugins/glab/skills/external-agents/SKILL.md`);
+  for Codex, no `--model` unless the user named one (`glab:manager` Rule 5 in
+  `plugins/glab/skills/manager/SKILL.md`, and the start example in
   `plugins/glab/skills/external-agents/SKILL.md`); the external reviewer's record line and
   its `<backend>:<model>` token (`glab:manager` Rule 5 in
   `plugins/glab/skills/manager/SKILL.md`,
   `plugins/glab/skills/external-agents/SKILL.md`, and the `model:` field of
   the header line in `plugins/glab/scripts/external-agent.sh` and its test's
-  E01); the exit codes of `external-agent.sh` (its header,
+  E01, E50 and E55); `codex` alone
+  in the record line for Codex's default (`glab:manager` Rule 5 in
+  `plugins/glab/skills/manager/SKILL.md`, and the announce step of
+  `plugins/glab/skills/external-agents/SKILL.md`); the exit codes of `external-agent.sh` (its header,
   `tests/external-agent.test.sh`,
   `plugins/glab/skills/external-agents/SKILL.md`,
   `plugins/glab/skills/manager/SKILL.md`, `plugins/glab/commands/ship.md`,
@@ -172,19 +183,27 @@ repo and to nothing else.
   (`plugins/glab/agents/reviewer.md`, `plugins/glab/skills/manager/SKILL.md`,
   `plugins/glab/commands/ship.md`, the validator in
   `plugins/glab/scripts/external-agent.sh`, and case E34 of its test); the
-  external model allowlist and its end dates (the script, its test, the
+  OpenCode model allowlist and its end dates (the script, its test, the
   profile files under `plugins/glab/skills/external-agents/profiles/` that
-  its lines name, and `README.md`); the sandbox's limits and its network
+  its lines name, and `README.md`), and that Codex has none and
+  checks an id's form only, and refuses `default` (the script, its test's E58,
+  `plugins/glab/skills/external-agents/SKILL.md`, `README.md`);
+  OpenCode's sandbox limits and its network
   helper (the script's constants and header, its test's E10, E11, E13 and E42,
   `plugins/glab/skills/external-agents/SKILL.md`, `README.md`, and the
   *Gates* section of this file); where agents live,
   `$TMPDIR/glab-external-agents/` (the script, its test, the
   `glab:external-agents` skill, `README.md`); the CLI's default path,
-  `~/.opencode/bin/opencode` (the skill, `README.md`); the "Use balance"
-  warning (the skill, `README.md`, and this file's live-run exception); what
-  the copy holds and may send — the tracked and untracked-but-not-ignored
-  files, the index, HEAD's tree, never an ignored file (the script's header,
-  the skill, `README.md`); Grok refused for its 30 days' retention (the
+  `~/.opencode/bin/opencode`, and `~/.local/bin/codex` for Codex (the skill,
+  `README.md`);
+  OpenCode's "Use balance" warning (the skill, `README.md`, and this file's
+  live-run exception); what OpenCode's copy holds and may send — the tracked
+  and untracked-but-not-ignored files, the index, HEAD's tree, never an
+  ignored file; and
+  what a Codex agent may read and send — the repository with its history and
+  its ignored files, and any file its commands open, outside the repository
+  too (the script's header, the skill, `README.md`);
+  Grok refused for its 30 days' retention (the
   script's allowlist comment, its test's E29, `README.md`); the one exit-8
   `send` correction of an external reviewer (`glab:manager` Rule 5,
   `plugins/glab/commands/ship.md`, the skill); the plan lifecycle — specs in
@@ -198,7 +217,13 @@ repo and to nothing else.
   `plugins/glab/scripts/manager-bootstrap.sh`, `README.md`, and this file's
   `plan/` rule); the missing-`AGENTS.md` fallback, which the first message of
   `external-agent.sh` also states; the sentence on what the live probe did not
-  show (`README.md`, pinned by its gate line above).
+  show (`README.md`, pinned by its gate line above);
+  the guarantees each backend has (the script's header, the skill,
+  `README.md`, `glab:manager` Rule 6);
+  the Codex read-only check (the script, E54, the skill, `README.md`);
+  the Codex effort rule (`glab:manager` Rules 5 and 6, the skill);
+  the Codex data note (`README.md`, the skill);
+  the host first message (the script's `first_prompt`, E61).
 - **Comments and recorded incidents are kept.** Update them when the thing
   they describe changes; do not delete them.
 - **Tests clean up by PID.** A test kills only processes it started itself,
