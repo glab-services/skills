@@ -9,7 +9,9 @@ Owned by `.claude-plugin/marketplace.json`, both
 `host.example.md`. Stated as of `6838133`, its versions and its
 `docs/specs/` and `plan/` bullet as of `09d2787`, and its
 `feature-codex-agent` lines (the `glab` version, the gates' test count, the
-external-agent rule, the *One fact* entries) as of `30f2c80`; where this file and an owning file disagree, the
+external-agent rule, the *One fact* entries) as of `30f2c80`, and its
+`feature-external-developer` lines (the version, the test count, the *One
+fact* entries) as of `33a28df`; where this file and an owning file disagree, the
 owning file is right and this spec is out of date.
 
 ## How it works now
@@ -27,8 +29,9 @@ owning file is right and this spec is out of date.
   skill, `sync-memory`, no agent, hooks on `SessionStart`, `SessionEnd`,
   `PostToolUse` and `Stop`.
 - **Versions.** Each `plugin.json` carries an explicit `version` — `glab`
-  `0.6.0` (raised by `9108ac7`, `feature-codex-agent`; `0.5.0` by `fed95f9`
-  before it), `memory-sync` `0.1.0`, at `30f2c80`. A change under
+  `0.7.0` (raised by `33a28df`, `feature-external-developer`; `0.6.0` by
+  `9108ac7`, `0.5.0` by `fed95f9` before it), `memory-sync` `0.1.0`, at
+  `33a28df`. A change under
   `plugins/<name>/` raises that plugin's version in the same commit, because
   an installed copy is pinned to the version string and nothing else
   delivers a change (`AGENTS.md` *Rules*). `claude plugin validate --strict`
@@ -51,8 +54,10 @@ owning file is right and this spec is out of date.
   counts of `plugin details`, the marketplace-to-manifest name check, the
   `user_config` search, the two pinned hedge phrases, the prefixed `name:`
   search). Each line's reason is written beside it there; this spec does not
-  restate the blocks. Green at `9108ac7` ends the two stub tests with
-  `PASS 35/35` and `PASS 71/71` (49 before `feature-codex-agent`).
+  restate the blocks. Green at `33a28df` ends the two stub tests with
+  `PASS 35/35` and `PASS 84/84` (71 at `9108ac7`, 49 before
+  `feature-codex-agent`); the plugin counts are unchanged, `glab`
+  `Skills (15)`, `Agents (5)`, `Hooks (1)  SessionStart`.
   `tests/external-agent.test.sh` runs its stub `opencode` inside the
   script's real sandbox, with a real network namespace, and its stub `codex`
   on the host, as the script runs Codex (`AGENTS.md` *Gates*); `AGENTS.md`
@@ -113,6 +118,31 @@ owning file is right and this spec is out of date.
   (`glab:manager` Rules 5 and 6, the skill), the Codex data note
   (`README.md`, the skill), and the host first message (the script's
   `first_prompt`, E61).
+- ***One fact* entries `feature-external-developer` added or rewrote**
+  (`AGENTS.md` *Rules*, as of `33a28df`; P7): the manual model rule gains
+  "(an external one: the reviewer on either backend, the developer on Codex
+  only)"; "the Codex read-only check" becomes "the Codex sandbox check —
+  `read-only`, or `workspace-write [workdir]` for a developer, with
+  `approval: never` (the script, E54, E73, the skill, `README.md`)"; the
+  host first message gains "the developer's first message — its host text,
+  its tail and the default profile's *Developer, before the contract*
+  section, which replaces *Before the contract* for a developer (the
+  script's `first_prompt` and `developer_tail`,
+  `plugins/glab/skills/external-agents/profiles/default.md`, E77)"; and
+  three new entries: "the external developer — Codex only, `--role
+  developer`, its sandbox keys" (the script's header and `codex_argv`, E72,
+  E76, the skill, `glab:manager` Rules 5 and 6,
+  `plugins/glab/commands/develop.md`, `README.md`); "the developer's change
+  report — the `changed:` and `git:` lines" (the script's header, E74, E75,
+  E78–E84, the skill, `plugins/glab/commands/develop.md`, `README.md`); and
+  "a developer refused where the state root is inside the repository or the
+  work tree holds another `.git`, 2 at start and 4 before a later turn"
+  (the script's header, E79, E81, the skill, `README.md`, `glab:manager`
+  Rule 5). The exit codes keep their numbers and names; 12's widened
+  meaning changed where the exit-code entry's files describe it. The
+  README's Codex requirements now also name, for a developer, a `find` that
+  takes `-files0-from` (GNU findutils 4.9 or later, or bfs) and a
+  `realpath` that takes `-e`.
 - **`docs/specs/` and `plan/`** (`AGENTS.md` *Layout* and *Rules*, the
   `plan/` rule; `README.md` *Working on this repo*), as of `09d2787`. `docs/specs/` holds
   one spec per area — this file (the marketplace, this repo's layout, gates
@@ -217,3 +247,4 @@ owning file is right and this spec is out of date.
 - 2026-10-05 · bug-reviewer-findings · recorded in `docs/specs/memory-sync.md`, its primary area; its marketplace items (follow-ups 15, 17, 20, 21; questions Q1, Q4, Q5, Q8) are tagged above · plan: `git ls-tree -r --name-only 2aeb46d -- plan/bug-reviewer-findings/` (one file: `git show 2aeb46d:plan/bug-reviewer-findings/<file>`)
 - 2026-10-18 · feature-docs-specs · recorded in `docs/specs/workflow.md`, its primary area; it added `docs/specs/` and rewrote the `plan/` rule (*How it works now*), and its repo items (follow-ups 1, 3, 6, 8) are tagged above · plan: `git ls-tree -r --name-only 09d2787 -- plan/feature-docs-specs/` (one file: `git show 09d2787:plan/feature-docs-specs/<file>`)
 - 2026-10-18 · feature-codex-agent · recorded in `docs/specs/external-agents.md`, its primary area; here: `glab` 0.6.0, the gates' `PASS 71/71` and `AGENTS.md`'s changed *Gates* sentence and *Tests* bullet, the external-agent rule's offline and live-run wording (Codex, no "Use balance" switch), the added and rewritten *One fact* entries · change 9108ac7 · records 30f2c80 · plan: `git ls-tree -r --name-only 30f2c80 -- plan/feature-codex-agent/` (one file: `git show 30f2c80:plan/feature-codex-agent/<file>`)
+- 2026-10-18 · feature-external-developer · recorded in `docs/specs/external-agents.md`, its primary area; here: `glab` 0.7.0, the gates' `PASS 84/84`, the added and rewritten *One fact* entries · change 33a28df · plan: `git ls-tree -r --name-only 33a28df -- plan/feature-external-developer/` (one file: `git show 33a28df:plan/feature-external-developer/<file>`)
