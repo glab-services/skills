@@ -1,0 +1,2 @@
+agents: 1
+ea-b798e709659cf951  idle  codex:gpt-6.1-sol  role=developer  turns=2  last=2026-10-18T18:54:34Z  repo=<tmp>/codex-dev-l1/repo@e099727d09b3  label=dev-l1
