@@ -6,7 +6,7 @@ to S3.
 
 | Plugin | What it adds |
 |---|---|
-| `glab` | Skills `glab:bootstrap`, `glab:manager`, `glab:security`, `glab:comments`, `glab:plan-first`, `glab:audit`, `glab:external-agents` · agents `glab:developer`, `glab:analyzer`, `glab:integrator`, `glab:reviewer`, `glab:committer` · commands `/glab:plan`, `/glab:develop`, `/glab:analyze`, `/glab:integrate`, `/glab:review`, `/glab:commit`, `/glab:push`, `/glab:ship` · a script, `external-agent.sh`, that runs read-only external agents — OpenCode Go in a sandbox of its own, or Codex in its own read-only sandbox — on a model you name, or Codex's default · a `SessionStart` hook that injects the session bootstrap rules |
+| `glab` | Skills `glab:bootstrap`, `glab:manager`, `glab:security`, `glab:comments`, `glab:plan-first`, `glab:audit`, `glab:external-agents` · agents `glab:developer`, `glab:analyzer`, `glab:integrator`, `glab:reviewer`, `glab:committer` · commands `/glab:plan`, `/glab:develop`, `/glab:analyze`, `/glab:integrate`, `/glab:review`, `/glab:commit`, `/glab:push`, `/glab:ship` · a script, `external-agent.sh`, that runs external agents — OpenCode Go read-only in a sandbox of its own, or Codex in its own sandbox, read-only except for a developer — on a model you name, or Codex's default · a `SessionStart` hook that injects the session bootstrap rules |
 | `memory-sync` | Skill `memory-sync:sync-memory` · hooks on four events that run `memory-sync.sh` |
 
 In `glab` the skills, agents and commands are one set: `glab:manager`
@@ -46,12 +46,20 @@ console's "Use balance" switch off, or a Go limit spends paid balance.
 A Codex agent needs the Codex CLI, logged in by you (`~/.local/bin/codex`,
 or the path you give the manager), bubblewrap able to create user
 namespaces for Codex's own sandbox, util-linux (`setpriv`, `setsid`,
-`flock`), `timeout`, `git` and `jq`; it needs no `slirp4netns` and no key.
+`flock`), `timeout`, `git` and `jq`, and, for a developer, a `find` that takes
+`-files0-from` (GNU findutils 4.9 or later, or bfs) and a `realpath` that
+takes `-e`; without that `find`, a developer `start` stops with
+exit 4. It needs no `slirp4netns` and no key.
 Codex runs any model id you name, or Codex's own default when you name none —
 the script checks only the id's form, and refuses `default`, the word its output uses for Codex's own default.
 If Codex's read-only sandbox cannot start on your host, or a turn reports
-any other sandbox or an approval policy other than `never`, the script stops
-with exit 12 (NOT READ-ONLY).
+any other sandbox than the one it asked for — `read-only`, or
+`workspace-write [workdir]` for a developer — or an approval policy other
+than `never`, the script stops with exit 12 (NOT READ-ONLY).
+A developer is refused — exit 2 at start, 4 before a later turn — when the
+state root under `$TMPDIR` is inside your repository, or when the work tree
+holds a `.git` other than the top's: a nested repository, a submodule's
+git dir, or, most likely, a `.git` inside an ignored dependency directory.
 
 What an OpenCode agent can send, and to whom: your working tree's tracked and
 untracked-but-not-ignored files, the index and the tree of your current
@@ -68,17 +76,37 @@ transcript stays readable under `$TMPDIR/glab-external-agents/` until the
 manager stops it.
 
 A Codex agent runs on this machine, in your repository, under Codex's
-own read-only sandbox, with your own Codex login, which the script never
+own sandbox (read-only, or workspace-write for a developer), with your own
+Codex login, which the script never
 reads. What it reads goes to OpenAI under your ChatGPT account's data controls:
 the repository, with its history and its ignored files, and any file its
 commands open, outside the repository too —
 credential files such as Codex's own login, SSH keys and cloud keys included.
 Check whether "Improve the model for everyone" is on. Its commands
-change no file, while Codex itself keeps the session under `~/.codex`, with
-everything the model read, and `stop` does not remove it. Its commands have
-no IP network, and a connect to a Unix-domain socket by path was refused
+change no file, unless it is a developer, while Codex itself keeps the
+session under `~/.codex`, with everything the model read, and `stop` does
+not remove it. Its commands have no IP network, and a connect to a Unix-domain socket by path was refused
 (measured offline with `codex sandbox`); datagram and abstract sockets not measured.
 Its transcript is not redacted.
+
+A Codex developer changes files in your repository, and runs only
+when you name it for the developer. Its sandbox is Codex's
+`workspace-write [workdir]`: no network, and no write outside your
+repository, `/tmp` and `$TMPDIR` included.
+A change to .git is reported after each turn — a commit, a ref, the
+config, a hook, `info/`, the `core.hooksPath` directory, or a new `.git`
+below the top — and the manager stops on it; the script does not
+prevent it. A write to an ignored file is not reported, except in the
+`core.hooksPath` directory or in a file the git config includes. The agent
+can make a path ignored itself, with a `.gitignore` of its own: a new
+ignored entry is reported by name, but not what is written in it.
+After each developer turn the manager is shown one `changed:` line per
+path whose entry changed, with the code
+`??` untracked, `!!` ignored (by name only), ` D` tracked and missing,
+`--` a regular file of at most 16 MiB as the index has it (its hash and
+executable bit match its one stage-0 index entry) or a path no longer
+listed, and ` M` every other tracked path; a link or a larger file that
+changed is ` M`, whatever it holds.
 
 External agents have been tested against a stub, against the real `opencode`
 with no network, and in one live probe on 2026-10-17
@@ -90,8 +118,11 @@ before their first turn); how any model does on a real repository, a long
 brief or a Go limit; and whether the profiles make a reply better. Treat the
 first real session of any of these as the test it is.
 
-Codex agents have been tested against a stub and offline against the real
-`codex`; none has run against a real model yet.
+Codex agents have been tested against a stub, offline against the real
+`codex`, and in one live probe on 2026-10-18 (`docs/specs/external-agents.md`,
+*Live runs*): one read-only agent on Codex's default model answered a task and
+a `send` on this repository.
+The developer role has been tested against a stub, and its sandbox offline with `codex sandbox`.
 
 ## Install
 

@@ -208,12 +208,18 @@ if [ "${1:-}" = sandbox ]; then
 	exit 0
 fi
 [ "${1:-}" = exec ] || { echo "stub codex: unknown call: $*" >&2; exit 2; }
-model=stub-a effort=none resume=0 prev='' args=("$@")
+model=stub-a effort=none resume=0 prev='' args=("$@") ww=0 xslash=0 xtmp=0 wnet=0
 [ "${2:-}" = resume ] && resume=1
 for a in "$@"; do
 	case $prev in
 		-m) model=$a ;;
-		-c) case $a in model_reasoning_effort=*) effort=${a#model_reasoning_effort=}; effort=${effort//\"/} ;; esac ;;
+		-c) case $a in
+				model_reasoning_effort=*) effort=${a#model_reasoning_effort=}; effort=${effort//\"/} ;;
+				'sandbox_mode="workspace-write"') ww=1 ;;
+				sandbox_workspace_write.exclude_slash_tmp=true) xslash=1 ;;
+				sandbox_workspace_write.exclude_tmpdir_env_var=true) xtmp=1 ;;
+				sandbox_workspace_write.network_access=true) wnet=1 ;;
+			esac ;;
 	esac
 	prev=$a
 done
@@ -231,10 +237,27 @@ hdr() { # hdr <model> <approval> <sandbox> <session>
 	kv 'reasoning effort' "$effort"; kv 'reasoning summaries' none; kv 'session id' "$4"
 	echo --------
 }
-hm=$model ha=never hs=read-only hid=$sid
+# The sandbox line as Codex 0.163.0 builds it from the argv
+# [feature-external-developer/findings.md F2]: workdir always, /tmp and
+# $TMPDIR unless excluded, then the network suffix.
+hs=read-only
+if [ "$ww" = 1 ]; then
+	hs='workspace-write [workdir'
+	[ "$xslash" = 1 ] || hs+=', /tmp'
+	[ "$xtmp" = 1 ] || hs+=', $TMPDIR'
+	hs+=']'
+	[ "$wnet" = 1 ] && hs+=' (network access enabled)'
+fi
+hm=$model ha=never hid=$sid
 case $scen in
 	ro-net) hs='read-only (network access enabled)' ;;
 	ro-appr) ha=on-request ;;
+	# Headers a developer must not accept, and one a general agent must not (E73).
+	ww-tmp) hs='workspace-write [workdir, /tmp, $TMPDIR]' ;;
+	ww-net) hs='workspace-write [workdir] (network access enabled)' ;;
+	ww-full) hs=danger-full-access ;;
+	ww-plain) hs='workspace-write [workdir]' ;;
+	ro-forced) hs=read-only ;;
 	badmodel) hm='a;b' ;;
 	badsess) hid=not-a-uuid ;;
 	newsess) if [ "$resume" = 1 ]; then hid=$(new); mkdir -p "$cxh/sessions/$hid"; fi ;;
@@ -249,7 +272,37 @@ fi
 { echo user; printf '%s\n' "$in"; } >&2
 case $scen in
 	ok) echo 'exec bash -lc ls' >&2; echo 'thinking: pondering the task' >&2; echo "hello from turn $n of $sid" ;;
-	turns|ro-net|ro-appr|badmodel|badsess|newsess) echo "turn=$n session=$hid" ;;
+	turns|ro-net|ro-appr|badmodel|badsess|newsess|ww-tmp|ww-net|ww-full|ww-plain|ro-forced) echo "turn=$n session=$hid" ;;
+	# A developer's edits, in the repository it runs in (E74): an append to the
+	# file modified before the turn, an edit of a clean file, a deletion, a new
+	# file with a space, one with a newline in its name, and an untracked link
+	# to /dev/zero, which the change report must not open; a modified file put
+	# back as committed, a file in a new directory, a chmod of an untracked
+	# file, an untracked link pointed elsewhere, and an untracked file deleted.
+	dev-edit)
+		echo more >>m.txt; echo edited >c1.txt; rm c2.txt; echo n >'new file'; echo n >$'nl\nname'; ln -s /dev/zero zlink
+		printf 'r\n' >r.txt; mkdir d; echo f >d/f; chmod +x x.sh; ln -sfn b zl2; rm u.txt
+		echo edited ;;
+	# Changes to .git (E75), with none of the user's git settings.
+	dev-commit) GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_NOSYSTEM=1 git -c user.name=t -c user.email=t@t.invalid commit --allow-empty -qm t; echo committed ;;
+	dev-hook) mkdir -p .git/hooks; printf '#!/bin/sh\n' >.git/hooks/pre-commit; echo hooked ;;
+	dev-config) GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_NOSYSTEM=1 git config stub.key 1; echo configured ;;
+	# To a branch that exists, at the same commit: only HEAD's branch changes.
+	dev-switch) GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_NOSYSTEM=1 git checkout -q other; echo switched ;;
+	dev-info) mkdir -p .git/info; echo 'x' >>.git/info/exclude; echo excluded ;;
+	# What the report must neither run nor miss (E78-E82): a touch that makes
+	# a tracked file racily clean, a new repository, a hook in an ignored
+	# core.hooksPath directory, an ignored config file the repository's config
+	# includes, a sparse file larger than any hash should read, and a turn
+	# after which the change report's git hangs.
+	dev-touch) touch a.txt; echo touched ;;
+	dev-nest) GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_NOSYSTEM=1 git init -q nest; echo nested ;;
+	dev-hookspath) printf '#!/bin/sh\n' >.husky/pre-commit; echo hooked ;;
+	dev-include) printf '[core]\n\tfsmonitor = x\n' >.inc; echo included ;;
+	dev-big) truncate -s 64G big; echo big ;;
+	# A .gitignore that hides itself and what is made beside it (E84).
+	dev-ignore) mkdir -p pkg/zz; printf '*\n' >pkg/zz/.gitignore; echo n >pkg/zz/new.txt; echo ignored ;;
+	dev-slow) touch "$cxh/slow-git"; echo slow ;;
 	argv) printf '%s\n' "$0" "$@"; echo "cwd=$PWD" ;;
 	env)
 		echo "env=$(env | cut -d= -f1 | command grep -vxE 'PWD|SHLVL|_' | sort | paste -sd' ' -)"
@@ -610,14 +663,14 @@ start ok --timeout x; u '--timeout must be a positive number of seconds'
 for z in 0 00 000; do start ok --timeout "$z"; u '--timeout must be a positive number of seconds'; done
 start ok --timeout 12345678; u '--timeout must have at most 7 digits'
 [ "$(wc -l <<<"$ERR")" = 1 ] || ok=0
-w -- start --backend opencode --model opencode-go/kimi-k3 --cli "$CLI" --brief "$(brief ok)" --repo "$R" --role developer; u '--role must be general or reviewer'
+w -- start --backend opencode --model opencode-go/kimi-k3 --cli "$CLI" --brief "$(brief ok)" --repo "$R" --role writer; u '--role must be general, reviewer or developer'
 w TMPDIR= -- start --backend opencode --model opencode-go/kimi-k3 --cli "$CLI" --brief "$(brief ok)" --repo "$R"; u 'TMPDIR must name an existing directory'
 w -- send ../../etc --message "$(brief ok)"; u 'not an agent id: ../../etc'
 w -- stop 'ea-0123'; u 'not an agent id: ea-0123'
 w -- frobnicate; u 'usage: external-agent.sh start|send|list|stop|check'
 w -- start --backend opencode --model opencode-go/kimi-k3 --cli "$CLI" --brief "$(brief ok)" --repo "$R" --label "$(printf 'a\tb')"; u '--label must be 1-80 printable ASCII characters'
 [ "$ok" = 1 ] && [ "$(agents)" = 0 ] && OK=1
-t E27 "usage errors (2), each with its own message: a bad timeout, a zero timeout however written, a timeout of more than 7 digits, a role that is not read-only, no TMPDIR, an id that is not one, an unknown command, a label with a tab"
+t E27 "usage errors (2), each with its own message: a bad timeout, a zero timeout however written, a timeout of more than 7 digits, a role that is not general, reviewer or developer, no TMPDIR, an id that is not one, an unknown command, a label with a tab"
 
 w -- start --backend nosuch --model x --cli "$CLI" --brief "$(brief ok)" --repo "$R"
 [ "$RC" = 3 ] && said 'UNKNOWN BACKEND' && said '(known: codex, opencode)' && [ "$(agents)" = 0 ] && OK=1
@@ -673,7 +726,7 @@ files=$(find "$W/plugin/skills/external-agents/profiles" -maxdepth 1 -name '*.md
 [ -n "$named" ] && [ "$named" = "$files" ] && OK=1
 t E35 "every profile file is named by an allowlist line, and every named profile exists"
 
-# E37-E71 were added after E36 was written, and run before it: E36 checks
+# E37-E84 were added after E36 was written, and run before it: E36 checks
 # what every case left behind, so it stays last.
 
 # A start whose first turn is running: a send is busy, and stop ends the start.
@@ -1112,6 +1165,268 @@ csend "$A" slow; r1=$RC
 [ "$k1" = 1 ] && [ "$r1" = 0 ] && has 'turn=' && command grep -qF ' · turn: 2 · ' <<<"$OUT" && OK=1
 t E71 "a Codex send is not failed by the output of a turn whose script was SIGKILLed, from a process no sweep reaches"
 stop_all
+
+# --- the Codex developer: each case on a throwaway repository of its own ----
+# None of them runs in $R, whose hostile config the developer's change report
+# must not meet (E78 has a repository of its own for that), and whose bytes
+# E36 checks.
+drepo() { git init -q -b main "$1" && printf 'a\n' >"$1/a.txt" && git -C "$1" add -A && git -C "$1" -c user.name=t -c user.email=t@t commit -qm init; } # drepo <dir>
+
+# Items 2-5 of a developer's argv: E51's, with the workspace-write keys in
+# place of sandbox_mode="read-only".
+xw=()
+for a in "${xc[@]}"; do
+	if [ "$a" = 'sandbox_mode="read-only"' ]; then
+		xw+=('sandbox_mode="workspace-write"' -c 'sandbox_workspace_write.network_access=false' \
+			-c 'sandbox_workspace_write.exclude_tmpdir_env_var=true' -c 'sandbox_workspace_write.exclude_slash_tmp=true')
+	else xw+=("$a"); fi
+done
+xmw() { printf '%s\n' "${xw[@]}" -c "shell_environment_policy.set.GLAB_EXTERNAL_AGENT=\"$1\"" "${xd[@]}"; }
+D=$W/dev-argv; drepo "$D"
+CR=$D cstart argv --role developer; A=$ID r1=$RC a1=$(reply); sid=$(jq -r .session "$STATE/$A/agent.json" 2>/dev/null)
+csend "$A" argv; r2=$RC a2=$(reply)
+w -- list; l1=$OUT
+want1=$(printf '%s\n' "$CLI_CX" exec --color never; xmw "$A"; printf '%s\n' - "cwd=$D")
+want2=$(printf '%s\n' "$CLI_CX" exec resume; xmw "$A"; printf '%s\n' "$sid" - "cwd=$D")
+[ "$r1" = 0 ] && [ "$a1" = "$want1" ] && [ "$r2" = 0 ] && [ "$a2" = "$want2" ] \
+	&& command grep -qE "^$A  idle  codex:stub-a  role=developer  turns=2  " <<<"$l1" && OK=1
+t E72 "a Codex developer's turns get workspace-write with network off and /tmp and \$TMPDIR excluded in place of read-only, everything else as in E51, on start and on send; list shows role=developer"
+stop_all
+
+D=$W/dev-verify; drepo "$D"
+ok=1
+CR=$D cstart turns --role developer
+{ [ "$RC" = 0 ] && [ "$(sed -n '2,4p' <<<"$OUT")" = "$(printf '%s\n' 'changed: none' 'git: unchanged' reply:)" ] && has 'turn=1 session='; } \
+	|| { ok=0; echo "   E73 workspace-write [workdir]: rc=$RC err=[$ERR]"; }
+stop_all
+for sc in ww-tmp ww-net ww-full ro-forced ro-appr; do
+	CR=$D cstart "$sc" --role developer; A=$ID
+	{ [ "$RC" = 12 ] && said "NOT READ-ONLY: codex reported sandbox" && said "where 'workspace-write [workdir]' and 'never' were asked; its reply is withheld" \
+		&& ! command grep -qx 'reply:' <<<"$OUT" && ! command grep -q '^| ' <<<"$OUT" && [[ $(head -n 1 <<<"$OUT") == "agent: $A · model: codex:stub-a · "* ]] \
+		&& [ "$(sed -n '2,3p' <<<"$OUT")" = "$(printf '%s\n' 'changed: none' 'git: unchanged')" ] && [ "$(tail -n 1 <<<"$OUT")" = "end: $A" ] && [ -d "$STATE/$A" ]; } \
+		|| { ok=0; echo "   E73 $sc: rc=$RC err=[$ERR]"; }
+	stop_all
+done
+CR=$D cstart ww-plain; A=$ID
+{ [ "$RC" = 12 ] && said "where 'read-only' and 'never' were asked" && ! command grep -q '^| ' <<<"$OUT" && ! command grep -qE '^(changed|git): ' <<<"$OUT" \
+	&& [ "$(tail -n 1 <<<"$OUT")" = "end: $A" ]; } || { ok=0; echo "   E73 general ww-plain: rc=$RC err=[$ERR]"; }
+stop_all
+[ "$ok" = 1 ] && OK=1
+t E73 "a developer is accepted with workspace-write [workdir] and never only: /tmp or \$TMPDIR writable, network, full access, read-only or an approval policy is 12 with the wanted sandbox named, the reply withheld, the change report printed and the agent kept; a general agent reporting workspace-write is 12 too"
+
+D=$W/dev-edit; git init -q -b main "$D"
+for f in m c1 c2 c3 r; do printf '%s\n' "$f" >"$D/$f.txt"; done
+git -C "$D" add -A; git -C "$D" -c user.name=t -c user.email=t@t commit -qm init
+# Before the turn: two tracked files already modified, three untracked files
+# and an untracked link; v.txt is left alone.
+printf 'pre\n' >>"$D/m.txt"; printf 'pre\n' >>"$D/r.txt"; printf 'u\n' >"$D/u.txt"; printf 'v\n' >"$D/v.txt"; printf 'x\n' >"$D/x.sh"; ln -s a "$D/zl2"
+s=$SECONDS; CR=$D cstart dev-edit --role developer; A=$ID r1=$RC o1=$OUT e=$((SECONDS - s))
+# The paths as printf %q prints them, in byte order.
+want=$(cat <<'EOF'
+changed: ?? $'nl\nname'
+changed:  M c1.txt
+changed:  D c2.txt
+changed: ?? d/f
+changed:  M m.txt
+changed: ?? new\ file
+changed: -- r.txt
+changed: -- u.txt
+changed: ?? x.sh
+changed: ?? zl2
+changed: ?? zlink
+git: unchanged
+reply:
+| edited
+EOF
+)
+# The known positive: the stub did make each change.
+k1=0; [ -L "$D/zlink" ] && [ ! -e "$D/c2.txt" ] && [ -f "$D/new file" ] && [ -f "$D/nl"$'\n'"name" ] && [ "$(tail -n 1 "$D/m.txt")" = more ] \
+	&& [ "$(cat "$D/r.txt")" = r ] && [ -f "$D/d/f" ] && [ -x "$D/x.sh" ] && [ "$(readlink "$D/zl2")" = b ] && [ ! -e "$D/u.txt" ] && k1=1
+CR=$D csend "$A" turns; r2=$RC o2=$OUT
+stop_all
+CR=$D cstart turns; r3=$RC o3=$OUT
+[ "$k1" = 1 ] && [ "$r1" = 0 ] && [ "$e" -lt 20 ] && [ "$(sed -n '2,$p' <<<"$o1" | head -n -1)" = "$want" ] && [ "$(tail -n 1 <<<"$o1")" = "end: $A" ] \
+	&& [ "$r2" = 0 ] && [ "$(sed -n '2,3p' <<<"$o2")" = "$(printf '%s\n' 'changed: none' 'git: unchanged')" ] \
+	&& [ "$r3" = 0 ] && ! command grep -qE '^(changed|git): ' <<<"$o3" && OK=1
+t E74 "a developer's turn lists each path whose index entry, type, mode or content changed, once, escaped and sorted: a further edit to a modified file, a file put back as committed or an untracked file deleted (--), a file in a new directory, a chmod, a link pointed elsewhere; not an untouched untracked file; a link is not opened; a turn that changes nothing says none; a general agent prints no report"
+stop_all
+
+ok=1
+for sc in dev-commit dev-hook dev-config dev-switch dev-info; do
+	D=$W/$sc; drepo "$D"
+	[ "$sc" = dev-switch ] && git -C "$D" branch other
+	CR=$D cstart "$sc" --role developer
+	case $sc in
+		dev-commit) k1=$(git -C "$D" rev-list --count HEAD) kw=2 ;;
+		dev-hook) k1=$(test -f "$D/.git/hooks/pre-commit" && echo yes) kw=yes ;;
+		dev-config) k1=$(git -C "$D" config stub.key) kw=1 ;;
+		dev-switch) k1=$(git -C "$D" symbolic-ref --short HEAD) kw=other ;;
+		dev-info) k1=$(tail -n 1 "$D/.git/info/exclude") kw=x ;;
+	esac
+	{ [ "$k1" = "$kw" ] && [ "$RC" = 0 ] && [ "$(sed -n '2,4p' <<<"$OUT")" = "$(printf '%s\n' 'changed: none' 'git: changed' reply:)" ] \
+		&& [ -n "$(reply)" ] && [ "$(tail -n 1 <<<"$OUT")" = "end: $ID" ]; } || { ok=0; echo "   E75 $sc: k1=$k1 rc=$RC err=[$ERR]"; }
+	stop_all
+done
+[ "$ok" = 1 ] && OK=1
+t E75 "a developer's commit, new hook, new config key, switch to an existing branch at the same commit, or info/exclude line prints git: changed, with exit 0 and the reply"
+
+w -- start --backend opencode --model opencode-go/kimi-k3 --cli "$CLI" --brief "$(brief ok)" --repo "$R" --role developer
+[ "$RC" = 2 ] && said 'USAGE: --role developer is taken by the codex backend only' && [ "$(wc -l <<<"$ERR")" = 1 ] && [ -z "$OUT" ] && [ "$(agents)" = 0 ] && OK=1
+t E76 "an OpenCode developer is refused (2) before anything is created"
+
+D=$W/dev-prompt; drepo "$D"
+dt=('# Your final message' '' 'Two things in your contract work differently here:' '' \
+	'- Do not write plan/<slug>/result.md. The manager writes it from your' \
+	"  final message, so your final message is that file's content, under its" \
+	"  headings, followed by your contract's Report block and its verdict line." \
+	'- Run the gates your contract names if your sandbox lets them run. A gate' \
+	'  that fails because a command cannot write outside the repository, or' \
+	'  cannot start a sandbox of its own, is not red: write "not run here:"' \
+	'  and its error line. The manager runs every gate itself after your turn.' '' \
+	'Your changes stay in the working tree. After each turn the script lists' \
+	'every path you changed, from git, for the manager.')
+order=('You are an external developer in the glab workflow. A manager has started' '# Where you are working' \
+	"- You are working in the repository at $D itself: the user's real" \
+	"  working tree, its history and its ignored files, not a copy. Codex runs" \
+	'  you in its workspace-write sandbox: your commands can change files in' \
+	"  $D, and nowhere else, /tmp and \$TMPDIR included. A command that needs" \
+	"  a scratch directory or a cache outside $D fails; do not make one" \
+	"  inside $D instead." \
+	"- $D/.git is not yours: never commit, stage, stash, switch branches," \
+	'  or change a ref, the git config or a hook. The script compares them' \
+	'  after every turn, and a change there stops the work.' \
+	'- Your commands can also read files outside the repository. Read nothing' \
+	"  outside $D unless your task names it: what you read is sent to the" \
+	"  model's provider." \
+	'- Your commands have no network. You have no web tool: do not try to fetch' \
+	'  pages.' \
+	"- Read $D/AGENTS.md before anything else: it is the repository's" \
+	"  working agreement. If there is none, read $D/CLAUDE.md and say in" \
+	'  your answer that the repository has no working agreement.' \
+	'# Your role contract' "$(command grep -m1 -F 'You build what a plan says' "$W/plugin/agents/developer.md")" '# The skills you carry' \
+	"$(command grep -m1 -F 'Two halves. The first is how you prove a claim' "$W/plugin/skills/security/SKILL.md")" \
+	"$(command grep -m1 -F 'Two halves. Write the comments that carry knowledge' "$W/plugin/skills/comments/SKILL.md")" \
+	'# Your dispatch' 'STUB: prompt' '# Before you answer' 'Before you answer, check your work against the rules above:')
+for l in "${dt[@]}"; do [ -n "$l" ] && order+=("$l"); done
+CR=$D cstart prompt --role developer; A=$ID r1=$RC txt=$(reply)
+ok=1 at=0
+for l in "${order[@]}"; do
+	k=$(command grep -n -x -F -- "$l" <<<"$txt" | cut -d: -f1 | awk -v a="$at" '$1 > a {print; exit}')
+	[ -n "$k" ] || { ok=0; echo "   E77: missing, or out of order: [$l]"; break; }; at=$k
+done
+[ "$(tail -n "${#dt[@]}" <<<"$txt")" = "$(printf '%s\n' "${dt[@]}")" ] || { ok=0; echo "   E77: the first message does not end with the developer tail"; }
+for m in 'you cannot change any file' 'between these two lines exactly' 'never to change anything' 'You are an external agent in the glab workflow.'; do
+	command grep -qF -- "$m" <<<"$txt" && { ok=0; echo "   E77: holds [$m]"; }; done
+CR=$D csend "$A" prompt; r2=$RC t2=$(reply)
+[ "$(tail -n "${#dt[@]}" <<<"$t2")" = "$(printf '%s\n' "${dt[@]}")" ] && [ "$(head -n 2 <<<"$t2" | tail -n 1)" = 'STUB: prompt' ] || { ok=0; echo "   E77: the send message"; }
+stop_all
+CR=$D cstart prompt; r3=$RC t3=$(reply)
+{ command grep -qF 'never to change anything' <<<"$t3" && ! command grep -qF 'You are an external developer in the glab workflow.' <<<"$t3"; } || { ok=0; echo "   E77: the general agent's profile"; }
+[ "$r1" = 0 ] && [ "$r2" = 0 ] && [ "$r3" = 0 ] && [ "$ok" = 1 ] && OK=1
+t E77 "a developer's first message holds the default profile's developer section, the developer host text with the repository top, its contract, both skills, the brief, the self-check and the developer tail, in order, and nothing of the read-only text, the reviewer's tail or Before the contract; its send ends with the tail; a general agent still gets Before the contract"
+stop_all
+
+# --- what the change report must not run, and must not miss [review-r1.md] --
+# X1: a racily clean entry makes git status run the repository's clean filter;
+# the report must run none of the repository's filters, fsmonitor or hooks.
+# The programs are set only after this test's own git work in the repository.
+# shellcheck disable=SC2016
+printf '#!/bin/sh\necho "$0 $*" >>"%s/dev-ran"\nexit 1\n' "$W" >"$W/bin/dev-hostile"; chmod +x "$W/bin/dev-hostile"
+D=$W/dev-filter; drepo "$D"
+printf '* filter=devil\n' >"$D/.gitattributes"; git -C "$D" add .gitattributes; git -C "$D" -c user.name=t -c user.email=t@t commit -qm attrs
+for k in core.fsmonitor filter.devil.clean filter.devil.smudge; do git -C "$D" config "$k" "$W/bin/dev-hostile"; done
+git -C "$D" config filter.devil.required true
+CR=$D cstart dev-touch --role developer; r1=$RC o1=$OUT
+ran=0; [ -e "$W/dev-ran" ] && ran=1
+stop_all
+# The known positive: a plain git status in the same repository runs it.
+(cd "$D" && git status --short >/dev/null 2>&1); k1=0; [ -e "$W/dev-ran" ] && k1=1; rm -f "$W/dev-ran"
+[ "$k1" = 1 ] && [ "$ran" = 0 ] && [ "$r1" = 0 ] && [ "$(sed -n '2,3p' <<<"$o1")" = "$(printf '%s\n' 'changed: none' 'git: unchanged')" ] && OK=1
+t E78 "a developer's change report runs none of the repository's filters or fsmonitor, where git status would, and a touch alone is no change"
+
+# X2: a .git below the top other than the top's own.
+D=$W/dev-sub; drepo "$D"; git init -q "$D/sub"
+CR=$D cstart turns --role developer; r1=$RC e1=$ERR a1=$(agents)
+D=$W/dev-gitfile; drepo "$D"; mkdir "$D/g"; printf 'gitdir: /nonexistent\n' >"$D/g/.git"
+CR=$D cstart turns --role developer; r2=$RC e2=$ERR a2=$(agents)
+D=$W/dev-nest; drepo "$D"
+CR=$D cstart dev-nest --role developer; A=$ID r3=$RC o3=$OUT
+CR=$D csend "$A" turns; r4=$RC e4=$ERR
+stop_all
+[ "$r1" = 2 ] && command grep -qF "USAGE: $W/dev-sub holds another repository's .git at sub/.git" <<<"$e1" && [ "$a1" = 0 ] \
+	&& [ "$r2" = 2 ] && command grep -qF "holds another repository's .git at g/.git" <<<"$e2" && [ "$a2" = 0 ] \
+	&& [ -d "$D/nest/.git" ] && [ "$r3" = 0 ] && command grep -qx 'git: changed' <<<"$o3" \
+	&& [ "$r4" = 4 ] && command grep -qF "UNAVAILABLE: $D holds another repository's .git at nest/.git" <<<"$e4" && OK=1
+t E79 "a developer is refused (2) where the work tree holds another .git, a directory or a gitfile, and nothing is created; one made in a turn is git: changed, and the next send is refused (4)"
+
+# X3: core.hooksPath in an ignored work-tree directory, as husky's, and an
+# ignored file the repository's config includes.
+D=$W/dev-hookspath; drepo "$D"; printf '.husky/\n.inc\n' >"$D/.gitignore"
+git -C "$D" add .gitignore; git -C "$D" -c user.name=t -c user.email=t@t commit -qm ignore
+mkdir "$D/.husky"; printf 'x\n' >"$D/.husky/x"
+git -C "$D" config core.hooksPath .husky; git -C "$D" config include.path ../.inc
+CR=$D cstart dev-hookspath --role developer; r1=$RC o1=$OUT; stop_all
+CR=$D cstart dev-include --role developer; r2=$RC o2=$OUT; stop_all
+k1=0; [ -f "$D/.husky/pre-commit" ] && [ "$(git -C "$D" config core.fsmonitor)" = x ] && k1=1
+[ "$k1" = 1 ] && [ "$r1" = 0 ] && [ "$(sed -n '2,3p' <<<"$o1")" = "$(printf '%s\n' 'changed: none' 'git: changed')" ] \
+	&& [ "$r2" = 0 ] && [ "$(sed -n '2,3p' <<<"$o2")" = "$(printf '%s\n' 'changed: !! .inc' 'git: changed')" ] && OK=1
+t E80 "a new hook in an ignored core.hooksPath directory, and a setting in an ignored file the config includes, are git: changed; the new ignored file is listed by name"
+
+# X4: the state root inside the repository, at start, and before a later turn
+# once the state has been moved inside it (TMPDIR is a link, re-pointed).
+D=$W/dev-tmpin; drepo "$D"; mkdir "$D/t"
+w CODEX_HOME="$CXH" TMPDIR="$D/t" -- start --backend codex --role developer --cli "$CLI_CX" --brief "$(brief turns)" --repo "$D"
+r1=$RC e1=$ERR a1=$(find "$D/t/glab-external-agents" -mindepth 1 2>/dev/null | wc -l)
+mkdir "$W/tx-real"; ln -s "$W/tx-real" "$W/tx"
+D=$W/dev-tmpmove; drepo "$D"
+w CODEX_HOME="$CXH" TMPDIR="$W/tx" -- start --backend codex --role developer --cli "$CLI_CX" --brief "$(brief turns)" --repo "$D"; r2=$RC A=$ID
+mv "$W/tx-real" "$D/inner"; ln -sfn "$D/inner" "$W/tx"
+w CODEX_HOME="$CXH" TMPDIR="$W/tx" -- send "$A" --message "$(brief turns)"; r3=$RC e3=$ERR
+w TMPDIR="$W/tx" -- stop "$A"; o4=$OUT
+[ "$r1" = 2 ] && command grep -qF "USAGE: the state root $W/dev-tmpin/t/glab-external-agents is inside $W/dev-tmpin" <<<"$e1" && [ "$a1" = 0 ] \
+	&& [ "$r2" = 0 ] && [ -n "$A" ] && [ "$r3" = 4 ] && command grep -qF "UNAVAILABLE: the state root $D/inner/glab-external-agents is inside $D" <<<"$e3" \
+	&& [ "$o4" = "stopped: $A" ] && OK=1
+t E81 "a developer is refused where the state root is inside the repository: at start (2), with nothing created, and before a later turn (4)"
+
+# X5: a change report that cannot finish in time, and a sparse file larger
+# than any hash should read. The stand-in git hangs only once the turn has
+# made its flag, so the state before the turn is read as usual.
+real_git=$(command -v git)
+cat >"$W/bin/git" <<EOF
+#!/bin/sh
+case " \$* " in *" --stdin-paths "*) [ -e "$CXH/slow-git" ] && exec sleep 30 ;; esac
+exec "$real_git" "\$@"
+EOF
+chmod +x "$W/bin/git"
+D=$W/dev-slow; drepo "$D"
+s=$SECONDS; CR=$D cstart dev-slow --role developer --timeout 3; r1=$RC o1=$OUT e1=$((SECONDS - s))
+lp=$(leftovers); rm -f "$W/bin/git" "$CXH/slow-git"; stop_all
+D=$W/dev-big; drepo "$D"
+s=$SECONDS; CR=$D cstart dev-big --role developer --timeout 5; r2=$RC o2=$OUT e2=$((SECONDS - s)); stop_all
+[ "$r1" = 0 ] && [ "$(sed -n '2,4p' <<<"$o1")" = "$(printf '%s\n' 'changed: unreadable' 'git: changed' reply:)" ] && [ "$e1" -lt 20 ] && [ "$lp" = "$BASE_PROCS" ] \
+	&& [ "$(stat -c %s "$D/big")" = 68719476736 ] && [ "$r2" = 0 ] && [ "$(sed -n '2,3p' <<<"$o2")" = "$(printf '%s\n' 'changed: ?? big' 'git: unchanged')" ] && [ "$e2" -lt 20 ] && OK=1
+t E82 "a change report past its time limit is changed: unreadable and git: changed, within the limit, and leaves no process; a sparse 64 GiB file is reported by its size and times, not read"
+
+# R2-2: a find without -files0-from, as before findutils 4.9.
+real_find=$(command -v find)
+cat >"$W/bin/find" <<EOF
+#!/bin/sh
+case " \$* " in *" -files0-from "*) echo "find: unknown predicate '-files0-from'" >&2; exit 1 ;; esac
+exec "$real_find" "\$@"
+EOF
+chmod +x "$W/bin/find"
+D=$W/dev-oldfind; drepo "$D"
+CR=$D cstart turns --role developer; r1=$RC e1=$ERR a1=$(agents)
+rm -f "$W/bin/find"
+[ "$r1" = 4 ] && command grep -qF 'UNAVAILABLE: find does not take -files0-from' <<<"$e1" && [ "$a1" = 0 ] && OK=1
+t E83 "a find without -files0-from is unavailable (4) for a developer's start, before anything is created"
+
+# R2-3: what an agent-written .gitignore hides is listed by name.
+D=$W/dev-ignore; drepo "$D"
+CR=$D cstart dev-ignore --role developer; r1=$RC o1=$OUT; stop_all
+k1=0; [ -f "$D/pkg/zz/new.txt" ] && [ -z "$(git -C "$D" ls-files -o --exclude-standard)" ] && k1=1
+[ "$k1" = 1 ] && [ "$r1" = 0 ] && [ "$(sed -n '2,6p' <<<"$o1")" = "$(printf '%s\n' 'changed: !! pkg/' 'changed: !! pkg/zz/' 'changed: !! pkg/zz/.gitignore' 'changed: !! pkg/zz/new.txt' 'git: unchanged')" ] && OK=1
+t E84 "files a .gitignore written in the turn hides are listed as ignored (!!), not changed: none"
 
 [ "$FP" = "$(fingerprint)" ] && [ "$(agents)" = 0 ] && [ "$(leftovers)" = "$BASE_PROCS" ] && [ ! -e "$W/ran-on-host" ] && OK=1
 t E36 "after every case: the real repository is unchanged byte for byte, no agent is left, and no sandbox, slirp4netns, stub or Codex stub process runs"

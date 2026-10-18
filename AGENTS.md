@@ -159,8 +159,9 @@ repo and to nothing else.
   the hedged sentence about its override (the script comment, the
   `memory-sync:sync-memory` skill, `README.md`, and the
   `CLAUDE_CODE_SESSIONEND_HOOKS_TIMEOUT_MS` key in the plugin's settings
-  example); the manual model rule — the developer and reviewer only, and no
-  `model` parameter without the user's instruction (`glab:manager` Rule 5 and
+  example); the manual model rule — the developer and reviewer only (an
+  external one: the reviewer on either backend, the developer on Codex only),
+  and no `model` parameter without the user's instruction (`glab:manager` Rule 5 and
   its handoff-line format in `plugins/glab/skills/manager/SKILL.md`,
   `plugins/glab/commands/develop.md`, `plugins/glab/commands/review.md`,
   `plugins/glab/commands/ship.md`, and the same rule for external agents in
@@ -220,10 +221,27 @@ repo and to nothing else.
   show (`README.md`, pinned by its gate line above);
   the guarantees each backend has (the script's header, the skill,
   `README.md`, `glab:manager` Rule 6);
-  the Codex read-only check (the script, E54, the skill, `README.md`);
+  the Codex sandbox check — `read-only`, or
+  `workspace-write [workdir]` for a developer, with `approval: never`
+  (the script, E54, E73, the skill, `README.md`);
   the Codex effort rule (`glab:manager` Rules 5 and 6, the skill);
   the Codex data note (`README.md`, the skill);
-  the host first message (the script's `first_prompt`, E61).
+  the host first message (the script's `first_prompt`, E61), and the
+  developer's first message — its host text, its tail and the default
+  profile's *Developer, before the contract* section, which replaces
+  *Before the contract* for a developer (the script's
+  `first_prompt` and `developer_tail`,
+  `plugins/glab/skills/external-agents/profiles/default.md`, E77);
+  the external developer — Codex only, `--role developer`, its
+  sandbox keys (the script's header and `codex_argv`, E72, E76, the
+  skill, `glab:manager` Rules 5 and 6, `plugins/glab/commands/develop.md`,
+  `README.md`);
+  the developer's change report — the `changed:` and `git:` lines
+  (the script's header, E74, E75, E78-E84, the skill,
+  `plugins/glab/commands/develop.md`, `README.md`); a developer refused
+  where the state root is inside the repository or the work tree holds
+  another `.git`, 2 at start and 4 before a later turn (the script's header,
+  E79, E81, the skill, `README.md`, `glab:manager` Rule 5).
 - **Comments and recorded incidents are kept.** Update them when the thing
   they describe changes; do not delete them.
 - **Tests clean up by PID.** A test kills only processes it started itself,

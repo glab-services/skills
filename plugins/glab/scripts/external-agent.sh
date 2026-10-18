@@ -1,17 +1,19 @@
 #!/usr/bin/env bash
-# external-agent.sh — start, continue, list and stop read-only external agents
+# external-agent.sh — start, continue, list and stop external agents
 # on two backends: an OpenCode session on a model the user named, working on a
 # sandboxed read-only copy of a repository; or a Codex session on this host,
-# working in the repository itself under Codex's own read-only sandbox, on the
-# model the user named or Codex's default. The glab:external-agents skill is the
-# caller's manual, and tests/external-agent.test.sh pins every behaviour here.
+# working in the repository itself under Codex's own sandbox, read-only for
+# every role but a developer's, on the model the user named or Codex's default.
+# The glab:external-agents skill is the caller's manual, and
+# tests/external-agent.test.sh pins every behaviour here.
 #
 #   external-agent.sh start --backend <name> --model <id> --cli <path> --brief <file>
-#                           [--role general|reviewer] [--label <text>] [--repo <dir>]
-#                           [--timeout <seconds>] [--effort <level>]
+#                           [--role general|reviewer|developer] [--label <text>]
+#                           [--repo <dir>] [--timeout <seconds>] [--effort <level>]
 #                           --model is optional for codex, which then runs its
 #                           own default; --effort low|medium|high|xhigh|max|ultra
-#                           is taken by codex only
+#                           is taken by codex only; --role developer is taken by
+#                           codex only
 #   external-agent.sh send <agent id> --message <file> [--timeout <seconds>]
 #   external-agent.sh list
 #   external-agent.sh stop <agent id>
@@ -21,6 +23,21 @@
 #   agent: <id> · model: <backend>:<model> · turn: <n> · transcript: <file>
 #                   for codex, <model> is the model that ran, as its header
 #                   block named it; else the one asked for, else `default`
+#   changed: <code> <path>   developer only: one line per path whose entry
+#                   changed in the turn: a tracked or untracked-but-not-ignored
+#                   path by index entry, type, mode or content, an ignored one
+#                   by name only. The code is ?? untracked, !! ignored, " D"
+#                   tracked and missing; -- a tracked regular file of at most
+#                   16 MiB whose hash and executable bit match its one stage-0
+#                   index entry, or a path no longer listed; " M" every other
+#                   tracked path, each tracked symlink and each tracked file
+#                   above 16 MiB included, whatever it holds. The path as
+#                   printf %q. Or `changed: none`, or
+#                   `changed: unreadable` when the state after the turn could
+#                   not be read in time
+#   git: unchanged | git: changed   developer only: whether .git's HEAD, refs,
+#                   config (as read, includes too), hooks, info/, the
+#                   core.hooksPath directory, or any .git below the top changed
 #   reply:          (exit 0 only)
 #   | <one line of the model's reply per line, control characters removed>
 #   end: <id>       always the last line
@@ -32,6 +49,8 @@
 # exit    0 OK · 2 USAGE · 3 UNKNOWN BACKEND · 4 UNAVAILABLE · 5 MODEL REFUSED ·
 #         6 TIMEOUT · 7 BACKEND ERROR · 8 MALFORMED REPORT · 9 NO ISOLATED NETWORK ·
 #         10 UNKNOWN AGENT · 11 BUSY · 12 NOT READ-ONLY
+#         (12, for a developer: a sandbox other than the workspace-write one it
+#         asked for)
 #
 # State: $TMPDIR/glab-external-agents/<id>/ holds agent.json (written by this
 # script only), work/ (the copy), data/ (the backend's data directory: its
@@ -87,16 +106,40 @@
 #   ~/.codex; this script never reads, copies, exports or redacts a token, and
 #   never writes ~/.codex. Codex writes its own state there, as it does for the
 #   user.
-# - Codex's own read-only sandbox is the containment: its commands change no
-#   file, and have no IP network, and
-#   a connect to a Unix-domain socket by path was refused (measured offline
-#   with `codex sandbox`); datagram and abstract sockets not measured. Codex
-#   itself reaches OpenAI, and keeps the session, what the model read
-#   included, under ~/.codex. Every turn
-#   asks for sandbox_mode read-only and approval_policy never, and the header
-#   block Codex prints on stderr is read back: a block that names another
-#   sandbox or approval is exit 12 and the reply is withheld; a turn whose
-#   block is missing, or has no well-formed model or session id, is exit 7.
+# - Codex's own sandbox is the containment. For every role but a developer it
+#   is the read-only sandbox: its commands change no file, and have no IP
+#   network, and a connect to a Unix-domain socket by path was refused
+#   (measured offline with `codex sandbox`); datagram and abstract sockets not
+#   measured. For a developer it is workspace-write, with its network off and
+#   /tmp and $TMPDIR excluded, so its commands change files in the repository
+#   only. Measured offline with `codex sandbox` 0.163.0: a write outside the
+#   workdir, /tmp and $TMPDIR included, was refused; every write to .git was
+#   refused (config, a hook, commit, update-ref, add); a TCP socket and a
+#   connect to a Unix-domain socket by path were refused
+#   [feature-external-developer/integration.md M2, M3, M4]. Codex itself
+#   reaches OpenAI, and keeps the session, what the model read included,
+#   under ~/.codex. Every
+#   turn asks for that sandbox_mode and approval_policy never, and the header
+#   block Codex prints on stderr is read back: it must name sandbox
+#   `read-only`, or `workspace-write [workdir]` for a developer, and approval
+#   `never`. A block that names another sandbox or approval is exit 12 and the
+#   reply is withheld; a turn whose block is missing, or has no well-formed
+#   model or session id, is exit 7.
+# - A developer's turn is followed by a change report. Before and after it,
+#   dev_state records the index, the untracked files that are not ignored, and
+#   for each path its type, mode and content hash (size, times and inode above
+#   16 MiB), the names of the ignored entries, with a digest of HEAD, refs,
+#   the config, hooks/, info/, the
+#   core.hooksPath directory and every .git below the top; the `changed:` and
+#   `git:` lines say what differs. It runs no git status, filter, fsmonitor or
+#   hook, and at most the turn's --timeout, 300 s at most. It reports a change
+#   once the turn is over and prevents none. It sees an ignored entry made or
+#   removed, by name, but not a write to an ignored file, other than in the
+#   core.hooksPath directory, nor a change
+#   that Codex itself, outside its command sandbox, makes to anything but the
+#   paths it lists and what it digests. A developer is refused (2 at start, 4
+#   before a later turn) when the state root under TMPDIR is in the
+#   repository, or when the work tree holds a .git other than the top's.
 # - Every turn ignores the user's config.toml and rules, which could turn the
 #   sandbox off or a tool on, and turns off web search, apps, plugins, hooks,
 #   memories, the browser and computer tools, image generation and
@@ -160,6 +203,13 @@ readonly NPROC=256
 # boundary, so no part of a line - of the key least of all - reaches the disk
 # unredacted, and the turn is exit 7. slirp4netns's log is cut at the same size.
 readonly OUT_BYTES=16777216
+# 16 MiB: the largest file a developer's change report hashes. A larger one is
+# compared by its size, times and inode instead: a hash reads the whole file,
+# and a sparse one can claim any size [feature-external-developer/review-r1.md X5].
+readonly DEV_HASH_BYTES=16777216
+# 300 s: the longest a change report may take, or the turn's --timeout when
+# that is shorter. Past it the report is `changed: unreadable`, `git: changed`.
+readonly DEV_STATE_S=300
 # Never routed from the sandbox: this-network, RFC 1918, CGNAT, link-local,
 # IETF and documentation ranges, benchmarking, multicast and reserved. The
 # slirp4netns network 10.0.2.0/24 is more specific than 10.0.0.0/8 and stays
@@ -177,7 +227,7 @@ die() { # die <exit code> <CODE> <reason>
 }
 
 # --- state of this invocation, for cleanup -------------------------------------
-adir='' run='' started_ok=1 child='' holder='' slirp='' sandbox_pid='' gfd='' xfd='' authd='' cmark='' host_turn=''
+adir='' run='' started_ok=1 dev_pid='' child='' holder='' slirp='' sandbox_pid='' gfd='' xfd='' authd='' cmark='' host_turn=''
 cleanup() {
   # A second HUP, INT or TERM while this runs would run `exit` inside the
   # trap and skip the rest: a helper left running, an unfinished start left
@@ -189,6 +239,8 @@ cleanup() {
   [ -n "$holder" ] && kill -KILL "$holder" 2>/dev/null
   [ -n "$slirp" ] && kill -TERM "$slirp" 2>/dev/null
   [ -n "$child" ] && kill -KILL "$child" 2>/dev/null
+  # A change report in progress: its whole group, as dev_snap ends it.
+  [ -n "$dev_pid" ] && kill -KILL -- -"$dev_pid" 2>/dev/null
   if [ -n "$sandbox_pid" ] && [ "$isolation" = host ]; then
     # A host turn's whole process group, as run_host ends every turn.
     kill -TERM -- -"$sandbox_pid" 2>/dev/null
@@ -289,6 +341,193 @@ redact_stream() { # redact_stream [<flag file>]
 hostgit() {
   GIT_CONFIG_NOSYSTEM=1 GIT_CONFIG_GLOBAL=/dev/null GIT_OPTIONAL_LOCKS=0 GIT_TERMINAL_PROMPT=0 \
     git -c core.fsmonitor=false -c core.untrackedCache=false -c core.hooksPath=/dev/null "$@"
+}
+# What a developer's turn can change, for dev_report to compare before and
+# after it. It runs no `git status`, and no git command that reads the work
+# tree through git: status runs the repository's clean filters for racily
+# clean entries, so a `touch` by the agent would run code it wrote, on the
+# host, outside any sandbox [feature-external-developer/review-r1.md X1].
+# What it reads instead: the index (ls-files -s), the untracked files that are
+# not ignored (ls-files -o), what find says of each of those paths without
+# opening it, the content hash of each regular file up to DEV_HASH_BYTES,
+# and the names of the ignored entries (ls-files -o -i --directory), since a
+# .gitignore the agent writes would hide what it makes [review-r2.md R2-3],
+# taken in one batch with --no-filters, which writes nothing and runs no
+# filter. --stdin-paths takes one path per line, so every path is C-quoted,
+# which it unquotes.
+# One line per path, sorted: `<path as %q> TAB <index entry, or -> TAB <kind>
+# TAB <code>`. The kind is `f <mode> <hash>`; above the cap `big <mode> <size>
+# <mtime> <ctime> <inode>`, because a hash reads the whole file and a sparse
+# one can claim any size [X5]; `link <target as %q>` for a symlink; `none` for
+# a path that does not exist; `<type> <mode>` for anything else. A symlink or
+# a special file is never opened: a link to a FIFO or /dev/zero would hang the
+# hash [findings.md F3]. The mode is in the kind, so a chmod is a change. An
+# ignored entry is `<path as %q> TAB - TAB ignored TAB !!`: by name, never
+# opened or listed inside, so a build directory costs one line. The code is
+# what dev_report prints: `??` untracked, `!!` ignored, ` D` tracked and
+# missing, `--` a tracked regular file of at most the cap whose hash and
+# executable bit match its one stage-0 index entry, ` M` every other tracked
+# path, each tracked symlink and file above the cap included. Then one line
+# `git TAB <sha256>` over dev_git.
+# It runs under dev_snap, in the top, and fails, having printed part of its
+# lines, when git cannot read the repository.
+dev_state() { # dev_state <top>
+  local ents=() e p y m s rest k c h i gm d cdir qs=() hs=() paths=() ign=()
+  local -A ix=() kind=()
+  cd -- "$1" || return 1
+  mapfile -d '' -t ents < <(hostgit ls-files -s -z); wait "$!" || return 1
+  # "<mode> <hash> <stage>" per index entry; a conflicted path has several.
+  for e in "${ents[@]}"; do p=${e#*$'\t'}; ix[$p]+=${ix[$p]:+,}${e%%$'\t'*}; done
+  mapfile -d '' -t ign < <(hostgit ls-files -z -o -i --exclude-standard --directory); wait "$!" || return 1
+  mapfile -d '' -t ents < <(hostgit ls-files -o -z --exclude-standard); wait "$!" || return 1
+  paths=("${!ix[@]}" "${ents[@]}")
+  ents=()
+  # find names a missing path on stderr and exits 1: that path is `none`.
+  # -files0-from gives find its paths, so it has no path argument (SC2185).
+  # shellcheck disable=SC2185
+  [ ${#paths[@]} -eq 0 ] || mapfile -d '' -t ents < <(printf '%s\0' "${paths[@]}" \
+    | find -files0-from - -maxdepth 0 -printf '%p\0%y %m %s %T@ %C@ %i\0%l\0' 2>/dev/null)
+  for ((i = 0; i + 2 < ${#ents[@]}; i += 3)); do
+    p=${ents[i]}; read -r y m s rest <<<"${ents[i + 1]}"
+    case $y in
+      f) if [ "$s" -le "$DEV_HASH_BYTES" ]; then kind[$p]="f $m"; qs+=("$p"); else kind[$p]="big $m $s $rest"; fi ;;
+      l) kind[$p]="link $(printf '%q' "${ents[i + 2]}")" ;;
+      *) kind[$p]="$y $m" ;;
+    esac
+  done
+  if [ ${#qs[@]} -gt 0 ]; then
+    mapfile -t hs < <(for p in "${qs[@]}"; do
+        p=${p//\\/\\\\}; p=${p//\"/\\\"}; p=${p//$'\n'/\\n}; p=${p//$'\r'/\\r}; printf '"%s"\n' "$p"
+      done | hostgit hash-object --no-filters --stdin-paths)
+    wait "$!" || return 1
+    [ ${#hs[@]} -eq ${#qs[@]} ] || return 1
+    for i in "${!qs[@]}"; do kind[${qs[i]}]+=" ${hs[i]}"; done
+  fi
+  { for p in "${paths[@]}"; do
+    k=${kind[$p]:-none} e=${ix[$p]:-}
+    if [ -z "$e" ]; then c='??'
+    elif [ "$k" = none ]; then c=' D'
+    else
+      c=' M'
+      # As the index has it: one stage-0 entry, the same hash, and the
+      # executable bit git records (100755 when the owner may execute).
+      case $k in f\ *)
+        read -r _ m h <<<"$k"
+        if (( 8#$m & 8#100 )); then gm=100755; else gm=100644; fi
+        [ "$e" = "$gm $h 0" ] && c=-- ;;
+      esac
+    fi
+    printf '%q\t%s\t%s\t%s\n' "$p" "${e:--}" "$k" "$c"
+  done; for p in "${ign[@]}"; do printf '%q\t-\tignored\t!!\n' "$p"; done; } | sort || return 1
+  # The common dir, not --git-path hooks: hostgit sets core.hooksPath=/dev/null.
+  cdir=$(hostgit rev-parse --path-format=absolute --git-common-dir) || return 1
+  d=$(dev_git "$1" "$cdir" | sha256sum) || return 1
+  printf 'git\t%s\n' "${d%% *}"
+}
+# What dev_state digests of .git, and of what git takes from outside it. An
+# exit that is a state, not a failure, is a fixed word: no commit yet, a
+# detached HEAD, no config, no hooks, info or core.hooksPath directory.
+# - HEAD, the branch it names and every ref;
+# - the config, as bytes and as git reads it, includes and the worktree
+#   config included and none of the user's: a core.hooksPath, core.fsmonitor
+#   or filter set in an included file the agent can write is a change too;
+# - hooks/, the core.hooksPath directory, relative to the top as git takes
+#   it (husky's is an ignored work-tree directory) [review-r1.md X3], and
+#   info/, whose exclude and attributes change what git reads [T5]: each
+#   entry by type, mode, size, times, inode and link target, never opened;
+# - every .git below the top other than the top's own: a repository or a
+#   submodule the agent made, which the paths above cannot see into [X2].
+dev_git() { # dev_git <top> <common dir>
+  local r=0 hp
+  hostgit -C "$1" rev-parse -q --verify HEAD || r=$?
+  case $r in 0) ;; 1) echo 'head: none' ;; *) return 1 ;; esac
+  r=0; hostgit -C "$1" symbolic-ref -q HEAD || r=$?
+  case $r in 0) ;; 1) echo 'symref: none' ;; *) return 1 ;; esac
+  hostgit -C "$1" for-each-ref --format='%(objectname) %(refname)' || return 1
+  if [ -e "$2/config" ]; then cat -- "$2/config" || return 1; else echo 'config: none'; fi
+  # Plain git, not hostgit, whose -c would set core.hooksPath itself.
+  GIT_CONFIG_NOSYSTEM=1 GIT_CONFIG_GLOBAL=/dev/null git -C "$1" config --includes --list -z 2>/dev/null || echo 'config list: none'
+  hp=$(GIT_CONFIG_NOSYSTEM=1 GIT_CONFIG_GLOBAL=/dev/null git -C "$1" config --includes --type=path --get core.hooksPath 2>/dev/null) || hp=''
+  case $hp in ''|/*) ;; *) hp=$1/$hp ;; esac
+  dev_tree hooks "$2/hooks" || return 1
+  dev_tree info "$2/info" || return 1
+  if [ -n "$hp" ]; then dev_tree hookspath "$hp" || return 1; fi
+  echo 'nested:'
+  (cd -- "$1" && find . -mindepth 1 \( -path ./.git -prune \) -o \( -name .git -printf '%P\0' -prune \)) | sort -z || return 1
+}
+# Every entry of <dir>, the directory itself included, by type, mode, size,
+# times, inode, path and link target, sorted: nothing is opened, and a write,
+# a chmod or a new entry changes its line. -H follows <dir> itself when it is
+# a link, as git does.
+dev_tree() { # dev_tree <label> <dir>
+  printf '%s:\n' "$1"
+  if [ ! -e "$2" ] && [ ! -L "$2" ]; then echo none; return 0; fi
+  find -H "$2" -printf '%y %m %s %T@ %C@ %i %P -> %l\0' | sort -z
+}
+# dev_state under a time limit, in a process group of its own, so that a
+# repository too large to read in time, or a file that reads forever, cannot
+# hold the turn, or a stop, past it [review-r1.md X5]. The limit is the turn's
+# --timeout, and at most DEV_STATE_S. The group is killed when it ends, and
+# cleanup kills it on a signal; it carries the agent's marker, so a stop or the
+# next send sweeps what a SIGKILLed script left of it.
+dev_snap() { # dev_snap <top> <file>
+  local r=0 lim=$DEV_STATE_S
+  if [ "$timeout_s" -lt "$lim" ]; then lim=$timeout_s; fi
+  (
+    exec {lk}>&-
+    export -f hostgit dev_state dev_git dev_tree
+    GLAB_EXTERNAL_AGENT=$(meta id)
+    export DEV_HASH_BYTES GLAB_EXTERNAL_AGENT
+    # The $1 is the inner bash's own argument (SC2016).
+    # shellcheck disable=SC2016
+    exec setsid timeout --kill-after=5 "$lim" bash -c 'set -u -o pipefail; dev_state "$1"' bash "$1" >"$2" </dev/null
+  ) & dev_pid=$!
+  wait "$dev_pid" || r=$?
+  kill -KILL -- -"$dev_pid" 2>/dev/null; dev_pid=''
+  return "$r"
+}
+# The change report needs a find that takes -files0-from (GNU findutils 4.9
+# and later, or bfs): an older one fails on it, and the report would then see
+# no file of the work tree at all [review-r2.md R2-2]. It runs at a
+# developer's start only, not in check, so that no other role fails on an
+# older find [feature-external-developer/questions.md, review round 3].
+# -files0-from gives find its path, so it has no path argument (SC2185).
+# shellcheck disable=SC2185
+need_find() {
+  [ "$(printf '.\0' | find -files0-from - -maxdepth 0 -printf x 2>/dev/null)" = x ] \
+    || die 4 UNAVAILABLE "find does not take -files0-from (findutils 4.9 or later, or bfs); see the README's Requirements"
+}
+# A developer is not run where its report could not be trusted:
+# - with the state root at or below the top, the workspace-write root would
+#   cover this turn's state.before and stderr.txt, and every agent's
+#   agent.json, whose cli is run unsandboxed on the next send [X4];
+# - with a .git below the top other than the top's own: a repository or a
+#   submodule's git dir, whose files the report cannot see into and whose
+#   config git would run on the user's next command there [X1, X2].
+dev_refuse() { # dev_refuse <exit code> <CODE> <top>
+  local r t n
+  { r=$(realpath -e -- "$root") && t=$(realpath -e -- "$3"); } || die "$1" "$2" "cannot resolve $root or $3"
+  case $r/ in "${t%/}"/*) die "$1" "$2" "the state root $r is inside $t, where a developer's commands can write; set TMPDIR outside the repository" ;; esac
+  n=$(cd -- "$3" && timeout "$DEV_STATE_S" find . -mindepth 1 \( -path ./.git -prune \) -o \( -name .git -print -quit \)) \
+    || die "$1" "$2" "cannot search $3 for another repository's .git within $DEV_STATE_S s"
+  [ -z "$n" ] || die "$1" "$2" "$3 holds another repository's .git at $(printf '%s' "${n#./}" | head -c 80 | clean); a developer is not run there"
+}
+# The change report of a developer's turn: one `changed: <code> <path>` line
+# per path whose dev_state line differs, by path, the code as after the turn,
+# or -- for a path no longer listed; `changed: none` when there is none; then
+# whether the git digest is the same. An after-state that could not be read
+# is one line saying so, and `git: changed`.
+dev_report() { # dev_report <state before> <state after>
+  local c
+  if command grep -qx $'git\tunreadable' "$2"; then printf '%s\n' 'changed: unreadable' 'git: changed'; return 0; fi
+  c=$(awk -F '\t' 'FILENAME == ARGV[1] {if ($1 != "git") b[$1] = $0; next}
+    $1 == "git" {next}
+    {a[$1] = $0; x[$1] = $4}
+    END {for (p in b) if (!(p in a)) print p "\t--"
+      for (p in a) if (a[p] != b[p]) print p "\t" x[p]}' "$1" "$2" | sort | awk -F '\t' '{print "changed: " $2 " " $1}')
+  { if [ -n "$c" ]; then printf '%s\n' "$c"; else echo 'changed: none'; fi
+    if [ "$(command grep -m1 '^git'$'\t' "$1")" = "$(command grep -m1 '^git'$'\t' "$2")" ]; then echo 'git: unchanged'; else echo 'git: changed'; fi
+  } | clean
 }
 
 # --- backend adapters -----------------------------------------------------------
@@ -486,8 +725,9 @@ codex_model_allowed() { # codex_model_allowed <model or empty> — sets profile
   [ -z "$1" ] || [[ $1 =~ ^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$ ]] \
     || die 5 'MODEL REFUSED' "$(printf '%q' "$1" | head -c 80) is not a Codex model id"
 }
-# Every turn, first or continued, runs read-only with no approval prompt and
-# without what could reach past Codex's command sandbox:
+# Every turn, first or continued, runs read-only (a developer's:
+# workspace-write) with no approval prompt and without what could reach past
+# Codex's command sandbox:
 # - --ignore-user-config and --ignore-rules: the user's config.toml could turn
 #   the sandbox off or a tool on. Under them no project is trusted, so the
 #   repository's own .codex/ config, hooks and rules stay off too.
@@ -503,12 +743,21 @@ codex_model_allowed() { # codex_model_allowed <model or empty> — sets profile
 #   which a -c key would be split at.
 # --color never is taken by `exec` only, not by `exec resume`. The prompt is
 # stdin (`-`), so no part of it is on a command line.
+# A developer's sandbox writes in the repository and nowhere else, with no
+# network. /tmp and $TMPDIR are excluded because $TMPDIR holds every agent's
+# state, this one's agent.json and the run/stderr.txt that codex_verify reads
+# included [feature-external-developer/findings.md F3]. These flags only ask:
+# the header check in codex_verify, not they, decides whether the turn counts.
 codex_argv() { # codex_argv <cli> <model or empty> <session or ->
-  local f effort
+  local f effort sbx=(-c 'sandbox_mode="read-only"')
   effort=$(meta effort)
+  if [ "$(meta role)" = developer ]; then
+    sbx=(-c 'sandbox_mode="workspace-write"' -c 'sandbox_workspace_write.network_access=false'
+      -c 'sandbox_workspace_write.exclude_tmpdir_env_var=true' -c 'sandbox_workspace_write.exclude_slash_tmp=true')
+  fi
   if [ "$3" = - ]; then printf '%s\0' "$1" exec --color never; else printf '%s\0' "$1" exec resume; fi
   printf '%s\0' --ignore-user-config --ignore-rules \
-    -c 'sandbox_mode="read-only"' -c 'approval_policy="never"' \
+    "${sbx[@]}" -c 'approval_policy="never"' \
     -c 'web_search="disabled"' -c 'shell_environment_policy.inherit="core"' -c 'history.persistence="none"' \
     -c analytics.enabled=false -c feedback.enabled=false -c 'otel.metrics_exporter="none"' \
     -c check_for_update_on_startup=false -c "shell_environment_policy.set.GLAB_EXTERNAL_AGENT=\"$(meta id)\""
@@ -584,17 +833,27 @@ codex_render() { # codex_render <stdout file> — the readable transcript of one
   sed 's/\x1b\[[0-9;]*m//g' "$run/stderr.txt" 2>/dev/null | awk -v part=rest "$CODEX_BLOCK_AWK" | clean
   printf 'says:\n'; clean <"$1"
 }
-# The read-only check of every Codex turn. A managed config or MDM sits above
+# The sandbox check of every Codex turn. A managed config or MDM sits above
 # the session's -c flags and could still change the sandbox, so what Codex
 # reports is what decides. `read-only` with no suffix also means its commands
 # had no network: Codex appends " (network access enabled)" otherwise.
+# A developer's wanted string, `workspace-write [workdir]`, is the one Codex
+# 0.163.0 printed for these flags in an offline start
+# [feature-external-developer/integration.md M5]. It was first inferred from
+# Codex's source on main, read 2026-10-18 at
+# https://raw.githubusercontent.com/openai/codex/main/codex-rs/utils/sandbox-summary/src/sandbox_summary.rs
+# [feature-external-developer/findings.md F2]: `workspace-write [` then
+# `workdir`, `/tmp` unless excluded, `$TMPDIR` unless excluded and each extra
+# writable root, comma-separated, then `]`. The match is exact, so an entry
+# beyond workdir, or a " (network access enabled)" suffix, fails it.
 codex_verify() { # codex_verify <agent id> <model asked for, or empty>
-  local sb ap
+  local sb ap want=read-only
   [ -n "$(codex_block)" ] || return 0
+  [ "$(meta role)" != developer ] || want='workspace-write [workdir]'
   sb=$(codex_field sandbox) ap=$(codex_field approval)
-  [ "$sb" = read-only ] && [ "$ap" = never ] && return 0
+  [ "$sb" = "$want" ] && [ "$ap" = never ] && return 0
   header "$1" codex "$2"; echo "end: $1"
-  die 12 'NOT READ-ONLY' "codex reported sandbox '$(printf '%s' "$sb" | head -c 80 | clean)' and approval '$(printf '%s' "$ap" | head -c 80 | clean)'; its reply is withheld"
+  die 12 'NOT READ-ONLY' "codex reported sandbox '$(printf '%s' "$sb" | head -c 80 | clean)' and approval '$(printf '%s' "$ap" | head -c 80 | clean)' where '$want' and 'never' were asked; its reply is withheld"
 }
 # check's Codex commands run under the user's own Codex config: only exec and
 # exec resume take --ignore-user-config. `login status` exits 0 for every
@@ -821,13 +1080,44 @@ section() { awk -v h="$2" 'index($0, h) == 1 {on = 1; next} on && /^## / {on = 0
 report_section() { awk '/^## Report/ {on = 1} on && /^## / && !/^## Report/ {on = 0} on' "$1"; }
 first_prompt() { # first_prompt <role> <profile> <brief>
   local profiles=$plugin/skills/external-agents/profiles line
-  section "$profiles/default.md" '## Before the contract'
-  [ "$2" != default ] && section "$profiles/$2.md" '## Before the contract'
+  # Before the contract says the agent changes nothing, which is false of a
+  # developer, so a developer gets a section of its own in its place. Its
+  # profile is always default (codex_model_allowed): no family section.
+  if [ "$1" = developer ]; then
+    section "$profiles/default.md" '## Developer, before the contract'
+  else
+    section "$profiles/default.md" '## Before the contract'
+    [ "$2" != default ] && section "$profiles/$2.md" '## Before the contract'
+  fi
   if [ "$isolation" = host ]; then
     # The text holds the repository's top as @TOP@. The replacement is quoted:
     # with patsub_replacement on, as in bash 5.3, an unquoted one would turn an
-    # & in the path into the matched @TOP@.
-    while IFS= read -r line; do printf '%s\n' "${line//@TOP@/"$top"}"; done <<'EOF'
+    # & in the path into the matched @TOP@. A developer's text says where it
+    # may write; every other role's, that it writes nothing.
+    { if [ "$1" = developer ]; then cat <<'EOF'
+
+# Where you are working
+
+- You are working in the repository at @TOP@ itself: the user's real
+  working tree, its history and its ignored files, not a copy. Codex runs
+  you in its workspace-write sandbox: your commands can change files in
+  @TOP@, and nowhere else, /tmp and $TMPDIR included. A command that needs
+  a scratch directory or a cache outside @TOP@ fails; do not make one
+  inside @TOP@ instead.
+- @TOP@/.git is not yours: never commit, stage, stash, switch branches,
+  or change a ref, the git config or a hook. The script compares them
+  after every turn, and a change there stops the work.
+- Your commands can also read files outside the repository. Read nothing
+  outside @TOP@ unless your task names it: what you read is sent to the
+  model's provider.
+- Your commands have no network. You have no web tool: do not try to fetch
+  pages.
+- Read @TOP@/AGENTS.md before anything else: it is the repository's
+  working agreement. If there is none, read @TOP@/CLAUDE.md and say in
+  your answer that the repository has no working agreement.
+
+EOF
+    else cat <<'EOF'
 
 # Where you are working
 
@@ -845,6 +1135,7 @@ first_prompt() { # first_prompt <role> <profile> <brief>
   your answer that the repository has no working agreement.
 
 EOF
+    fi; } | while IFS= read -r line; do printf '%s\n' "${line//@TOP@/"$top"}"; done
   else
     cat <<'EOF'
 
@@ -863,8 +1154,8 @@ EOF
 
 EOF
   fi
-  if [ "$1" = reviewer ]; then
-    printf '# Your role contract\n\n'; body "$plugin/agents/reviewer.md"
+  if [ "$1" = reviewer ] || [ "$1" = developer ]; then
+    printf '# Your role contract\n\n'; body "$plugin/agents/$1.md"
     printf '\n# The skills you carry\n\n'
     body "$plugin/skills/security/SKILL.md"; printf '\n'; body "$plugin/skills/comments/SKILL.md"
     printf '\n# Your dispatch\n\n'
@@ -879,7 +1170,7 @@ EOF
   printf '\n# Before you answer\n\n'
   section "$profiles/default.md" '## After the contract'
   [ "$2" != default ] && section "$profiles/$2.md" '## After the contract'
-  if [ "$1" = reviewer ]; then reviewer_tail; fi
+  if [ "$1" = reviewer ]; then reviewer_tail; elif [ "$1" = developer ]; then developer_tail; fi
 }
 # finish_turn checks the block line by line from the left edge: the verdict
 # line whole, and `^rule: ` for each finding. The Report section below indents
@@ -889,6 +1180,29 @@ EOF
 reviewer_tail() {
   printf '\n# Your final message\n\nEnd your final message with your report, and put nothing after it: the block your contract'"'"'s Report section asks for, filled in, between these two lines exactly:\n\n%s\n<the report>\n%s\n\nInside the block, every line starts at the left edge, with no indent, even where the Report section below shows one. The verdict line and each rule: line carry no backticks, and the verdict line stands alone, with nothing else on it.\n\nYour contract'"'"'s Report section, again:\n\n' "$REPORT_START" "$REPORT_END"
   report_section "$plugin/agents/reviewer.md"
+}
+# What a developer's contract asks that does not hold here: it writes
+# result.md itself, and its gates may need to write outside the repository,
+# which its sandbox refuses. The manager writes result.md from the final
+# message and runs the gates [feature-external-developer/plan.md D6].
+developer_tail() {
+  cat <<'EOF'
+
+# Your final message
+
+Two things in your contract work differently here:
+
+- Do not write plan/<slug>/result.md. The manager writes it from your
+  final message, so your final message is that file's content, under its
+  headings, followed by your contract's Report block and its verdict line.
+- Run the gates your contract names if your sandbox lets them run. A gate
+  that fails because a command cannot write outside the repository, or
+  cannot start a sandbox of its own, is not red: write "not run here:"
+  and its error line. The manager runs every gate itself after your turn.
+
+Your changes stay in the working tree. After each turn the script lists
+every path you changed, from git, for the manager.
+EOF
 }
 
 # --- one turn -------------------------------------------------------------------
@@ -1055,6 +1369,12 @@ run_host() { # run_host <session or ->; sets rc
   repo=$(meta repo)
   [ "$(hostgit -C "$repo" rev-parse --show-toplevel 2>/dev/null)" = "$repo" ] \
     || die 4 UNAVAILABLE "$repo is no longer the repository the agent started in"
+  # A developer's change report compares the repository before the turn with
+  # it after; a report that could not start would say nothing true.
+  if [ "$(meta role)" = developer ]; then
+    dev_refuse 4 UNAVAILABLE "$repo"
+    dev_snap "$repo" "$run/state.before" || die 4 UNAVAILABLE "cannot read the state of $repo"
+  fi
   mapfile -d '' argv < <("${backend}_argv" "$cli" "$model" "$1")
   mapfile -t benv < <("${backend}_env" "$(meta id)")
   # Both streams are capped on their way to the disk, as in the sandbox. The
@@ -1103,12 +1423,19 @@ run_host() { # run_host <session or ->; sets rc
   # and the wait below, open.
   sweep_agent "$host_turn"; host_turn=''
   wait "$jpid" "$epid" 2>/dev/null
+  # After the sweep, so that no process of the turn is still changing it. The
+  # turn has run, so a state that cannot be read is reported as git: changed.
+  if [ "$(meta role)" = developer ]; then
+    dev_snap "$repo" "$run/state.after" || printf 'git\tunreadable\n' >"$run/state.after"
+  fi
 }
 # The first line start and send print. The model is the one the backend
 # reported it ran, else the one asked for, else the backend's own default,
-# which it did not name.
+# which it did not name. A developer's change report follows it, once its
+# turn has run: header is called only after a turn, on exits 0, 6, 7 and 12.
 header() { # header <agent id> <backend> <model asked for, or empty>
   printf 'agent: %s · model: %s:%s · turn: %s · transcript: %s\n' "$1" "$2" "${turn_model:-${3:-default}}" "$turn" "$adir/transcript.txt"
+  if [ "$(meta role)" = developer ] && [ -f "$run/state.after" ]; then dev_report "$run/state.before" "$run/state.after"; fi
 }
 # Prints the outcome of the turn just run and exits with its code.
 finish_turn() {
@@ -1236,7 +1563,7 @@ cmd_start() {
       *) die 2 USAGE "unknown argument: $(printf '%s' "$1" | head -c 40 | clean)" ;;
     esac
   done
-  case $role in general|reviewer) ;; *) die 2 USAGE "--role must be general or reviewer" ;; esac
+  case $role in general|reviewer|developer) ;; *) die 2 USAGE "--role must be general, reviewer or developer" ;; esac
   [ -n "$model" ] || model_optional "$backend" || die 2 USAGE "--model is required"
   [ -f "$brief" ] && [ -r "$brief" ] || die 2 USAGE "--brief must name a readable file"
   [ -z "$label" ] || [[ $label =~ ^[[:print:]]{1,80}$ ]] || die 2 USAGE "--label must be 1-80 printable ASCII characters"
@@ -1244,6 +1571,8 @@ cmd_start() {
   top=$(hostgit -C "$repo" rev-parse --show-toplevel 2>/dev/null) || die 2 USAGE "--repo is not inside a git work tree"
   known_backend "$backend" || die 3 'UNKNOWN BACKEND' "no adapter for backend '$backend' (known: $(known_list))"
   isolation=$("${backend}_isolation")
+  [ "$role" != developer ] || [ "$backend" = codex ] || die 2 USAGE "--role developer is taken by the codex backend only"
+  if [ "$role" = developer ]; then need_find; dev_refuse 2 USAGE "$top"; fi
   [ -z "$effort" ] || "${backend}_effort_ok" "$effort" || die 2 USAGE "--effort is not taken by the $backend backend, or $effort is not a level"
   model_allowed "$backend" "$model"
   [ -n "$cli" ] || die 2 USAGE "--cli is required: the path of the $backend binary"
@@ -1334,7 +1663,7 @@ cmd_send() {
   # [feature-codex-agent/plan.md D31].
   if [ "$isolation" = host ]; then sweep_agent "$id"; fi
   { rm -rf "$run" && mkdir -m 700 "$run"; } || die 4 UNAVAILABLE "cannot create $run"
-  { cat "$message" && if [ "$(meta role)" = reviewer ]; then reviewer_tail; fi; } >"$run/message.md" \
+  { cat "$message" && case $(meta role) in reviewer) reviewer_tail ;; developer) developer_tail ;; esac; } >"$run/message.md" \
     || die 4 UNAVAILABLE "cannot write the message"
   run_turn "$session" -
   finish_turn

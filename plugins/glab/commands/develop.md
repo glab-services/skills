@@ -1,11 +1,11 @@
 ---
-description: Implement a plan (approved, at full tier) through glab:developer agents — glab:plan-first steps 5 to 7 — then hand off to /glab:analyze at full tier or /glab:integrate at normal
+description: Implement a plan (approved, at full tier) through glab:developer agents, or one external Codex developer when glab:manager Rule 5 recorded one — glab:plan-first steps 5 to 7 — then hand off to /glab:analyze at full tier or /glab:integrate at normal
 argument-hint: "[plan slug]"
 ---
 
 Read `AGENTS.md` (or `CLAUDE.md` if the repo has none — say so), then `plan/$ARGUMENTS/plan.md`. If no slug was given, ask which plan; do not guess, and do not pick the most recent.
 
-You are the orchestrator here. **You do not write the implementation yourself** — the `glab:developer` agent does. Your job is to check the preconditions, decide how the work is split, dispatch, and verify what comes back.
+You are the orchestrator here. **You do not write the implementation yourself** — the `glab:developer` agent does, or the external developer `glab:manager` Rule 5 recorded, through `glab:external-agents`. Your job is to check the preconditions, decide how the work is split, dispatch, and verify what comes back.
 
 ## Before dispatching anything
 
@@ -17,7 +17,7 @@ You are the orchestrator here. **You do not write the implementation yourself** 
 
 ## Decide the split
 
-Read the plan's stages and decide **one agent or several**. Say which you chose and why before dispatching.
+Read the plan's stages and decide **one agent or several**. Say which you chose and why before dispatching. An external developer (`glab:manager` Rule 5) is always one agent: never split, and never beside a `glab:developer`, since they would share one working tree.
 
 **One agent is the default.** Use it whenever the stages build on each other, which is most plans: a later stage importing a type an earlier stage defines, a UI step consuming a command step, a deletion step waiting on its replacement to pass.
 
@@ -40,12 +40,20 @@ Give each `glab:developer` agent:
 - the file boundary, when there is more than one agent;
 - anything decided in this conversation that is not written in the plan — an answer I gave you, a constraint I added. The agent cannot see this conversation and will build the plan as written unless you tell it otherwise;
 - the model, only when I named one for the developer: pass it as the Agent tool's `model` parameter on every `glab:developer` dispatch, slices and re-dispatches alike. I named none → pass none. Never choose one yourself (`glab:manager` Rule 5).
+- **An external developer**, only when `glab:manager` Rule 5 recorded one: start it through `glab:external-agents` with `--role developer` instead of dispatching `glab:developer`, with the same brief. One agent, never split, never beside a `glab:developer`.
 
 Do not paste the plan into the prompt. The agent reads it; a paraphrase is how a step quietly changes meaning.
 
 ## When the agents return
 
 An agent's report is not evidence. Verify it yourself, in this order, and do not skip ahead to `/glab:analyze` on a red tree:
+
+**An external developer first**, before the gates (`glab:external-agents`, *The developer role*):
+
+- the exit and the `git:` line. Any exit but 0, or `git: changed`, stops the pipeline: show me the `changed:` lines, and revert, commit or re-run nothing on that tree — that is my call;
+- then, only on 0 with `git: unchanged` and with no nested repository refused, read the whole change yourself, against the plan, as you would a `glab:developer`'s, from the script's `changed:` lines: for each tracked path one names, `git -c core.fsmonitor=false cat-file blob HEAD:<path> | diff -u -- - <path>` (`cat-file` applies no filter), and each untracked (`??`) and each ignored (`!!`) path it names that is a regular file, read directly. Never open a path that is a link or not a regular file: show a link with `readlink` and anything else with `ls -l`. Run neither `git status` nor `git diff` on that tree before that check: both can run a clean filter or an fsmonitor the agent planted. A nested repository stops the work, as `git: changed` does;
+- then write `plan/{slug}/result.md` from its reply, marked as that model's words, with the script's `changed:` and `git:` lines; the gates below go into it as you ran them;
+- then the gates, as for any agent.
 
 Use the repo's own targets — `make`, `just`, `npm run`, a script under `scripts/` — rather than hand-rolled commands, so you are running the same thing CI runs.
 
