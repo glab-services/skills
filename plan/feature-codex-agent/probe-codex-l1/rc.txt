@@ -1,9 +1,0 @@
-check rc=0
-start rc=0 28s
-id=ea-d4fd5940a608c455
-marked after start: 0
-send rc=0 6s
-marked after send: 0
-stop rc=0
-marked after stop: 0
-agent dir left: no

@@ -7,7 +7,9 @@ this repo is tested without installing anything, the gates, the rules of
 Owned by `.claude-plugin/marketplace.json`, both
 `plugins/<name>/.claude-plugin/plugin.json`, `AGENTS.md`, `README.md` and
 `host.example.md`. Stated as of `6838133`, its versions and its
-`docs/specs/` and `plan/` bullet as of `09d2787`; where this file and an owning file disagree, the
+`docs/specs/` and `plan/` bullet as of `09d2787`, and its
+`feature-codex-agent` lines (the `glab` version, the gates' test count, the
+external-agent rule, the *One fact* entries) as of `30f2c80`; where this file and an owning file disagree, the
 owning file is right and this spec is out of date.
 
 ## How it works now
@@ -25,7 +27,8 @@ owning file is right and this spec is out of date.
   skill, `sync-memory`, no agent, hooks on `SessionStart`, `SessionEnd`,
   `PostToolUse` and `Stop`.
 - **Versions.** Each `plugin.json` carries an explicit `version` — `glab`
-  `0.5.0` (raised by `fed95f9`), `memory-sync` `0.1.0`, at `09d2787`. A change under
+  `0.6.0` (raised by `9108ac7`, `feature-codex-agent`; `0.5.0` by `fed95f9`
+  before it), `memory-sync` `0.1.0`, at `30f2c80`. A change under
   `plugins/<name>/` raises that plugin's version in the same commit, because
   an installed copy is pinned to the version string and nothing else
   delivers a change (`AGENTS.md` *Rules*). `claude plugin validate --strict`
@@ -48,7 +51,12 @@ owning file is right and this spec is out of date.
   counts of `plugin details`, the marketplace-to-manifest name check, the
   `user_config` search, the two pinned hedge phrases, the prefixed `name:`
   search). Each line's reason is written beside it there; this spec does not
-  restate the blocks. The Markdown files have no gate: a change to one is
+  restate the blocks. Green at `9108ac7` ends the two stub tests with
+  `PASS 35/35` and `PASS 71/71` (49 before `feature-codex-agent`).
+  `tests/external-agent.test.sh` runs its stub `opencode` inside the
+  script's real sandbox, with a real network namespace, and its stub `codex`
+  on the host, as the script runs Codex (`AGENTS.md` *Gates*); `AGENTS.md`
+  *Tests* names both stubs as passed to the script with `--cli`. The Markdown files have no gate: a change to one is
   checked by running what it prescribes in a throwaway directory and by its
   plan's searches.
 - **Names.** Payload text names a component by its prefixed name —
@@ -68,6 +76,43 @@ owning file is right and this spec is out of date.
   against a real model, the hook contract of `memory-sync.sh`, the *One fact,
   one value* list, comments and incidents kept, tests that clean up by PID,
   the version rule, Conventional Commits.
+- **The external-agent rule** (`AGENTS.md` *Rules*, as of `30f2c80`):
+  `external-agent.sh` runs against the stub in
+  `tests/external-agent.test.sh`, or an offline run — no network, and a
+  dummy key or login in a throwaway home — as `docs/specs/external-agents.md`
+  *Offline run* records them (OpenCode's, and Codex's O1). The one exception
+  is a live run with the user's own key or login, the live probe or a later
+  one recorded the same way. It runs only when the user says so in chat for
+  that run and names the backend and the models — for Codex, the backend
+  alone names its default model — and, for an OpenCode run, after confirming
+  that the console's "Use balance" is off; Codex has no such switch (the
+  user's ChatGPT plan, 2026-10-18;
+  `[feature-codex-agent/plan.md U7]`, carried in
+  `docs/specs/external-agents.md`). The user runs it, or the manager session
+  does at that instruction, as a script, never pasted; no dispatched agent
+  runs it; its record goes under `plan/`, transcripts scanned for secrets and
+  host values masked. Codex's first live run, L1, went that way
+  (`docs/specs/external-agents.md` *Live runs*).
+- ***One fact* entries `feature-codex-agent` added or rewrote** (`AGENTS.md`
+  *Rules*; P9): the manual model rule keeps its file list, and two Codex
+  clauses are entries of their own — "for Codex, no `--model` unless the
+  user named one" (`glab:manager` Rule 5 and the skill's start example) and
+  "`codex` alone in the record line for Codex's default" (Rule 5 and the
+  skill's announce step); the record line and its `<backend>:<model>` token
+  gains E50 and E55 beside E01; the allowlist entry becomes the OpenCode
+  model allowlist and its end dates, "and that Codex has none and checks an
+  id's form only, and refuses `default`" (the script, E58, the skill,
+  `README.md`); "OpenCode's sandbox limits and its network helper"; the CLI's
+  default path gains `~/.local/bin/codex`; "OpenCode's "Use balance"
+  warning"; what OpenCode's copy holds and may send, "and what a Codex agent
+  may read and send" — the repository with its history and its ignored
+  files, and any file its commands open, outside the repository too; and
+  five new entries: the guarantees each backend has (the script's header,
+  the skill, `README.md`, `glab:manager` Rule 6), the Codex read-only check
+  (the script, E54, the skill, `README.md`), the Codex effort rule
+  (`glab:manager` Rules 5 and 6, the skill), the Codex data note
+  (`README.md`, the skill), and the host first message (the script's
+  `first_prompt`, E61).
 - **`docs/specs/` and `plan/`** (`AGENTS.md` *Layout* and *Rules*, the
   `plan/` rule; `README.md` *Working on this repo*), as of `09d2787`. `docs/specs/` holds
   one spec per area — this file (the marketplace, this repo's layout, gates
@@ -171,3 +216,4 @@ owning file is right and this spec is out of date.
   - [feature-plugin-marketplace/result-slice-S.md L212] Not done → `[feature-plugin-marketplace/plan.md smoke-test-2]` and `smoke-test-3` (substitution, hooks firing, the `SessionEnd` cut-off), in `docs/specs/memory-sync.md`.
 - 2026-10-05 · bug-reviewer-findings · recorded in `docs/specs/memory-sync.md`, its primary area; its marketplace items (follow-ups 15, 17, 20, 21; questions Q1, Q4, Q5, Q8) are tagged above · plan: `git ls-tree -r --name-only 2aeb46d -- plan/bug-reviewer-findings/` (one file: `git show 2aeb46d:plan/bug-reviewer-findings/<file>`)
 - 2026-10-18 · feature-docs-specs · recorded in `docs/specs/workflow.md`, its primary area; it added `docs/specs/` and rewrote the `plan/` rule (*How it works now*), and its repo items (follow-ups 1, 3, 6, 8) are tagged above · plan: `git ls-tree -r --name-only 09d2787 -- plan/feature-docs-specs/` (one file: `git show 09d2787:plan/feature-docs-specs/<file>`)
+- 2026-10-18 · feature-codex-agent · recorded in `docs/specs/external-agents.md`, its primary area; here: `glab` 0.6.0, the gates' `PASS 71/71` and `AGENTS.md`'s changed *Gates* sentence and *Tests* bullet, the external-agent rule's offline and live-run wording (Codex, no "Use balance" switch), the added and rewritten *One fact* entries · change 9108ac7 · records 30f2c80 · plan: `git ls-tree -r --name-only 30f2c80 -- plan/feature-codex-agent/` (one file: `git show 30f2c80:plan/feature-codex-agent/<file>`)

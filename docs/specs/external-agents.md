@@ -1,31 +1,158 @@
 # External agents — spec
 
-Read-only external agents in `glab`: OpenCode sessions on a model the user
-names, which the manager starts, continues, lists and stops through
-`glab:external-agents` and `external-agent.sh`, on a sandboxed read-only copy
-of a repository; and the external reviewer of `glab:manager` Rule 5, which
-runs on them. Owned by `plugins/glab/scripts/external-agent.sh` (its header,
-constants and comments own the commands, output, exit codes, state, isolation
-and limits; `opencode_models()` owns the allowlist), the
-`glab:external-agents` skill (`plugins/glab/skills/external-agents/SKILL.md`)
-and its `profiles/`, `glab:manager` Rules 5 and 6, `tests/external-agent.test.sh`,
-and `README.md` *Requirements*. Stated as of `6838133` (`glab` `0.4.2`), its
-`feature-docs-specs` lines as of `09d2787` (`glab` `0.5.0`); where this file
+Read-only external agents in `glab`, on two backends: OpenCode sessions on a
+model the user names, on a sandboxed read-only copy of a repository, and
+Codex sessions on this host, in the repository itself under Codex's own
+read-only sandbox, on the model the user names or Codex's default. The
+manager starts, continues, lists and stops both through
+`glab:external-agents` and `external-agent.sh`; the external reviewer of
+`glab:manager` Rule 5 runs on either. Owned by
+`plugins/glab/scripts/external-agent.sh` (its header, constants and comments
+own the commands, output, exit codes, state, isolation and limits;
+`opencode_models()` owns the allowlist; the `codex_*` functions own the Codex
+adapter), the `glab:external-agents` skill
+(`plugins/glab/skills/external-agents/SKILL.md`) and its `profiles/`,
+`glab:manager` Rules 5 and 6, `tests/external-agent.test.sh`, and `README.md`
+*Requirements*. Stated as of `6838133` (`glab` `0.4.2`), its
+`feature-docs-specs` lines as of `09d2787` (`glab` `0.5.0`), and its
+`feature-codex-agent` lines as of `30f2c80` (`glab` `0.6.0`); where this file
 and an owning file disagree, the owning file is right.
 
 ## How it works now
 
 - **Five commands** (the script's header): `start --backend <name> --model
   <id> --cli <path> --brief <file> [--role general|reviewer] [--label <text>]
-  [--repo <dir>] [--timeout <seconds>]`; `send <agent id> --message <file>
+  [--repo <dir>] [--timeout <seconds>] [--effort <level>]` — `--model` is
+  optional for `codex`, which then runs its own default, and `--effort
+  low|medium|high|xhigh|max|ultra` is taken by `codex` only (exit 2 for
+  OpenCode); `send <agent id> --message <file>
   [--timeout <seconds>]` — the same backend session, its context kept;
   `list` — `agents: <n>`, then one line per agent: id, state (`idle`,
   `running`, `broken`), model, role, turns, last activity, repository and
   label; `stop <agent id>` — ends a running turn and removes the agent's
-  copy, session and transcript; `check --backend <name> --cli <path>` — the
-  CLI, the tools found, `key: stored` (never the key) and the models allowed.
+  copy, session and transcript (for Codex: its directory and transcript, and
+  any process its turns left running; its session stays in Codex's own
+  history); `check --backend <name> --cli <path>` — for OpenCode the
+  CLI, the tools found, `key: stored` (never the key) and the models allowed;
+  for Codex `cli:`, `tools: setpriv setsid timeout flock`, `login: stored`
+  (from `codex login status`'s exit status, its text never printed),
+  `sandbox: read-only starts`, `default: <slug> (predicted)` and `models:
+  <slug> (<levels>), …` from `codex debug models` — not logged in is exit 4,
+  a sandbox that does not start exit 12, an unreadable catalog `models:
+  unavailable` with exit 0. Codex's `check` commands take no
+  `--ignore-user-config`, so they run under the user's own Codex config;
+  the turns do not (`[feature-codex-agent/plan.md D10]`).
   The manager runs `start` and `send` in the background and is told when they
   exit; one turn runs at a time per agent.
+- **Two backends, one wrapper** (`[feature-codex-agent/plan.md D1]`): the
+  adapters are function sets inside the one script, called as
+  `${backend}_<name>`; `<b>_isolation` prints `sandbox` (OpenCode) or `host`
+  (Codex), and `cmd_start`, `cmd_send`, `run_turn` (split into
+  `run_sandboxed` and `run_host`), `cmd_check` and `cleanup` branch on it.
+  The ids, the lock, `list`, `stop`, the output contract and the exit codes
+  are shared. `known_backend` knows `codex` and `opencode`
+  (`(known: codex, opencode)`); `model_optional` lets `codex` leave
+  `--model` out, and no adapter is called before the backend name is
+  checked (D19). A new backend is a new adapter set, a line in
+  `known_backend`, one in `model_optional` if `--model` may be left out, and
+  a stub in the test (the adapter-contract comment in the script).
+- **The Codex backend** (`[feature-codex-agent/plan.md U2]`, D3–D15, D31):
+  - **Where it runs.** On this host, in the user's real repository, with
+    its working directory at the top; no copy, no bwrap of the script's, no
+    `slirp4netns`. Codex's own read-only sandbox is the containment. It uses
+    the user's own Codex login under `~/.codex`: the script never reads,
+    copies, exports or redacts a token, and never writes `~/.codex`. Codex
+    itself writes its state there (sessions, logs, a token refresh), as it
+    does for the user, and `stop` leaves the session in Codex's history
+    (D12).
+  - **What a turn passes** (`codex_argv`): `exec --color never` on a first
+    turn, `exec resume` on a continued one; `--ignore-user-config
+    --ignore-rules`; `-c sandbox_mode="read-only"` and `-c
+    approval_policy="never"`; web search off, `shell_environment_policy`
+    `inherit="core"`, history, analytics, feedback, metrics and the update
+    check off, and the agent marker (below); `--disable` for apps, plugins,
+    remote plugins, the browser and computer tools, the in-app browser,
+    image generation, hooks, memories, multi-agent and skill MCP dependency
+    install; `-m <model>` only when one is named; `-c
+    model_reasoning_effort="<level>"` only when an effort is set; on a
+    continued turn the recorded session id; then `-`, the first message on
+    stdin. MCP is not turned off by a flag: a turn has no MCP server only
+    because it ignores the user's `config.toml`; a managed or system config
+    is not ignored (D4; the skill's *What the script guarantees*). With the
+    user's config ignored no project is trusted, so the repository's own
+    `.codex/` config, hooks and rules do not load (D26, measured: O1).
+  - **Its environment** is an allowlist (D13): `PATH`, `HOME`, `USER`,
+    `LOGNAME`, `TMPDIR`, `CODEX_HOME`, the `XDG_*` directories,
+    `DBUS_SESSION_BUS_ADDRESS`, the proxy and certificate variables, each
+    only when set; `LANG=C.UTF-8`, `TERM=dumb` and
+    `GLAB_EXTERNAL_AGENT=<agent id>` always. Values are exported in the
+    subshell, never put on a command line.
+  - **The model** (`[feature-codex-agent/plan.md U4]`, D6). No `--model`
+    when the user names none: Codex runs its own default. A named id must
+    match `^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$`; `default` itself is refused
+    (exit 5), since it is the word the output uses for Codex's default (D32).
+    There is no allowlist and no end date. The model that ran is read back
+    from Codex's header block, form-checked, and named in the header line,
+    the transcript heading and `agent.json` `ran` (`list` shows `ran`, else
+    the requested id, else `default`). The record line names `codex` alone
+    for the default and `codex:<id>` for a named model; the handoff line
+    names `codex:<the model the header named>`. The model can change between
+    rounds, which the user accepted.
+  - **The effort** (`[feature-codex-agent/plan.md U5]`, D9, D30): the
+    session's — `CLAUDE_CODE_EFFORT_LEVEL` when set, otherwise the manager
+    asks the user once per session and records the answer; it sends the
+    highest level the model supports that is not above it, from `check`'s
+    levels, and says so in the announce line; with `models: unavailable` it
+    sends the level unchanged and says `effort <sent> (no levels known)`.
+    The script stores `--effort` in `agent.json` and passes it on every turn.
+  - **The read-only check, exit 12** (D5). Codex runs in its human output
+    mode, not `--json`, because only the header block it prints on stderr
+    names the model (D3). The script reads the first `OpenAI Codex v<n>`
+    block within the first 20 lines of stderr, SGR removed. A block that does
+    not say exactly `sandbox: read-only` and `approval: never` is exit 12
+    NOT READ-ONLY, the reply withheld; a turn whose block is missing, or has
+    no well-formed model or session id, is exit 7, on every turn.
+  - **The session** (D8). The id is the block's `session id:`, a UUID;
+    `send` passes only the recorded id, as `exec resume <id> -`. A continued
+    turn, on either backend, that reports another session is exit 7 and the
+    recorded session does not change — Codex silently starts a new thread
+    for an id it does not find.
+  - **Process lifetime and the marker sweep** (D7, D31). The turn runs as
+    `setpriv --pdeathsig KILL -- setsid timeout --kill-after=10 <t> setpriv
+    --pdeathsig KILL -- <codex …>`, exec'd from a background subshell, so its
+    process group id is the started pid; after the turn the group gets TERM,
+    then KILL. That does not end Codex's sandbox helper and its commands,
+    which run in a session and group of their own (*Incidents*, O2). So every
+    process of a turn carries `GLAB_EXTERNAL_AGENT=<agent id>`, exported and
+    passed as `-c shell_environment_policy.set.GLAB_EXTERNAL_AGENT="<id>"`,
+    and `sweep_agent` kills, by PID, each process of this uid whose
+    `/proc/<pid>/environ` holds that exact NUL-separated entry, after
+    re-checking the entry and the start time; a second pass after 1 s runs
+    only when the first killed something. It runs **after every host turn**
+    (before the output filters are waited for), **in `cleanup`** (while the
+    `host_turn` flag is set, and for `check`'s own marker), **before every
+    `send`** (after the lock, before `run/` is replaced) and **at every
+    `stop`** (after the lock, before the directory is moved aside; skipped
+    only for an agent whose `agent.json` names a known sandbox backend). The
+    last two end what a turn left when its script was SIGKILLed. `cleanup`
+    first ignores HUP, INT and TERM, so a second signal cannot cut it short.
+    The host output filters close the agent's lock descriptor, so a stand-in
+    still holding the streams cannot keep `stop` from the lock
+    (`[feature-codex-agent/result-p1-p4.md L297]`); the cap flags are named
+    `capped.<script pid>.stdout` and `.stderr`, so an old turn's filter
+    cannot fail the next turn.
+  - **Its CLI path** is made absolute but not resolved, so the user's
+    `current` link is followed across a Codex update (D11); the default is
+    `~/.local/bin/codex`. A host turn first checks that the repository is
+    still the one the agent started in (exit 4 otherwise).
+  - **No redaction** (D14): a Codex transcript holds whatever Codex
+    printed.
+- **OpenCode is unchanged** (`[feature-codex-agent/plan.md D2]`): its
+  OpenCode-specific lines moved into `opencode_*` adapters with the same
+  effect, which E01–E49 pin. The one addition that reaches it is D8's
+  session check on a continued turn, which fails only on a path no OpenCode
+  run has shown, and E66 pins it (the stub's `othersess` scenario). E28's
+  unknown backend is now `nosuch`.
 - **Roles.** `general` — read, run, analyse, review, answer, for any task the
   user names; `reviewer` — the reviewer's own contract and report section,
   the report block validated by the script. Every agent's first message tells
@@ -33,37 +160,74 @@ and an owning file disagree, the owning file is right.
   there is none) and carries `glab:security` and `glab:comments`, as every
   internal dispatch does. There is no external developer: an agent changes
   no file, and nothing it proposes is applied except through the pipeline.
+  A Codex agent's first message carries the host text of D24 instead of the
+  sandbox's "Where you are working" (the script's `first_prompt`, pinned by
+  E61, one fact with it): it works in the repository at `<top>` itself, under
+  Codex's read-only sandbox; its commands can read files outside the
+  repository, so it reads nothing outside `<top>` unless its task names it;
+  its commands have no network and it has no web tool; it reads
+  `<top>/AGENTS.md` first, or `<top>/CLAUDE.md` and says there is no working
+  agreement. `<top>` is substituted with a quoted replacement, because bash
+  5.3 replaces an unquoted `&` in a path (`feature-codex-agent` findings §9.8).
 - **Output contract.** stdout of `start` and `send`, and nothing else:
   `agent: <id> · model: <backend>:<model> · turn: <n> · transcript: <file>`,
   then on exit 0 `reply:` and the reply with `| ` before every line, control
-  characters removed, then `end: <id>` as the last line. No line the script
+  characters removed, then `end: <id>` as the last line. For Codex the
+  `model:` field is the model that ran, as its header block named it; else
+  the one asked for, else `default` (`codex:default`). No line the script
   writes starts with `| `, so a reply cannot forge one. stderr: one line
-  `external-agent: <CODE>: <reason>` on every exit 2–11; a signal ends a call
+  `external-agent: <CODE>: <reason>` on every exit 2–12; a signal ends a call
   with 128 + the signal and no line (129, 130, 143 — the last a turn `stop`
   ended).
 - **Exit codes** (the header, `tests/external-agent.test.sh`, the skill, the
   manager, `ship.md`, `README.md` — one fact): 0 OK, 2 USAGE, 3 UNKNOWN
   BACKEND, 4 UNAVAILABLE, 5 MODEL REFUSED, 6 TIMEOUT, 7 BACKEND ERROR (a Go
   usage limit arrives here), 8 MALFORMED REPORT (reviewer only), 9 NO
-  ISOLATED NETWORK, 10 UNKNOWN AGENT, 11 BUSY.
+  ISOLATED NETWORK (OpenCode only), 10 UNKNOWN AGENT, 11 BUSY, 12 NOT
+  READ-ONLY (Codex: its sandbox cannot start here, or a turn reported
+  another sandbox or an approval policy other than `never`; the reply is
+  withheld). For Codex, 4 also means not logged in, or a repository that
+  moved since the agent started; 5 a model id that is not one; 7 a turn
+  that continued another session or printed no header block.
 - **State.** `$TMPDIR/glab-external-agents/<id>/`, mode 700, an id `ea-` and
-  16 hex digits: `agent.json` (the script's alone), `work/` (the copy),
+  16 hex digits: `agent.json` (the script's alone; it now also holds
+  `effort` and `ran`), `work/` (the copy),
   `data/` (the backend's data directory, its session database),
   `transcript.jsonl` and `transcript.txt` (redacted, readable by the user
   until `stop`), and `run/` for the turn in progress, its own `$HOME`
   included. `stop` moves the directory aside as `.stopping.<id>` and removes
-  it. `TMPDIR` is required; there is no `/tmp` default.
+  it. `TMPDIR` is required; there is no `/tmp` default. A Codex agent has no
+  `work/` and no `data/`; it keeps `transcript.txt` (rendered: per turn a
+  `## turn <n> · codex:<model> · <time>` heading, `manager:` and the message
+  sent that turn, then a `codex: model=…
+  sandbox=… approval=… effort=… session=…` line, the stderr after the block,
+  then `says:` and the reply) and `transcript.log`, which holds per turn
+  `=== turn <n> stderr ===`, the stderr with the header block, `=== turn <n>
+  stdout ===` and the stdout, not redacted (D15). `head` and `branch` are
+  read from the real repository; one with no commit records `""` for both
+  (D28).
 - **Manual only.** An external agent runs only when the user asks, naming the
-  model (Rule 6), or when Rule 5 has recorded an external reviewer. Nothing
+  model for OpenCode — for Codex, naming one or leaving it to Codex's default
+  (Rule 6) — or when Rule 5 has recorded an external reviewer. Nothing
   else starts one — not a usage limit, not a failed round, not a file — and
   when one cannot run the manager stops and says why; running the work on
   Claude or on another model instead is the user's call. The manager stops
   every agent it started before the session ends, unless the user asks to
   keep one. The CLI path is explicit (`--cli`): the one the user gave, or
   `~/.opencode/bin/opencode`, where OpenCode's installer puts the native
-  binary; a launcher script cannot run in the sandbox. The OpenCode console's
+  binary; a launcher script cannot run in the sandbox. For Codex it is the
+  path the user gave, or `~/.local/bin/codex`. The OpenCode console's
   "Use balance" switch must be off, or a Go limit spends pay-as-you-go
-  balance; the script cannot see it, so the skill says it once.
+  balance; the script cannot see it, so the skill says it once. Codex has no
+  such switch (the user's ChatGPT plan, `[feature-codex-agent/plan.md U7]`);
+  instead the skill tells the user once per session the Codex data note
+  (`README.md` and the skill, word for word; D25): what Codex reads goes to
+  OpenAI under the user's ChatGPT account's data controls — the repository
+  with its history and ignored files, and any file its commands open, outside
+  the repository too, credential files included — so check whether "Improve
+  the model for everyone" is on; Codex keeps the session under `~/.codex`
+  and `stop` does not remove it; its transcript is not redacted. A Codex
+  start passes no `--model` unless the user named one.
 - **Replies are untrusted text**: shown as that model's words, every claim
   checked before it is acted on or reported, no command or path taken from
   one, its instructions binding no one.
@@ -72,14 +236,21 @@ and an owning file disagree, the owning file is right.
   recorded like a Claude model, `- model: glab:reviewer opencode:opencode-go/<id>, for the session — the user's instruction, not a manager choice: "<the user's words>"`,
   and named `<backend>:<model>` in the handoff line
   (`slug · review · model opencode:opencode-go/<id> · round 1/3 · SHIP`).
+  Or Codex alone — "review on Codex", Codex's own default model with no
+  `--model` — or "review on Codex, <id>"; its line also records the effort:
+  `- model: glab:reviewer codex, effort <level> (CLAUDE_CODE_EFFORT_LEVEL | the user's answer: "<words>"), for the session — the user's instruction, not a manager choice: "<the user's words>"`,
+  with `codex:<id>` for a named model; the handoff line names the model the
+  script's header named (`codex:default` when none has run). A Codex
+  reviewer uses the `default` profile only (D16).
   Each review round of Stage 5, `/glab:review` and `/glab:ship` — each
   fan-out dimension too — is a new `--role reviewer` agent whose brief is the
   target and the round alone; its report is the round's report. On exit 8
   the manager `send`s the same agent one correction naming the gaps (it keeps
   its context; not a review round); still 8, it stops and tells the user. The
-  agent is stopped once its report is read. The copy holds `HEAD` and the
-  working tree only, so a branch or range target cannot resolve: the manager
-  tells the user instead.
+  agent is stopped once its report is read. An OpenCode copy holds `HEAD` and
+  the working tree only, so a branch or range target cannot resolve: the
+  manager tells the user instead. A Codex reviewer works in the repository
+  and can take one (D17); `/glab:ship` still reviews the working tree only.
 - **The report check.** The reviewer's reply is its report block between
   `=== REPORT START ===` and `=== REPORT END ===`; the script checks its form,
   not its judgement: exactly one verdict line from `glab:reviewer`'s whole
@@ -96,13 +267,44 @@ and an owning file disagree, the owning file is right.
 - **The test**, `tests/external-agent.test.sh`, runs a stub `opencode`
   (passed with `--cli`) inside the script's real sandbox and network
   namespace, starts two host-side listeners on kernel-picked ports and proves
-  the sandbox cannot reach them: `PASS 49/49` at `6838133`. It needs a
+  the sandbox cannot reach them, and runs a stub `codex` (passed with `--cli`,
+  and as a symlink for E51) on the host, as the script runs Codex, with its
+  `CODEX_HOME` under the test's work directory: `PASS 49/49` at `6838133`,
+  `PASS 71/71` at `9108ac7` — E50–E71 are the Codex cases and E66 the
+  OpenCode session check; E36 stays last. The Codex stub logs each call's
+  argv, cwd, environment names and first stdin line, prints the header
+  block of `feature-codex-agent` findings §9.2 with SGR around each key,
+  and acts out a scenario (`ok`, `ro-net`, `ro-appr`, `nohdr`, `forge`, `newsess`, `sleep`,
+  `late-flood-unmarked`, `stale` and others; `plan.md` P4). Its `sleep`
+  scenario stands in for Codex's helper: a `setsid` child carrying the
+  marker, outside the script's group kill. The test's `cleanup` kills the
+  stub's recorded pids only after checking each one's environment. It needs a
   `bwrap` that can create namespaces, `slirp4netns` and `python3`; without
   them it is red, not skipped (`AGENTS.md` *Gates*).
 
 ## Isolation
 
-The script header's list (owned there), each part with its reason:
+The script header's list (owned there), each part with its reason, split by
+backend since `feature-codex-agent` (`[feature-codex-agent/plan.md D1]`).
+The guarantees each backend has are one fact in the script's header, the
+skill, `README.md` and `glab:manager` Rule 6. Per backend, as the change
+states them (`feature-codex-agent` findings §9.3; the network and tools
+rows in revision 5's wording, `[feature-codex-agent/plan.md D25]` and the
+skill's *What the script guarantees*):
+
+| | OpenCode (unchanged) | Codex |
+|---|---|---|
+| runs | in the script's bwrap sandbox, on a verified copy | on the host, in the real repository, with its cwd at the top |
+| sees | the copy: tracked and untracked-but-not-ignored files, the index, HEAD's tree only | everything the user can read: the repository with its history and ignored files, and files outside it (accepted) |
+| writes | nothing: the copy is read-only, in a fresh `$HOME` | nothing in any file, by Codex's read-only sandbox. Codex itself writes its own state under `~/.codex` (sessions, logs, a token refresh), as it does for the user |
+| network | its own namespace: internet only, no host or LAN | the commands have no IP network, and a connect to a Unix-domain socket by path was refused (measured offline with `codex sandbox`); datagram and abstract sockets not measured. Codex itself reaches OpenAI |
+| login | the Go key in the sandbox, redacted | Codex's own. The script never reads it, so nothing is redacted, and a transcript holds whatever Codex printed |
+| tools | `read glob grep shell`, no web | Codex's shell and file tools. Web search, apps, plugins, hooks, memories, the browser and computer tools, image generation and multi-agent are turned off; MCP only by ignoring the user's config (D4) |
+| limits | files, processes, memory, `/tmp`, output caps, timeout | output caps (16 MiB each), timeout. Files, processes and memory are not limited by the script |
+| checked | the copy against the real tree; the reviewer's report | the header block: `sandbox: read-only` and `approval: never`, the model and session id form-checked; the reviewer's report |
+| state | `$TMPDIR/glab-external-agents/<id>/` with `work/`, `data/`, transcripts | the same directory without `work/` or `data/`; the session lives in Codex's own history under `~/.codex`, and `stop` does not remove it |
+
+### OpenCode
 
 - **The agent never sees the real repository.** It gets a copy of the working
   tree's tracked and untracked-but-not-ignored files, an index equal to the
@@ -170,6 +372,47 @@ The script header's list (owned there), each part with its reason:
   command waits for the network and ends if the script is gone: nothing is
   left after an interruption or a kill; `list` shows a killed start as
   `broken` until `stop`.
+
+### Codex
+
+The user chose Codex to run as a Claude subagent does
+(`[feature-codex-agent/questions.md Q2]`), so the copy, the bwrap sandbox and
+its network do not apply to it:
+
+- **It runs in the real repository and sees what the user can read**: the
+  working tree with its history and its ignored files, and, through its
+  commands, files outside the repository — credential files such as Codex's
+  own login, SSH keys and cloud keys included. The user accepted that
+  (`[feature-codex-agent/plan.md U2]`). Why: Codex handles its own login,
+  which the bwrap sandbox's empty home would hide.
+- **Codex's own read-only sandbox is the containment.** Every turn asks for
+  `sandbox_mode` read-only and `approval_policy` never, and the header block
+  is read back: another sandbox or approval is exit 12 and the reply is
+  withheld (D5). Why: a managed config or MDM sits above the session flags
+  and could override them (findings §9.2), so the flags alone are not
+  trusted. `read-only` with no suffix also means the commands had no network
+  (`sandbox_summary.rs`).
+- **The user's config and rules are ignored** on every turn, and the tools
+  that run outside Codex's command sandbox or reach past the repository are
+  turned off (D4). Why: the user's own config could turn any of them on, or
+  the sandbox off; `glab:reviewer`'s own tools have no web tool. With the
+  user's trust entries ignored, the repository's `.codex/` layers stay off
+  (D26). What Codex still loads from `CODEX_HOME` under
+  `--ignore-user-config` — the login, `$CODEX_HOME/.env` (filtered of
+  `CODEX_` names), global instructions and skills kept there — is the
+  user's own, as a Claude subagent loads `~/.claude` (inferred, findings
+  §9.8).
+- **Its environment is an allowlist** (D13), because the manager's
+  environment may hold Claude credentials.
+- **Process lifetime**: D7's chain and group kill, and D31's marker and sweep
+  by PID (*How it works now*). Why the sweep: Codex's sandbox helper and the
+  commands under it start a session and group of their own, outlive the
+  group kill and SIGTERM or SIGINT to Codex (findings §9.9), and killing the
+  helper also ends every process in its PID namespace, so a command that
+  unset the marker still ends with its helper (C2c).
+- **Limits**: 16 MiB of its stdout and of its stderr per turn, and the
+  timeout; files, processes and memory are not limited by the script, and
+  nothing is redacted (D14).
 
 ## Measurements
 
@@ -240,6 +483,112 @@ What the script's comments cite, as measured for `feature-opencode-worker`
   unprivileged, attached by path; `--enable-sandbox` failed unprofiled; pasta
   could not run here without its AppArmor profile (N1, N3, N7).
 
+### Codex
+
+As measured for `feature-codex-agent` on 2026-10-18, against Codex CLI
+`codex-cli 0.163.0` (static-pie, at `~/.local/bin/codex`, a link into
+`~/.codex/packages/standalone/current/`), with no model reached. Every run
+used a throwaway `CODEX_HOME` and `HOME` with, where a login was needed, a
+dummy `auth.json` of unsigned fake JWTs, and gave Codex a `TMPDIR` that is a
+sibling of that `CODEX_HOME`, never its parent: Codex refuses to create its
+helper links under its own temp dir (findings §3.1, §9.6). Vendor facts not
+run were read from the source at tag `rust-v0.163.0` (findings §9.2, §9.8).
+
+- **Codex's sandbox cannot start inside `bwrap --unshare-net` here**
+  (integration round 1). With `kernel.apparmor_restrict_unprivileged_userns
+  = 1`, AppArmor stacks `unpriv_bwrap` on a process under the outer bwrap,
+  and a nested `/usr/bin/bwrap`, which Codex's Linux sandbox uses, cannot
+  create its namespace (`bwrap: No permissions to create a new namespace`);
+  `unshare --user --net` was refused at the uid map. On the bare host bwrap
+  starts. So S1, O2 and `check`'s sandbox line were blocked inside the
+  no-network wrapper — an environment limit, the same as rev 2's P12.
+- **The user's allowance** (`[feature-codex-agent/questions.md stage-4]`):
+  S1 and O2 ran on the host, without the no-network wrapper, with `codex
+  sandbox -- <command>` only, no `exec` and no model, a throwaway
+  `CODEX_HOME` and `HOME` and a fake `auth.json`; the commands inside have
+  no network, and the Codex program itself might check for updates (not
+  measured). It did not extend to `check`, `exec`, `debug models` without
+  `--bundled`, or anything else that could contact OpenAI.
+- **S1, Codex's read-only sandbox on this host** (integration round 2, on
+  the host), `codex sandbox -c 'sandbox_mode="read-only"' -- <cmd>` in a
+  throwaway repository: `true` rc 0; `sh -c 'echo x >>f'` rc 2, `Read-only
+  file system`, no file; `cat /etc/hostname` rc 0, byte-identical to the host
+  file (a read outside the repository); a TCP connect to a host listener on
+  `127.0.0.1` rc 1, `socket: Operation not permitted`, while the same connect
+  outside the sandbox succeeded. Pass; `-c sandbox_mode` maps to read-only.
+  `socket()` itself got `EPERM`, so the refusal is inferred to be Codex's
+  seccomp network filter. `check`'s exact sandbox command, run the way
+  `codex_check` runs it (empty directory, the environment allowlist,
+  `timeout 60`, stdin `/dev/null`), exited 0: `sandbox: read-only starts`.
+- **The Unix-socket probe** (integration round 4, answering review r1 S1):
+  inside `codex sandbox` (read-only), `connect()` to a host AF_UNIX stream
+  socket by path was refused with `[Errno 1] Operation not permitted` and the
+  listener saw no connection, while the socket file was visible inside and
+  the same connect outside succeeded (the known positive). The user's session
+  bus socket `/run/user/<uid>/bus` is visible inside; it was not connected
+  to. Inferred: a seccomp rule on `connect()`. Not measured:
+  abstract-namespace, `SOCK_DGRAM` and `SOCK_SEQPACKET` sockets,
+  `socketpair`, and a descriptor passed in from outside. The approved wording
+  (D25) states exactly the measured part.
+- **O1, the offline run** (integration round 1, inside `bwrap --unshare-net`;
+  *Offline run* holds its block and output): the real binary accepts every
+  `--disable` name and `-c` key of the argv on `exec` and `exec resume`; the
+  header block is as findings §9.2 gives it, on stderr, on both, with up to
+  three log lines before it, inside the 20-line window, and no SGR seen;
+  direct Codex with a trust entry loads the project's `project-model-x` (the
+  known positive), and the script's turn names `gpt-6.1-sol` instead (D26);
+  the session id is a UUID v7 and `exec resume <id>` printed the same id
+  again; `login status` exits 0 for a dummy file login — so `login: stored`
+  means "an auth file Codex parses", not "a valid login"; P2's jq program on
+  `debug models --bundled` gives `default: gpt-6.1-sol (predicted)` and eight
+  models; `check` stopped at exit 12 because of the AppArmor limit above.
+- **O2, process lifetime** (integration round 2, on the host): D7's chain
+  around `codex sandbox -- sleep 300`, its outermost `setpriv` SIGKILLed.
+  `timeout`, the outer `codex` and `bwrap` were in the started group and
+  died; the process under `bwrap` — Codex's sandbox helper, `comm=codex` —
+  had its own session and group, was reparented to pid 1, and it and its
+  `sleep` were still alive 2 s and 20 s later. Fail, `PLAN WRONG` for D7
+  (*Incidents*).
+- **The three candidates** (findings §9.9, `codex sandbox` only): SIGTERM to
+  the started group, SIGTERM to the outer `codex`, and SIGINT to it — the
+  helper and `sleep` were alive 5 s and 10 s later each time: fails. A marker
+  exported only stops at `bwrap` under `inherit="core"` (C2a); passed only
+  through `-c shell_environment_policy.set…` it reaches `bwrap`, the helper
+  and the command (C2b); through both channels all five processes carried it
+  and a sweep by PID left none alive (C2); killing only the helper also ended
+  the `sleep` (C2c). A `systemd-run --user --scope` per turn also left none,
+  but needs a running systemd user manager and its D-Bus session. Neither
+  survives the script itself being SIGKILLed, hence the sweep at `stop`.
+- **O2 reruns.** Round 3 (revision 4) and round 5 (revision 5) reran O2 with
+  the marker on both channels and `sweep_agent` copied byte for byte from
+  the built script (round 5: `sweep_agent`, `environ_has` and `proc_start`,
+  29 lines, with their `sha256sum` recorded): the known positive reproduced
+  the defect — the helper (ppid 1) and `sleep` alive and marked 2 s after the
+  kill — and 1 s after `sweep_agent` no recorded pid was alive and no process
+  carried the marker. Pass, both times.
+- **The catalog and the login, offline** (findings §9.8, the one allowed
+  offline run of `codex debug models --bundled`, inside `bwrap
+  --unshare-net`): one object `{"models": [ … ]}`, each model with `slug`,
+  `visibility` (`list` or `hide`), a numeric `priority`, and
+  `supported_reasoning_levels` as an array of `{"effort", "description"}`
+  objects; not sorted by priority. `login status` printed `Not logged in`,
+  rc 1. From source, it prints to stderr and exits 0 for every logged-in
+  mode, 1 otherwise. Without `--bundled`, `debug models` refreshes the
+  catalog over the network.
+- **Other 0.163.0 facts the adapter builds on** (findings §3.2, §9.2,
+  §9.7, §9.8): the JSONL stream never names the model, while the human header
+  block does; `--color` exists on `exec` but not on `exec resume`; a resume
+  whose id resolves to nothing silently starts a new thread; any error event
+  makes `exec` exit 1; the default model is the first picker-visible model by
+  priority; `login status`, `sandbox` and `debug models` take no
+  `--ignore-user-config`; a `-c` key is split at the first `=` and walked at
+  every `.`, never TOML-parsed, so it cannot name a project by its path;
+  projects are untrusted unless a non-project config marks them trusted;
+  util-linux `setsid` 2.41.3 does not fork from a background subshell of a
+  non-interactive bash, so the group id is the started pid; the installed
+  `timeout` is uutils coreutils 0.10.0, whose group handling is not relied
+  on.
+
 ## Allowlist
 
 Owned by `opencode_models()` in the script, one line per model —
@@ -272,6 +621,14 @@ Owned by `opencode_models()` in the script, one line per model —
   (`[fix-probe-findings/plan.md decision-2]`).
 - The allowlist and its end dates are one fact in the script, its test, the
   profiles its lines name, and `README.md` (`AGENTS.md` *One fact*).
+- **Codex has none** (`[feature-codex-agent/questions.md A2]`, D6): the
+  user allowed every Codex model. The script checks only the id's form,
+  because it goes on argv, and refuses `default`; there are no end dates.
+  That Codex has none, checks an id's form only and refuses `default` is one
+  fact with the OpenCode allowlist (the script, E58, the skill, `README.md`).
+  What the retention terms were for OpenCode, the user's ChatGPT account's
+  data controls are for Codex, which the script cannot see: the data note
+  (`[feature-codex-agent/questions.md Q7]`).
 
 ## Profiles
 
@@ -284,6 +641,9 @@ Owned by `opencode_models()` in the script, one line per model —
   checks a profile's notes are never sent); `## Notes` is for whoever edits
   the profile. A profile states no invented quirk: a per-model claim is
   UNVERIFIED until a run shows it.
+- **Codex uses the `default` profile only**
+  (`[feature-codex-agent/plan.md D16]`); no Codex profile has been tuned
+  from real replies (`[feature-codex-agent/plan.md not-in-plan-4]`).
 - **Where each was tuned from.** `default` was written for read-only work in
   rev 3. The four family profiles were tuned from the user's notes on
   prompting each family and a comparison table, which another model (Qwen)
@@ -384,13 +744,76 @@ Owned by `opencode_models()` in the script, one line per model —
 - [fix-probe-findings/plan.md spent] decision-4, decision-5, decision-6, D4 — the `0.4.2` bump, the masking of the probe's host values (done, and recorded in the probe record), the order of the records and fix commits, and the factual correction of the profiles' *Notes*, all done in that change.
 - [feature-docs-specs/plan.md D6] The offline run and the live-run procedure live in this spec, *Offline run* and *Live runs*, their blocks copied byte for byte from the records; the runner stays a block the user saves and runs as a script, not a tracked file, because an executable that calls a real model would sit in the tree with no gate over it.
 - [feature-docs-specs/questions.md Q1] A: the user's prompting notes went with `feature-opencode-worker`'s folder and stay in history at `51043c4`; *Profiles* and each profile's `## Notes` cite them there (the user's, 2026-10-17).
+- [feature-codex-agent/questions.md A1] The user logs in to Codex themselves; the script uses that existing login, so Claude drives Codex as a subagent — no separate API key (the user's, 2026-10-18).
+- [feature-codex-agent/questions.md A2] All Codex models are allowed and the user names the model; by default the latest, at the main session's reasoning effort — made exact by Q5 = B and Q6 = A (the user's).
+- [feature-codex-agent/questions.md A3] The user's plan needs no "Use balance"-style check for Codex; live runs still only on the user's explicit instruction in chat; `AGENTS.md`'s live-run exception keeps "Use balance" for OpenCode only (the user's).
+- [feature-codex-agent/questions.md A4] Codex is to be usable as a developer subagent too — it overturns `[feature-opencode-worker/plan-r3.md U10]` and D34 for the next change; this change is read-only, by Q1 = A (the user's).
+- [feature-codex-agent/questions.md Q1] A: two changes — this one, Codex as a read-only general or reviewer backend (`glab` 0.6.0), then the developer role (0.7.0), planned once this one exists (the user's, 2026-10-18).
+- [feature-codex-agent/questions.md Q2] Q2 and Q3 replaced by one answer: Codex runs like a Claude subagent — on the host, in the user's repository, under Codex's own sandbox (read-only here; workspace-write in the working tree in the developer change), with its own login; the script never copies, reads, exports or redacts a token, nor writes `~/.codex`; Codex's commands can read files outside the repository and what it reads can reach OpenAI, accepted; login mechanisms L1–L4 and developer designs D-A–D-C not chosen (the user's).
+- [feature-codex-agent/questions.md Q4] A, for the developer change: same trust as a Claude developer — the manager reads the whole change before the gates, then Stages 3 to 5 as usual (the user's).
+- [feature-codex-agent/questions.md Q5] B: Codex's own default — no `--model` when the user names none; the script reads back the model that ran, form-checked; the model can change between rounds, accepted (the user's).
+- [feature-codex-agent/questions.md Q6] A: `CLAUDE_CODE_EFFORT_LEVEL` when set, otherwise the manager asks once per session and records the answer with the model line; mapping (i), the highest supported level not above the requested one, said in the announce line (the user's; (i) stated by the manager and not objected to).
+- [feature-codex-agent/questions.md Q7] A: a one-time data note in the README and the skill — what Codex reads goes to OpenAI under the user's ChatGPT account's data controls; check "Improve the model for everyone" (the user's).
+- [feature-codex-agent/questions.md approval] The user approved `plan.md` on 2026-10-18 ("Approve, build it").
+- [feature-codex-agent/questions.md stage-1b] After Stage 1b round 2/2 left five blockers, the user chose to fix them and run one narrow third check of those fixes only, beyond the two-round cap, and allowed one offline `codex debug models --bundled` run with a throwaway `CODEX_HOME` and no network (the user's, 2026-10-18; *Incidents*).
+- [feature-codex-agent/questions.md stage-4] The user's Stage 4 allowance: S1 and O2 on the host without the no-network wrapper, `codex sandbox -- <command>` only, a throwaway `CODEX_HOME` and `HOME` and a fake `auth.json`; not `check`, `exec`, `debug models` without `--bundled`, or anything that could contact OpenAI. After O2 failed, the user chose "measure, then amend the plan", and approved revision 4 (D31) on 2026-10-18 ("Approve, build it").
+- [feature-codex-agent/questions.md review-r1-fixes] The user approved revision 5, which adopts review round 1's fixes — the reworded data note, identical in README and skill; exit 12's approval clause and the README's Codex paragraph; the `models: unavailable` effort fallback; `cmd_stop` sweeping unless a sandbox backend is named, the second pass only after a kill, `mapfile -d ''`, the filtered and cleaned catalog, `default` refused, E70 — and the tightened socket sentence of security review round 2's advisory A, in every place that states it (the user's, 2026-10-18).
+- [feature-codex-agent/questions.md revision-6] The user approved revision 6, which records the tests as built — 71 cases, E70 and E71 as review r2's R2-1 split them, the scenario table, the coverage list with `cleanup`'s `host_turn` sweep uncovered — and changes no code and no docs (the user's, 2026-10-18).
+- [feature-codex-agent/plan.md U1] Q1 = A: this plan is the read-only Codex backend only; the developer role is a later plan.
+- [feature-codex-agent/plan.md U2] Q2/Q3: Codex runs like a Claude subagent, on the host, in the user's repository, under Codex's own read-only sandbox, with its own login; the script never copies, reads, exports or redacts a token, and never writes `~/.codex`; reads outside the repository and their reaching OpenAI accepted; OpenCode's guarantees stay in force for OpenCode.
+- [feature-codex-agent/plan.md U3] Q4 = A, for the developer change: the manager reads the whole change before the gates, then runs Stages 3–5 as usual; recorded here, built in that change.
+- [feature-codex-agent/plan.md U4] Q5 = B: no `--model` when the user names none; the script reads back the model that ran, checks its form, and names it in the header line and the record line; the model can change between rounds.
+- [feature-codex-agent/plan.md U5] Q6 = A: the effort is `CLAUDE_CODE_EFFORT_LEVEL` when set, otherwise asked once per session and recorded with the model line; mapping (i), said in the announce line. Revision 5 (review r1 T5, stated to the user): with `models: unavailable`, the session's level is sent unchanged and the announce line says `effort <sent> (no levels known)`.
+- [feature-codex-agent/plan.md U6] Q7 = A: a one-time data note in `README.md` and in the skill.
+- [feature-codex-agent/plan.md U7] Answer 3: no "Use balance"-style check for Codex; live runs only on the user's explicit instruction in chat.
+- [feature-codex-agent/plan.md D1] Isolation is an adapter value, `sandbox` or `host`, branched on through the global `isolation`; one script with adapters as function sets; a second script for host backends rejected, since it would duplicate the shared wrapper.
+- [feature-codex-agent/plan.md D2] OpenCode's behaviour does not change: its lines move into `opencode_*` with the same effect (E01–E49); only E28's unknown backend changes; D8's session check is the one addition that reaches it (E66).
+- [feature-codex-agent/plan.md D3] Codex runs in its human output mode, not `--json`: the JSONL stream never names the model; the stderr header block names the model, sandbox, approval, effort and session id; stdout is the final message only.
+- [feature-codex-agent/plan.md D4] Every turn passes `--ignore-user-config`, `--ignore-rules`, web search off, `shell_environment_policy.inherit="core"`, history off, telemetry and the update check off, and the `--disable` list; MCP, apps, web search, plugins and hooks run outside the command sandbox or reach outside the repository, the user's config could turn them on or the sandbox off, and `glab:reviewer` has no web tool.
+- [feature-codex-agent/plan.md D5] The read-only check on every Codex turn: a header block not saying exactly `sandbox: read-only` and `approval: never` is exit 12 NOT READ-ONLY with the reply withheld; a block absent, or without a well-formed model or session id, is exit 7, on every turn.
+- [feature-codex-agent/plan.md D6] `--model` optional for Codex, a given id form-checked (exit 5), no allowlist and no end dates; the shown model is the block's, else the requested id, else `default`; `agent.json` `ran` keeps the last well-formed model; the record line names `codex` alone or `codex:<id>`, the handoff line `codex:<the model the header named>`.
+- [feature-codex-agent/plan.md D7] Process lifetime on the host: `setpriv --pdeathsig KILL -- setsid timeout --kill-after=10 <t> setpriv --pdeathsig KILL -- <codex …>`, exec'd from the background subshell, so the group id is the started pid; after every host turn and in `cleanup`, the group gets TERM, then KILL, then the marker sweep (D31), before the output filters are waited for; revision 4: the group kill alone does not end a Codex turn; `timeout`'s own group handling is not relied on.
+- [feature-codex-agent/plan.md D8] The session id is the block's `session id:`, a UUID; `send` passes only the recorded id, as `exec resume <id> -`; a continued turn on any backend that reports another session is exit 7 and the recorded session does not change.
+- [feature-codex-agent/plan.md D9] `start --effort <low|medium|high|xhigh|max|ultra>` for Codex only (exit 2 for OpenCode), stored and passed on every turn as `-c model_reasoning_effort="<level>"`; the mapping is the manager's, from `check`'s levels.
+- [feature-codex-agent/plan.md D10] `check --backend codex` prints `cli:`, `tools:`, `login: stored` from `login status`'s exit status (its text never printed), `sandbox: read-only starts`, and the predicted default and models from `codex debug models`; not logged in is 4, a sandbox that does not start 12, an unreadable catalog `models: unavailable` and 0; the three commands run under the user's config, the turns do not, and the skill says so.
+- [feature-codex-agent/plan.md D11] The Codex CLI path is made absolute but not resolved, so the user's `current` link is followed across an update; OpenCode keeps `readlink -f`, because its sandbox binds one file.
+- [feature-codex-agent/plan.md D12] `stop` leaves Codex's own session in Codex's history under `~/.codex`; the script removes only its own agent directory.
+- [feature-codex-agent/plan.md D13] The Codex process's environment is an allowlist, each name passed only when set, plus `LANG=C.UTF-8`, `TERM=dumb` and (revision 4) `GLAB_EXTERNAL_AGENT=<marker>`; `LC_ALL` not passed; values exported in the subshell, never on a command line.
+- [feature-codex-agent/plan.md D14] No redaction for Codex: `secret` stays empty and `redact_stream` only caps; the skill and the README say the transcript holds whatever Codex printed.
+- [feature-codex-agent/plan.md D15] Transcript files: OpenCode keeps `transcript.jsonl` and `transcript.txt`; Codex keeps `transcript.txt` and `transcript.log` (per turn its stderr, header block included, and its stdout); `<b>_raw_name` names the raw file and `<b>_raw` writes it.
+- [feature-codex-agent/plan.md D16] Codex uses the `default` profile only.
+- [feature-codex-agent/plan.md D17] A Codex reviewer can take a branch or a range target; `/glab:ship` still reviews the working tree only.
+- [feature-codex-agent/plan.md D19] No adapter is called on an unchecked backend name: `[ -n "$model" ] || model_optional "$backend" || die 2 USAGE "--model is required"`, `model_optional` a pure `case` beside `known_backend`; OpenCode's checks keep their order and messages.
+- [feature-codex-agent/plan.md D24] The host first message is the plan's P3 text, verbatim; payload, approved with the plan.
+- [feature-codex-agent/plan.md D25] The data note is one paragraph, carried word for word by `README.md` and the skill; revision 5 gives the text review r1 built, with the tighter socket clause the user approved ("no IP network, and a connect to a Unix-domain socket by path was refused (measured offline with `codex sandbox`); datagram and abstract sockets not measured").
+- [feature-codex-agent/plan.md D26] The repository's `.codex/` layers are off by default: Codex disables a project's config, hooks and exec policies unless a non-project config marks it trusted, and under `--ignore-user-config` the user's trust entries are not read; O1 measured it against a known positive.
+- [feature-codex-agent/plan.md D27] `isolation=''` and `turn_model=''` join the top-level initialisation, so `set -u` holds on every path; `isolation` is set right after `known_backend` (start, check) or after the lock (send, revision 5); `turn_model` is global and reset at the start of each turn.
+- [feature-codex-agent/plan.md D28] `head` and `branch` for a host agent come from `hostgit -C "$top" rev-parse -q --verify HEAD` (12 characters) and `symbolic-ref -q HEAD`; a repository with no commit records `""` for both and the start goes on: Codex needs a git repository, not a commit.
+- [feature-codex-agent/plan.md D29] `setsid --wait` is not used: it would fork and wait, and the started pid would no longer be the group id D7 kills.
+- [feature-codex-agent/plan.md D30] The effort answer for a general Codex agent (Rule 6, no Rule 5 role) is recorded as `- effort: codex <level> (the user's answer: "<words>"), for the session` under `## Decisions` of the plan in progress; with no plan it lives in the conversation only, as Rule 5 says for a review with no plan.
+- [feature-codex-agent/plan.md D31] The agent marker and the sweep (revision 4): every Codex turn carries `GLAB_EXTERNAL_AGENT=<agent id>`, exported and passed as `-c shell_environment_policy.set.GLAB_EXTERNAL_AGENT="<id>"`; `sweep_agent <id>` kills by PID, with a start-time guard against PID reuse, every process of this uid whose environment holds the exact entry, after every host turn, in `cleanup` and in `cmd_stop` (and, since revision 5, before every `send`); SIGTERM or SIGINT first rejected, since Codex does not tear down its helper on either; a `systemd-run --user --scope` per turn rejected for its systemd and D-Bus dependency, and kept as the fallback if a live run shows that `codex exec` does not pass `set` to its helper — that fallback needs the user's yes.
+- [feature-codex-agent/plan.md D32] One model-id wording, now that `default` is refused (revision 5): `README.md` "the script checks only the id's form, and refuses `default`, the word its output uses for Codex's own default"; `AGENTS.md` *One fact* "checks an id's form only, and refuses `default`"; the skill "the script checks only the id's form" beside its `default`-refused sentence.
+- [feature-codex-agent/plan.md revision-4] Stage 4's O2 failure answered by D31, chosen among the three measured candidates because it adds no dependency and the stub can test it (E60, E69); changed D7, D13, P2–P5, O2 and *UNVERIFIED* — approved by the user (`[feature-codex-agent/questions.md stage-4]`).
+- [feature-codex-agent/plan.md revision-5] Review round 1's fixes folded into the plan, which conformance round 3 had found ahead of revision 4: U5's fallback, D25's text, D32, `codex_model_allowed` refusing `default`, `sweep_agent` through `environ_has` with a pass 2 only after a kill, the filtered catalog, `codex_cmd` and `header` top-level, `cmd_send`'s isolation after the lock and its sweep, the `capped.$$.*` flags, `cleanup`'s trap and `host_turn`, `cmd_stop`'s sweep rule, tag-form comments, and O2 rerun against the built sweep; C-C, C-E/S-5, S-6 and S-7 stay follow-ups — approved by the user (`[feature-codex-agent/questions.md review-r1-fixes]`).
+- [feature-codex-agent/plan.md revision-6] Conformance round 4/4: the count is 71, E70 the sweep before every `send` (stub scenario `stale`), E71 the PID-named cap flag (`late-flood-unmarked` plus `slow`), the helper `environ_line`, and `cleanup`'s `host_turn` sweep listed as uncovered; no code or docs change — approved by the user (`[feature-codex-agent/questions.md revision-6]`).
+- [feature-codex-agent/plan.md spent] U8, D18, D20, D21, D22, D23 — U8 (the narrow third Stage 1b check and the one offline run) ran; D18, refusing a repository top holding `"`, `\` or a control character for a `-c` TOML key, was withdrawn in revision 3, since a `-c` key is never TOML-parsed and the top now goes only into the first message and `cd`; D20's measurements S1, O1 and O2 ran at Stage 4 (*Measurements*); D21's stub and E50–E71 shipped (`PASS 71/71`); D22's `0.6.0` bump and D23's one commit landed as `9108ac7`.
 
 ## Known limits and not verified
 
-- **External agents have run against a real model once**: the live probe of
+- **OpenCode agents have run against a real model once**: the live probe of
   2026-10-17 (*Live runs*), on a one-file test repository. Not shown: any
   reply from a DeepSeek model, a real repository, a long brief, a Go limit,
   the profiles' effect (`README.md`, pinned by its gate line).
+- **Codex agents have run against a real model once**: L1 of 2026-10-18
+  (*Live runs*), Codex's default model at effort `high`, one general start
+  and one `send` in this repository; `README.md` has not caught up
+  (`[feature-codex-agent/record.md readme-stale]`).
+- [feature-codex-agent/plan.md unverified] *UNVERIFIED, in one place*, and what has settled each since: that Codex's read-only sandbox starts on this host, refuses writes, allows reads outside the repository and gives commands no network — S1 (on the host, under `codex sandbox`); that the real header block is as findings §9.2 gives it, every `--disable` name is accepted, the repository's trusted `.codex/` layer stays off under the script's argv (D26; that `--ignore-user-config` alone drops the trust entry is inferred, since the argv differs in more flags) and `exec resume <id>` continues and prints the same id — O1 offline, and L1 with a real model; that `login status` exits 0 for a real login — L1's `login: stored`; that `codex exec`, like `codex sandbox`, passes `shell_environment_policy.set` to its sandbox helper, so D31's sweep finds a real turn's helper — **still UNVERIFIED** (`[feature-codex-agent/probe-codex-l1.md not-verified]`; if it fails, D31's rejected scope is the fallback and needs the user's yes); that a keyring login works under `--ignore-user-config` — L1 ran with the user's login under the flag, but which store it uses is not recorded; that `check`'s predicted default is the model that runs — L1, `gpt-6.1-sol` both; reroutes, an unsupported effort level, a real turn obeying read-only, and the model honouring "Read nothing outside <top>" — not shown.
+- [feature-codex-agent/findings.md unverified] §9.6's list of what needs a model: that a real turn obeys read-only, that its commands really have no network, that a reroute shows in the header or output, that the default is the one `check` predicts (since shown by L1), and the effort fallback on a model without the level — the rest still open. Revision 1's other UNVERIFIED items (§3) concerned the superseded copy-based design, the login mechanisms and the per-turn `CODEX_HOME`, which revision 2 dropped.
+- [feature-codex-agent/integration.md open] *Items these runs leave open* and *Still unverified after round 3*: what the script itself leaves after a killed host turn mid-command with the real Codex (the stub covers the call sites: E60, E69, E70); `check`'s `default:`/`models:` lines from `debug models` without `--bundled` — shown online by L1 (seven listed models, against the bundled catalog's eight: no `gpt-5.5`), the offline fallback still not run; a real `login status` rc 0 (since L1) and a keyring login; the live-run items above; whether `codex sandbox` contacted the network on the host, for an update check, not measured; that a real `codex exec` turn passes `set` to its helper; that a command which unsets the marker still ends with its helper, not re-measured after findings §9.9 C2c. Inferred, not measured: which of D4's flags turned off the MCP endpoint direct Codex tried in O1.
+- [feature-codex-agent/probe-codex-l1.md not-verified] That a real `exec` turn's commands carry the marker while they run: L1's turns ended cleanly, nothing was alive at the three check points, so finding 0 marked processes does not tell a passed marker from a missing one, and the sweep was not exercised on a real turn. Proving it needs a turn ended by `stop` while a command runs (`[feature-codex-agent/plan.md unverified]`).
+- [feature-codex-agent/plan.md not-covered] Not covered by any case, accepted in the plan's coverage list: `codex_check`'s exit 4 for a missing tool; `opencode_secret_hint`'s tail; a host repository with no commit (D28); the real Codex's header, flags, trust default, catalog and resume (O1), its sandbox (S1) and the real helper dying to the sweep (O2; the stub's `setsid` child stands in, E60 and E69); the D13 names the test does not set; a script killed and never `stop`ped, whose leftovers run until the next `stop` of that agent; `cleanup`'s `host_turn` sweep (`[feature-codex-agent/review-r2.md R2-c]`); C2's `trap '' HUP INT TERM` and C-A, races with a second signal or a concurrent `stop`; P5–P10 are text, checked by the plan's searches. The developer added: a relative `--cli` for Codex; `CODEX_BLOCK_AWK` rejecting a non-`key: value` line inside the block; `run_host`'s `cd … || exit 1`; a PID reused between `sweep_agent`'s two reads; `check`'s own sweep killing anything (`result-p1-p4.md` *Tests*, *Round 2*).
+- [feature-codex-agent/result-p5-p10.md L578] The socket wording names datagram and abstract sockets as not measured; still not named anywhere in the payload: seqpacket sockets, `socketpair`, and a descriptor passed in from outside (integration round 4).
 - [feature-opencode-worker/probe-r3.md not-verified] *Not verified* by the probe: DeepSeek's behaviour (refused before any turn); how the models behave on a real repository, a long brief or a Go limit; the profiles' effect — no run without profiles to compare against.
 - [feature-opencode-worker/plan-r3.md unverified] *UNVERIFIED, in one place*: I7, a real Go model through the isolated network keeping its session — shown since for Kimi and GLM by the probe; I8, which models send reasoning; rev 2's I3, the text of a Go limit, and I5, each family's reading style; the back-out's version inference; and that `slirp4netns`'s own code — run outside the sandbox, as the user, on the sandbox's packets — has no exploitable bug.
 - [feature-opencode-worker/findings-r3.md unverified] The same list in the rev-3 findings: I7, I8, rev-2 I3 and I5, and `slirp4netns`'s own code; `--enable-seccomp` narrows it, `--enable-sandbox` could not be proven.
@@ -399,12 +822,19 @@ Owned by `opencode_models()` in the script, one line per model —
 - [fix-external-report-lines/result.md unverified] That a real model copies the indent or the backticks, and that it obeys the left-edge sentence or the profile wording — in the probe GLM passed the check first time, and Kimi failed on the singular `issue`, not on an indent; not shown more widely.
 - **The offline run** shows the argv, config, environment and parsing against the real 2.0.31 binary, not a reply: no request leaves the host. Its rerun after review round 2 showed the session id recorded and the data directory kept, not that turn 2 sees turn 1 (the probe since showed it for Kimi and GLM); that the CLI rejects an unknown `--session` at once was not checked (`feature-opencode-worker` `integration-r3.md`, *Not exercised*).
 - **The key in the raw transcript**: only literal occurrences are redacted, so a JSON-escaped key can stay in `transcript.jsonl` (`[feature-opencode-worker/follow-ups.md 10]`, `17`).
-- Total memory and the disk used under `TMPDIR` are not limited.
+- Total memory and the disk used under `TMPDIR` are not limited. For a Codex
+  agent, files, processes and memory are not limited by the script either.
 
 ## Offline run
 
+An offline run — no network, and a dummy key or login in a throwaway home —
+is what `AGENTS.md` *Rules* allows besides the stub, as this section records
+them: one per backend.
+
+### OpenCode
+
 The script against the user's real `opencode` binary with no network and a
-dummy key — what `AGENTS.md` *Rules* allows besides the stub. From
+dummy key. From
 `feature-opencode-worker`'s `plan-r3.md`, *Integrate — the real CLI,
 offline*, the block byte for byte:
 
@@ -475,13 +905,326 @@ kept data directory, ended the same way, with no unknown-session error
 (`integration-r3.md`). It shows the argv, config, environment and parsing
 against 2.0.31; it cannot show a reply (*Known limits*).
 
+### Codex — O1
+
+The script against the user's real `codex` (0.163.0), inside `bwrap
+--unshare-net --die-with-parent --dev-bind / /`, with a throwaway
+`CODEX_HOME` holding a dummy `auth.json` of fake, unsigned JWTs — never a
+real token — and a throwaway `HOME`, on a throwaway repository whose
+`.codex/config.toml` names `project-model-x` and which a throwaway
+`config.toml` marks trusted, the known positive for D26. Run at Stage 4 of
+`feature-codex-agent` on 2026-10-18, round 1, as a saved script, never
+pasted. From `integration.md`, `o1-inner.sh`, the block byte for byte (the
+user's home masked as `<home>` there, as recorded):
+
+````bash
+#!/usr/bin/env bash
+# O1, run inside bwrap --unshare-net --die-with-parent --dev-bind / /: the offline run.
+set -u
+: "${TMPDIR:?}"; CX=${CX:?}; S=${S:?}
+X=$(mktemp -d "$TMPDIR/codex-offline.XXXXXX") && mkdir -p "$X/home" "$X/tmp" "$X/uhome" || exit 1
+export CODEX_HOME=$X/home TMPDIR_CX=$X/tmp HOME=$X/uhome
+mask() { sed -e "s#$X#<X>#g" -e "s#<home>#<home>#g"; }
+echo "netns: $(ip -o link | awk -F': ' '{print $2}' | tr '\n' ' ')routes=$(ip -o route | wc -l)"
+# A dummy login: fake, unsigned JWTs with a far exp; never a real token.
+b64() { base64 -w0 | tr '+/' '-_' | tr -d '='; }
+hdr=$(printf '{"alg":"none","typ":"JWT"}' | b64)
+pl=$(printf '{"exp":4102444800,"iat":1760000000,"email":"dummy@example.invalid","https://api.openai.com/auth":{"chatgpt_plan_type":"plus","chatgpt_account_id":"00000000-0000-4000-8000-000000000000","chatgpt_user_id":"user-dummy"}}' | b64)
+jwt="$hdr.$pl.ZHVtbXk"
+jq -n --arg j "$jwt" --arg now "$(date -u +%FT%T.000000Z)" \
+  '{auth_mode:"chatgpt", OPENAI_API_KEY:null, tokens:{id_token:$j, access_token:$j, refresh_token:"dummy-refresh", account_id:"00000000-0000-4000-8000-000000000000"}, last_refresh:$now}' >"$CODEX_HOME/auth.json"
+chmod 600 "$CODEX_HOME/auth.json"
+# The repository, with a project layer that names project-model-x.
+mkdir -p "$X/r/.codex" && printf 'model = "project-model-x"\n' >"$X/r/.codex/config.toml"
+git -C "$X/r" init -q && printf 'hello\n' >"$X/r/README" \
+  && git -C "$X/r" -c user.name=t -c user.email=t@example.invalid add -A \
+  && git -C "$X/r" -c user.name=t -c user.email=t@example.invalid commit -q -m init
+R=$(git -C "$X/r" rev-parse --show-toplevel)
+# The trust control: a real config.toml marks the repository trusted.
+printf '[projects."%s"]\ntrust_level = "trusted"\n' "$R" >"$CODEX_HOME/config.toml"
+echo "--- setup"
+echo "CODEX_HOME=<X>/home: $(ls -A "$CODEX_HOME" | tr '\n' ' ')"
+echo "config.toml:"; mask <"$CODEX_HOME/config.toml" | sed 's/^/  /'
+echo "repo .codex/config.toml:"; sed 's/^/  /' "$X/r/.codex/config.toml"
+cp "$X/r/.codex/config.toml" "$X/pre-config.toml"
+
+echo; echo "=== step 1: check --backend codex"
+(cd "$X/r" && TMPDIR=$X/tmp "$S" check --backend codex --cli "$CX") >"$X/1.out" 2>"$X/1.err"; rc=$?
+echo "stdout:"; mask <"$X/1.out" | sed 's/^/  /'
+echo "stderr:"; mask <"$X/1.err" | sed 's/^/  /'
+echo "rc=$rc"
+
+echo; echo "=== step 2: debug models --bundled | P2 jq program"
+(cd "$X/r" && TMPDIR=$X/tmp "$CX" debug models --bundled) >"$X/2.json" 2>"$X/2.err"; rc=$?
+echo "debug models rc=$rc; stderr:"; mask <"$X/2.err" | sed 's/^/  /'
+jq -r '[.models[] | select(.visibility == "list")] | sort_by(.priority)
+       | if length == 0 then error("no listed model") else
+         "default: \(.[0].slug) (predicted)",
+         "models: " + (map(.slug + " (" + ([.supported_reasoning_levels[]?.effort] | join(" ")) + ")") | join(", "))
+       end' <"$X/2.json" >"$X/2.out"; echo "jq rc=$?"
+cat "$X/2.out"
+echo "entries in models line: $(sed -n 's/^models: //p' "$X/2.out" | awk -F', ' '{print NF}')"
+echo "gpt-daybreak count: $(command grep -c gpt-daybreak "$X/2.out"); codex-auto-review count: $(command grep -c codex-auto-review "$X/2.out")"
+
+echo; echo "=== step 3: the known positive (codex exec directly, user config read)"
+(cd "$X/r" && printf 'Say hello.\n' | TMPDIR=$X/tmp timeout --kill-after=10 240 "$CX" exec --color never -c 'sandbox_mode="read-only"' -) >"$X/3.out" 2>"$X/3.err"; rc=$?
+echo "rc=$rc; stdout bytes=$(wc -c <"$X/3.out")"
+echo "stderr (first 20 lines):"; mask <"$X/3.err" | head -n 20 | sed 's/^/  /'
+echo "stderr (last 6 lines of $(wc -l <"$X/3.err")):"; mask <"$X/3.err" | tail -n 6 | sed 's/^/  /'
+m3=$(sed 's/\x1b\[[0-9;]*m//g' "$X/3.err" | awk '/^OpenAI Codex v/{s=1} s && /^model: /{print substr($0,8); exit}')
+echo "header model: $m3"
+if [ "$m3" != project-model-x ]; then
+  echo "KNOWN POSITIVE FAILED: header model is not project-model-x; O1 stops here."
+  rm -rf "$X"; echo "X removed: $( [ -e "$X" ] && echo no || echo yes)"; exit 0
+fi
+
+echo; echo "=== step 3b: start through the script"
+printf 'Say hello.\n' >"$X/brief.md"
+(cd "$X/r" && TMPDIR=$X/tmp "$S" start --backend codex --cli "$CX" --brief "$X/brief.md" --repo "$X/r" --timeout 300) >"$X/3b.out" 2>"$X/3b.err"; rc=$?
+echo "stdout:"; mask <"$X/3b.out" | sed 's/^/  /'
+echo "stderr:"; mask <"$X/3b.err" | sed 's/^/  /'
+echo "rc=$rc"
+root=$X/tmp/glab-external-agents
+id=$(sed -n 's/^agent: \(ea-[0-9a-f]*\) .*/\1/p' "$X/3b.out" | head -n 1)
+echo "agent id: $id"
+adir=$root/$id
+echo "agent dir: $(ls -A "$adir" 2>&1 | tr '\n' ' ')"
+echo "agent.json:"; jq -c '{backend,model,effort,ran,profile,role,turns,session,ready,head:(.head|length),branch}' "$adir/agent.json" 2>&1 | mask | sed 's/^/  /'
+echo "transcript.log header block (turn 1):"
+sed 's/\x1b\[[0-9;]*m//g' "$adir/transcript.log" | awk '/^OpenAI Codex v/{s=1} s{print} s && /^--------$/ {n++; if (n==2) exit}' | mask | sed 's/^/  /'
+echo "transcript.log, lines after the block that start ERROR/WARN (turn 1, last 6):"
+sed 's/\x1b\[[0-9;]*m//g' "$adir/transcript.log" | command grep -E '^(ERROR|WARN|error|warning)' | tail -n 6 | mask | sed 's/^/  /'
+cp "$adir/transcript.log" "$X/t1.log" 2>/dev/null
+s1=$(jq -r .session "$adir/agent.json" 2>/dev/null)
+
+echo; echo "=== step 4: send"
+printf 'Say hello again.\n' >"$X/msg.md"
+(cd "$X/r" && TMPDIR=$X/tmp "$S" send "$id" --message "$X/msg.md" --timeout 300) >"$X/4.out" 2>"$X/4.err"; rc=$?
+echo "stdout:"; mask <"$X/4.out" | sed 's/^/  /'
+echo "stderr:"; mask <"$X/4.err" | sed 's/^/  /'
+echo "rc=$rc"
+echo "transcript.log turn 2 header block:"
+sed 's/\x1b\[[0-9;]*m//g' "$adir/transcript.log" | awk '/^=== turn 2 stderr ===$/{t=1} t && /^OpenAI Codex v/{s=1} s{print} s && /^--------$/ {n++; if (n==2) exit}' | mask | sed 's/^/  /'
+s2=$(sed 's/\x1b\[[0-9;]*m//g' "$adir/transcript.log" | awk '/^=== turn 2 stderr ===$/{t=1} t && /^session id: /{print substr($0,13); exit}')
+echo "session turn 1 (agent.json): ${s1:-none}"
+echo "session turn 2 (header):      ${s2:-none}"
+echo "same session: $( [ -n "$s1" ] && [ "$s1" = "$s2" ] && echo yes || echo no)"
+echo "agent.json after send:"; jq -c '{ran,turns,session}' "$adir/agent.json" 2>&1 | sed 's/^/  /'
+cp "$adir/transcript.log" "$X/t2.log" 2>/dev/null
+
+echo; echo "=== step 5: list, then stop"
+(TMPDIR=$X/tmp "$S" list) >"$X/5l.out" 2>"$X/5l.err"; rc=$?
+echo "list stdout:"; mask <"$X/5l.out" | sed 's/^/  /'; echo "list stderr:"; mask <"$X/5l.err" | sed 's/^/  /'; echo "list rc=$rc"
+(TMPDIR=$X/tmp "$S" stop "$id") >"$X/5s.out" 2>"$X/5s.err"; rc=$?
+echo "stop stdout:"; mask <"$X/5s.out" | sed 's/^/  /'; echo "stop stderr:"; mask <"$X/5s.err" | sed 's/^/  /'; echo "stop rc=$rc"
+echo "agent dir after stop: $( [ -e "$adir" ] && echo present || echo absent)"
+# Processes left: any process whose environment names this run's CODEX_HOME,
+# and any descendant of this shell other than the ps pipeline itself.
+left=''
+for p in /proc/[0-9]*; do
+  [ -r "$p/environ" ] || continue
+  if tr '\0' '\n' <"$p/environ" 2>/dev/null | command grep -qxF "CODEX_HOME=$X/home"; then
+    pid=${p#/proc/}; [ "$pid" = "$$" ] || [ "$pid" = "$BASHPID" ] && continue
+    left+="$pid:$(tr '\0' ' ' <"$p/cmdline" | cut -c1-60) "
+  fi
+done
+echo "processes with this CODEX_HOME other than this shell: ${left:-none}"
+echo "'unknown feature' lines anywhere: $(cat "$X"/*.out "$X"/*.err "$X"/t*.log 2>/dev/null | command grep -ci 'unknown feature')"
+echo "'unexpected argument' or 'unknown' flag lines: $(cat "$X"/*.err "$X"/t*.log 2>/dev/null | command grep -ciE 'unexpected argument|unrecognized|invalid value')"
+echo "repo .codex/config.toml unchanged: $(cmp -s "$X/pre-config.toml" "$X/r/.codex/config.toml" && echo yes || echo no)"
+echo "repo status: $(git -C "$X/r" status --short | wc -l) changed paths"
+echo "CODEX_HOME after: $(ls -A "$CODEX_HOME" | tr '\n' ' ')"
+# Keep the raw logs for the record, masked, outside X.
+for f in 3.err t2.log; do [ -f "$X/$f" ] && mask <"$X/$f" >"$KEEP/o1.$f"; done
+rm -rf "$X"; echo "X removed: $( [ -e "$X" ] && echo no || echo yes)"
+````
+
+It ran as (`<work>` the integrator's work directory, `<repo>` this
+repository):
+
+````text
+KEEP=<work>/out CX=<home>/.local/bin/codex S=<repo>/plugins/glab/scripts/external-agent.sh \
+  timeout 1500 bwrap --unshare-net --die-with-parent --dev-bind / / -- bash o1-inner.sh
+````
+
+Recorded, per step, as `integration.md` gives it (`<X>` is the throwaway
+directory; ids differ per run; the integrator trimmed the repeated log lines
+of step 3 to `…`):
+
+````text
+netns: lo routes=0
+CODEX_HOME=<X>/home: auth.json config.toml
+config.toml:
+  [projects."<X>/r"]
+  trust_level = "trusted"
+repo .codex/config.toml:
+  model = "project-model-x"
+````
+
+Step 1, `check --backend codex`:
+
+````text
+stdout:
+  cli: <home>/.local/bin/codex
+  tools: setpriv setsid timeout flock
+  login: stored
+stderr:
+  external-agent: NOT READ-ONLY: Codex's read-only sandbox does not start on this host: bwrap: No permissions to create a new namespace, likely because the kernel does not allow non-privileged user namespaces. See <https://deb.li/bubblewrap> or <file:///usr/share/doc/bubblewrap/README.Debian.gz>.
+rc=12
+````
+
+Step 2, `debug models --bundled` through P2's jq program:
+
+````text
+debug models rc=0; stderr: (empty)
+jq rc=0
+default: gpt-6.1-sol (predicted)
+models: gpt-6.1-sol (low medium high xhigh max ultra), gpt-6-astra (low medium high xhigh max ultra), gpt-6-sol (low medium high xhigh max ultra), gpt-6-luna (low medium high xhigh max), gpt-5.6-sol (low medium high xhigh max ultra), gpt-5.6-terra (low medium high xhigh max ultra), gpt-5.6-luna (low medium high xhigh max), gpt-5.5 (low medium high xhigh)
+entries in models line: 8
+gpt-daybreak count: 0; codex-auto-review count: 0
+````
+
+Step 3, the known positive, Codex directly with the user config read:
+
+````text
+rc=1; stdout bytes=0
+2026-10-18T02:49:46.742504Z ERROR codex_models_manager::manager: failed to refresh available models: request timed out
+2026-10-18T02:49:46.755500Z ERROR codex_models_manager::manager: failed to refresh available models: request timed out
+OpenAI Codex v0.163.0
+--------
+workdir: <X>/r
+model: project-model-x
+provider: openai
+approval: never
+sandbox: read-only
+reasoning effort: none
+reasoning summaries: none
+session id: 01a14cea-3c78-7a51-8cc3-91fe62e83f9f
+--------
+user
+Say hello.
+
+warning: Codex's Linux sandbox uses bubblewrap and needs access to create user namespaces.
+2026-10-18T02:49:51.785663Z ERROR rmcp::transport::worker: worker quit with fatal: Transport channel closed, when Client(HttpRequest(HttpRequest("http/request failed: error sending request for url (https://chatgpt.com/backend-api/ps/mcp)")))
+warning: Model metadata for `project-model-x` not found. Defaulting to fallback metadata; this can degrade performance and cause issues.
+… (the rmcp line five more times, then)
+ERROR: Reconnecting... 2/5
+…
+ERROR: Reconnecting... 5/5
+warning: Falling back from WebSockets to HTTPS transport. workspace routing discovery failed
+ERROR: Reconnecting... 1/5
+…
+ERROR: workspace routing discovery failed
+ERROR: workspace routing discovery failed
+header model: project-model-x
+````
+
+Step 3b, `start` through the script:
+
+````text
+stdout:
+  agent: ea-1dc2df1a1101b9fe · model: codex:gpt-6.1-sol · turn: 1 · transcript: <X>/tmp/glab-external-agents/ea-1dc2df1a1101b9fe/transcript.txt
+  end: ea-1dc2df1a1101b9fe
+stderr:
+  external-agent: BACKEND ERROR: workspace routing discovery failed
+rc=7
+agent dir: agent.json lock transcript.log transcript.txt turn.pid
+agent.json:
+  {"backend":"codex","model":"","effort":"","ran":"gpt-6.1-sol","profile":"default","role":"general","turns":1,"session":"01a14cec-ddf0-7b31-b789-889a7038a861","ready":true,"head":12,"branch":"refs/heads/master"}
+transcript.log header block (turn 1):
+  OpenAI Codex v0.163.0
+  --------
+  workdir: <X>/r
+  model: gpt-6.1-sol
+  provider: openai
+  approval: never
+  sandbox: read-only
+  reasoning effort: none
+  reasoning summaries: none
+  session id: 01a14cec-ddf0-7b31-b789-889a7038a861
+  --------
+````
+
+Step 4, `send`:
+
+````text
+stdout:
+  agent: ea-1dc2df1a1101b9fe · model: codex:gpt-6.1-sol · turn: 2 · transcript: <X>/tmp/glab-external-agents/ea-1dc2df1a1101b9fe/transcript.txt
+  end: ea-1dc2df1a1101b9fe
+stderr:
+  external-agent: BACKEND ERROR: workspace routing discovery failed
+rc=7
+transcript.log turn 2 header block:
+  OpenAI Codex v0.163.0
+  --------
+  workdir: <X>/r
+  model: gpt-6.1-sol
+  provider: openai
+  approval: never
+  sandbox: read-only
+  reasoning effort: none
+  reasoning summaries: none
+  session id: 01a14cec-ddf0-7b31-b789-889a7038a861
+  --------
+session turn 1 (agent.json): 01a14cec-ddf0-7b31-b789-889a7038a861
+session turn 2 (header):      01a14cec-ddf0-7b31-b789-889a7038a861
+same session: yes
+agent.json after send:
+  {"ran":"gpt-6.1-sol","turns":2,"session":"01a14cec-ddf0-7b31-b789-889a7038a861"}
+````
+
+Step 5, `list`, then `stop`:
+
+````text
+list stdout:
+  agents: 1
+  ea-1dc2df1a1101b9fe  idle  codex:gpt-6.1-sol  role=general  turns=2  last=2026-10-18T02:58:00Z  repo=<X>/r@bf444eebe774  label=
+list rc=0
+stop stdout:
+  stopped: ea-1dc2df1a1101b9fe
+stop rc=0
+agent dir after stop: absent
+processes with this CODEX_HOME other than this shell: none
+'unknown feature' lines anywhere: 0
+'unexpected argument' or 'unknown' flag lines: 0
+repo .codex/config.toml unchanged: yes
+repo status: 0 changed paths
+X removed: yes
+````
+
+Expected (`plan.md` *After* §3, O1): step 1 `cli:` and `tools:`, then
+`login: stored` with the sandbox and model lines, or exit 4 for a refused
+fake login; step 2 `default: gpt-6.1-sol (predicted)` and eight entries,
+with no `gpt-daybreak` and no `codex-auto-review`; step 3 the header's
+`model: project-model-x` — the trusted layer loads, so the run can tell the
+two cases apart, and without it O1 stops; step 3b exit 7 at the network,
+with a header naming a model other than `project-model-x`, `sandbox:
+read-only`, `approval: never` and a UUID session id in `transcript.log`,
+and `agent.json` `session` set; step 4 exit 7 with the same session id;
+step 5 the agent listed, `stopped:`, no process left, no `unknown feature`
+line. Every step met it but step 1's sandbox line, which is exit 12 for the
+AppArmor limit of *Measurements* — the script behaving as D10 says; `check`'s
+sandbox command, run on the host, passes (*Measurements*, S1). Step 3b's
+`gpt-6.1-sol` is Codex's bundled default, step 2's prediction. The
+`rmcp … /backend-api/ps/mcp` line of step 3 appears nowhere in the script's
+turns. The process scan printed `Permission denied` for processes outside
+the wrapper's user namespace; the integrator trimmed it. It shows the argv,
+the header block, the trust default, the catalog and the resume against
+0.163.0; it cannot show a reply (*Known limits*).
+
 ## Live runs
 
-A live run calls a real model with the user's own key. When one may run, who
-runs it, and how its record is kept is `AGENTS.md` *Rules*, the live-run
-exception of "Never run `external-agent.sh` against a real model from this
-repo"; it is not restated here. What follows is the procedure the live probe
-of 2026-10-17 used, for a later run recorded the same way.
+A live run calls a real model with the user's own key or login. When one may
+run, who runs it, and how its record is kept is `AGENTS.md` *Rules*, the
+live-run exception of "Never run `external-agent.sh` against a real model
+from this repo"; it is not restated here, except that since
+`feature-codex-agent` the user names the backend and the models — for Codex,
+the backend alone names its default model — and the "Use balance" check is
+for an OpenCode run only: Codex has no such switch, and runs on the user's
+own Codex login (`[feature-codex-agent/plan.md U7]`). What follows is the
+procedure the OpenCode live probe of 2026-10-17 used, then the Codex probe
+of 2026-10-18 (*Codex — the runner*), each for a later run recorded the same
+way.
 
 **L1a — no model is called.** From the repo root, with `TMPDIR` exported;
 this block is `plan-r3.md`'s L1a, byte for byte:
@@ -660,6 +1403,90 @@ reviewer found the one uncommitted bug. All five said the repository has no
 - [feature-opencode-worker/probe-r3.md 5] The README still said the external agents had not run against a real model — closed by `5321d76`.
 - [feature-opencode-worker/probe-r3.md 6] About 7–9 minutes per model for general, `send` and review.
 
+**Codex — the runner.** There is no L1a for Codex: no key to check and no
+"Use balance" switch; `check --backend codex` is the runner's first line.
+`feature-codex-agent`'s `probe-codex-l1/runner.sh.txt`, the script that ran
+the Codex probe, byte for byte as recorded, with its host values masked —
+`<tmp>` for the temp directory the host file names, `<home>` for the user's
+home — which a later run fills in. It is saved as a file and run, never
+pasted:
+
+````bash
+#!/usr/bin/env bash
+# Live probe L1 for the Codex backend (feature-codex-agent), run by the manager
+# session at the user's instruction of 2026-10-18: Codex's default model,
+# effort high, read-only, in this repo; one start, one send, then stop.
+set -u
+export TMPDIR=<tmp>
+cd <home>/projects/skills || exit 1
+d=<tmp>/codex-l1/out; rm -rf "$d"; mkdir -p "$d"
+S=plugins/glab/scripts/external-agent.sh
+CLI="$HOME/.local/bin/codex"
+marked() { # pids whose environment carries this agent's marker
+  local p e; for p in /proc/[0-9]*; do
+    e=$(tr '\0' '\n' <"$p/environ" 2>/dev/null) || continue
+    printf '%s\n' "$e" | command grep -qx "GLAB_EXTERNAL_AGENT=$1" && echo "${p#/proc/}"
+  done; }
+"$S" check --backend codex --cli "$CLI" >"$d/check.out" 2>"$d/check.err"; echo "check rc=$?" | tee "$d/rc.txt"
+printf '%s\n' 'Read AGENTS.md, then list the files under plugins/glab/scripts, one line each on what it does. Change nothing.' >"$d/brief.md"
+SECONDS=0
+"$S" start --backend codex --cli "$CLI" --effort high --role general --label l1 --repo . --timeout 900 --brief "$d/brief.md" >"$d/start.out" 2>"$d/start.err"
+echo "start rc=$? ${SECONDS}s" | tee -a "$d/rc.txt"
+id=$(command sed -n 's/^agent: \([^ ]*\) .*/\1/p' "$d/start.out" | head -n 1)
+echo "id=$id" | tee -a "$d/rc.txt"
+[ -n "$id" ] || exit 0
+echo "marked after start: $(marked "$id" | wc -l)" | tee -a "$d/rc.txt"
+printf '%s\n' 'In one sentence: which of those scripts would you read first to learn how a turn is stopped, and why?' >"$d/msg.md"
+SECONDS=0
+"$S" send "$id" --message "$d/msg.md" --timeout 900 >"$d/send.out" 2>"$d/send.err"
+echo "send rc=$? ${SECONDS}s" | tee -a "$d/rc.txt"
+echo "marked after send: $(marked "$id" | wc -l)" | tee -a "$d/rc.txt"
+"$S" list >"$d/list.out" 2>&1
+cp "$TMPDIR/glab-external-agents/$id/"transcript.* "$d/" 2>/dev/null
+"$S" stop "$id" >"$d/stop.out" 2>"$d/stop.err"; echo "stop rc=$?" | tee -a "$d/rc.txt"
+echo "marked after stop: $(marked "$id" | wc -l)" | tee -a "$d/rc.txt"
+echo "agent dir left: $([ -e "$TMPDIR/glab-external-agents/$id" ] && echo yes || echo no)" | tee -a "$d/rc.txt"
+git status --short -uall >"$d/git-status.out"
+````
+
+Its `marked` check reads `environ` newline-split, unlike `sweep_agent`'s
+whole-entry match. It cannot show that a turn's commands carry the marker:
+a turn that ends cleanly leaves nothing to find
+(`[feature-codex-agent/probe-codex-l1.md not-verified]`); a later run that
+should show it ends one turn with `stop` while a command is running, then
+checks that no marked process is left (`[feature-codex-agent/plan.md unverified]`).
+
+### 2026-10-18 — L1 (Codex)
+
+Run by the manager session at the user's instruction in chat, "Yes, Codex
+default model", as a script, never pasted, with the user's own Codex login;
+the effort was the session's own level, `high`, which the user gave because
+`CLAUDE_CODE_EFFORT_LEVEL` is unset; code under test `glab` 0.6.0
+(`9108ac7`), in this repository. The record:
+`git show 30f2c80:plan/feature-codex-agent/probe-codex-l1.md`; its files,
+masked (`<home>`, `<user>`, `<uid>`, `<tmp>`) and scanned for tokens and key
+prefixes, none found:
+`git ls-tree -r --name-only 30f2c80 -- plan/feature-codex-agent/probe-codex-l1/`
+(`runner.sh.txt`, `rc.txt`, `brief.md`, `msg.md`, `check.out`, `start.out`,
+`send.out`, `list.out`, `stop.out`, `transcript.log`, `transcript.txt`).
+
+| step | rc | what it showed |
+|---|---|---|
+| `check --backend codex` | 0 | `login: stored`, `sandbox: read-only starts`, `default: gpt-6.1-sol (predicted)`, seven listed models with their levels |
+| `start --effort high --role general --repo .`, no `--model` | 0, 28 s | header `model: codex:gpt-6.1-sol · turn: 1`; Codex's block `model: gpt-6.1-sol`, `approval: never`, `sandbox: read-only`, `reasoning effort: high`, a UUID session id; it ran `cat AGENTS.md`, `rg --files …` and `head`/`cat` on the two scripts and answered correctly, marking what it had proven and what it had inferred |
+| `send`, a one-sentence follow-up | 0, 6 s | `turn: 2`, the same model; the reply refers to its first answer |
+| `list` | 0 | `idle  codex:gpt-6.1-sol  role=general  turns=2`, the repository at `9108ac7` |
+| `stop` | 0 | `stopped: <id>`; the agent's directory gone |
+
+Marked processes after `start`, after `send` and after `stop`: `0` each
+time; `git status --short -uall` afterwards showed only the untracked
+handoff.
+
+- [feature-codex-agent/probe-codex-l1.md settled] Settled: the real Codex 0.163.0 accepts the script's `exec` and `exec resume` argv; it prints the header block in the form the script parses; `--effort high` reaches it as `reasoning effort: high`; its default model is read back and recorded (`codex:gpt-6.1-sol`); resume continues the session; no marked process was left after a turn or after `stop`. Also in its files, not in its *Settled* list: `check`'s predicted default is the model that ran, and the user's real login gives `login: stored` (`check.out`, `start.out`).
+
+Not settled by L1, and kept under *Known limits*: that a real `exec` turn's
+commands carry the marker while they run.
+
 ## Open follow-ups
 
 - [fix-probe-findings/plan.md follow-up-2] A start refused upstream lists with `turns=2` — the same item as `[feature-opencode-worker/probe-r3.md 4]`; open.
@@ -681,11 +1508,28 @@ reviewer found the one uncommitted bug. All five said the repository has no
 - [feature-opencode-worker/follow-ups.md 22] Uncovered by any case: the `-ef` live-lock check in `lock_agent` (the race cannot be made deterministic) and the gitlink `mkdir` reason (no test repository has a 160000 entry) — open.
 - [feature-opencode-worker/follow-ups.md 24] `tests/external-agent.test.sh` failed once, 1 of 47, in the planner's baseline run at `8cb2a92`, while the planner was also running mutants; 8 manager runs and 3 planner runs passed; likely a timing-sensitive case under load. Next time it fails, keep the full output to name the case — open.
 - [feature-opencode-worker/follow-ups.md 25] The left-edge sentence still bans indent on every line of the report block, while the check reads only the markers, the verdict line and `rule:` lines; a model may flatten an indented code quote in a finding. Narrow it to "the verdict line and each rule: line start at the left edge", and change E48's `sl` with it — open, advisory.
-- [feature-opencode-worker/plan-r3.md not-in-plan-1] The Codex adapter (U12): `codex_models`, `codex_secret`, `codex_secret_var`, `codex_env`, `codex_argv`, `codex_session`, `codex_text`, `codex_error`, `codex_render`, a line in `known_backend`, a stub in the test; every Codex fact unresearched (findings-r3, *Later: Codex*) — open.
-- [feature-opencode-worker/plan-r3.md not-in-plan-2] An external developer, until gates can run sandboxed too (U10) — open.
+- [feature-opencode-worker/plan-r3.md not-in-plan-2] An external developer, until gates can run sandboxed too (U10) — open; the user has since asked for Codex as a developer (`[feature-codex-agent/questions.md A4]`), and it is the next change, `[feature-codex-agent/plan.md not-in-plan-1]`.
 - [feature-opencode-worker/plan-r3.md not-in-plan-3] Tuning a profile from the probe's transcripts — open, the same as `[feature-opencode-worker/follow-ups.md 12]`.
 - [feature-opencode-worker/plan-r3.md not-in-plan-4] Moving DeepSeek's end date, 2026-10-31: a one-line change after re-reading the Go page, with a version bump — open; the models are refused upstream on this workspace anyway (`[feature-opencode-worker/probe-r3.md 3]`).
 - [feature-opencode-worker/plan-r3.md not-in-plan-5] `slirp4netns --enable-sandbox`, once it can be proven on an installed copy — open.
+- [feature-codex-agent/plan.md not-in-plan-1] **The developer role, the next change**: the external developer — Codex in `workspace-write`, editing the working tree directly as `glab:developer` does, and the pipeline wiring — the second change of Q1 (`feature-external-developer`, `glab` 0.7.0 in `questions.md`), planned from facts measured on this backend; it carries U3 (the manager reads the whole change before the gates) and A4 — open.
+- [feature-codex-agent/plan.md not-in-plan-3] `plan/SESSION-HANDOFF.md` sits in OpenCode agents' copies — the same item as `[feature-codex-agent/findings.md F1]`; open.
+- [feature-codex-agent/findings.md F1] `plan/SESSION-HANDOFF.md` is untracked-but-not-ignored, so every OpenCode agent's copy holds it and its provider receives it (and a Codex agent can read it in the repository). Either ignore it, or say so in the skill — open.
+- [feature-codex-agent/plan.md not-in-plan-4] A Codex profile tuned from real replies; Codex uses `default` only (D16) — open.
+- [feature-codex-agent/plan.md not-in-plan-5] Removing a Codex session from Codex's history at `stop` (D12) — open.
+- [feature-codex-agent/review-r1.md C-C] No bound on `wait "$jpid" "$epid"` in `run_host`: a process still holding the output pipes would block it — open, deferred by review r1's assignment.
+- [feature-codex-agent/review-r1.md C-E] The group-kill PID-reuse window (the group TERM and KILL of `run_host` and `cleanup` are sent to a process group id with no start-time check, unlike the sweep) — open, deferred; the same item as `[feature-codex-agent/review-r1.md S-5]`.
+- [feature-codex-agent/review-r1.md S-5] The group-kill window, as C-E — open, deferred.
+- [feature-codex-agent/review-r1.md S-6] The header block is trusted on its position alone: the first `OpenAI Codex v<n>` block within the first 20 stderr lines — open, deferred.
+- [feature-codex-agent/review-r1.md S-7] Environment values are passed newline-separated (`codex_env` and `opencode_env` print `NAME=value` one per line), so a value holding a newline would split, and its second line be exported as a name of its own; the values are the user's own, and OpenCode had the same protocol before — open, deferred; the same item as `[feature-codex-agent/result-p1-p4.md L238]`.
+- [feature-codex-agent/result-p1-p4.md L238] `NAME=value` one per line, as S-7 — open.
+- [feature-codex-agent/result-p1-p4.md L239] `codex_raw` writes the turn's stdout as Codex printed it, so a final message with no trailing newline joins the next turn's `=== turn n stderr ===` line in `transcript.log` — open, cosmetic; no case shows it.
+- [feature-codex-agent/review-r2.md R2-d] The pre-turn sweep in `cmd_send` runs before `host_turn` is set, so a signal during it skips `cleanup`'s sweep; low impact, the next `send` or `stop` sweeps — open, deferred.
+- [feature-codex-agent/review-r2.md R2-e] `debug models` runs with an empty `GLAB_EXTERNAL_AGENT`; harmless — pass the marker explicitly, or leave the variable out — open, deferred.
+- [feature-codex-agent/review-r2.md R2-c] No case covers `cleanup`'s `host_turn` sweep (`external-agent.sh:203` as built): it acts only when a HUP, INT or TERM arrives during `run_host`'s own post-turn sweep, a one-scan window a signal cannot be aimed at reliably; the review's mutant passes 70/70; named as uncovered by revision 6 — open.
+- [feature-codex-agent/result-p1-p4.md L556] E71's timing dependence: it is deterministic only by its margins — the unmarked stand-in floods the old filter about 2 s into a 6 s `slow` turn, about 1.5 s before the flood and 4 s after it; the `$$` mutant failed it on both of its runs, but a loaded host could move the flood past the turn's end — open.
+- [feature-codex-agent/record.md readme-stale] Raised by this record (Stage 8), not by a file in the folder: `README.md:93-94` at `30f2c80` still says "Codex agents have been tested against a stub and offline against the real `codex`; none has run against a real model yet", out of date since L1 (*Live runs*); no gate pins the sentence. The in-flight `feature-external-developer` change fixes it — open until that lands.
+- [feature-codex-agent/result-p5-p10.md F-d] The skill's *Reading what comes back* says `model: <backend>:<model>` without saying that for Codex this is the model that ran; the plan states that only in the manager's `:128` (the skill's announce step and the script's header do say it) — open: re-read at `30f2c80`, `SKILL.md:129` unchanged.
 
 ## Closed follow-ups
 
@@ -707,6 +1551,13 @@ reviewer found the one uncommitted bug. All five said the repository has no
 - [feature-opencode-worker/probe-r3.md 6] Timing, 7–9 minutes per model — closed: information.
 - [fix-probe-findings/plan.md follow-up-1] `AGENTS.md`'s live-run rule read "the live probe in that plan, which the user runs with their own key; no agent runs it", but the manager ran L1 at the user's instruction — closed by `feature-docs-specs`: `AGENTS.md`'s live-run exception, the user's wording (it runs only when the user says so in chat for that run and names the models; the user runs it, or the manager session does at that instruction, as a script; no dispatched agent runs it).
 
+- [feature-opencode-worker/plan-r3.md not-in-plan-1] The Codex adapter (U12): `codex_models`, `codex_secret`, `codex_secret_var`, `codex_env`, `codex_argv`, `codex_session`, `codex_text`, `codex_error`, `codex_render`, a line in `known_backend`, a stub in the test; every Codex fact unresearched (findings-r3, *Later: Codex*) — closed by `feature-codex-agent` (`9108ac7`): the Codex adapter set, on the host rather than in the sandbox, with `codex_isolation`, `codex_model_allowed`, `codex_argv`, `codex_env`, `codex_session`, `codex_text`, `codex_error`, `codex_render`, `codex_verify` and `codex_check`, `codex` in `known_backend` and `model_optional`, a stub `codex` in the test, and the Codex facts researched (findings §3, §9); no `codex_secret`, since the script never reads the login.
+- [feature-codex-agent/plan.md not-in-plan-2] A live Codex run, only on the user's instruction — closed: L1 ran on 2026-10-18 at the user's instruction (*Live runs*).
+- [feature-codex-agent/findings.md F2] `~/.local/bin/codex` resolves into `~/.codex/packages/…`, so an agent started before a Codex update would fail its next `send` with exit 4 — closed by D11: the Codex CLI path is kept absolute but unresolved (E51).
+- [feature-codex-agent/result-p5-p10.md F-a] The plan's post-condition S7, `command grep -c -F '- model: …'`, reads its pattern as options and exits 2; with `-e` it counts `1` — closed: plan text, a record of that change (the folder does not change); the tree held the line.
+- [feature-codex-agent/result-p5-p10.md F-b] The skill gave mapping (i) no rule for `models: unavailable` — closed by revision 5's U5 (review r1 T5): send the level unchanged and say `effort <sent> (no levels known)` (`SKILL.md:81`, `:106` at `30f2c80`).
+- [feature-codex-agent/result-p5-p10.md F-c] `README.md:59`'s "The script runs only Kimi and GLM models…" followed a sentence about Codex and meant OpenCode only from context — closed by review r1 T1: it reads "For OpenCode, the script runs only Kimi and GLM models" (`README.md:60` at `30f2c80`).
+
 ## Incidents
 
 - **A pasted block closed the shell** (follow-up 1): pasted into `bash -i`, a line ending `|| exit 1` printed `exit` and never the next line; the proposed `{ return 1 2>/dev/null || exit 1; }` did the same, because at an interactive top level `return` fails and `exit` runs. It only helps when the block is sourced. That is why live runs are saved and run as scripts.
@@ -717,6 +1568,16 @@ reviewer found the one uncommitted bug. All five said the repository has no
 - **Reading the sandbox's pid too early raced bwrap's own setup** (`nsenter: reassociate to namespace 'ns/user' failed`); waiting for the sandbox's command to report in removed it (N3).
 - **`--disable-host-loopback` alone left the LAN open**: a host listener answered on the host's LAN and bridge addresses, and the LAN router answered one TCP connect (one SYN, no data); later runs used a documentation address instead, and the blackhole routes close them (N4, N5).
 - **The probe's findings** 1–4 (*Live runs*): the singular verdict rejected; the plan's wrong `send` expectation; DeepSeek refused upstream; a refused start listing with `turns=2`.
+- **O2 failed: a killed turn left Codex's helper running** (`feature-codex-agent`, Stage 4 round 2, `integration.md` *O2 on the host*). After the outermost `setpriv` of D7's chain was SIGKILLed, Codex's sandbox helper (`comm=codex`, reparented to pid 1) and its `sleep` were still alive 2 s and 20 s later, in a session and group of their own, out of reach of the script's group kill; the measurement killed them by pid. Classified `PLAN WRONG` for P3/D7. The user chose "measure, then amend the plan"; of three candidates, SIGTERM or SIGINT first failed, the marker and a sweep by PID worked, a systemd scope worked with a new dependency (findings §9.9). Revision 4's D31 answered it, and O2 passed against it in rounds 3 and 5. That the same holds for a real `codex exec` turn is still UNVERIFIED (*Known limits*).
+- **Stage 1b went past its cap, with the user's consent** (`feature-codex-agent`). Round 1/2 returned NOT BUILDABLE from all three analyzers (the unwritten host text, the missing stderr in `transcript.log`, sandbox-only lines in the common turn); round 2/2 found every round-1 item resolved and still five blockers, none a design problem (the `debug models` shape and `login status`'s exit status unrecorded, coverage gaps, an unrunnable host-text grep, steps no post-condition could catch, no `## Record`). The two-round cap was then spent; the user chose to fix the five and run one narrow third check of those fixes only, and allowed the one offline `debug models --bundled` run that recorded the shape (`[feature-codex-agent/questions.md stage-1b]`). Later, conformance reached round 4/4 with one divergence — the test count, after review r2 split E70 — which the user's revision 6 recorded.
+- **The committer caught unmasked host values** (`feature-codex-agent`; carried from the manager's Stage 8 dispatch, since the folder does not tell the incident itself): `glab:committer` found values of this host left unmasked in the plan folder's records. The trace in the folder: `integration.md` *The scripts, verbatim* says the user's home is masked as `<home>` throughout, "including inside `mask()`, where the script that ran named the real path", and `probe-codex-l1.md` lists its masks (`<home>`, `<user>`, `<uid>`, `<tmp>`) and its token scan. Which values, which files, and at which commit they were masked are not in the folder: UNVERIFIED.
+- **Codex's sandbox would not start inside the no-network wrapper** (`feature-codex-agent`, Stage 4 round 1): under `bwrap --unshare-net`, AppArmor's `unpriv_bwrap` blocks the nested bwrap Codex uses, so S1, O2 and `check`'s sandbox line measured nothing there, and `check` exited 12 in O1. The user's Stage 4 allowance moved S1 and O2 to the host under `codex sandbox` only (*Measurements*). The first two host scripts then failed in the integrator's own code (`P0: unbound variable`, then the same on `CX`: the subshell unset the exported values before reading them); the third copied them into shell variables first.
+- **The host stream filters held the agent's lock** (`feature-codex-agent`, develop round 2): E69 first failed with `rc=11 … BUSY`, because the two host output filters inherited the lock descriptor and lived as long as the helper's stand-in held the streams, so after a SIGKILL `stop` could never take the lock and reach its sweep. The host filters now close the lock descriptor, as `wire_network`'s log filter already did (`[feature-codex-agent/result-p1-p4.md L297]`).
+- **The sweep made the suite slow**: one `sweep_agent` took about 1.3 s (a 1 s second pass every time, plus the scan) and ran at every `stop`, OpenCode's included, so `tests/external-agent.test.sh` went from about 38 s to about 3 min. Review r1 C3's fixes — a second pass only after a kill, no sweep for a sandbox backend's `stop`, `environ_has` instead of `tr` — brought it to about 52 s.
+- **A sweep that matched inside another value** (review r1 C-D): reading `environ` newline-split would match the marker inside another variable's value; `environ_has` compares whole NUL-separated entries, and E69's second decoy pins it.
+- [feature-codex-agent/findings.md L32] **The wrong flow was built first** (the incident `findings.md:32` points to, "`plan/SESSION-HANDOFF.md`, *Incident, 2026-10-18*"; that file is never committed, so its text was taken from the manager's handoff at record time and reworded lightly). The manager misread "let's setup the same flow for codex" as porting glab to run inside Codex, never asked which flow was meant, and built `feature-codex-host`: a plan, Stage 1b twice, five slices and a generator, gates green, review round 1 started. Three signals were missed: the research brief itself was framed as porting; the user's "codex flow almost the same to compare with you"; and the planner's note that the "Codex adapter" follow-up was "a different thing". The user stopped it, and all of it was reverted — `git restore` and removal of the new files; never committed, never pushed; `~/.codex` never written; no Codex model run. Lesson: when a request can mean two things, ask which before dispatching research. That is why this change's findings open by saying it is not glab running inside Codex.
+- **The planner ran more than its brief** (`feature-codex-agent` findings, *Disclosure*): beyond Codex's help and version, it ran `codex features list`, `codex debug models` and `codex login status`, each with a throwaway `CODEX_HOME` and `HOME`, inside `bwrap --unshare-net`, with stdin `/dev/null`, none sending a prompt; and `file -L ~/.local/bin/codex` read the ELF header of the binary under `~/.codex/packages/`, the only thing under `~/.codex` read. Reported for the manager to judge.
+- **The planner's write into its own plan folder was refused** (`feature-codex-agent`): the plan files were written under `$TMPDIR` with a `SHA256SUMS`, and the manager verified and copied them in, as for `feature-docs-specs`.
 
 ## Records
 
@@ -744,3 +1605,21 @@ reviewer found the one uncommitted bug. All five said the repository has no
   - [fix-probe-findings/result.md L226] Follow-ups → `[fix-probe-findings/result.md E49]`.
   - [fix-probe-findings/result.md L238] Not done → the probe records commit landed before the fix (`51043c4`, then `5321d76`); mutants m1–m3 not re-run and the line-number drift: nothing open.
 - 2026-10-18 · feature-docs-specs · recorded in `docs/specs/workflow.md`, its primary area; here it closed `[fix-probe-findings/plan.md follow-up-1]` and carried `[feature-docs-specs/plan.md D6]` and `[feature-docs-specs/questions.md Q1]` · plan: `git ls-tree -r --name-only 09d2787 -- plan/feature-docs-specs/` (one file: `git show 09d2787:plan/feature-docs-specs/<file>`)
+- 2026-10-18 · feature-codex-agent · Codex as a read-only external-agent backend, on the host in the user's repository under Codex's own read-only sandbox, with the user's own login; Codex's default model read back, `--effort`, the exit-12 header check, the D31 marker sweep; OpenCode's code into its adapter, plus E66's session check; 71 tests; `glab` 0.6.0; the live probe L1 · change 9108ac7 · records 30f2c80 · plan: `git ls-tree -r --name-only 30f2c80 -- plan/feature-codex-agent/` (one file: `git show 30f2c80:plan/feature-codex-agent/<file>`; the whole folder: `git archive 30f2c80 plan/feature-codex-agent/ | tar -x -C "$(mktemp -d "${TMPDIR:?}/plan.XXXXXX")"`). `30f2c80` is the last commit on `origin/main` that holds it.
+  - [feature-codex-agent/findings.md L700] 8. Follow-ups noticed, not in this change → `[feature-codex-agent/findings.md F1]` open, `F2` closed.
+  - [feature-codex-agent/findings.md L913] 9.6, what still needs a model → `[feature-codex-agent/findings.md unverified]`; revision 1's §6 measurements were superseded by §9.6 (S2 dropped with the login mechanisms; S1, O1 and O2 rewritten for the host design).
+  - [feature-codex-agent/plan.md L1424] Tests and coverage, *Not covered by any case, and accepted* → `[feature-codex-agent/plan.md not-covered]`.
+  - [feature-codex-agent/plan.md L1492] UNVERIFIED, in one place → `[feature-codex-agent/plan.md unverified]`.
+  - [feature-codex-agent/plan.md L1520] Not in this plan → `[feature-codex-agent/plan.md not-in-plan-1]` to `not-in-plan-5`; `[feature-opencode-worker/plan-r3.md not-in-plan-2]` stays open.
+  - [feature-codex-agent/plan.md L1531] Revision 5: still to build → built: the socket clause and D32's wording (`result-p5-p10.md` *Round 4*, S40–S42), the script header (`result-p1-p4.md` *Round 4*), O2 rerun against the built sweep (`integration.md` *Round 5*, pass); nothing open.
+  - [feature-codex-agent/plan.md L1587] Changes since revision 1 → every Stage 1b item of `analysis-1b-r1.md` (A1–A3) and `analysis-1b-r2.md` (B1–B3) answered there, then revisions 4–6 (*Decisions that still bind*); nothing open.
+  - [feature-codex-agent/review-r1.md L133] Assignment → every blocking finding (C1–C3, S1–S3, T1–T6) and every taken advisory fixed, confirmed by review r2; the deferred `[feature-codex-agent/review-r1.md C-C]`, `C-E`, `S-5`, `S-6`, `S-7` open.
+  - [feature-codex-agent/review-r2.md L50] Advisory, deferred to follow-ups → `[feature-codex-agent/review-r2.md R2-d]`, `R2-e` open; R2-1 and R2-2 fixed (E70/E71, D32), R2-a and R2-b taken, `R2-c` open as named uncovered. No `review-r3.md` is in the folder: the third round's verdict is not recorded there.
+  - [feature-codex-agent/result-p1-p4.md L234] Follow-ups → `[feature-codex-agent/result-p1-p4.md L238]` and `L239` open.
+  - [feature-codex-agent/result-p1-p4.md L241] Not done → P5–P10 were the other slice, done; S1, O1 and O2 ran at Stage 4; its UNVERIFIED on the real argv and header was settled by O1 and L1.
+  - [feature-codex-agent/result-p1-p4.md L533] Round 4 (review r2), E71's *Determinism* → `[feature-codex-agent/result-p1-p4.md L556]` open.
+  - [feature-codex-agent/result-p5-p10.md L238] Follow-ups → `[feature-codex-agent/result-p5-p10.md F-a]`, `F-b`, `F-c` closed, `F-d` open.
+  - [feature-codex-agent/result-p5-p10.md L252] Not done → the other slice and `docs/specs/`: done, this record.
+  - [feature-codex-agent/result-p5-p10.md L390] Not changed, flagged → the stale plan text resolved by revision 5; "neither can change anything" and Rule 6's "It changes nothing" speak of the agent's work, and Codex's own `~/.codex` writes are stated in the data note; the socket limit → `[feature-codex-agent/result-p5-p10.md L578]`.
+  - [feature-codex-agent/integration.md L611] Items these runs leave open, and `L725` Still unverified after round 3 → `[feature-codex-agent/integration.md open]`.
+  - [feature-codex-agent/probe-codex-l1.md L44] What this settles, and what it does not → `[feature-codex-agent/probe-codex-l1.md settled]` (*Live runs*) and `[feature-codex-agent/probe-codex-l1.md not-verified]`.
