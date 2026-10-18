@@ -1,0 +1,35 @@
+#!/usr/bin/env bash
+# Live probe L1 for the Codex backend (feature-codex-agent), run by the manager
+# session at the user's instruction of 2026-10-18: Codex's default model,
+# effort high, read-only, in this repo; one start, one send, then stop.
+set -u
+export TMPDIR=<tmp>
+cd <home>/projects/skills || exit 1
+d=<tmp>/codex-l1/out; rm -rf "$d"; mkdir -p "$d"
+S=plugins/glab/scripts/external-agent.sh
+CLI="$HOME/.local/bin/codex"
+marked() { # pids whose environment carries this agent's marker
+  local p e; for p in /proc/[0-9]*; do
+    e=$(tr '\0' '\n' <"$p/environ" 2>/dev/null) || continue
+    printf '%s\n' "$e" | command grep -qx "GLAB_EXTERNAL_AGENT=$1" && echo "${p#/proc/}"
+  done; }
+"$S" check --backend codex --cli "$CLI" >"$d/check.out" 2>"$d/check.err"; echo "check rc=$?" | tee "$d/rc.txt"
+printf '%s\n' 'Read AGENTS.md, then list the files under plugins/glab/scripts, one line each on what it does. Change nothing.' >"$d/brief.md"
+SECONDS=0
+"$S" start --backend codex --cli "$CLI" --effort high --role general --label l1 --repo . --timeout 900 --brief "$d/brief.md" >"$d/start.out" 2>"$d/start.err"
+echo "start rc=$? ${SECONDS}s" | tee -a "$d/rc.txt"
+id=$(command sed -n 's/^agent: \([^ ]*\) .*/\1/p' "$d/start.out" | head -n 1)
+echo "id=$id" | tee -a "$d/rc.txt"
+[ -n "$id" ] || exit 0
+echo "marked after start: $(marked "$id" | wc -l)" | tee -a "$d/rc.txt"
+printf '%s\n' 'In one sentence: which of those scripts would you read first to learn how a turn is stopped, and why?' >"$d/msg.md"
+SECONDS=0
+"$S" send "$id" --message "$d/msg.md" --timeout 900 >"$d/send.out" 2>"$d/send.err"
+echo "send rc=$? ${SECONDS}s" | tee -a "$d/rc.txt"
+echo "marked after send: $(marked "$id" | wc -l)" | tee -a "$d/rc.txt"
+"$S" list >"$d/list.out" 2>&1
+cp "$TMPDIR/glab-external-agents/$id/"transcript.* "$d/" 2>/dev/null
+"$S" stop "$id" >"$d/stop.out" 2>"$d/stop.err"; echo "stop rc=$?" | tee -a "$d/rc.txt"
+echo "marked after stop: $(marked "$id" | wc -l)" | tee -a "$d/rc.txt"
+echo "agent dir left: $([ -e "$TMPDIR/glab-external-agents/$id" ] && echo yes || echo no)" | tee -a "$d/rc.txt"
+git status --short -uall >"$d/git-status.out"

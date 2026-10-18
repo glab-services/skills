@@ -1,0 +1,4 @@
+agent: ea-d4fd5940a608c455 · model: codex:gpt-6.1-sol · turn: 2 · transcript: <tmp>/glab-external-agents/ea-d4fd5940a608c455/transcript.txt
+reply:
+| I’d read `plugins/glab/scripts/external-agent.sh` first because its header documents the `stop` command and identifies exit 143 (TERM) as a turn ended by `stop`.
+end: ea-d4fd5940a608c455
