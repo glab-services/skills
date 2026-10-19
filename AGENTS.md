@@ -165,7 +165,8 @@ repo and to nothing else.
   (`glab:manager` Stage 8) updates the spec of each area it touched —
   `marketplace.md` (the marketplace, this repo's layout, gates and rules),
   `workflow.md` (the `glab` workflow), `memory-sync.md`,
-  `external-agents.md`: how the area works now, the decisions that still
+  `external-agents.md` (removed in 0.8.0, a record only): how the area works
+  now, the decisions that still
   bind, what is not verified, every follow-up — open or closed, each tagged
   `[<slug>/<file> <id>]` — and its incidents, moved into *Incidents* rather
   than dropped (*Comments and recorded incidents are kept*). A spec states a
