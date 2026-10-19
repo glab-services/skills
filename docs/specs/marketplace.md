@@ -14,7 +14,9 @@ external-agent rule, the *One fact* entries) as of `30f2c80`, and its
 fact* entries) as of `33a28df`, and its `fix-external-agent-claims` lines
 (the version, the test count) as of `3965622`, and its `subagent-effort`
 lines (the version, the test count, the *One fact* entries) as of
-`abda43a`; where this file and an owning file disagree, the
+`abda43a`, and its `remove-external-agents` lines (the version, the
+component counts, the gates, the rules, the *One fact* entries) as of
+`467b7c4`; where this file and an owning file disagree, the
 owning file is right and this spec is out of date.
 
 ## How it works now
@@ -23,18 +25,21 @@ owning file is right and this spec is out of date.
   the marketplace `glab-services` and lists `glab` (`source`
   `./plugins/glab`) and `memory-sync` (`source` `./plugins/memory-sync`).
   The two plugins do not reference each other and install alone
-  (`README.md`). `glab` holds the workflow (`docs/specs/workflow.md`) and the
-  external agents (`docs/specs/external-agents.md`); `memory-sync` holds the
-  memory sync (`docs/specs/memory-sync.md`).
+  (`README.md`). `glab` holds the workflow (`docs/specs/workflow.md`);
+  `memory-sync` holds the memory sync (`docs/specs/memory-sync.md`). Until
+  `glab` 0.8.0 (`467b7c4`, 2026-10-20) `glab` also held the external agents,
+  which `docs/specs/external-agents.md` keeps as a record.
 - **What each plugin holds** (`AGENTS.md` *Gates*, `README.md`): `glab` —
-  seven skills and eight commands, which the CLI counts together as
-  `Skills (15)`, five agents, one `SessionStart` hook; `memory-sync` — one
+  six skills and eight commands, which the CLI counts together as
+  `Skills (14)`, five agents, one `SessionStart` hook (seven skills and
+  `Skills (15)`, with `glab:external-agents`, until `467b7c4`); `memory-sync` — one
   skill, `sync-memory`, no agent, hooks on `SessionStart`, `SessionEnd`,
   `PostToolUse` and `Stop`.
 - **Versions.** Each `plugin.json` carries an explicit `version` — `glab`
-  `0.7.2` (raised by `abda43a`, `subagent-effort`; `0.7.1` by `3965622`,
+  `0.8.0` (raised by `467b7c4`, `remove-external-agents`; `0.7.2` by
+  `abda43a`, `0.7.1` by `3965622`,
   `0.7.0` by `33a28df`, `0.6.0` by `9108ac7`, `0.5.0` by `fed95f9` before
-  it), `memory-sync` `0.1.0`, at `abda43a`. A change under
+  it), `memory-sync` `0.1.0`, at `467b7c4`. A change under
   `plugins/<name>/` raises that plugin's version in the same commit, because
   an installed copy is pinned to the version string and nothing else
   delivers a change (`AGENTS.md` *Rules*). `claude plugin validate --strict`
@@ -51,20 +56,35 @@ owning file is right and this spec is out of date.
   this repo has `CLAUDE_CONFIG_DIR` set to a new, empty directory under the
   host's temp directory, because the CLI writes into its config directory
   even for `plugin validate`.
-- **The gates** are the two blocks of `AGENTS.md` *Gates*: the script block
-  (`bash -n` joined to `test -x` for the five scripts, `shellcheck`, the two
-  stub tests) and the plugin block (three `validate --strict`, the component
+- **The gates** are the two blocks of `AGENTS.md` *Gates*, as of
+  `467b7c4`: the script block (`bash -n` joined to `test -x` for the three
+  scripts — `memory-sync.sh`, `manager-bootstrap.sh`,
+  `tests/memory-sync.test.sh` — `shellcheck` over the same three, and the one
+  stub test) and the plugin block (three `validate --strict`, the component
   counts of `plugin details`, the marketplace-to-manifest name check, the
-  `user_config` search, the two pinned hedge phrases, the prefixed `name:`
-  search). Each line's reason is written beside it there; this spec does not
-  restate the blocks. Green at `abda43a`, as at `3965622`, ends the two stub tests with
+  `user_config` search, the one pinned hedge phrase, `not yet confirmed`,
+  and the prefixed `name:` search). Each line's reason is written beside it
+  there; this spec does not restate the blocks. Green at `467b7c4`, run for
+  this record: three `rc=0` lines, `shellcheck` `rc=0`, the `memory-sync`
+  suite `PASS 35/35`, three `✔ Validation passed`, `glab`
+  `Skills (14)  analyze, audit, bootstrap, comments, commit, develop, integrate, manager, plan, plan-first, push, review, security, ship`,
+  `Agents (5)`, `Hooks (1)  SessionStart`, and `memory-sync` unchanged. No
+  external-agent suite runs, and the gates need no `bwrap`, `slirp4netns` or
+  `python3`; the `Not yet shown: any reply from a DeepSeek model` gate line
+  and its green bullet are gone. History, until `glab` 0.8.0 (`467b7c4`,
+  2026-10-20): the script block covered five scripts, with
+  `external-agent.sh` and `tests/external-agent.test.sh`, and two stub
+  tests, and the plugin block pinned two hedge phrases, the second the
+  DeepSeek sentence. Green at `abda43a`, as at `3965622`, ended the two stub tests with
   `PASS 35/35` and `PASS 86/86` (84 at `33a28df`, 71 at `9108ac7`, 49 before
-  `feature-codex-agent`); the plugin counts are unchanged, `glab`
+  `feature-codex-agent`); the plugin counts were then `glab`
   `Skills (15)`, `Agents (5)`, `Hooks (1)  SessionStart`.
-  `tests/external-agent.test.sh` runs its stub `opencode` inside the
+  `tests/external-agent.test.sh` ran its stub `opencode` inside the
   script's real sandbox, with a real network namespace, and its stub `codex`
-  on the host, as the script runs Codex (`AGENTS.md` *Gates*); `AGENTS.md`
-  *Tests* names both stubs as passed to the script with `--cli`. The Markdown files have no gate: a change to one is
+  on the host, as the script ran Codex, which needed `bwrap`, `slirp4netns`
+  and `python3` (`AGENTS.md` *Gates* until `467b7c4`); `AGENTS.md`
+  *Tests* named both stubs as passed to the script with `--cli`, and now
+  names `tests/memory-sync.test.sh` alone. The Markdown files have no gate: a change to one is
   checked by running what it prescribes in a throwaway directory and by its
   plan's searches.
 - **Names.** Payload text names a component by its prefixed name —
@@ -80,11 +100,13 @@ owning file is right and this spec is out of date.
 - **The repo's own rules** are `AGENTS.md`: the gates, the scoped test
   exception for shell scripts (a stub on `PATH`, coverage as a list), no
   secrets (`<bucket>`, `<prefix>`, `<profile, or delete this key>`), never
-  running `memory-sync.sh` against a real backend or `external-agent.sh`
-  against a real model, the hook contract of `memory-sync.sh`, the *One fact,
+  running `memory-sync.sh` against a real backend (and, until `467b7c4`,
+  `external-agent.sh` against a real model), the hook contract of `memory-sync.sh`, the *One fact,
   one value* list, comments and incidents kept, tests that clean up by PID,
   the version rule, Conventional Commits.
-- **The external-agent rule** (`AGENTS.md` *Rules*, as of `30f2c80`):
+- **The external-agent rule** — history: removed from `AGENTS.md` *Rules*
+  in `glab` 0.8.0 (`467b7c4`, 2026-10-20), with the script; as it stood
+  until then (`AGENTS.md` *Rules*, as of `30f2c80`):
   `external-agent.sh` runs against the stub in
   `tests/external-agent.test.sh`, or an offline run — no network, and a
   dummy key or login in a throwaway home — as `docs/specs/external-agents.md`
@@ -165,10 +187,45 @@ owning file is right and this spec is out of date.
   rule is in `docs/specs/workflow.md`, *The session effort*. The plugin
   counts did not change: `Skills (15)`, `Agents (5)`,
   `Hooks (1)  SessionStart`.
+- ***One fact* entries `remove-external-agents` removed or changed**
+  (`AGENTS.md` *Rules*, as of `467b7c4`; S7d–S7j). The first two bullets
+  above, and the Codex effort half of the third, are history from that
+  commit on. **Removed**: for Codex, no `--model` unless the user named
+  one; the external reviewer's record line and its `<backend>:<model>`
+  token; `codex` alone in the record line for Codex's default; the exit
+  codes of `external-agent.sh`; the OpenCode model allowlist and its end
+  dates, and that Codex has none; OpenCode's sandbox limits and its network
+  helper; where agents live, `$TMPDIR/glab-external-agents/`; the CLI's
+  default paths; OpenCode's "Use balance" warning; what OpenCode's copy
+  holds and may send, and what a Codex agent may read and send; Grok refused
+  for its retention; the one exit-8 `send` correction; the second statement
+  of the missing-`AGENTS.md` fallback, in the script's first message; the
+  sentence on what the live probe did not show; the guarantees each backend
+  has; the Codex sandbox check; the Codex effort rule; the Codex data note;
+  the host and developer first messages; the external developer; the
+  developer's change report; a developer refused. **Changed**: the manual
+  model rule is back to "the developer and reviewer only, and no `model`
+  parameter without the user's instruction (`glab:manager` Rule 5 and its
+  handoff-line format in `plugins/glab/skills/manager/SKILL.md`,
+  `plugins/glab/commands/develop.md`, `plugins/glab/commands/review.md`,
+  `plugins/glab/commands/ship.md`)"; the reviewer's verdict lines keep
+  `reviewer.md`, the manager and `ship.md` and lose the validator and E34;
+  the session effort names "`glab:manager` Rules 0d and 5" and no longer the
+  `glab:external-agents` skill. **Unchanged as entries**: the round cap,
+  the ask-conditions, the fallback ("every agent and command"), the hook
+  events, the time limits, the names, the session-start rules, the plan
+  lifecycle, and what each plugin holds, whose values changed in the same
+  commit where its files state them (`Skills (14)` in `AGENTS.md` *Gates*,
+  the six skills named in the `README.md` table; the hooks files did not
+  change). Outside *One fact*: *Layout* lost
+  `scripts/external-agent.sh`, *Rules* lost the bullet "**Never run
+  `external-agent.sh` against a real model from this repo.**" with its
+  live-run exception, and *Tests* lost the `opencode`/`codex` stub sentence.
 - **`docs/specs/` and `plan/`** (`AGENTS.md` *Layout* and *Rules*, the
   `plan/` rule; `README.md` *Working on this repo*), as of `09d2787`. `docs/specs/` holds
   one spec per area — this file (the marketplace, this repo's layout, gates
-  and rules), `workflow.md`, `memory-sync.md`, `external-agents.md` — with
+  and rules), `workflow.md`, `memory-sync.md`, `external-agents.md` (a
+  record only since `glab` 0.8.0, `467b7c4`, its area removed) — with
   how the area works now, the decisions that still bind, what is not
   verified, every follow-up open or closed, each tagged
   `[<slug>/<file> <id>]`, and its incidents. A spec states a fact as of its
@@ -194,7 +251,7 @@ owning file is right and this spec is out of date.
 ## Decisions that still bind
 
 - [feature-plugin-marketplace/questions.md D1] Plugin-first: the plugins live in subdirectories of this repo; "layout mirrors `~/.claude`" is given up (the user's).
-- [feature-plugin-marketplace/questions.md D2] Two plugins: `glab` (the workflow skills, the agents, the commands, the bootstrap hook — since joined by `glab:external-agents`) and `memory-sync` (the skill, the script, its hooks, its S3 configuration).
+- [feature-plugin-marketplace/questions.md D2] Two plugins: `glab` (the workflow skills, the agents, the commands, the bootstrap hook — since joined by `glab:external-agents`, which left again in 0.8.0, `467b7c4`) and `memory-sync` (the skill, the script, its hooks, its S3 configuration).
 - [feature-plugin-marketplace/questions.md D3] Plugin install only: the copy install is dropped, the README documents only the plugin install, and text uses the prefixed names.
 - [feature-plugin-marketplace/questions.md D4] Repo only: nothing is installed, enabled or changed in a machine's live Claude config by the work; testing is `--plugin-dir` and `plugin validate`.
 - [feature-plugin-marketplace/questions.md S1] The manager's test rules (no hand-written mocks, a generator directive, coverage of 95 % or more) are universal and stay as written; this repo's shell scripts have a scoped exception in `AGENTS.md` *Tests*.
@@ -209,6 +266,10 @@ owning file is right and this spec is out of date.
 - [bug-reviewer-findings/questions.md Q4] Machine-specific text is split out: generic text in the repo, host facts in the unshipped `~/.claude/host.md` that `glab:bootstrap` reads, with `host.example.md` shipped as the template; the manager's test rules are universal.
 - [bug-reviewer-findings/questions.md Q5] The repo has its own `AGENTS.md` (gates, commit format, rules) and `settings.example.json` holds placeholders only. Its first half, keeping the root `CLAUDE.md`, was superseded by `[feature-plugin-marketplace/questions.md Q7]`.
 - [bug-reviewer-findings/questions.md Q8] One plan, four ordered slices, separate commits — spent: it scoped that change only.
+- [remove-external-agents/plan.md D2] One commit for the removal — the deletions, the edits, the version and the plan folder — because the *One fact* rule wants the component counts of `AGENTS.md` *Gates* and `README.md` changed with the skill's removal, and the version rule wants `plugin.json` in it; its body names `6b2a024` as the last commit with the code. `feat`, because the feature set changes and the version takes a minor step. The plan said no breaking-change marker would be added, since `AGENTS.md` *Commits* names none; the commit was made as `feat(agents)!: remove the external agents and their script` (`467b7c4`), with one.
+- [remove-external-agents/plan.md D8] `AGENTS.md`'s `plan/` rule kept `external-agents.md` in its list of area specs, since the spec stays and the removal's own record updates it; whether to reword that item once the record has run was left to Stage 8 — answered by `[remove-external-agents/record.md review-r1-advisory]`, open below, since a change to `AGENTS.md` goes back through the pipeline.
+- [remove-external-agents/plan.md D10] No "removed" note in `README.md` or the payload: the user said remove all of it, and the narrow search had to come back empty. The record of the removal, with what a 0.7.x host can still hold, is the top note of `docs/specs/external-agents.md` and the commit body.
+- [remove-external-agents/plan.md D12] `glab` `0.7.2` → `0.8.0`, the user's choice; `memory-sync` was not touched and keeps `0.1.0`.
 
 ## Known limits and not verified
 
@@ -216,6 +277,7 @@ owning file is right and this spec is out of date.
 - [feature-plugin-marketplace/result-slice-G.md unverified] That the hook fires from the plugin in a live session and that the prefixed names resolve — needs a session; smoke test part 1.
 - [feature-plugin-marketplace/plan.md smoke-test-1] Smoke test part 1, `glab` alone under `--plugin-dir ./plugins/glab` (the `/glab:` listing, `/plugin` errors, item 4 of the bootstrap text, loading `glab:security`, dispatching `glab:developer`, `/glab:plan`), and the bare-name questions in a clean config directory: not run, as recorded. Its steps: `git show b853635:plan/feature-plugin-marketplace/plan.md`, *Smoke test*. Parts 2 and 3 are in `docs/specs/memory-sync.md`.
 - Validation does not compare a marketplace entry with the plugin it points at: it passes a wrong name and a directory that does not exist. The `jq` line of the plugin gates is what catches it (`AGENTS.md` *Gates*).
+- [remove-external-agents/plan.md validate-prose] Validation and the component count do not see dangling prose: a throwaway copy of `plugins/` with only the `external-agents` skill and the script removed, every `glab:external-agents` mention still in place, printed `✔ Validation passed` and `Skills (14)` (*Findings*, *Other facts*, proven). Only the plan's searches told the finished tree from a half-finished one.
 
 ## Open follow-ups
 
@@ -224,7 +286,8 @@ owning file is right and this spec is out of date.
 - [feature-docs-specs/follow-ups.md 1] `AGENTS.md:225`: the `git archive` read-back extracts into a directory it never prints. Suggested: `t=$(mktemp -d "${TMPDIR:?}/plan.XXXXXX") && git archive <sha> plan/<slug>/ | tar -x -C "$t" && echo "$t"` — open.
 - [feature-docs-specs/follow-ups.md 3] `README.md:226`: the `plan/` row says "removed once each change is recorded", while `AGENTS.md` removes a folder only once it has landed on `origin/main`. Suggested: "removed after each change has landed, under this repo's `AGENTS.md`" — open; the conformance round 3/4 hand-off named the same line.
 - [feature-docs-specs/follow-ups.md 6] `AGENTS.md:220-224`: the repo's removal rule should name the forms that are never valid — never `plan/`, `plan/.`, or a slug outside `[A-Za-z0-9._-]`; review round 2 measured that `plan/./` removes every folder under `plan/` (*Incidents*) — open.
-- [feature-docs-specs/follow-ups.md 8] The *Records* lines of every spec, the transcript citations of `docs/specs/external-agents.md` *Profiles* and *Live runs* and its rev2-build line under *Incidents*, and the list form of `AGENTS.md`'s `plan/` rule: `git ls-tree -r --name-only <sha> -- plan/<slug>/` prints nothing, with exit 0, when run from a subdirectory. Suggested: add `--full-tree`, in the specs and `AGENTS.md` in the same commit — open.
+- [feature-docs-specs/follow-ups.md 8] The *Records* lines of every spec, the transcript citations of `docs/specs/external-agents.md` *Profiles* and *Live runs* and its rev2-build line under *Incidents*, and the list form of `AGENTS.md`'s `plan/` rule: `git ls-tree -r --name-only <sha> -- plan/<slug>/` prints nothing, with exit 0, when run from a subdirectory. Suggested: add `--full-tree`, in the specs and `AGENTS.md` in the same commit — open. Re-read at `467b7c4`: `AGENTS.md`'s list form still has no `--full-tree`, and the `docs/specs/external-agents.md` citations stay, that spec being kept as a record — still open.
+- [remove-external-agents/record.md review-r1-advisory] Review round 1 advisory, carried from the manager's Stage 8 dispatch (no review file is in the folder): `AGENTS.md:168`, the `plan/` rule, still lists `external-agents.md` among the area specs a record updates, although the area is gone (`[remove-external-agents/plan.md D8]`). Suggested reword of that list item: "`external-agents.md` (removed in 0.8.0, a record only)". It is an `AGENTS.md` change, not a spec change, so the record does not make it — open.
 
 ## Closed follow-ups
 
@@ -273,3 +336,8 @@ owning file is right and this spec is out of date.
 - 2026-10-19 · fix-external-agent-claims · recorded in `docs/specs/external-agents.md`, its primary area; here: `glab` 0.7.1 and the gates' `PASS 86/86`; no *One fact* entry changed (F3 and F9 leave that to the user) · change 3965622 · plan: `git ls-tree -r --name-only abda43a -- plan/fix-external-agent-claims/` (one file: `git show abda43a:plan/fix-external-agent-claims/<file>`). `abda43a` is the last commit on `origin/main` that holds it; the folder is the same there as at `3965622`
 - 2026-10-19 · subagent-effort · recorded in `docs/specs/workflow.md`, its primary area; here: `glab` 0.7.2, the gates still `PASS 35/35` and `PASS 86/86`, the rewritten Codex effort entry and the new session-effort entry of *One fact* · change abda43a · plan: `git ls-tree -r --name-only abda43a -- plan/subagent-effort/` (one file: `git show abda43a:plan/subagent-effort/<file>`). `abda43a` is the last commit on `origin/main` that holds it: one `docs(repo)` commit after this record removes it and `plan/fix-external-agent-claims/`
   - [subagent-effort/plan.md L265] Record → order: the plan (`plan.md` L267) expected this record after the `fix-external-agent-claims` record had been committed; both records instead land in one `docs(repo)` commit, and the folder removal follows in another.
+- 2026-10-20 · remove-external-agents · recorded in `docs/specs/external-agents.md`, its primary area; here: `glab` 0.8.0, `Skills (14)` (six skills and eight commands), the gates with three scripts, the one `memory-sync` suite at `PASS 35/35`, no external-agent suite, no `bwrap`, `slirp4netns` or `python3` need and no DeepSeek gate line; the external-agent rule, its *Layout* and *Tests* text and the removed and changed *One fact* entries; the review's advisory on `AGENTS.md:168` → `[remove-external-agents/record.md review-r1-advisory]`, open · change 467b7c4 · plan: `git ls-tree -r --name-only 467b7c4 -- plan/remove-external-agents/` (one file: `git show 467b7c4:plan/remove-external-agents/<file>`). `467b7c4` is the last commit on `origin/main` that holds it: one `docs(repo)` commit after this record removes it.
+  - [remove-external-agents/plan.md L17] Decisions → `D2`, `D8`, `D10`, `D12`, above.
+  - [remove-external-agents/plan.md L224] Tests and coverage → no test added; the 86 cases of `tests/external-agent.test.sh` removed with the script they tested; the Markdown steps covered by the searches C2–C6, as `AGENTS.md` *Tests* allows; nothing open.
+  - [remove-external-agents/plan.md L536] Other facts → `[remove-external-agents/plan.md validate-prose]`, under *Known limits*; the rest (rule numbering, nothing untracked under the removed paths, no marker in the removed files, the version stated only in `plugin.json`) were that change's checks; nothing open.
+  - [remove-external-agents/plan.md L247] Record → the open follow-up `[feature-docs-specs/follow-ups.md 8]` re-read, still open.

@@ -10,8 +10,9 @@ area spec. Owned by `plugins/glab/skills/manager/SKILL.md`,
 `plugins/glab/skills/bootstrap/SKILL.md`, `plugins/glab/skills/audit/SKILL.md`,
 the agents under `plugins/glab/agents/`, the commands under
 `plugins/glab/commands/`, and `plugins/glab/scripts/manager-bootstrap.sh`
-(the `SessionStart` hook text). The external agents are in
-`docs/specs/external-agents.md`. Stated as of `09d2787` (`glab` `0.5.0`), the
+(the `SessionStart` hook text). The external agents, removed in `glab`
+0.8.0 (`467b7c4`, 2026-10-20), are recorded in
+`docs/specs/external-agents.md`, now a record only. Stated as of `09d2787` (`glab` `0.5.0`), the
 record of `feature-docs-specs`, and its `feature-codex-agent` lines (Rules 5
 and 6 for Codex, `/glab:review`) as of `30f2c80` (`glab` `0.6.0`), and its
 `feature-external-developer` lines (Rule 5's external developer, Rule 6's
@@ -19,8 +20,12 @@ exceptions, `/glab:develop`'s external path) as of `33a28df` (`glab`
 `0.7.0`), and its `subagent-effort` lines (Rule 0d, the effort in the
 handoff line and in Rules 5 and 6, the dispatch text of Stages 2 and 5, of
 `/glab:develop`, `/glab:review`, `/glab:ship`, `glab:bootstrap` and the hook)
-as of `abda43a` (`glab` `0.7.2`); where this file and an owning file
-disagree, the owning file is right.
+as of `abda43a` (`glab` `0.7.2`), and its `remove-external-agents` lines
+(Rule 6 gone, Rules 0d and 5 and *The pipeline* without their Codex and
+OpenCode sentences, the commands without their external paths, every
+statement of an external agent marked as history) as of `467b7c4` (`glab`
+`0.8.0`); where this file and an owning file disagree, the owning file is
+right.
 
 ## How it works now
 
@@ -44,8 +49,11 @@ disagree, the owning file is right.
   is one line, `slug · stage · round n/max · verdict · effort <level>`
   (Rule 0d; `slug · stage · round n/max · verdict` before `abda43a`), with
   `model <m>` after the stage on a develop or review line. The effort is the
-  level passed — for a Codex agent the level sent, after Rule 6's mapping;
-  an OpenCode line names no effort, since OpenCode takes none. Without subagent dispatch each stage is a fresh
+  level passed ("The effort is the level you passed.", *The pipeline*, as
+  of `467b7c4`). History, until `glab` 0.8.0 (`467b7c4`, 2026-10-20): the
+  sentence went on "for a Codex agent the level sent, after Rule 6's
+  mapping; an OpenCode line names no effort, since OpenCode takes none".
+  Without subagent dispatch each stage is a fresh
   session, `<slug> record` among them. The bootstrap diagram ends on `record`,
   and the hook text reads `-> push -> record at full tier`.
 - **The tier** (`glab:manager` *Pick the tier*), the first line of `plan.md`
@@ -89,11 +97,18 @@ disagree, the owning file is right.
   - Rule 4 — one surface per session; seams are settled through the channel
     `docs/constants.md` names, or the user relays.
   - Rule 5 — the model a `glab:developer` or `glab:reviewer` runs on is the
-    user's call (below), an external reviewer on OpenCode or Codex, and an
-    external developer on Codex only, included. "Only the reviewer, on
-    either backend, and the developer, on Codex, can be external; no other
-    role ever is."
-  - Rule 6 — an external agent, an OpenCode or a Codex session, is the
+    user's call (below): `sonnet`, `opus`, `haiku` or `fable`, and nothing
+    else (as of `467b7c4`). History, until `glab` 0.8.0 (`467b7c4`,
+    2026-10-20): an external reviewer on OpenCode or Codex, and an external
+    developer on Codex only, were included. "Only the reviewer, on either
+    backend, and the developer, on Codex, can be external; no other role
+    ever is." That paragraph and sentence are gone; a name the parameter
+    does not take is said and asked about ("ask which of the four the user
+    means").
+  - Rule 6 — **gone since `glab` 0.8.0 (`467b7c4`, 2026-10-20)**: it was the
+    last numbered rule, so nothing was renumbered
+    (`[remove-external-agents/plan.md D14]`); *Know the gates before you
+    dispatch* follows Rule 5. History, as it read until then: an external agent, an OpenCode or a Codex session, is the
     user's call, its reply untrusted (`docs/specs/external-agents.md`), for
     read-only work, **except a Codex developer under Rule 5**: an OpenCode
     agent works on a read-only copy in the script's sandbox; a Codex agent
@@ -114,12 +129,17 @@ disagree, the owning file is right.
   of Stage 8), `glab:integrator`
   (the real running system, local only), `glab:reviewer` (correctness and
   `AGENTS.md` rules, gets the target and nothing else; its verdict lines are
-  one fact with `ship.md`, the manager and the external-agent validator),
+  one fact with `ship.md` and the manager — and, until `467b7c4`, the
+  external-agent validator),
   `glab:committer` (explicit paths, never `git add -A`; Conventional
   Commits as `AGENTS.md` says). **Commands** (`plugins/glab/commands/`):
   `/glab:plan`, `/glab:develop`, `/glab:analyze`, `/glab:integrate`,
   `/glab:review`, `/glab:commit`, `/glab:push`, `/glab:ship`.
-  `/glab:develop` has an external path: when Rule 5 recorded an external
+  Since `glab` 0.8.0 (`467b7c4`) no command has an external path:
+  `/glab:develop` dispatches `glab:developer` only, and `/glab:review` and
+  `/glab:ship` the `glab:reviewer` only; `/glab:ship` keeps
+  `BLOCK: 1 issue` among its verdicts (`[remove-external-agents/plan.md D9]`).
+  History, until then (2026-10-20): `/glab:develop` had an external path: when Rule 5 recorded an external
   developer, *Dispatch* starts it through `glab:external-agents` with
   `--role developer` instead of dispatching `glab:developer`, with the same
   brief — one agent, never split and never beside a `glab:developer`
@@ -136,12 +156,13 @@ disagree, the owning file is right.
   reply, marked as that model's words, with the `changed:`/`git:` lines and
   the gates as it ran them; then the gates (`commands/develop.md` at
   `33a28df`). `/glab:review`
-  names Codex: an external reviewer the user named is "a backend, and for
+  named Codex: an external reviewer the user named was "a backend, and for
   OpenCode a model", run through `glab:external-agents` with the same
-  target; an OpenCode reviewer's copy holds only `HEAD` and the working
-  tree, so a branch or a range cannot be its target, while "a Codex reviewer
-  works in the repository and can take one" (`commands/review.md:8`).
-  `/glab:ship` still reviews the working tree only. Every agent
+  target; an OpenCode reviewer's copy held only `HEAD` and the working
+  tree, so a branch or a range could not be its target, while "a Codex reviewer
+  works in the repository and can take one" (`commands/review.md:8` at
+  `6b2a024`); both external paths ended at `467b7c4`. `/glab:ship` reviews
+  the working tree only, then as now. Every agent
   and command falls back to `CLAUDE.md` when `AGENTS.md` is missing, and the
   reviewer then puts `agreement: no AGENTS.md — correctness only` on its own
   line above an unchanged verdict line.
@@ -157,7 +178,8 @@ disagree, the owning file is right.
   quoting the user under `## Decisions` in `plan.md`, names it in every
   develop and review handoff line (`model default` when none), writes the
   dispatch for that model (a three-row table: `opus`/default/`fable`,
-  `sonnet`, `haiku`, plus a row for an external reviewer), and checks every
+  `sonnet`, `haiku`; until `467b7c4` also a row for an external reviewer
+  and one for an external developer), and checks every
   report against the role's contract, resuming the agent once for missing
   fields. "For this task" ends with that task's record (Stage 8), or with its
   push when it has no plan folder; "for the session" with the session. Every other role gets no `model` parameter; every role, these two
@@ -165,7 +187,10 @@ disagree, the owning file is right.
   this rule's."). The pipeline does
   not bend: the manager still runs the gates, the reviewer still gets only
   the target, push still waits for the user.
-- **The external developer** (`glab:manager` Rule 5, as of `33a28df`; the
+- **The external developer** — history: removed in `glab` 0.8.0
+  (`467b7c4`, 2026-10-20), with Rule 5's paragraph, its table row and
+  `/glab:develop`'s external path; as it stood until then
+  (`glab:manager` Rule 5, as of `33a28df`; the
   decisions are in `docs/specs/external-agents.md`). The user may name an
   external developer, Codex only — "develop on Codex", or "develop on Codex,
   <id>" — which `glab:external-agents` runs as a `--role developer` agent
@@ -197,7 +222,9 @@ disagree, the owning file is right.
   reviewer or the developer (Rule 5)"). The pipeline does not bend:
   the manager reads the whole change and runs every gate itself before
   Stages 3–5, which do not change (`[feature-external-developer/plan.md U3]`).
-- **The model rule for Codex** (`glab:manager` Rules 5 and 6, as of
+- **The model rule for Codex** — history: removed in `glab` 0.8.0
+  (`467b7c4`, 2026-10-20), with Rule 6 and Rule 5's external reviewer; as
+  it stood until then (`glab:manager` Rules 5 and 6, as of
   `30f2c80`; the decisions are in `docs/specs/external-agents.md`). The user
   may name an external reviewer as Codex alone — "review on Codex" — which
   runs Codex's own default model, with **no `--model` unless the user named
@@ -229,7 +256,8 @@ disagree, the owning file is right.
   backend is unavailable, refuses the model, times out or fails, or reports
   that it did not run read-only (12), the manager stops and tells the user.
   The Codex record token, the `--model` clause and the
-  effort rule are each a *One fact* entry of their own in `AGENTS.md`
+  effort rule were each a *One fact* entry of their own in `AGENTS.md`
+  until `467b7c4`
   (`docs/specs/marketplace.md`).
 - **The session effort** (`glab:manager` Rule 0d, as of `abda43a`). Every
   dispatch, to every subagent — `glab:developer`, `glab:reviewer`,
@@ -248,9 +276,12 @@ disagree, the owning file is right.
   or one task, which overrides the default for that and nothing else,
   recorded the same way with its scope. The parameter takes `low`,
   `medium`, `high`, `xhigh` or `max`; for an Agent tool dispatch, a level it
-  does not take — `ultra`, for one — is said and asked about. A Codex agent
+  does not take — `ultra`, for one — is said and asked about; Rule 0d is
+  otherwise unchanged for Claude subagents by `467b7c4`, and keeps "for an
+  Agent tool dispatch" (`[remove-external-agents/plan.md D7]`). History,
+  until `glab` 0.8.0 (`467b7c4`, 2026-10-20): "A Codex agent
   runs at the same level through Rule 6's mapping, and Codex takes `ultra`;
-  an OpenCode agent takes none. If the Agent tool rejects `effort` or does
+  an OpenCode agent takes none." If the Agent tool rejects `effort` or does
   not offer it, the manager tells the user, dispatches without it and writes
   `effort default` in the handoff line. The dispatch text carries it where
   it lists Agent tool parameters: Stage 2's "**the effort, always**",
@@ -372,27 +403,38 @@ disagree, the owning file is right.
 - [feature-docs-specs/plan.md D34] `committer.md`, `commit.md`, `push.md` and `ship.md` carry no record text: the record commit is an ordinary docs commit.
 - [feature-docs-specs/plan.md D35] The record check ends in the analyzer's existing verdicts: `CONFORMS`, or `DIVERGES: <n> steps`, each missing item one step.
 - [feature-docs-specs/plan.md D36] The record is an ordinary docs change, through the normal commit and push stages; a decision made at Stage 8 goes in the dispatch and the spec, not in `plan.md`.
-- The decisions behind Rule 5's external developer, Rule 6's exceptions and `/glab:develop`'s external path — `[feature-external-developer/plan.md U1]` to `U4`, `D1`, `D6`, `D7`, `D8`, `R4.7` and the user's approvals of revisions 3 and 4 and of the round 3 scope cut — are carried in `docs/specs/external-agents.md`, the change's primary area, and bind here too.
-- The decisions behind Rules 5 and 6 for Codex — `[feature-codex-agent/plan.md U4]`, `U5`, `D6`, `D17`, `D30` and the user's Q5 and Q6 — are carried in `docs/specs/external-agents.md`, the change's primary area, and bind here too.
-- [subagent-effort/questions.md Q1] A — "One shared effort (Recommended)": one session effort, one record line and one source order for Claude subagents and Codex; Codex still maps the level down to the highest its model supports. It supersedes the record-line half and the source order of `[feature-codex-agent/questions.md Q6]` (carried in `docs/specs/external-agents.md`): when the user has named a session level in chat, Codex follows it instead of `CLAUDE_CODE_EFFORT_LEVEL` (the user's, 2026-10-19).
+- The decisions behind Rule 5's external developer, Rule 6's exceptions and `/glab:develop`'s external path — `[feature-external-developer/plan.md U1]` to `U4`, `D1`, `D6`, `D7`, `D8`, `R4.7` and the user's approvals of revisions 3 and 4 and of the round 3 scope cut — are carried in `docs/specs/external-agents.md`, the change's primary area, and bind here too. History since `glab` 0.8.0 (`467b7c4`, 2026-10-20): they no longer bind, since what they governed was removed; kept in that spec as a record.
+- The decisions behind Rules 5 and 6 for Codex — `[feature-codex-agent/plan.md U4]`, `U5`, `D6`, `D17`, `D30` and the user's Q5 and Q6 — are carried in `docs/specs/external-agents.md`, the change's primary area, and bind here too. History since `glab` 0.8.0 (`467b7c4`, 2026-10-20): they no longer bind, since Rule 6 and Rule 5's Codex reviewer were removed; kept in that spec as a record.
+- [subagent-effort/questions.md Q1] A — "One shared effort (Recommended)": one session effort, one record line and one source order for Claude subagents and Codex; Codex still maps the level down to the highest its model supports. It supersedes the record-line half and the source order of `[feature-codex-agent/questions.md Q6]` (carried in `docs/specs/external-agents.md`): when the user has named a session level in chat, Codex follows it instead of `CLAUDE_CODE_EFFORT_LEVEL` (the user's, 2026-10-19). History since `glab` 0.8.0 (`467b7c4`, 2026-10-20): its Codex half lapsed with Codex; the one session effort still binds for Claude subagents.
 - [subagent-effort/plan.md D1] Rule 0d sits in `glab:manager` between Rule 0c and Rule 1, as the user's approved text with `glab:`-prefixed role names.
-- [subagent-effort/plan.md D2] The handoff line is `slug · stage · round n/max · verdict · effort <level>`, `model <m>` still after the stage on develop and review lines; it names the level passed — for Codex the level sent; an OpenCode line names none, because OpenCode takes no effort.
+- [subagent-effort/plan.md D2] The handoff line is `slug · stage · round n/max · verdict · effort <level>`, `model <m>` still after the stage on develop and review lines; it names the level passed — for Codex the level sent; an OpenCode line names none, because OpenCode takes no effort. History since `glab` 0.8.0 (`467b7c4`, 2026-10-20): the Codex and OpenCode clauses lapsed; the line names the level passed (`[remove-external-agents/plan.md D6]`).
 - [subagent-effort/plan.md D3] Rule 0d's bullet "The model is Rule 5's, the effort is this rule's": an agent dispatched with no `model` still gets `effort`, and a level the parameter does not take (`ultra`) is asked about, as Rule 5 does for a model name.
 - [subagent-effort/plan.md D4] Commands change only where they list Agent tool parameters — `develop.md`, `review.md`, `ship.md`; `plan.md`, `analyze.md`, `integrate.md` and `commit.md` stay, as they stay for Rule 0c.
 - [subagent-effort/plan.md D5] `glab:bootstrap`, `manager-bootstrap.sh` and `README.md` each gain one clause, because each states the dispatch contract as complete.
 - [subagent-effort/plan.md D6] No agent definition changes: the parent passes the level per dispatch; an `effort:` key would fix one level per role in the plugin instead of the session's, and the user asked for the parent to pass it.
 - [subagent-effort/plan.md D7] The UNVERIFIED that a plugin agent honours `effort` goes into this record's *not verified*, not into the payload — the user's approved wording has no such sentence (`[subagent-effort/plan.md unverified]`, below).
-- [subagent-effort/plan.md D8] Rule 0d's level and record line are Codex's too, mapped down to the highest level the model supports — Q1 = A, the user's answer, not a planner choice.
+- [subagent-effort/plan.md D8] Rule 0d's level and record line are Codex's too, mapped down to the highest level the model supports — Q1 = A, the user's answer, not a planner choice. History since `glab` 0.8.0 (`467b7c4`, 2026-10-20): lapsed with Codex.
 - [subagent-effort/plan.md stage-1b] Stage 1b ended at round 2/2 `NOT BUILDABLE` on two missing checks; the user chose "Add checks, then build" (2026-10-19), with no third round.
 - [subagent-effort/plan.md approval] Approved by the user, 2026-10-19: "go a head". Its session line, `- effort: high (the user's words: "let's for now set the effort for your subagent you current session high level"), for the session`, was that change's own and is spent.
 - [feature-docs-specs/plan.md spent] U3, U5, U6, U7, U8, D7, D9, D12, D13, D14, D15, D17, D18, D19, D20, D21, D23, D24, D25, D29, D30, D31 — scoping and sequencing of that change: the migration of the seven folders, the live-run wording (applied in `AGENTS.md`; `docs/specs/external-agents.md`), the 0.5.0 bump and the `plugin.json` description, the commit split, the check script and its modes, the record's result file; U7 and D25 were superseded by U10 and U11 (the payload names no commit and checks no landing). D6 and `[feature-docs-specs/questions.md Q1]` bind in `docs/specs/external-agents.md`.
+- [remove-external-agents/plan.md D4] The target of every edited passage was its text before `7139e62`, plus the later changes that are not about external agents (`fed95f9`'s Stage 8, the `BLOCK: 1 issue` of `5321d76`, `abda43a`'s session effort); the removal is not a `git revert`, which would have taken Stage 8 and the session effort with it.
+- [remove-external-agents/plan.md D5] Rule 5's *Record it before the next dispatch* lost "The effort is not in the model line: Rule 0d's `- effort:` line records it, for Codex too." in full: it was added only because Codex model lines had carried an effort, and no Claude model line ever did.
+- [remove-external-agents/plan.md D6] *The pipeline* keeps "The effort is the level you passed.", which still holds for every Claude dispatch, and lost only its Codex and OpenCode clause.
+- [remove-external-agents/plan.md D7] Rule 0d keeps "for an Agent tool dispatch" before "a level it does not take": a smaller edit, and still true.
+- [remove-external-agents/plan.md D9] `BLOCK: 1 issue` stays in `/glab:ship`, and the reviewer's verdict-lines entry of `AGENTS.md` *One fact* still lists `plugins/glab/commands/ship.md`: `5321d76` added it for the script's validator, but `glab:reviewer` emits it (`agents/reviewer.md:86` at `6b2a024`).
+- [remove-external-agents/plan.md D11] No new text for a user who names an external reviewer or developer after 0.8.0: Rule 5's "A name the parameter does not take: say so, and ask which of the four the user means" covers it (inferred, `[remove-external-agents/plan.md inferred]`).
+- [remove-external-agents/plan.md D14] Removing Rule 6 renumbered nothing: it was the last numbered rule of `glab:manager`.
+- [remove-external-agents/plan.md approval] Approved by the user, 2026-10-20: "go ahead". Its session line, `- effort: high (the user's words: "let's for now set the effort for your subagent you current session high level"), for the session`, was that change's own and is spent.
+- [remove-external-agents/plan.md spent] D1 (tier full), D13 (one `glab:developer`), D15 (`edits.py` as the exact edit list), D16 (nothing into `docs/specs/` in the change itself) — scoping of that change; `D2`, `D8`, `D10` and `D12` are in `docs/specs/marketplace.md`, `D3` in `docs/specs/external-agents.md`.
 
 ## Known limits and not verified
 
 - [feature-model-switch/plan.md I1] That the Agent tool on the manager's host takes `model` with the values `sonnet`, `opus`, `haiku`, `fable`, ranked above the definition's frontmatter — read from the tool definition given to one session; it depends on the Claude Code version and host. Its documentation citations (F1–F7, F16) were not re-fetched by the developer (`result.md` *Not done*).
 - [feature-model-switch/plan.md I4] That a plugin agent honours the per-dispatch `model` — inferred from the docs' list of fields a plugin agent ignores; no live dispatch on `haiku` has been seen running on `haiku`. Rule 5 says so in its own text; `/tasks` would show it.
 - [subagent-effort/plan.md unverified] UNVERIFIED: that a plugin agent honours the Agent tool's `effort` parameter — no live dispatch has shown it, the same hedge Rule 5 makes for `model`; the tool schema of the planning session showed only that `effort` takes `low|medium|high|xhigh|max` and that an omitted one leaves the agent at its usual effort. Unlike Rule 5's hedge, Rule 0d's payload text does not say so (`[subagent-effort/plan.md D7]`). Also not checked: how a session started without subagent dispatch is put at the recorded effort (`[subagent-effort/plan.md F1]`). `result.md` restates the first item.
-- [subagent-effort/result.md blast-radius] Inferred, not tested: an older plan's `- model: … codex, effort <level> (…)` line is still readable prose, while the rule now records the effort in a `- effort:` line instead.
+- [subagent-effort/result.md blast-radius] Inferred, not tested: an older plan's `- model: … codex, effort <level> (…)` line is still readable prose, while the rule now records the effort in a `- effort:` line instead. Since `glab` 0.8.0 (`467b7c4`) no rule reads a Codex model line at all.
+- [remove-external-agents/plan.md inferred] Inferred, not shown: a user who names an external reviewer or developer after 0.8.0 meets Rule 5's "say so, and ask which of the four the user means" (`D11`); no session was run. The user's own auto-memory, outside this repository, still describes Codex as an outside reviewer and developer "via the skill", which no longer exists; it is the user's file and the change did not touch it.
+- [remove-external-agents/result.md not-done] UNVERIFIED: that a live session follows the edited prose of `glab:manager` and the commands as intended — no session was run against it, as the plan accepts; the searches C2–C4 show only that nothing naming the removed parts is left outside `docs/specs/` and `plan/`.
 - That the user's local edits ported by `sync-local-edits` were exactly their 2026-10-08 change: inferred from the dispatch and the file times, not from a record of the edit (`[sync-local-edits/result.md L219]`).
 - No `glab` stage removes a plan folder: Stage 8 writes the spec only, and a repo that wants its folders removed says how in its own `AGENTS.md` (`[feature-docs-specs/plan.md U10]`). A repo with no such rule keeps every recorded folder in its tree. This repo's rule is in `docs/specs/marketplace.md`.
 - Stage 8 names no commit and checks no landing: it starts once Stage 7 has confirmed the push, and the record reads the folder from disk, so a squash or rebase merge does not change what it records. Naming the commit that holds a removed folder is the repo's own rule; this repo's names the last commit on `origin/main` that holds it, after `git diff --quiet origin/main -- plan/<slug>/`. In a throwaway repo a squash merge left the branch commit off `origin/main` and the folder on it, and `git log -1 --format=%h origin/main -- plan/<slug>/` gave the squash commit (feature-docs-specs findings, *Amendment — review round 1/3*).
@@ -418,11 +460,11 @@ disagree, the owning file is right.
 - [feature-docs-specs/follow-ups.md 4] `skills/bootstrap/SKILL.md:125`: "what a finished change left open is there, not in `plan/`" is wrong in a repo that keeps its plans, which is `glab`'s default. Suggested: "is there; `plan/` may still hold the working files" — open.
 - [feature-docs-specs/follow-ups.md 5] `skills/manager/SKILL.md:127` against Stage 8's "not in `plan.md`": a model the user names for the record's developer has nowhere to be recorded. Suggested: one clause in Rule 5 — for Stage 8 the instruction lives in the conversation only, as for a `/glab:review` with no plan — open.
 - [feature-docs-specs/follow-ups.md 7] Commits rule: `fed95f9` holds two logical changes of the payload, the Stage 8 record and the re-pointed citations, committed as one under `0.5.0` — open, an advisory of review round 3/3; nothing to undo now, a reminder for the next payload change.
-- [feature-docs-specs/result-SM.md 3] Facts the specs state as of their record that move with their owners and that no gate ties to the specs (`[feature-docs-specs/plan.md D10]` accepts this): `PASS 35/35` and `PASS 49/49`, the allowlist and DeepSeek's end date, 2026-10-31, the `glab` version — open: each record has to re-read them; re-read by `feature-codex-agent`'s record: `PASS 71/71` at `9108ac7`, `glab` `0.6.0`, the allowlist and its end date unchanged; by `feature-external-developer`'s: `PASS 84/84` at `33a28df`, `glab` `0.7.0`, the allowlist unchanged; by `fix-external-agent-claims`'s: `PASS 86/86` at `3965622`, `glab` `0.7.1`, the allowlist unchanged; by `subagent-effort`'s: `PASS 35/35` and `PASS 86/86` at `abda43a`, `glab` `0.7.2`, the allowlist unchanged (the change touched neither the script nor its tests).
+- [feature-docs-specs/result-SM.md 3] Facts the specs state as of their record that move with their owners and that no gate ties to the specs (`[feature-docs-specs/plan.md D10]` accepts this): `PASS 35/35` and `PASS 49/49`, the allowlist and DeepSeek's end date, 2026-10-31, the `glab` version — open: each record has to re-read them; re-read by `feature-codex-agent`'s record: `PASS 71/71` at `9108ac7`, `glab` `0.6.0`, the allowlist and its end date unchanged; by `feature-external-developer`'s: `PASS 84/84` at `33a28df`, `glab` `0.7.0`, the allowlist unchanged; by `fix-external-agent-claims`'s: `PASS 86/86` at `3965622`, `glab` `0.7.1`, the allowlist unchanged; by `subagent-effort`'s: `PASS 35/35` and `PASS 86/86` at `abda43a`, `glab` `0.7.2`, the allowlist unchanged (the change touched neither the script nor its tests); by `remove-external-agents`'s: `PASS 35/35` at `467b7c4` (run for this record), `glab` `0.8.0`, and `PASS 86/86`, the allowlist and DeepSeek's end date gone with the script and its test, so what is left to re-read is the `memory-sync` count and the versions.
 - [subagent-effort/plan.md F1] `glab:manager` *When subagent dispatch is not available* says how a stage session is started on the recorded model but not at the recorded effort; whether `claude` takes an effort at start was not checked — open.
 - [subagent-effort/result.md finding-4] Review round 1's finding 4: `commands/commit.md`, `commands/analyze.md` and `commands/integrate.md` dispatch an agent and do not mention the effort; accepted as-is under `[subagent-effort/plan.md D4]` (commands change only where they list Agent tool parameters), not fixed — open.
-- [subagent-effort/record.md round-2-ultra] Review round 2 advisory, carried from the manager's Stage 8 dispatch record (no review file is in the folder): `skills/manager/SKILL.md` Rule 0d (`:71` at `abda43a`) has the manager ask which level the user means when they name `ultra` for an Agent tool dispatch, but does not say how far that answer reaches — for that dispatch only, or for the session; Codex still takes `ultra` — open.
-- [subagent-effort/record.md round-2-pipeline-default] Review round 2 advisory, from the same dispatch record: *The pipeline*'s handoff sentence (`skills/manager/SKILL.md:189` at `abda43a`) says the effort is "the level you passed" and does not name `effort default`, which Rule 0d (`:67`) has the handoff line carry when the Agent tool rejects or does not offer `effort` — open.
+- [subagent-effort/record.md round-2-ultra] Review round 2 advisory, carried from the manager's Stage 8 dispatch record (no review file is in the folder): `skills/manager/SKILL.md` Rule 0d (`:71` at `abda43a`) has the manager ask which level the user means when they name `ultra` for an Agent tool dispatch, but does not say how far that answer reaches — for that dispatch only, or for the session; Codex still takes `ultra` — open. Re-read at `467b7c4`: Rule 0d (`:71`) still does not say how far the answer reaches; Rule 0d's Codex sentence is gone with Rule 6, so "Codex still takes `ultra`" is history — still open.
+- [subagent-effort/record.md round-2-pipeline-default] Review round 2 advisory, from the same dispatch record: *The pipeline*'s handoff sentence (`skills/manager/SKILL.md:189` at `abda43a`) says the effort is "the level you passed" and does not name `effort default`, which Rule 0d (`:67`) has the handoff line carry when the Agent tool rejects or does not offer `effort` — open. Re-read at `467b7c4`: the sentence (`:173`) now ends "The effort is the level you passed." and still does not name `effort default` — still open.
 
 ## Closed follow-ups
 
@@ -453,6 +495,7 @@ disagree, the owning file is right.
 - **The planner's write into its own plan folder was refused** (`feature-docs-specs`): it wrote the plan files under `$TMPDIR` with a `SHA256SUMS` file, and the manager verified and copied them in.
 - **A file named `findings.md` was refused** (`subagent-effort`): the session's Write tool refused a file of that name, so the findings were written as a `## Findings` section of `plan.md`, which `glab:plan-first` allows at normal tier (`plan.md` *Findings*). The folder holds no `findings.md`.
 - **Stage 1b ended on missing checks** (`subagent-effort`): round 2/2 returned `NOT BUILDABLE` on two missing checks; the user chose "Add checks, then build", and the plan was built with no third round (`[subagent-effort/plan.md stage-1b]`).
+- **A file named `findings.md` was refused again** (`remove-external-agents`, 2026-10-20): the Write tool refused that file name for the planning agent, so the findings are the *Findings* section at the end of `plan.md`, as in `subagent-effort`; the folder holds no `findings.md` and no `questions.md`.
 
 ## Records
 
@@ -492,3 +535,8 @@ disagree, the owning file is right.
   - [subagent-effort/result.md L236] Not done → the commit (`abda43a`); `docs/specs/` and `plan/SESSION-HANDOFF.md` left as they were; no real model or external agent run — nothing open.
   - [subagent-effort/result.md L244] Review round 1 fixes → fixes 1–3 built in Rule 0d (the `effort default` fallback, `ultra` scoped to an Agent tool dispatch, the session-wide line in every plan); finding 4 → `[subagent-effort/result.md finding-4]` open.
   - Review round 2 → no review file is in the folder; its two advisories, from the manager's Stage 8 dispatch record, → `[subagent-effort/record.md round-2-ultra]` and `[subagent-effort/record.md round-2-pipeline-default]` open.
+- 2026-10-20 · remove-external-agents · recorded in `docs/specs/external-agents.md`, its primary area; here: `glab:manager` has no external reviewer or developer — Rule 6 gone, Rules 0d and 5 and *The pipeline* without their Codex and OpenCode sentences, Rule 5's dispatch table without its two external rows, Stage 5, the parallel review and *What you never do* without their external text; `/glab:develop`, `/glab:review` and `/glab:ship` without their external paths; Rule 0d unchanged for Claude subagents; every statement of the external agents in this file marked as history; `glab` 0.8.0 · change 467b7c4 · plan: `git ls-tree -r --name-only 467b7c4 -- plan/remove-external-agents/` (one file: `git show 467b7c4:plan/remove-external-agents/<file>`). `467b7c4` is the last commit on `origin/main` that holds it: one `docs(repo)` commit after this record removes it.
+  - [remove-external-agents/plan.md L17] Decisions → `D4`, `D5`, `D6`, `D7`, `D9`, `D11`, `D14`, `approval` and `spent`, above.
+  - [remove-external-agents/plan.md L567] Inferred → `[remove-external-agents/plan.md inferred]`.
+  - [remove-external-agents/plan.md L247] Record → the follow-ups it names re-read: `[feature-docs-specs/result-SM.md 3]`, `[subagent-effort/record.md round-2-ultra]` and `[subagent-effort/record.md round-2-pipeline-default]` still open, each with its re-read.
+  - [remove-external-agents/result.md L1] Result → every step done, no unplanned change, no follow-up written; its UNVERIFIED → `[remove-external-agents/result.md not-done]`.
