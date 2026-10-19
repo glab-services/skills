@@ -104,11 +104,11 @@ another model instead is the user's call.
     global or system git config ignores is reported as untracked. The agent
     can make a path ignored itself, with a `.gitignore` of its own: a new
     ignored entry is reported by name, but not what is written in it.
-  - The effort: run `printenv CLAUDE_CODE_EFFORT_LEVEL`. When it prints
-    nothing, ask the user once per session which effort level they want, and
-    record the answer — in the model line for the reviewer or the developer
-    (`glab:manager` Rule 5), and for any other Codex agent (Rule 6) as
-    `- effort: codex <level> (the user's answer: "<words>"), for the session`.
+  - The effort: the session's, as `glab:manager` Rule 0d gives it — the
+    level the user named for the session, otherwise
+    `printenv CLAUDE_CODE_EFFORT_LEVEL`, otherwise ask the user once per
+    session — or the level the user named for this agent or role, recorded
+    as Rule 0d's `- effort:` line.
     Then send the highest level the model supports, of the levels `check`
     lists for it, that is not above that one, as `--effort <level>`.
     When `check` printed `models: unavailable`, send that level unchanged, and

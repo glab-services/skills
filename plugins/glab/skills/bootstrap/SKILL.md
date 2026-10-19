@@ -56,6 +56,10 @@ definition already requires it. `glab:comments` is the one that gets dropped, an
 loss is invisible: a `TODO` deleted in passing leaves nothing in the diff saying
 it was ever there.
 
+Every dispatch also passes the Agent tool's `effort` parameter at the session's
+level — `glab:manager` Rule 0d says where the level comes from and how it is
+recorded.
+
 Two more are the manager's call per dispatch rather than automatic — **`glab:audit`**
 for an agent producing findings rather than a change, and **`glab:plan-first`** for a
 planning agent's document structure. `glab:manager` Rule 0c has the full contract,

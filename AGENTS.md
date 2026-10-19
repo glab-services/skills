@@ -224,7 +224,20 @@ repo and to nothing else.
   the Codex sandbox check — `read-only`, or
   `workspace-write [workdir]` for a developer, with `approval: never`
   (the script, E54, E73, the skill, `README.md`);
-  the Codex effort rule (`glab:manager` Rules 5 and 6, the skill);
+  the Codex effort rule — the session effort, sent as the highest level the
+  model supports that is not above it (`glab:manager` Rules 0d, 5 and 6, the
+  skill);
+  the session effort — the Agent tool's `effort` on every subagent dispatch,
+  its order (the level the user named for the session, then
+  `CLAUDE_CODE_EFFORT_LEVEL`, then ask once per session), its `- effort:`
+  record line, the override for one agent, role or task, and
+  `· effort <level>` in the handoff line (`glab:manager` Rule 0d, Rules 5 and
+  6, Stages 2 and 5 and *The pipeline* in
+  `plugins/glab/skills/manager/SKILL.md`,
+  `plugins/glab/skills/external-agents/SKILL.md`,
+  `plugins/glab/commands/develop.md`, `plugins/glab/commands/review.md`,
+  `plugins/glab/commands/ship.md`, `plugins/glab/skills/bootstrap/SKILL.md`,
+  `plugins/glab/scripts/manager-bootstrap.sh`, `README.md`);
   the Codex data note (`README.md`, the skill);
   the host first message (the script's `first_prompt`, E61), and the
   developer's first message — its host text, its tail and the default

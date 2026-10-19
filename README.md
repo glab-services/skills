@@ -11,8 +11,9 @@ to S3.
 
 In `glab` the skills, agents and commands are one set: `glab:manager`
 dispatches the agents through the commands, and every agent carries
-`glab:security` and `glab:comments`. The two plugins do not depend on each
-other; install either alone.
+`glab:security` and `glab:comments`, and runs at the session's effort level,
+which the manager passes on every dispatch. The two plugins do not depend on
+each other; install either alone.
 
 Each change's working files — findings, plan, results — live in
 `plan/<slug>/`. Once the change has been pushed, the workflow records what

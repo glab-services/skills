@@ -13,7 +13,7 @@ Read `AGENTS.md` at the repo root (or `CLAUDE.md` if the repo has none — say s
 
 `/glab:ship` only ever reviews the working tree. $ARGUMENTS narrows it to a path. If it looks like a branch name or a revision range, stop and tell me to use `/glab:review` instead — reviewing committed history and then committing the dirty tree are not the same scope, and pairing them lets unreviewed work through under a passing verdict.
 
-Use the **glab:reviewer** agent on the uncommitted working tree, narrowed to $ARGUMENTS when that is set. Narrowed means the whole working-tree view restricted to that path — worktree, index and untracked files alike. The agent owns that procedure; do not restate it here. If I named a model for the reviewer, pass it as the Agent tool's `model` parameter in every round; if I named none, pass none, and never choose one yourself (`glab:manager` Rule 5). If I named an external reviewer instead, run every round through the `glab:external-agents` skill, with the same target.
+Use the **glab:reviewer** agent on the uncommitted working tree, narrowed to $ARGUMENTS when that is set. Narrowed means the whole working-tree view restricted to that path — worktree, index and untracked files alike. The agent owns that procedure; do not restate it here. If I named a model for the reviewer, pass it as the Agent tool's `model` parameter in every round; if I named none, pass none, and never choose one yourself (`glab:manager` Rule 5). Pass the Agent tool's `effort` parameter at the level `glab:manager` Rule 0d gives. If I named an external reviewer instead, run every round through the `glab:external-agents` skill, with the same target.
 
 Show me its report verbatim: every finding and the verdict line. Do not summarise it, do not soften it, do not add praise, do not re-rank its severities.
 
@@ -33,7 +33,7 @@ If I ask you to fix anything, return to step 1 and re-run the reviewer on the am
 
 ## 3. Commit
 
-Use the **glab:committer** agent, and tell it exactly which paths the reviewer looked at.
+Use the **glab:committer** agent, with `effort` as `glab:manager` Rule 0d gives, and tell it exactly which paths the reviewer looked at.
 
 That scope is an upper bound on what may be committed, not a mandate. The committer still splits by logical change and still refuses anything I did not ask about. Anything the reviewer did not see does not get committed, however tempting.
 
