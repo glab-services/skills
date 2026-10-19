@@ -13,12 +13,15 @@ own the commands, output, exit codes, state, isolation and limits;
 `opencode_models()` owns the allowlist; the `codex_*` functions own the Codex
 adapter), the `glab:external-agents` skill
 (`plugins/glab/skills/external-agents/SKILL.md`) and its `profiles/`,
-`glab:manager` Rules 5 and 6, `tests/external-agent.test.sh`, and `README.md`
+`glab:manager` Rules 0d, 5 and 6, `tests/external-agent.test.sh`, and `README.md`
 *Requirements*. Stated as of `6838133` (`glab` `0.4.2`), its
 `feature-docs-specs` lines as of `09d2787` (`glab` `0.5.0`), and its
 `feature-codex-agent` lines as of `30f2c80` (`glab` `0.6.0`), and its
-`feature-external-developer` lines as of `33a28df` (`glab` `0.7.0`); where
-this file and an owning file disagree, the owning file is right.
+`feature-external-developer` lines as of `33a28df` (`glab` `0.7.0`), and its
+`fix-external-agent-claims` lines as of `3965622` (`glab` `0.7.1`), and its
+`subagent-effort` lines (Codex's effort, the Codex reviewer's record line)
+as of `abda43a` (`glab` `0.7.2`); where this file and an owning file
+disagree, the owning file is right.
 
 ## How it works now
 
@@ -101,9 +104,16 @@ this file and an owning file disagree, the owning file is right.
     for the default and `codex:<id>` for a named model; the handoff line
     names `codex:<the model the header named>`. The model can change between
     rounds, which the user accepted.
-  - **The effort** (`[feature-codex-agent/plan.md U5]`, D9, D30): the
-    session's — `CLAUDE_CODE_EFFORT_LEVEL` when set, otherwise the manager
-    asks the user once per session and records the answer; it sends the
+  - **The effort** (`[feature-codex-agent/plan.md U5]`, D9;
+    `[subagent-effort/questions.md Q1]`): the session's, as `glab:manager`
+    Rule 0d gives it — the level the user named for the session, otherwise
+    `CLAUDE_CODE_EFFORT_LEVEL`, otherwise the manager asks the user once per
+    session — or the level the user named for this agent or role, recorded
+    as Rule 0d's `- effort:` line, the one record Claude subagents use too
+    (`docs/specs/workflow.md`, *The session effort*). Until `abda43a` it was
+    `CLAUDE_CODE_EFFORT_LEVEL` when set, otherwise asked once per session and
+    recorded in the Codex model line, or as `- effort: codex …` (D30); a level
+    the user named in chat now comes before `CLAUDE_CODE_EFFORT_LEVEL`. It sends the
     highest level the model supports that is not above it, from `check`'s
     levels, and says so in the announce line; with `models: unavailable` it
     sends the level unchanged and says `effort <sent> (no levels known)`.
@@ -114,7 +124,12 @@ this file and an owning file disagree, the owning file is right.
     block within the first 20 lines of stderr, SGR removed. A block that does
     not say exactly `sandbox: read-only` and `approval: never` is exit 12
     NOT READ-ONLY, the reply withheld; a turn whose block is missing, or has
-    no well-formed model or session id, is exit 7, on every turn.
+    no well-formed model or session id, is exit 7, on every turn. Since
+    `glab` 0.7.1 the check runs first in `finish_turn`, before the output-cap
+    and timeout exits: a turn whose header names another sandbox or approval
+    is 12 even when it also wrote too much or ran too long, and one that
+    timed out before Codex printed its header is still 6
+    (`[fix-external-agent-claims/claims.md 13]`, D2; E85).
   - **The session** (D8). The id is the block's `session id:`, a UUID;
     `send` passes only the recorded id, as `exec resume <id> -`. A continued
     turn, on either backend, that reports another session is exit 7 and the
@@ -186,8 +201,12 @@ this file and an owning file disagree, the owning file is right.
   `changed: <code> <path>` line per path whose entry changed (or
   `changed: none`, or `changed: unreadable`), then `git: unchanged` or
   `git: changed`, on every exit after a turn ran — 0, 6, 7 and 12. No line
-  the script writes starts with `| `, so a reply cannot forge one. stderr: one line
-  `external-agent: <CODE>: <reason>` on every exit 2–12; a signal ends a call
+  the script writes starts with `| `, so a reply cannot forge one. stdout is
+  empty on exits 2–5, 9, 10 and 11; the `agent:` line comes first on 0, 6, 7,
+  8 and 12 (`[fix-external-agent-claims/claims.md 5]`). stderr: one line from
+  the script, `external-agent: <CODE>: <reason>`, on every exit 2–12, beside
+  any line a tool the script runs prints there, such as `tar`'s for a file it
+  cannot read (`[fix-external-agent-claims/claims.md 4]`); a signal ends a call
   with 128 + the signal and no line (129, 130, 143 — the last a turn `stop`
   ended).
 - **Exit codes** (the header, `tests/external-agent.test.sh`, the skill, the
@@ -232,7 +251,10 @@ this file and an owning file disagree, the owning file is right.
   every agent it started before the session ends, unless the user asks to
   keep one. The CLI path is explicit (`--cli`): the one the user gave, or
   `~/.opencode/bin/opencode`, where OpenCode's installer puts the native
-  binary; a launcher script cannot run in the sandbox. For Codex it is the
+  binary; a launcher script runs in the sandbox only when its interpreter
+  and everything it starts lie under `/usr`, `/bin`, `/sbin`, `/lib`, `/lib64`
+  or `/etc` — one that starts a program anywhere else fails, exit 7
+  (`[fix-external-agent-claims/claims.md 1]`). For Codex it is the
   path the user gave, or `~/.local/bin/codex`. The OpenCode console's
   "Use balance" switch must be off, or a Go limit spends pay-as-you-go
   balance; the script cannot see it, so the skill says it once. Codex has no
@@ -254,9 +276,12 @@ this file and an owning file disagree, the owning file is right.
   and named `<backend>:<model>` in the handoff line
   (`slug · review · model opencode:opencode-go/<id> · round 1/3 · SHIP`).
   Or Codex alone — "review on Codex", Codex's own default model with no
-  `--model` — or "review on Codex, <id>"; its line also records the effort:
-  `- model: glab:reviewer codex, effort <level> (CLAUDE_CODE_EFFORT_LEVEL | the user's answer: "<words>"), for the session — the user's instruction, not a manager choice: "<the user's words>"`,
-  with `codex:<id>` for a named model; the handoff line names the model the
+  `--model` — or "review on Codex, <id>":
+  `- model: glab:reviewer codex, for the session — the user's instruction, not a manager choice: "<the user's words>"`,
+  with `codex:<id>` for a named model; since `abda43a` the line carries no
+  effort, which Rule 0d's `- effort:` line records (until then it read
+  `codex, effort <level> (CLAUDE_CODE_EFFORT_LEVEL | the user's answer: "<words>"), for …`).
+  The handoff line names the model the
   script's header named (`codex:default` when none has run). A Codex
   reviewer uses the `default` profile only (D16).
   Each review round of Stage 5, `/glab:review` and `/glab:ship` — each
@@ -264,9 +289,12 @@ this file and an owning file disagree, the owning file is right.
   target and the round alone; its report is the round's report. On exit 8
   the manager `send`s the same agent one correction naming the gaps (it keeps
   its context; not a review round); still 8, it stops and tells the user. The
-  agent is stopped once its report is read. An OpenCode copy holds `HEAD` and
-  the working tree only, so a branch or range target cannot resolve: the
-  manager tells the user instead. A Codex reviewer works in the repository
+  agent is stopped once its report is read. An OpenCode copy holds the
+  working tree and one parentless commit with `HEAD`'s tree, on the branch
+  `HEAD` names: that branch's name resolves there, but to that one commit,
+  not its history, and no other branch, tag or range resolves at all
+  (`[fix-external-agent-claims/claims.md 7]`), so for a branch or range target
+  the manager tells the user instead. A Codex reviewer works in the repository
   and can take one (D17); `/glab:ship` still reviews the working tree only.
 - **The report check.** The reviewer's reply is its report block between
   `=== REPORT START ===` and `=== REPORT END ===`; the script checks its form,
@@ -275,7 +303,9 @@ this file and an owning file disagree, the owning file is right.
   `BLOCK: <n> issues` (`BLOCK: 1 issue` for one), `BLOCK: target unresolved`,
   `DO NOT PUBLISH: <why>` (the cut and the do-not-publish verdicts belong to
   the last round) — and for a `BLOCK: <n>` an n of at least 1 with at least
-  n findings carrying a `rule:` line. The set is one fact in `reviewer.md`,
+  n lines that start `rule: ` — it counts those lines and does not check that
+  each belongs to a finding (`[fix-external-agent-claims/claims.md 8]`). The
+  set is one fact in `reviewer.md`,
   the manager, `ship.md`, the script's validator and E34. Every
   reviewer message, the first and each `send`, says after the two report
   lines that inside the block every line starts at the left edge, and that
@@ -344,12 +374,27 @@ this file and an owning file disagree, the owning file is right.
     <limit> bash -c`, the functions exported in that subshell only, the lock
     descriptor closed, the group carrying the agent's marker and killed when
     it ends and by `cleanup` — with the limit the turn's `--timeout`, at
-    most 300 s (`DEV_STATE_S`). A before-state that cannot be read is exit
-    4. The report says what changed once the turn is over; it prevents
-    nothing. It does not see a write inside an ignored file or directory,
-    other than in the `core.hooksPath` directory or a file the config
-    includes, nor a change Codex itself makes outside its command sandbox
-    to anything but what it lists and digests.
+    most 300 s (`DEV_STATE_S`), and 5 s more to end it; before every
+    developer turn, and once more at `start`, `dev_refuse`'s search for
+    another `.git` runs for at most 300 s, and nothing bounds their sum
+    (`[fix-external-agent-claims/claims.md 12]`). A before-state that cannot
+    be read is exit 4. The report says what changed once the turn is over;
+    it prevents nothing. It does not see a write inside an ignored file or
+    directory, other than in the `core.hooksPath` directory or a changed
+    value git reads from a file the config includes — not a change to an
+    included file that keeps every value, such as a comment, nor one to a
+    file included only under a condition that does not hold yet, such as an
+    `includeIf "onbranch:…"` for another branch
+    (`[fix-external-agent-claims/claims.md 3]`, F1) — nor a change Codex itself
+    makes outside its command sandbox to anything but what it lists and
+    digests. Ignored means what the repository's own rules and config
+    ignore (that a `core.excludesFile` in the repository's own config is
+    read is inferred, not run:
+    `[fix-external-agent-claims/findings.md claim-2-inferred]`), and `$XDG_CONFIG_HOME/git/ignore` when that config names no
+    `core.excludesFile`: `hostgit` reads no global or system config, so a
+    file only their `core.excludesFile` ignores is untracked to the report
+    and listed as `??` when it changes
+    (`[fix-external-agent-claims/claims.md 2]`).
   - **The refusals** (R3.1, R3.2). A developer is refused — exit 2 at
     `start`, before anything is created, and 4 before each later turn — when
     the state root under `TMPDIR` is the repository's top or inside it
@@ -400,6 +445,28 @@ this file and an owning file disagree, the owning file is right.
     message, marked as that model's words, with the `changed:`/`git:` lines
     and the gates it ran itself. A report missing fields gets one `send`;
     the agent is stopped once its report is read.
+- **The raw OpenCode transcript, `transcript.jsonl`** (`glab` 0.7.1;
+  `[fix-external-agent-claims/plan.md D1]`, review r1 C1). The stream is
+  redacted on the key's literal bytes on its way to the disk; a key the
+  model wrote JSON-escaped is whole only once decoded. So `opencode_raw`
+  decodes each line with `jq` and says whether any string in it, an object
+  key included, holds the key; `awk` then writes every other line byte for
+  byte, and that one as the event `{"type":"redacted"}` — not re-encoded,
+  because `jq`'s encoding grows lines (a DEL to `\u007f`, six bytes for one)
+  and would break the bound on the disk. A line that is not exactly one JSON
+  value — half of an event split over two lines, two events on one line, or
+  one past `jq`'s depth limit — and holds a backslash is redacted too, since
+  a JSON string cannot span lines and the script's other readers decode the
+  file as a stream. It fails closed: a line without a `-` verdict, as when
+  `jq` fails, is written as `{"type":"redacted"}`, so a failure hides the turn
+  and does not leak it. The key reaches `jq` in its environment, never on its
+  command line. E86 pins it, under three mutants. What each transcript keeps:
+  `transcript.txt` the first 500 characters of a tool call's input and 2000
+  of its output, `transcript.jsonl` every event whole but those
+  (`[fix-external-agent-claims/claims.md 6]`).
+- **The OpenCode copy and nested repositories**: an untracked nested
+  repository is not copied, and a submodule is an empty directory
+  (`[fix-external-agent-claims/claims.md 9]`).
 - **The test**, `tests/external-agent.test.sh`, runs a stub `opencode`
   (passed with `--cli`) inside the script's real sandbox and network
   namespace, starts two host-side listeners on kernel-picked ports and proves
@@ -408,7 +475,9 @@ this file and an owning file disagree, the owning file is right.
   `CODEX_HOME` under the test's work directory: `PASS 49/49` at `6838133`,
   `PASS 71/71` at `9108ac7` — E50–E71 are the Codex cases and E66 the
   OpenCode session check — and `PASS 84/84` at `33a28df`, E72–E84 the
-  developer's cases (E27's role list changed too); E36 stays last. For the
+  developer's cases (E27's role list changed too), and `PASS 86/86` at
+  `3965622`, E85 the sandbox check before cap and timeout and E86 the
+  escaped key in `transcript.jsonl`; E36 stays last. For the
   developer, the stub computes its header's `sandbox:` value from the argv
   as Codex does (`workspace-write [workdir`, plus `, /tmp` and `, $TMPDIR`
   unless excluded, `]`, plus ` (network access enabled)`), and its `dev-*`
@@ -499,17 +568,28 @@ not measured.
 - **Limits per process**, owned by the script's constants: files up to
   64 MiB (`FILE_BLOCKS`), 4 GiB of data memory (`DATA_KIB`); 256 tasks in the
   sandbox's user namespace (`NPROC`); a 256 MiB `/tmp` (`TMP_BYTES`), the
-  sandbox's own tmpfs; at most 16 MiB of the backend's stdout and of its
-  stderr per turn reach the disk (`OUT_BYTES`), and a turn that writes more is
-  cut at a line boundary and is exit 7. Total memory, and the disk the copy
+  sandbox's own tmpfs; the first 16 MiB of the backend's stdout and of its
+  stderr per turn are kept (`OUT_BYTES`), and a turn that writes more is
+  cut at a line boundary and is exit 7. The cap counts the bytes before the
+  key is redacted, so what reaches the disk can be longer: stderr up to 1.25
+  times the cap (a key of at least 8 characters becomes the 10 of
+  `<redacted>`), and a turn's `transcript.jsonl` up to 10 times, or 20 times
+  when `jq` fails, since each line it redacts becomes one 20-byte event
+  whatever its length (`[fix-external-agent-claims/claims.md 11]`,
+  `[fix-external-agent-claims/review-r2.md R2-1]`). Total memory, and the disk the copy
   and its session use under `TMPDIR`, are not limited, and the README and the
   skill say so.
 - **The key.** The OpenCode Go key is read on the host with `<cli> auth export
   opencode-go --standalone` (stdin `/dev/null`, from an empty directory),
   held in a shell variable, and exported only into the sandbox as
   `OPENCODE_API_KEY`, because the CLI needs it; the model can read it there
-  and could send it out. It is never on a command line and never printed, and
-  every literal occurrence is redacted from what the script writes or prints.
+  and could send it out. It is never on a command line and never printed.
+  Written out, it is redacted from everything the script writes or prints;
+  JSON-escaped, from the reply and both transcripts, where
+  `transcript.jsonl` keeps an event that holds it as `{"type":"redacted"}`;
+  until `run/` is removed, `run/turn.out` still holds it escaped. A key the
+  model writes in any other form, such as base64, is not recognised
+  (`[fix-external-agent-claims/claims.md 10]`).
   The provider policy in the inline config allows OpenCode Go alone, so the
   paid provider the same variable unlocks cannot be used even by id.
 - **The permission set is a second layer**: one agent, `glab-agent`, `* deny`
@@ -1012,7 +1092,7 @@ Owned by `opencode_models()` in the script, one line per model —
 - [feature-codex-agent/questions.md Q2] Q2 and Q3 replaced by one answer: Codex runs like a Claude subagent — on the host, in the user's repository, under Codex's own sandbox (read-only here; workspace-write in the working tree in the developer change), with its own login; the script never copies, reads, exports or redacts a token, nor writes `~/.codex`; Codex's commands can read files outside the repository and what it reads can reach OpenAI, accepted; login mechanisms L1–L4 and developer designs D-A–D-C not chosen (the user's).
 - [feature-codex-agent/questions.md Q4] A, for the developer change: same trust as a Claude developer — the manager reads the whole change before the gates, then Stages 3 to 5 as usual (the user's).
 - [feature-codex-agent/questions.md Q5] B: Codex's own default — no `--model` when the user names none; the script reads back the model that ran, form-checked; the model can change between rounds, accepted (the user's).
-- [feature-codex-agent/questions.md Q6] A: `CLAUDE_CODE_EFFORT_LEVEL` when set, otherwise the manager asks once per session and records the answer with the model line; mapping (i), the highest supported level not above the requested one, said in the announce line (the user's; (i) stated by the manager and not objected to).
+- [feature-codex-agent/questions.md Q6] A: `CLAUDE_CODE_EFFORT_LEVEL` when set, otherwise the manager asks once per session and records the answer with the model line; mapping (i), the highest supported level not above the requested one, said in the announce line (the user's; (i) stated by the manager and not objected to). Its source order and its record line are superseded by `[subagent-effort/questions.md Q1]` (`abda43a`): the session level of `glab:manager` Rule 0d, recorded in Rule 0d's `- effort:` line; mapping (i) stands.
 - [feature-codex-agent/questions.md Q7] A: a one-time data note in the README and the skill — what Codex reads goes to OpenAI under the user's ChatGPT account's data controls; check "Improve the model for everyone" (the user's).
 - [feature-codex-agent/questions.md approval] The user approved `plan.md` on 2026-10-18 ("Approve, build it").
 - [feature-codex-agent/questions.md stage-1b] After Stage 1b round 2/2 left five blockers, the user chose to fix them and run one narrow third check of those fixes only, beyond the two-round cap, and allowed one offline `codex debug models --bundled` run with a throwaway `CODEX_HOME` and no network (the user's, 2026-10-18; *Incidents*).
@@ -1023,7 +1103,7 @@ Owned by `opencode_models()` in the script, one line per model —
 - [feature-codex-agent/plan.md U2] Q2/Q3: Codex runs like a Claude subagent, on the host, in the user's repository, under Codex's own read-only sandbox, with its own login; the script never copies, reads, exports or redacts a token, and never writes `~/.codex`; reads outside the repository and their reaching OpenAI accepted; OpenCode's guarantees stay in force for OpenCode.
 - [feature-codex-agent/plan.md U3] Q4 = A, for the developer change: the manager reads the whole change before the gates, then runs Stages 3–5 as usual; recorded here, built in that change.
 - [feature-codex-agent/plan.md U4] Q5 = B: no `--model` when the user names none; the script reads back the model that ran, checks its form, and names it in the header line and the record line; the model can change between rounds.
-- [feature-codex-agent/plan.md U5] Q6 = A: the effort is `CLAUDE_CODE_EFFORT_LEVEL` when set, otherwise asked once per session and recorded with the model line; mapping (i), said in the announce line. Revision 5 (review r1 T5, stated to the user): with `models: unavailable`, the session's level is sent unchanged and the announce line says `effort <sent> (no levels known)`.
+- [feature-codex-agent/plan.md U5] Q6 = A: the effort is `CLAUDE_CODE_EFFORT_LEVEL` when set, otherwise asked once per session and recorded with the model line; mapping (i), said in the announce line. Revision 5 (review r1 T5, stated to the user): with `models: unavailable`, the session's level is sent unchanged and the announce line says `effort <sent> (no levels known)`. Its source order and its record with the model line are superseded by `[subagent-effort/questions.md Q1]`, as Q6 is; the mapping and the `models: unavailable` fallback stand.
 - [feature-codex-agent/plan.md U6] Q7 = A: a one-time data note in `README.md` and in the skill.
 - [feature-codex-agent/plan.md U7] Answer 3: no "Use balance"-style check for Codex; live runs only on the user's explicit instruction in chat.
 - [feature-codex-agent/plan.md D1] Isolation is an adapter value, `sandbox` or `host`, branched on through the global `isolation`; one script with adapters as function sets; a second script for host backends rejected, since it would duplicate the shared wrapper.
@@ -1050,7 +1130,7 @@ Owned by `opencode_models()` in the script, one line per model —
 - [feature-codex-agent/plan.md D27] `isolation=''` and `turn_model=''` join the top-level initialisation, so `set -u` holds on every path; `isolation` is set right after `known_backend` (start, check) or after the lock (send, revision 5); `turn_model` is global and reset at the start of each turn.
 - [feature-codex-agent/plan.md D28] `head` and `branch` for a host agent come from `hostgit -C "$top" rev-parse -q --verify HEAD` (12 characters) and `symbolic-ref -q HEAD`; a repository with no commit records `""` for both and the start goes on: Codex needs a git repository, not a commit.
 - [feature-codex-agent/plan.md D29] `setsid --wait` is not used: it would fork and wait, and the started pid would no longer be the group id D7 kills.
-- [feature-codex-agent/plan.md D30] The effort answer for a general Codex agent (Rule 6, no Rule 5 role) is recorded as `- effort: codex <level> (the user's answer: "<words>"), for the session` under `## Decisions` of the plan in progress; with no plan it lives in the conversation only, as Rule 5 says for a review with no plan.
+- [feature-codex-agent/plan.md D30] The effort answer for a general Codex agent (Rule 6, no Rule 5 role) is recorded as `- effort: codex <level> (the user's answer: "<words>"), for the session` under `## Decisions` of the plan in progress; with no plan it lives in the conversation only, as Rule 5 says for a review with no plan. Superseded by `[subagent-effort/questions.md Q1]` (`abda43a`): the `- effort: codex` line is gone, and every Codex agent's effort is recorded in Rule 0d's `- effort:` line, whose placement — the same as D30's — Rule 0d states.
 - [feature-codex-agent/plan.md D31] The agent marker and the sweep (revision 4): every Codex turn carries `GLAB_EXTERNAL_AGENT=<agent id>`, exported and passed as `-c shell_environment_policy.set.GLAB_EXTERNAL_AGENT="<id>"`; `sweep_agent <id>` kills by PID, with a start-time guard against PID reuse, every process of this uid whose environment holds the exact entry, after every host turn, in `cleanup` and in `cmd_stop` (and, since revision 5, before every `send`); SIGTERM or SIGINT first rejected, since Codex does not tear down its helper on either; a `systemd-run --user --scope` per turn rejected for its systemd and D-Bus dependency, and kept as the fallback if a live run shows that `codex exec` does not pass `set` to its helper — that fallback needs the user's yes.
 - [feature-codex-agent/plan.md D32] One model-id wording, now that `default` is refused (revision 5): `README.md` "the script checks only the id's form, and refuses `default`, the word its output uses for Codex's own default"; `AGENTS.md` *One fact* "checks an id's form only, and refuses `default`"; the skill "the script checks only the id's form" beside its `default`-refused sentence.
 - [feature-codex-agent/plan.md revision-4] Stage 4's O2 failure answered by D31, chosen among the three measured candidates because it adds no dependency and the stub can test it (E60, E69); changed D7, D13, P2–P5, O2 and *UNVERIFIED* — approved by the user (`[feature-codex-agent/questions.md stage-4]`).
@@ -1086,6 +1166,17 @@ Owned by `opencode_models()` in the script, one line per model —
 - [feature-external-developer/plan.md R4.8] The README's developer paragraph is the one the skill's once-per-session notice carries, in the same words (identical after whitespace normalisation); a short README paragraph after it, and the skill, give the codes in the header's terms.
 - [feature-external-developer/plan.md spent] R4.5, R4.6, R4.9 and the P1–P7 wording steps — the two T4 mutants killed by E74 and E75, the stale test comment amended, the refusal entry's missing files added to `AGENTS.md`, and the payload texts, all built in `33a28df`; *Changes in revision 2* to *4* record how the plan reached them.
 - The `feature-codex-agent` decisions this change acted on: `[feature-codex-agent/questions.md A4]` and `[feature-codex-agent/plan.md U3]` are now built; `[feature-opencode-worker/plan-r3.md U10]` (no external developer until gates can be sandboxed) and its D34 are superseded for Codex by the user's A4 — the gates still run on the host, by the manager, after its filter-free reading of the change (U3).
+- The decisions of `subagent-effort` — `[subagent-effort/questions.md Q1]` (A, one shared session effort), `[subagent-effort/plan.md D4]` (commands change only where they list Agent tool parameters), `D6` (no agent definition changes) and `D8` (Codex takes Rule 0d's level and record line, mapped down) — are carried in `docs/specs/workflow.md`, the change's primary area, and bind here too.
+- [fix-external-agent-claims/questions.md approval] The user approved `plan.md` ("Approve, Codex builds it"): three Codex developer turns; claim 10 by redacting whole lines; claim 13 by checking the header first; claim 3 documented only; F1 kept as a follow-up. The builder is the Codex external developer, as the user asked ("send to codex developer to fix them after our plan"), recorded for Rule 5 as `- model: glab:developer codex, effort high (the user's answer: "it's a high, so you need to pass your current level to codex"), for this change`; the manager runs the gates after each turn, then conformance and review; the push waits for the user (2026-10-18).
+- [fix-external-agent-claims/questions.md review-r1] After review round 1 (BLOCK 2 and BLOCK 4), plan revision 2 adds turn 4 (S5.1–S5.9) as exact edits against the built tree; the user approved sending it to a new Codex developer agent, same model and effort line ("Yes, send to Codex", 2026-10-19).
+- [fix-external-agent-claims/questions.md review-r2] After review round 2 (correctness and security SHIP; docs, tests and rules BLOCK 3), the user approved the last fix round, turn 5: document the real size bound, fix the depth-limit comment, add the jq-failure wrapper test — Claude plans it and a new Codex developer builds it (2026-10-19); round 3 to end in SHIP, SHIP WITH SCOPE CUT or DO NOT PUBLISH.
+- [fix-external-agent-claims/plan.md D1] Claim 10: an event of `transcript.jsonl` that holds the key once decoded is written as the one event `{"type":"redacted"}`, every other line byte for byte; not re-encoded, since `jq` grows lines and would break the bound on the disk; not literal matching of escaped forms, which are unbounded; a `jq` failure writes every line of that turn redacted — it hides the turn, it does not leak it; an object, not a string, so a reader using `.type` keeps working.
+- [fix-external-agent-claims/plan.md D2] Claim 13: the `verify` call moves to the top of `finish_turn`, before the cap and timeout checks — one place, not a second call in each branch.
+- [fix-external-agent-claims/plan.md D3] Claim 3: documented, not coded. Digesting the active included files' bytes would add only comment and layout changes, which change nothing git does, and would still miss the conditional includes that do (F1); the skill, the README and the script say exactly what is and is not seen.
+- [fix-external-agent-claims/plan.md D4] One commit for the whole change: every step touches `plugins/glab/`, and the version bump goes in the same commit.
+- [fix-external-agent-claims/plan.md revision-2] Review round 1's fixes: C1 — a line that is not exactly one JSON value and holds a backslash is redacted, failing closed; C2 — E86 drives a split event, two events on one line and an object key, and checks the whole file as a stream; T1–T4 the comments, `README.md` and E42's title.
+- [fix-external-agent-claims/plan.md revision-3] Review round 2's fixes: R2-1 the real size bound, 10 times the cap and 20 when `jq` fails, in the header, the `OUT_BYTES` comment and the skill, with no new logic (F6 folded in); R2-2 the depth-limit comment; R2-3 a `jq` wrapper first on `PATH` that fails only `opencode_raw`'s call, so all three mutants fail E86 (F4 closed); the `leak-split` guard of the advisory.
+- [fix-external-agent-claims/plan.md spent] The manager records the external developer's `- model:` line itself, from the user's words — a model line written by a planner is ignored (Rule 5); the five turns and their exact edits were that change's.
 
 ## Known limits and not verified
 
@@ -1105,15 +1196,15 @@ Owned by `opencode_models()` in the script, one line per model —
   "The developer role has been tested against a stub, and its sandbox
   offline with `codex sandbox`." — true, but no longer the whole of it.
 - [probe-codex-dev/probe-codex-dev.md observed] An external developer follows the `glab:developer` contract and changes nothing without `plan/<slug>/plan.md` or a waiver: in run 1, given a bare brief and no plan, it changed nothing and answered `BLOCKED: no contract; provide plan.md or waived.md`. Observed in one run of one model; the script does not enforce it — the contract the developer receives does.
-- [probe-codex-dev/probe-codex-dev.md not-shown] Not shown by the live developer runs: a turn that leaves a process running, so the sweep killed nothing; a turn that writes `.git` or makes a nested repository (M3 and the stub tests cover those offline); any repository other than a three-file toy.
+- [probe-codex-dev/probe-codex-dev.md not-shown] Not shown by the live developer runs: a turn that leaves a process running, so the sweep killed nothing — a `stop` mid-turn that swept 3 marked processes to 0 was observed once by the manager, 2026-10-18; no plan/ record, so not closed (`[fix-external-agent-claims/record.md stop-sweep]`); a turn that writes `.git` or makes a nested repository (M3 and the stub tests cover those offline); any repository other than a three-file toy.
 - [feature-external-developer/integration.md unverified] *Still UNVERIFIED* after Stage 4, each needing a live run or more than `start`: whether Codex itself, outside its command sandbox, changes a ref or `.git` during a real turn, which would print `git: changed` every turn — not seen in the four live developer turns, each `git: unchanged` with HEAD, `.git/config` and the hooks unchanged (`[probe-codex-dev/probe-codex-dev.md]`), so not shown either way beyond them; how a real model does as a developer — shown on a toy repository only (`[probe-codex-dev/probe-codex-dev.md]`); the report's lines on exits 0, 6 and 12 with the real binary — exit 0 shown live (`[probe-codex-dev/probe-codex-dev.md]`), 6 and 12 still the stub's only; a developer `send` with the real binary — shown (`[probe-codex-dev/probe-codex-dev.md]`).
 - [feature-external-developer/plan.md after-4] *After* step 4, the same two items written `UNVERIFIED` for `integration.md`: Codex itself changing a ref during a real turn, and how a real model does as a developer — both for a live run, which only the user starts. The live developer runs (`[probe-codex-dev/probe-codex-dev.md]`) showed `git: unchanged` on every turn and one model building a two- and a one-step task on a toy repository; neither is shown on a real repository.
 - [feature-external-developer/plan.md not-covered] Not covered by any case, accepted in the plan: the report on exits 6 and 7 (`header` is the one place it is printed, and E73 shows it on 12 through the same call); `dev_snap` (and before it `dev_state`) failing before the turn, exit 4, which needs E82's stand-in armed before the turn; `dev_refuse`'s "cannot resolve" and 300 s search-limit branches; `config list: none`; the `${t%/}` advisory, which needs a repository whose top is `/`; the real sandbox, Stage 4's. The developer also named `config: none` as not exercised, and `dev_git`'s fixed words (`head: none`, `symref: none`, an absent hooks directory) as exercised once by hand only (`result-p1-p4.md` *Tests*).
 - **The inspection and the user's own filters**: since R4.7 the manager's inspection runs `cat-file blob`, which applies no filter, and no `git diff` (`[feature-external-developer/result-p5-p7.md L171]` under *Open follow-ups*).
-- [feature-codex-agent/plan.md unverified] *UNVERIFIED, in one place*, and what has settled each since: that Codex's read-only sandbox starts on this host, refuses writes, allows reads outside the repository and gives commands no network — S1 (on the host, under `codex sandbox`); that the real header block is as findings §9.2 gives it, every `--disable` name is accepted, the repository's trusted `.codex/` layer stays off under the script's argv (D26; that `--ignore-user-config` alone drops the trust entry is inferred, since the argv differs in more flags) and `exec resume <id>` continues and prints the same id — O1 offline, and L1 with a real model; that `login status` exits 0 for a real login — L1's `login: stored`; that `codex exec`, like `codex sandbox`, passes `shell_environment_policy.set` to its sandbox helper, so D31's sweep finds a real turn's helper — shown by the live developer runs: on three of the four turns the model ran `printenv GLAB_EXTERNAL_AGENT` in its sandbox and it printed the agent's id (run 1's second turn repeated the value without running the command, `transcript.log`) (`[probe-codex-dev/probe-codex-dev.md]`); that the sweep then kills a real leftover is still not shown (`[feature-codex-agent/probe-codex-l1.md not-verified]`); that a keyring login works under `--ignore-user-config` — L1 ran with the user's login under the flag, but which store it uses is not recorded; that `check`'s predicted default is the model that runs — L1, `gpt-6.1-sol` both; reroutes, an unsupported effort level, a real turn obeying read-only, and the model honouring "Read nothing outside <top>" — not shown.
+- [feature-codex-agent/plan.md unverified] *UNVERIFIED, in one place*, and what has settled each since: that Codex's read-only sandbox starts on this host, refuses writes, allows reads outside the repository and gives commands no network — S1 (on the host, under `codex sandbox`); that the real header block is as findings §9.2 gives it, every `--disable` name is accepted, the repository's trusted `.codex/` layer stays off under the script's argv (D26; that `--ignore-user-config` alone drops the trust entry is inferred, since the argv differs in more flags) and `exec resume <id>` continues and prints the same id — O1 offline, and L1 with a real model; that `login status` exits 0 for a real login — L1's `login: stored`; that `codex exec`, like `codex sandbox`, passes `shell_environment_policy.set` to its sandbox helper, so D31's sweep finds a real turn's helper — shown by the live developer runs: on three of the four turns the model ran `printenv GLAB_EXTERNAL_AGENT` in its sandbox and it printed the agent's id (run 1's second turn repeated the value without running the command, `transcript.log`) (`[probe-codex-dev/probe-codex-dev.md]`); that the sweep then kills a real leftover — open: a `stop` mid-turn that swept 3 marked processes to 0 was observed once by the manager, 2026-10-18; no plan/ record, so not closed (`[fix-external-agent-claims/record.md stop-sweep]`); that a keyring login works under `--ignore-user-config` — L1 ran with the user's login under the flag, but which store it uses is not recorded; that `check`'s predicted default is the model that runs — L1, `gpt-6.1-sol` both; reroutes, an unsupported effort level, a real turn obeying read-only, and the model honouring "Read nothing outside <top>" — not shown.
 - [feature-codex-agent/findings.md unverified] §9.6's list of what needs a model: that a real turn obeys read-only, that its commands really have no network, that a reroute shows in the header or output, that the default is the one `check` predicts (since shown by L1), and the effort fallback on a model without the level — the rest still open. Revision 1's other UNVERIFIED items (§3) concerned the superseded copy-based design, the login mechanisms and the per-turn `CODEX_HOME`, which revision 2 dropped.
 - [feature-codex-agent/integration.md open] *Items these runs leave open* and *Still unverified after round 3*: what the script itself leaves after a killed host turn mid-command with the real Codex (the stub covers the call sites: E60, E69, E70); `check`'s `default:`/`models:` lines from `debug models` without `--bundled` — shown online by L1 (seven listed models, against the bundled catalog's eight: no `gpt-5.5`), the offline fallback still not run; a real `login status` rc 0 (since L1) and a keyring login; the live-run items above; whether `codex sandbox` contacted the network on the host, for an update check, not measured; that a real `codex exec` turn passes `set` to its helper — since shown (`[probe-codex-dev/probe-codex-dev.md]`); that a command which unsets the marker still ends with its helper, not re-measured after findings §9.9 C2c. Inferred, not measured: which of D4's flags turned off the MCP endpoint direct Codex tried in O1.
-- [feature-codex-agent/probe-codex-l1.md not-verified] That a real `exec` turn's commands carry the marker while they run: L1's turns ended cleanly, nothing was alive at the three check points, so finding 0 marked processes does not tell a passed marker from a missing one, and the sweep was not exercised on a real turn. The marker half is closed by `[probe-codex-dev/probe-codex-dev.md]`: in the live developer runs the turn's own command, `printenv GLAB_EXTERNAL_AGENT`, printed the agent's id — run on both turns of run 2 and the first of run 1; run 1's second turn repeated the value without running it (`transcript.log`). Still open: a real turn that leaves a process running, so that the sweep kills something — in those runs nothing was left after either turn or after `stop` (0 marked processes each time), so the sweep killed nothing. Proving it needs a turn ended by `stop` while a command runs (`[feature-codex-agent/plan.md unverified]`).
+- [feature-codex-agent/probe-codex-l1.md not-verified] That a real `exec` turn's commands carry the marker while they run: L1's turns ended cleanly, nothing was alive at the three check points, so finding 0 marked processes does not tell a passed marker from a missing one, and the sweep was not exercised on a real turn. The marker half is closed by `[probe-codex-dev/probe-codex-dev.md]`: in the live developer runs the turn's own command, `printenv GLAB_EXTERNAL_AGENT`, printed the agent's id — run on both turns of run 2 and the first of run 1; run 1's second turn repeated the value without running it (`transcript.log`). The other half — a real turn that leaves a process running, so that the sweep kills something — was still open after those runs (nothing was left, so the sweep killed nothing), and stays open: a `stop` sent mid-turn that swept 3 marked processes to 0 was observed once by the manager, 2026-10-18; no plan/ record, so not closed (`[fix-external-agent-claims/record.md stop-sweep]`).
 - [feature-codex-agent/plan.md not-covered] Not covered by any case, accepted in the plan's coverage list: `codex_check`'s exit 4 for a missing tool; `opencode_secret_hint`'s tail; a host repository with no commit (D28); the real Codex's header, flags, trust default, catalog and resume (O1), its sandbox (S1) and the real helper dying to the sweep (O2; the stub's `setsid` child stands in, E60 and E69); the D13 names the test does not set; a script killed and never `stop`ped, whose leftovers run until the next `stop` of that agent; `cleanup`'s `host_turn` sweep (`[feature-codex-agent/review-r2.md R2-c]`); C2's `trap '' HUP INT TERM` and C-A, races with a second signal or a concurrent `stop`; P5–P10 are text, checked by the plan's searches. The developer added: a relative `--cli` for Codex; `CODEX_BLOCK_AWK` rejecting a non-`key: value` line inside the block; `run_host`'s `cd … || exit 1`; a PID reused between `sweep_agent`'s two reads; `check`'s own sweep killing anything (`result-p1-p4.md` *Tests*, *Round 2*).
 - [feature-codex-agent/result-p5-p10.md L578] The socket wording names datagram and abstract sockets as not measured; still not named anywhere in the payload: seqpacket sockets, `socketpair`, and a descriptor passed in from outside (integration round 4).
 - [feature-opencode-worker/probe-r3.md not-verified] *Not verified* by the probe: DeepSeek's behaviour (refused before any turn); how the models behave on a real repository, a long brief or a Go limit; the profiles' effect — no run without profiles to compare against.
@@ -1123,7 +1214,10 @@ Owned by `opencode_models()` in the script, one line per model —
 - [feature-opencode-worker/result-r3.md L645] Three things the stub cannot show (*Review round 1 fixes*): that the real `auth export` still finds the key when run from an empty directory with the project switch set — the probe's `check` printed `key: stored`, so this has been seen; that 16 MiB is enough for a real turn's JSON events — the probe's turns stayed under it, not measured; that the real CLI exits soon after its stdout pipe closes at the cap — open.
 - [fix-external-report-lines/result.md unverified] That a real model copies the indent or the backticks, and that it obeys the left-edge sentence or the profile wording — in the probe GLM passed the check first time, and Kimi failed on the singular `issue`, not on an indent; not shown more widely.
 - **The offline run** shows the argv, config, environment and parsing against the real 2.0.31 binary, not a reply: no request leaves the host. Its rerun after review round 2 showed the session id recorded and the data directory kept, not that turn 2 sees turn 1 (the probe since showed it for Kimi and GLM); that the CLI rejects an unknown `--session` at once was not checked (`feature-opencode-worker` `integration-r3.md`, *Not exercised*).
-- **The key in the raw transcript**: only literal occurrences are redacted, so a JSON-escaped key can stay in `transcript.jsonl` (`[feature-opencode-worker/follow-ups.md 10]`, `17`).
+- **The key in the raw transcript** — closed by `fix-external-agent-claims` (`3965622`): only literal occurrences were redacted, so a JSON-escaped key could stay in `transcript.jsonl` (`[feature-opencode-worker/follow-ups.md 10]`, `17`, now closed); each line is now decoded and one that holds the key becomes `{"type":"redacted"}`, failing closed. What stays: a key in any other encoding is not recognised, and `run/turn.out` holds an escaped key until `run/` is removed (`[fix-external-agent-claims/plan.md F2]`); `[feature-opencode-worker/follow-ups.md 16]` stays open.
+- [fix-external-agent-claims/plan.md not-verified] *Not verified*: that OpenCode's real serializer ever `\u`-escapes a key, or what characters a real Go key holds — the fix does not depend on either; jq 1.5 and 1.6 (`[fix-external-agent-claims/plan.md F5]`). The planner's dry runs applied each revision's edits mechanically to throwaway copies and ran the gates there; the manager's checks on the real tree after each turn are the evidence.
+- [fix-external-agent-claims/findings.md claim-2-inferred] Inferred, not run: that a `core.excludesFile` in the repository's own config is still read under `hostgit`, which does not disable the local config; the run showed only that `$XDG_CONFIG_HOME/git/ignore` is applied and a global `core.excludesFile` is not (`findings.md` *Proven behavior*, *Claim 2, exactly*).
+- [fix-external-agent-claims/claims.md not-checked] Not checked by the analyzer: a full `start`/`send` with bwrap; whether OpenCode's real serializer emits `\u` escapes; what characters a real Go key holds; the `includeIf` cases of claim 3 (since measured by the planner: `findings.md`, F1).
 - Total memory and the disk used under `TMPDIR` are not limited. For a Codex
   agent, files, processes and memory are not limited by the script either.
 
@@ -1401,7 +1495,7 @@ approval: never
 sandbox: read-only
 reasoning effort: none
 reasoning summaries: none
-session id: 01a14cea-3c78-7a51-8cc3-91fe62e83f9f
+session id: <session-a>
 --------
 user
 Say hello.
@@ -1432,7 +1526,7 @@ stderr:
 rc=7
 agent dir: agent.json lock transcript.log transcript.txt turn.pid
 agent.json:
-  {"backend":"codex","model":"","effort":"","ran":"gpt-6.1-sol","profile":"default","role":"general","turns":1,"session":"01a14cec-ddf0-7b31-b789-889a7038a861","ready":true,"head":12,"branch":"refs/heads/master"}
+  {"backend":"codex","model":"","effort":"","ran":"gpt-6.1-sol","profile":"default","role":"general","turns":1,"session":"<session>","ready":true,"head":12,"branch":"refs/heads/master"}
 transcript.log header block (turn 1):
   OpenAI Codex v0.163.0
   --------
@@ -1443,7 +1537,7 @@ transcript.log header block (turn 1):
   sandbox: read-only
   reasoning effort: none
   reasoning summaries: none
-  session id: 01a14cec-ddf0-7b31-b789-889a7038a861
+  session id: <session>
   --------
 ````
 
@@ -1466,13 +1560,13 @@ transcript.log turn 2 header block:
   sandbox: read-only
   reasoning effort: none
   reasoning summaries: none
-  session id: 01a14cec-ddf0-7b31-b789-889a7038a861
+  session id: <session>
   --------
-session turn 1 (agent.json): 01a14cec-ddf0-7b31-b789-889a7038a861
-session turn 2 (header):      01a14cec-ddf0-7b31-b789-889a7038a861
+session turn 1 (agent.json): <session>
+session turn 2 (header):      <session>
 same session: yes
 agent.json after send:
-  {"ran":"gpt-6.1-sol","turns":2,"session":"01a14cec-ddf0-7b31-b789-889a7038a861"}
+  {"ran":"gpt-6.1-sol","turns":2,"session":"<session>"}
 ````
 
 Step 5, `list`, then `stop`:
@@ -1788,7 +1882,9 @@ handoff.
 
 Not settled by L1, and kept under *Known limits*: that a real `exec` turn's
 commands carry the marker while they run — since shown by the live developer
-runs below (`[probe-codex-dev/probe-codex-dev.md]`); a sweep that kills a real leftover is still not shown.
+runs below (`[probe-codex-dev/probe-codex-dev.md]`); and a sweep that kills a real
+leftover — still open: a `stop` mid-turn that swept one was observed once by the manager, 2026-10-18; no plan/ record, so not closed
+(`[fix-external-agent-claims/record.md stop-sweep]`).
 
 ### 2026-10-18 — developer runs (Codex)
 
@@ -1838,6 +1934,65 @@ Observed, and not shown, are under *Known limits*
 (`[probe-codex-dev/probe-codex-dev.md observed]`,
 `[probe-codex-dev/probe-codex-dev.md not-shown]`).
 
+### 2026-10-18/19 — the Codex analyst run, and the first change a Codex developer built
+
+**The analyst run** (`[fix-external-agent-claims/claims.md]`). On the
+user's instruction the manager started a read-only Codex agent through the
+`glab:external-agents` skill's own commands, at `363c38d`
+(`codex:gpt-6.1-sol`, effort `high`), to compare
+`plugins/glab/skills/external-agents/SKILL.md` with
+`plugins/glab/scripts/external-agent.sh`. It checked 171 statements and
+reported 13. Its reply is untrusted text, so a read-only `glab:analyzer`
+verified each claim against the code, by a run where that decided it
+(claims 2, 3, 4, 5, 8, 10, 11): 9 REAL, 4 PARTLY, none FALSE. Ten were
+documentation saying more or other than the code does (1, 2, 4, 5, 6, 7, 8,
+9, 11, 12), three small code gaps (3, 10, 13); each is now closed
+(*Closed follow-ups*).
+
+**A stop mid-turn** (`[fix-external-agent-claims/record.md stop-sweep]`).
+Observed by the manager session on 2026-10-18, with no run record under
+`plan/`: the live-run rule puts each run's record there, and none was
+written, so this is carried from the manager's Stage 8 dispatch record and
+the folder does not tell it. A `stop` sent while a real Codex turn was
+running printed (agent id masked):
+
+    marked before stop: 3
+    stopped: <agent>
+    stop rc=0
+    marked after stop: 0
+    agents: 0
+
+and the interrupted `start` ended `start rc=143`. It is the first real turn
+whose leftovers the sweep was seen to kill; without a record under `plan/`
+it does not close the open "a sweep that kills a real leftover" items
+(*Known limits*), which stay open as observed once.
+
+**The first change built entirely by the Codex external developer, from
+Claude's plan** (`[fix-external-agent-claims/result.md]`). Claude wrote the
+plan as exact Old/New edits; the Codex developer (`codex:gpt-6.1-sol`, effort
+`high`, Rule 5's recorded line) applied them in five turns — one `start` and
+two `send`s to one agent for turns 1–3, then a new agent for each of turns 4
+and 5, the review fix rounds. After every turn the script's report was exit
+0 and `git: unchanged`, and the manager inspected the change and ran every
+gate itself before the next turn:
+
+| turn | steps | the script's report | the manager's checks |
+|---|---|---|---|
+| 1 | S1, S2.1–S2.22 (version, the ten docs claims) | ` M` README, `plugin.json`, the script, the skill | the script's changes comment-only; all 22 turn-1 searches match; `PASS 35/35`, `PASS 84/84`, shellcheck, three `✔ Validation passed` |
+| 2 | S3.1–S3.8 (claim 13) | ` M` the script, the skill, the test | `_verify` moved before the cap and the timeout; `PASS 85/85`; E85 `NOT OK` against HEAD's script |
+| 3 | S4.1–S4.8 (claim 10) | ` M` the script, the skill, the test | `opencode_raw` rewritten; `PASS 86/86`; E85 and E86 `NOT OK` against HEAD's script |
+| 4 | S5.1–S5.9 (review r1) | ` M` README, the script, the test | the fail-closed catch the only code change; `PASS 86/86`; two of three mutants fail E86, `!= "k"` survives as recorded |
+| 5 | S6.1–S6.7 (review r2) | ` M` the script, the skill, the test | no script code changed; `PASS 86/86`; the plugin block green; all three mutants fail E86 |
+
+Conformance found the build byte-identical to the plan for turns 1–3
+(`review-r1.md`); turns 4 and 5 were checked by their plan searches and the
+gates.
+Each turn the agent ended `BLOCKED` only because its sandbox refuses
+temp-directory writes, so it could not run the suites or the plugin gates —
+"not run here", which the skill says is not red; the manager ran them.
+
+- [fix-external-agent-claims/result.md process] Shown: a Codex developer can build a whole change from Claude's exact-edit plan, turn by turn, with the manager's gates after each, conformance byte-identical for turns 1–3 (`review-r1.md`) and turns 4 and 5 checked by their plan searches and the gates; its `BLOCKED` lines were the sandbox's temp-directory refusal, not a failure of the change.
+
 ## Open follow-ups
 
 - [fix-probe-findings/plan.md follow-up-2] A start refused upstream lists with `turns=2` — the same item as `[feature-opencode-worker/probe-r3.md 4]`; open.
@@ -1848,10 +2003,8 @@ Observed, and not shown, are under *Known limits*
 - [feature-opencode-worker/follow-ups.md 6] Bind only the files of `/etc` the backend needs, not the whole directory read-only — open, as 5.
 - [feature-opencode-worker/follow-ups.md 7] No case drives the window C4 closes in `send` (an agent removed by a `stop` between `send`'s check and its lock): a race between two processes with no injection point; covered by reading the code — open.
 - [feature-opencode-worker/follow-ups.md 9] No case drives R2-3's race (a `send` locking the old lock file after a `stop` renamed the agent aside), and none proves that `list` takes no lock; both rest on reading the code — open.
-- [feature-opencode-worker/follow-ups.md 10] The raw `transcript.jsonl` can hold the key JSON-escaped, which the byte match of `redact_stream` cannot see; the decoded reply and `transcript.txt` are redacted (E14). Needs a decision on what the raw file is for — open.
 - [feature-opencode-worker/follow-ups.md 12] All four family profiles were tuned from the user's notes, written by another model as templates, and stay UNVERIFIED as advice; re-tune each from its probe transcript, cite it, and confirm the report marker lines survive — open (*Profiles*; `[fix-probe-findings/plan.md follow-up-4]`).
 - [feature-opencode-worker/follow-ups.md 16] Truncation before redaction: `opencode_error` cuts to 300 characters and the renderer to 500/2000 before `redact_stream`, so a key the raw pass missed and that crosses the cut keeps its prefix. Redact first, then cut (in `jq`, read the key from the environment) — open.
-- [feature-opencode-worker/follow-ups.md 17] The redaction claims: the skill says the key is redacted from "both transcripts", and the header, the skill and `README.md` say "everything this script writes", while only literal occurrences are replaced. Re-encode the raw file through `jq -c .` before redaction and extend E14, or narrow the claim to "every literal occurrence" in all three files at once — open.
 - [feature-opencode-worker/follow-ups.md 18] The symlink-parent check and the tar read are separate steps, so a parent swapped for a symlink in between is followed; needs another process already writing to the user's tree; accepted. Record it in the header, or refuse a symlink in a parent position after extraction — open.
 - [feature-opencode-worker/follow-ups.md 19] `turn_alive` prints a stray stderr line when `turn.pid` is missing (bash applies `<` before `2>/dev/null`); use `{ read -r tpid st <"$1/turn.pid"; } 2>/dev/null || return 1` — open.
 - [feature-opencode-worker/follow-ups.md 20] A `send` during a start's key lookup gets 10, not 11: `agent.json` is written after the lookup (up to 60 s). Write it with `ready: false` first, or return 11 when the directory exists, `agent.json` does not and the turn is alive — open.
@@ -1891,6 +2044,17 @@ Observed, and not shown, are under *Known limits*
 - [feature-external-developer/result-p5-p7.md L171] The user's own filters under `git diff`: that `git diff --no-ext-diff --no-textconv --ignore-submodules=all` runs no filter the user configured in the top repository was UNVERIFIED (M3 shows the agent cannot add one to `.git/config`, but one the user configured can still run). Since R4.7 the prescribed inspection uses `cat-file blob`, which applies no filter, and runs no `git diff`; what stays open is that any later `git diff`, `git status` or gate on that tree runs the user's own configured filters on the host, as it does for any change — open.
 - [feature-external-developer/result-p5-p7.md 4] `glab:manager` *Check what comes back* (`SKILL.md:146` at `33a28df`) describes only the external reviewer's one correction; the external developer's one `send` for missing report fields (D7) is stated in the skill's *The developer role* only — open.
 - [feature-external-developer/record.md round-3-root] Review round 3 advisory, carried from the manager's Stage 8 dispatch record (no `review-r3.md` was written): `dev_refuse` with a repository top of `/` — `${t%/}` gives the empty prefix, so a state root under `/` is not refused there by that comparison; it still fails closed, at the `find` that follows. The fix would be `[ "$t" = / ] || …` or `[[ $r/ == "${t%/}"/* ]]` — open. R4.1 had meant to cover a top of `/`, and no case can reach it (`[feature-external-developer/plan.md not-covered]`).
+- [fix-external-agent-claims/plan.md F1] A file the git config includes only under a condition that does not hold yet (`includeIf "onbranch:…"`, `hasconfig:`) is not digested: a developer can write it, and git reads it on the user's next checkout of that branch (`findings.md`, run). Fix: digest every target that an `include.path` or `includeIf.*.path` names, conditions ignored, each resolved against the file that names it, with a case. **Security-relevant** — open.
+- [fix-external-agent-claims/plan.md F2] Redaction recognises the key only written out or JSON-escaped; a model that reads the key can write it in any other form; `run/turn.out` holds an escaped key until `run/` is removed. Accepted, since the model can send the key out anyway (the skill's *Its key*) — open, as a known limit.
+- [fix-external-agent-claims/plan.md F3] `AGENTS.md` *One fact* lists E54 and E73 for the Codex sandbox check and describes OpenCode's copy without its nested-repository rule; adding E85 and "no nested repository" there is the user's call on that file — open; the same item as `F9`.
+- [fix-external-agent-claims/plan.md F5] jq 1.6's `contains` may stop at a NUL; `$ENV` does not exist in jq 1.5, which fails safe (every line redacted); `README.md` names no jq version. UNVERIFIED: no older jq is installed here (review r1, C advisory) — open.
+- [fix-external-agent-claims/plan.md F7] The skill's range wording (review r1, T advisory) — open.
+- [fix-external-agent-claims/plan.md F8] No case shows lines without the key kept byte for byte, beyond E42's size and last byte (review r1, T advisory) — open.
+- [fix-external-agent-claims/plan.md F9] `AGENTS.md` *One fact*: name E85 for the Codex sandbox check, and "never a nested repository" in the copy summary (review r1, T advisory) — open, the same as `F3`.
+- [fix-external-agent-claims/review-r2.md advisory] A non-JSON stdout line that holds a backslash is now redacted too; UNVERIFIED whether OpenCode prints such lines (correctness review, round 2) — open.
+- [fix-external-agent-claims/record.md round-3-advisories] Review round 3's advisories, from the manager's Stage 8 dispatch record (no `review-r3.md` was written): jq 1.5 and 1.6 (`F5`); the README's jq version (`F5`); non-JSON lines holding a backslash (`[fix-external-agent-claims/review-r2.md advisory]`); the header gives the 1.25 times bound for stderr only, while OpenCode's stdout, `run/turn.out`, grows by the same 1.25 times under literal redaction, though only until it is removed with `run/` — suggested wording "stdout and stderr up to 1.25 times"; the `AGENTS.md` *One fact* E85 and nested-repository items (`F3`, `F9`) — open.
+- [fix-external-agent-claims/claims.md 7-review-md] `plugins/glab/commands/review.md:8` at `abda43a` still says "An OpenCode reviewer's copy holds only `HEAD` and the working tree, so a branch or a range cannot be its target", while the copy's own branch name resolves, to its one parentless commit (claim 7); the change fixed the skill and the script's comment, not this command — open.
+- [fix-external-agent-claims/record.md codex-sessions] UNVERIFIED where `codex exec` keeps its sessions: `README.md` and the script say a Codex session "stays under `~/.codex`", and `stop` does not remove it, but the user's Codex session picker shows none (from the manager's Stage 8 dispatch record) — open.
 
 ## Closed follow-ups
 
@@ -1935,6 +2099,23 @@ Observed, and not shown, are under *Known limits*
 - [feature-external-developer/record.md round-3-inspection] Review round 3 advisory (manager's Stage 8 dispatch record): the inspection wording — `diff -u -- - <path>`, never open a link or a special file, include each `!!` path — closed: taken with the user's approval (`[feature-external-developer/questions.md review-r3]`), in the skill's *The developer role* and `develop.md`.
 - [feature-external-developer/record.md round-3-skill-l64] Review round 3 advisory (manager's Stage 8 dispatch record): the skill's `check` exit-4 text should also name `<tool> not found` — closed: taken in the scope-cut round; `SKILL.md:65-66` at `33a28df` reads "Exit 4 with `<tool> not found` is a missing tool: tell the user the line, and stop."
 - [feature-external-developer/plan.md not-in-plan-6] A live Codex developer run, only on the user's instruction — closed by `[probe-codex-dev/probe-codex-dev.md]`: two runs at the user's instruction, on a throwaway repository, run 1 blocked by the contract with no plan, run 2 `BUILT` (*Live runs*, 2026-10-18 — developer runs).
+- [feature-opencode-worker/follow-ups.md 10] The raw `transcript.jsonl` can hold the key JSON-escaped, which the byte match of `redact_stream` cannot see; the decoded reply and `transcript.txt` are redacted (E14). Needs a decision on what the raw file is for — closed by `fix-external-agent-claims` (`3965622`, `[fix-external-agent-claims/claims.md 10]`, D1): each line of `transcript.jsonl` is decoded, and one that holds the key, or does not decode as one value and holds a backslash, is written as `{"type":"redacted"}`, failing closed when `jq` fails (E86).
+- [feature-opencode-worker/follow-ups.md 17] The redaction claims: the skill says the key is redacted from "both transcripts", and the header, the skill and `README.md` say "everything this script writes", while only literal occurrences are replaced. Re-encode the raw file through `jq -c .` before redaction and extend E14, or narrow the claim to "every literal occurrence" in all three files at once — closed by `fix-external-agent-claims`: the script header, the skill and `README.md` now say the key is redacted where it appears written out or JSON-escaped, and that a key in any other form, such as base64, is not recognised (review r1 T2); the raw file is redacted after decoding (D1).
+- [fix-external-agent-claims/plan.md F4] E86 could not drive the fail-closed branch, since jq "cannot be failed from the stub alone" — closed by turn 5: a `jq` wrapper first on `PATH` fails only `opencode_raw`'s call, and every line is then `{"type":"redacted"}` (S6.6, `[fix-external-agent-claims/review-r2.md R2-3]`).
+- [fix-external-agent-claims/plan.md F6] The size bound of a redacted `transcript.jsonl` — closed by turn 5, folded into R2-1: 10 times the cap, 20 times on the fail-closed path (S6.1–S6.3).
+- [fix-external-agent-claims/claims.md 1] A launcher script "cannot run in the sandbox" — closed: it runs when its interpreter and everything it starts lie under `/usr`, `/bin`, `/sbin`, `/lib`, `/lib64` or `/etc`; otherwise exit 7 (the skill, `README.md`).
+- [fix-external-agent-claims/claims.md 2] A file ignored only by a global `core.excludesFile` — closed: the docs say `hostgit` reads no global or system config, so such a file is untracked to the report and listed as `??`.
+- [fix-external-agent-claims/claims.md 3] A comment-only change in an included config file is not seen — closed as documented (D3): the docs say exactly what of an included file is seen; the wider gap is `[fix-external-agent-claims/plan.md F1]`.
+- [fix-external-agent-claims/claims.md 4] "stderr carries one line" — closed: one line from the script, beside any a tool it runs prints there, such as `tar`'s.
+- [fix-external-agent-claims/claims.md 5] stdout always begins with `agent:` — closed: it is empty on exits 2–5, 9, 10 and 11.
+- [fix-external-agent-claims/claims.md 6] "each tool call and its output" — closed: `transcript.txt` keeps the first 500 and 2000 characters, `transcript.jsonl` every event whole but a redacted one.
+- [fix-external-agent-claims/claims.md 7] "a branch or range target cannot resolve" — closed where the change fixed it, not everywhere: the copy's own branch name resolves, to the one parentless commit; nothing else does. `plugins/glab/commands/review.md:8` still states the old claim (`[fix-external-agent-claims/claims.md 7-review-md]`, open).
+- [fix-external-agent-claims/claims.md 8] "at least n findings with a `rule:` line" — closed: the check counts lines that start `rule: `, and does not check that each belongs to a finding.
+- [fix-external-agent-claims/claims.md 9] "untracked files that are not ignored" — closed: an untracked nested repository is not copied, and a submodule is an empty directory.
+- [fix-external-agent-claims/claims.md 10] A JSON-escaped key kept in `transcript.jsonl` — closed by code (D1, E86).
+- [fix-external-agent-claims/claims.md 11] "at most 16 MiB … reach the disk" — closed: the first 16 MiB are kept, counted before redaction; stderr up to 1.25 times, `transcript.jsonl` up to 10 times, 20 when `jq` fails.
+- [fix-external-agent-claims/claims.md 12] The change report's "at most the turn's `--timeout`" — closed: each snapshot at most min(`--timeout`, 300 s) plus a 5 s kill grace, `dev_refuse`'s search up to 300 s, nothing bounding their sum.
+- [fix-external-agent-claims/claims.md 13] A wrong sandbox header was 6 or 7, not 12, when the turn also timed out or flooded — closed by code (D2, E85): the check runs first.
 
 ## Incidents
 
@@ -1961,6 +2142,7 @@ Observed, and not shown, are under *Known limits*
 - **The time budget was overrun** (`feature-external-developer`). The user asked for about an hour, kept small (`questions.md` *Approval*); the budget was already past when review round 1 returned, and the change went on through two fix rounds, revisions 3 and 4, and a third review round. Coverage gaps were accepted "for the time budget" on the way (`dev_snap` failing before the turn; `result-p1-p4.md`).
 - **The committer caught unmasked host values — the third catch** (`feature-external-developer`; carried from the manager's Stage 8 dispatch record): at this change's commit, `glab:committer` caught the M5 Codex session id in `integration.md` (L227, L238) and the CLI path in `result-p5-p7.md` L57; they were masked before `33a28df` (`integration.md` now shows `<session-uuid>`). As with the two catches of `feature-codex-agent` above, the commit was stopped, the values masked, and the commit made afterwards: three catches in all, and nothing unmasked committed.
 - **The plan's own measurement command was wrong** (`feature-external-developer`, Stage 4 round 1): `WW` passed `-C "$X/r"`, which `codex sandbox` 0.163.0 takes only with `-P`, so every call exited 2 and nothing was measured; the round was re-run without it. Not a build fault: the script never passes `-C`.
+- **The review did not converge, again in fix text** (`fix-external-agent-claims`). Review round 1 returned BLOCK 2 and BLOCK 4; its C1 fix (redacting a line that is not one JSON value and holds a backslash) brought three new findings in round 2, every one in text written to close C1 — the size-bound claims made false by the catch (R2-1), a wrong depth-limit comment (R2-2), and a coverage claim that "jq cannot be failed from the stub alone" (R2-3) — and the docs reviewer warned that the area was not converging, as `feature-external-developer`'s guard had not. The user approved one last fix round with no new logic (`[fix-external-agent-claims/questions.md review-r2]`).
 
 ## Records
 
@@ -2024,3 +2206,17 @@ Observed, and not shown, are under *Known limits*
   - [feature-external-developer/integration.md L298] Still UNVERIFIED → `[feature-external-developer/integration.md unverified]`.
 - 2026-10-18 · probe-codex-dev · the first live Codex developer runs, on a throwaway repository: run 1 blocked by the contract with no plan, run 2 `BUILT`; `workspace-write [workdir]`, the change report matching git per turn, `git: unchanged`, the marker carried, nothing left · records 7390a87 · plan: `git ls-tree -r --name-only 7390a87 -- plan/probe-codex-dev/` (one file: `git show 7390a87:plan/probe-codex-dev/<file>`; the whole folder: `git archive 7390a87 plan/probe-codex-dev/ | tar -x -C "$(mktemp -d "${TMPDIR:?}/plan.XXXXXX")"`). `7390a87` is the last commit on `origin/main` that holds it: the record commit removes the folder.
   - [probe-codex-dev/probe-codex-dev.md L49] What this settles → `[probe-codex-dev/probe-codex-dev.md settled]` (*Live runs*), `observed` and `not-shown` (*Known limits*); closes `[feature-external-developer/plan.md not-in-plan-6]` and the marker half of `[feature-codex-agent/probe-codex-l1.md not-verified]`.
+- 2026-10-19 · fix-external-agent-claims · the external-agents skill, README and script comments made to say what the script does (13 claims of a Codex analyst run, verified by `glab:analyzer`); the sandbox check before the cap and timeout exits (E85); `transcript.jsonl` redacted by decoding each line, failing closed (E86); built by the Codex external developer in five turns; 86 tests; `glab` 0.7.1 · change 3965622 · plan: `git ls-tree -r --name-only abda43a -- plan/fix-external-agent-claims/` (one file: `git show abda43a:plan/fix-external-agent-claims/<file>`; the whole folder: `git archive abda43a plan/fix-external-agent-claims/ | tar -x -C "$(mktemp -d "${TMPDIR:?}/plan.XXXXXX")"`). `abda43a` is the last commit on `origin/main` that holds it, the folder the same there as at `3965622`: one `docs(repo)` commit after the record removes it and `plan/subagent-effort/`.
+  - [fix-external-agent-claims/plan.md L1340] Record → this record, in this file, `docs/specs/marketplace.md` and `docs/specs/workflow.md`; `[feature-opencode-worker/follow-ups.md 10]` and `17` closed, `16` open.
+  - [fix-external-agent-claims/plan.md L1363] Follow-ups → `F1`, `F2`, `F3`, `F5`, `F7`, `F8`, `F9` open; `F4`, `F6` closed.
+  - [fix-external-agent-claims/plan.md L1395] Not verified → `[fix-external-agent-claims/plan.md not-verified]`.
+  - [fix-external-agent-claims/findings.md L37] Proven behavior → the runs behind claims 2, 3, 10 and F1, carried with them; its claim-2 hedge → `[fix-external-agent-claims/findings.md claim-2-inferred]` (*Known limits*).
+  - [fix-external-agent-claims/findings.md L87] Dry run of the plan → the planner's dry runs, under `[fix-external-agent-claims/plan.md not-verified]`; nothing open.
+  - [fix-external-agent-claims/findings.md L107] Inferred behavior → the reasoning for claims 13, 5, 12 and 11, which the change built and documented (E85 for claim 13); those claims are closed; nothing open.
+  - [fix-external-agent-claims/findings.md L136] Call-site audit, `L153` State and lifecycle, `L165` Candidate boundaries → that change's design; the chosen boundaries are `[fix-external-agent-claims/plan.md D1]` to `D3`; nothing open.
+  - [fix-external-agent-claims/questions.md L5] Approval, with the review round 1 and round 2 approvals → `[fix-external-agent-claims/questions.md approval]`, `review-r1` and `review-r2` (*Decisions that still bind*); the plan had no open question.
+  - [fix-external-agent-claims/claims.md L1] The 13 claims → `[fix-external-agent-claims/claims.md 1]` to `13`, closed; its unchecked items → `[fix-external-agent-claims/claims.md not-checked]`.
+  - [fix-external-agent-claims/review-r1.md L1] Round 1 → C1, C2 and T1–T4 fixed in turn 4 and confirmed by round 2; its deferred advisories are `F5` to `F9`.
+  - [fix-external-agent-claims/review-r2.md L1] Round 2 → R2-1 to R2-3 fixed in turn 5, `F4` and `F6` closed with them; the `leak-split` guard taken; the non-JSON backslash advisory open; no `review-r3.md` was written — round 3's advisories `[fix-external-agent-claims/record.md round-3-advisories]`.
+  - [fix-external-agent-claims/result.md L1] Result → the five turns and the manager's gates (*Live runs*); every turn's *Follow-ups* "None added".
+- 2026-10-19 · subagent-effort · recorded in `docs/specs/workflow.md`, its primary area; here: Codex's effort is the one session effort of `glab:manager` Rule 0d, recorded in Rule 0d's `- effort:` line, and the Codex model lines carry no effort; `[feature-codex-agent/questions.md Q6]`, `U5` and `D30` marked superseded in part; the script, its tests and the skill's mapping unchanged · change abda43a · plan: `git ls-tree -r --name-only abda43a -- plan/subagent-effort/` (one file: `git show abda43a:plan/subagent-effort/<file>`). `abda43a` is the last commit on `origin/main` that holds it: one `docs(repo)` commit after this record removes it and `plan/fix-external-agent-claims/`

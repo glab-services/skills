@@ -11,7 +11,10 @@ Owned by `.claude-plugin/marketplace.json`, both
 `feature-codex-agent` lines (the `glab` version, the gates' test count, the
 external-agent rule, the *One fact* entries) as of `30f2c80`, and its
 `feature-external-developer` lines (the version, the test count, the *One
-fact* entries) as of `33a28df`; where this file and an owning file disagree, the
+fact* entries) as of `33a28df`, and its `fix-external-agent-claims` lines
+(the version, the test count) as of `3965622`, and its `subagent-effort`
+lines (the version, the test count, the *One fact* entries) as of
+`abda43a`; where this file and an owning file disagree, the
 owning file is right and this spec is out of date.
 
 ## How it works now
@@ -29,9 +32,9 @@ owning file is right and this spec is out of date.
   skill, `sync-memory`, no agent, hooks on `SessionStart`, `SessionEnd`,
   `PostToolUse` and `Stop`.
 - **Versions.** Each `plugin.json` carries an explicit `version` — `glab`
-  `0.7.0` (raised by `33a28df`, `feature-external-developer`; `0.6.0` by
-  `9108ac7`, `0.5.0` by `fed95f9` before it), `memory-sync` `0.1.0`, at
-  `33a28df`. A change under
+  `0.7.2` (raised by `abda43a`, `subagent-effort`; `0.7.1` by `3965622`,
+  `0.7.0` by `33a28df`, `0.6.0` by `9108ac7`, `0.5.0` by `fed95f9` before
+  it), `memory-sync` `0.1.0`, at `abda43a`. A change under
   `plugins/<name>/` raises that plugin's version in the same commit, because
   an installed copy is pinned to the version string and nothing else
   delivers a change (`AGENTS.md` *Rules*). `claude plugin validate --strict`
@@ -54,8 +57,8 @@ owning file is right and this spec is out of date.
   counts of `plugin details`, the marketplace-to-manifest name check, the
   `user_config` search, the two pinned hedge phrases, the prefixed `name:`
   search). Each line's reason is written beside it there; this spec does not
-  restate the blocks. Green at `33a28df` ends the two stub tests with
-  `PASS 35/35` and `PASS 84/84` (71 at `9108ac7`, 49 before
+  restate the blocks. Green at `abda43a`, as at `3965622`, ends the two stub tests with
+  `PASS 35/35` and `PASS 86/86` (84 at `33a28df`, 71 at `9108ac7`, 49 before
   `feature-codex-agent`); the plugin counts are unchanged, `glab`
   `Skills (15)`, `Agents (5)`, `Hooks (1)  SessionStart`.
   `tests/external-agent.test.sh` runs its stub `opencode` inside the
@@ -143,6 +146,25 @@ owning file is right and this spec is out of date.
   README's Codex requirements now also name, for a developer, a `find` that
   takes `-files0-from` (GNU findutils 4.9 or later, or bfs) and a
   `realpath` that takes `-e`.
+- ***One fact* entries `subagent-effort` added or rewrote** (`AGENTS.md`
+  *Rules*, as of `abda43a`; S9): "the Codex effort rule (`glab:manager`
+  Rules 5 and 6, the skill)" became "the Codex effort rule — the session
+  effort, sent as the highest level the model supports that is not above it
+  (`glab:manager` Rules 0d, 5 and 6, the skill)"; and one new entry, "the
+  session effort — the Agent tool's `effort` on every subagent dispatch, its
+  order (the level the user named for the session, then
+  `CLAUDE_CODE_EFFORT_LEVEL`, then ask once per session), its `- effort:`
+  record line, the override for one agent, role or task, and
+  `· effort <level>` in the handoff line" (`glab:manager` Rule 0d, Rules 5
+  and 6, Stages 2 and 5 and *The pipeline* in
+  `plugins/glab/skills/manager/SKILL.md`,
+  `plugins/glab/skills/external-agents/SKILL.md`,
+  `plugins/glab/commands/develop.md`, `plugins/glab/commands/review.md`,
+  `plugins/glab/commands/ship.md`, `plugins/glab/skills/bootstrap/SKILL.md`,
+  `plugins/glab/scripts/manager-bootstrap.sh`, `README.md`). The workflow
+  rule is in `docs/specs/workflow.md`, *The session effort*. The plugin
+  counts did not change: `Skills (15)`, `Agents (5)`,
+  `Hooks (1)  SessionStart`.
 - **`docs/specs/` and `plan/`** (`AGENTS.md` *Layout* and *Rules*, the
   `plan/` rule; `README.md` *Working on this repo*), as of `09d2787`. `docs/specs/` holds
   one spec per area — this file (the marketplace, this repo's layout, gates
@@ -248,3 +270,6 @@ owning file is right and this spec is out of date.
 - 2026-10-18 · feature-docs-specs · recorded in `docs/specs/workflow.md`, its primary area; it added `docs/specs/` and rewrote the `plan/` rule (*How it works now*), and its repo items (follow-ups 1, 3, 6, 8) are tagged above · plan: `git ls-tree -r --name-only 09d2787 -- plan/feature-docs-specs/` (one file: `git show 09d2787:plan/feature-docs-specs/<file>`)
 - 2026-10-18 · feature-codex-agent · recorded in `docs/specs/external-agents.md`, its primary area; here: `glab` 0.6.0, the gates' `PASS 71/71` and `AGENTS.md`'s changed *Gates* sentence and *Tests* bullet, the external-agent rule's offline and live-run wording (Codex, no "Use balance" switch), the added and rewritten *One fact* entries · change 9108ac7 · records 30f2c80 · plan: `git ls-tree -r --name-only 30f2c80 -- plan/feature-codex-agent/` (one file: `git show 30f2c80:plan/feature-codex-agent/<file>`)
 - 2026-10-18 · feature-external-developer · recorded in `docs/specs/external-agents.md`, its primary area; here: `glab` 0.7.0, the gates' `PASS 84/84`, the added and rewritten *One fact* entries · change 33a28df · plan: `git ls-tree -r --name-only 33a28df -- plan/feature-external-developer/` (one file: `git show 33a28df:plan/feature-external-developer/<file>`)
+- 2026-10-19 · fix-external-agent-claims · recorded in `docs/specs/external-agents.md`, its primary area; here: `glab` 0.7.1 and the gates' `PASS 86/86`; no *One fact* entry changed (F3 and F9 leave that to the user) · change 3965622 · plan: `git ls-tree -r --name-only abda43a -- plan/fix-external-agent-claims/` (one file: `git show abda43a:plan/fix-external-agent-claims/<file>`). `abda43a` is the last commit on `origin/main` that holds it; the folder is the same there as at `3965622`
+- 2026-10-19 · subagent-effort · recorded in `docs/specs/workflow.md`, its primary area; here: `glab` 0.7.2, the gates still `PASS 35/35` and `PASS 86/86`, the rewritten Codex effort entry and the new session-effort entry of *One fact* · change abda43a · plan: `git ls-tree -r --name-only abda43a -- plan/subagent-effort/` (one file: `git show abda43a:plan/subagent-effort/<file>`). `abda43a` is the last commit on `origin/main` that holds it: one `docs(repo)` commit after this record removes it and `plan/fix-external-agent-claims/`
+  - [subagent-effort/plan.md L265] Record → order: the plan (`plan.md` L267) expected this record after the `fix-external-agent-claims` record had been committed; both records instead land in one `docs(repo)` commit, and the folder removal follows in another.
