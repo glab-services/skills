@@ -5,6 +5,8 @@ argument-hint: "[plan slug]"
 
 Read `AGENTS.md` (or `CLAUDE.md` if the repo has none — say so), then use the **glab:analyzer** agent on `plan/$ARGUMENTS/`.
 
+A round 2 or later is a new agent, given the previous round's findings and the delta, as `glab:manager` Stages 1b and 3 say.
+
 If no slug was given, ask which plan; do not guess, and do not pick the most recent. An empty argument makes that path `plan/`, which hands the analyzer every plan in the repo and lets it choose its own contract.
 
 This step asks one question: **did we build the thing the plan said?** Whether the code is correct and follows AGENTS.md is `/glab:review`'s question. Do not answer it here, and do not let the analyzer drift into it — two commands asking one question is how both stop being trusted.

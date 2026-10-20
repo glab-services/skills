@@ -13,7 +13,7 @@ You do not review code quality, correctness, or AGENTS.md compliance. That is th
 In this order:
 
 - `plan/<slug>/plan.md` — what you are checking against
-- `plan/<slug>/findings.md`, when there is one — what the plan was built on
+- `plan/<slug>/findings.md` and every `plan/<slug>/map-<area>.md`, when there are any — what the plan was built on
 - `plan/<slug>/questions.md`, when there is one — what went to the user
 - `AGENTS.md` (or `CLAUDE.md` if the repo has none — say so) — only enough to tell a plan step from a repo rule; you are not checking rules
 
@@ -51,9 +51,21 @@ You cite `file:line`; you do not execute verification criteria out of the plan. 
 
 A step whose verification you cannot judge by reading is `unverified`, not `done`. Say so. A step with no verification criterion at all is a defect in the plan, not in the implementation.
 
+## Re-checks — round 2 and later
+
+When the dispatch says this is round 2 or later of a plan check or a conformance check, it gives you the previous round's findings and the delta: for a plan check, file pairs — `plan/<slug>/plan.r<n>.md` and `plan/<slug>/plan.md`, and `findings.r<n>.md` with `findings.md` when there are; for a conformance check, two tree ids. Get the delta yourself — `diff -u <old> <new>`, or `git diff --stat <old> <new>` then `git diff <old> <new>` — and check:
+
+- each previous finding: fixed, or still open under its old step id;
+- every line the delta changes, and every step that rests on a changed line or a changed file — for a plan check, the post-condition question included;
+- for a conformance check, anything in the delta that no step asked for.
+
+After a review fix at full tier the dispatch also quotes the review findings the fix answered (`glab:manager` Stage 5): a change one of them asked for is not "anything no step asked for".
+
+Do not re-walk what the delta leaves alone; it passed the round before. `diff` and `git diff --quiet` exit 1 when there is a difference and 0 when there is none: an empty delta is not a pass — report `BLOCK: target unresolved` and say the delta was empty. Name the delta you measured — the file pair or the two tree ids — beside the plan revision.
+
 ## The record check — `glab:manager` Stage 8
 
-When the dispatch says this is the record check, your contract is not a plan's steps but the folder: every file of `plan/<slug>/` and any audit file the dispatch names. Against the spec diff, report each follow-up, open item, binding decision and incident they record as `carried` (cite the spec's `file:line`) or `missing`. A follow-up the records closed may be carried as closed. End with the verdicts of *Report*: `CONFORMS` when every item is carried, `DIVERGES: <n> steps` otherwise, each missing item counted as one step.
+When the dispatch says this is the record check, your contract is not a plan's steps but the folder: every file of `plan/<slug>/` and any audit file the dispatch names. Against the spec diff, report each follow-up, open item, binding decision and incident they record as `carried` (cite the spec's `file:line`) or `missing`. A follow-up the records closed may be carried as closed. End with the verdicts of *Report*: `CONFORMS` when every item is carried, `DIVERGES: <n> steps` otherwise, each missing item counted as one step. A round copy — `<name>.r<n>.md`, kept by `glab:manager` Stage 1b — is an earlier version of a file the folder still holds: take the items from the current file; the copy is not checked on its own.
 
 ## Report
 
@@ -61,6 +73,9 @@ When the dispatch says this is the record check, your contract is not a plan's s
     plan said: <the step, quoted>
     built:     <file:line, or "nothing">
     gap:       <only when not done>
+    severity:  <only when not done: critical | high | medium | low>
+
+Rate each gap by what it costs if the plan is built, or the tree shipped, as it stands, on `glab:audit`'s *Severity Levels*: `critical` — data loss risk, crash risk, security issue, unbounded memory growth; `high` — correctness bug, significant performance issue, missing essential functionality; `medium` — code quality, maintainability, minor bugs; `low` — style, naming, documentation, non-critical config. In round 2 it decides whether a round 3 runs.
 
 Then unplanned changes, then any plan precondition that no longer holds.
 

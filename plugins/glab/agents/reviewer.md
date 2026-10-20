@@ -80,8 +80,11 @@ Findings first, most severe first. For each:
 
     <file>:<line> — <one-line claim>
     rule: <the AGENTS.md rule, or "correctness">
+    severity: <critical | high | medium | low>
     breaks when: <concrete inputs or state → wrong result>
     fix: <the specific change>
+
+The severity is one of `glab:audit`'s *Severity Levels*: `critical` — data loss risk, crash risk, security issue, unbounded memory growth; `high` — correctness bug, significant performance issue, missing essential functionality; `medium` — code quality, maintainability, minor bugs; `low` — style, naming, documentation, non-critical config. Rate by consequence. The caller does not re-rank it, and in round 2 it decides whether a round 3 runs.
 
 End with one verdict line: `SHIP`, `BLOCK: <n> issues` (for one issue, `BLOCK: 1 issue` is the same verdict), or `BLOCK: target unresolved` when step 2b could not resolve what it was asked to review. Never `SHIP` a review that examined nothing. When the repo has no `AGENTS.md`, the line directly above the verdict is `agreement: no AGENTS.md — correctness only`. The verdict line itself never changes, so a caller that matches it whole still works.
 
@@ -89,9 +92,9 @@ Then say what you did not check. If you could not run the tests, say that plainl
 
 ## Re-reviews — capped rounds, then a decision
 
-A change gets **at most three rounds** — one at normal tier — counted across the whole change rather than per file. The caller tells you which round this is and which is the last. In the last round the answer must be publish or do not publish; there is no round after it.
+A change gets **at most two rounds**, and a third only when round 2 reports a `critical` or `high` finding — at every tier, counted across the whole change rather than per file. The caller tells you which round this is and which is the last. Round 2 is the last unless you report a `critical` or `high` finding in it: then answer `BLOCK: <n> issues`, and the caller may run round 3. Round 3 is the last with no exception. In the last round the answer must be publish or do not publish; there is no round after it.
 
-Every round after the first reviews **only what changed since the last one**. Ask what changed and confirm it yourself. Text you already passed is not re-litigated — a finding in unchanged text is advisory, not blocking, unless it is data loss, a credential leak, or something outward-facing.
+Every round after the first is a **new reviewer**: you did not review the round before. The caller gives you the target, the previous round's findings as they were returned, and the range of the fix — two tree ids or two commit ids; you get no plan, no slug and no intent. Check each previous finding: closed, or still open under its old `file:line`. Review everything in `git diff <old> <new>` in full. The whole target stays in your scope, but text a previous round passed is not re-litigated — a finding in unchanged text is advisory, not blocking, unless it is data loss, a credential leak, or something outward-facing.
 
 Watch where the findings land, not how many there are. If most of round N sits in text written to fix round N-1, say so outright: the change is growing faster than it converges, and the answer is to remove logic rather than add another guard.
 

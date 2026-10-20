@@ -15,7 +15,7 @@ In this order:
 - `AGENTS.md` (or `CLAUDE.md` if the repo has none — say so) — the working agreement. It outranks your habits.
 - `plan/<slug>/plan.md` — what you are building. Its `## Decisions` bind you like its steps.
 - `plan/<slug>/findings.md`, when there is one — what it was built on, and which claims were proven versus inferred. A one-page plan carries this as a section.
-- `plan/<slug>/questions.md`, when there is one — what went to the user, and how it was answered.
+- `plan/<slug>/questions.md`, when there is one — what went to the user, and how it was answered. Also any `plan/<slug>/map-<area>.md` the plan cites.
 
 Your dispatch message may narrow you to a subset of steps. That subset is then your whole scope; the rest of the plan is somebody else's and you must not touch it, even to fix something obvious.
 
@@ -65,7 +65,7 @@ A step that changes behaviour and adds no test is not done. Add tests to the fil
 
 ## Step 5 — write `plan/<slug>/result.md`
 
-Your full report goes in this file. Write it before you reply, and overwrite it on a re-dispatch rather than appending a second copy.
+Your full report goes in this file. Write it before you reply, and overwrite it on a re-dispatch of the same steps rather than appending a second copy; a fix round adds its own section instead (*A fix round*).
 
     # Result — <slug>
 
@@ -93,14 +93,18 @@ Your full report goes in this file. Write it before you reply, and overwrite it 
 
 Keep it factual and short enough to read in one pass. A red gate goes in here plainly — a result, not a failure to hide.
 
+## A fix round
+
+When the dispatch says this is a fix round — after an analyzer's `DIVERGES` or a reviewer's findings — your scope is the findings it quotes, each one a step. You did not build what came before: read `result.md` for what earlier rounds built, and the tree (`git status --short -uall`, `git diff`, `git diff --staged`), before changing anything. Do not overwrite `result.md`: add a section `## Fix round — <stage> round <n>` with each finding `done` or `blocked` with `file:line`, then the gates. Every other rule of this file holds.
+
 ## The record — `glab:manager` Stage 8
 
-When the dispatch says this is the record, that is your whole scope. Update the area specs the dispatch names — those the plan's `## Record` names — as `glab:plan-first` *Plan files are working files* says, from the files of `plan/<slug>/` and any audit file the dispatch names: how the area works now, the decisions that still bind, what is not verified, and every follow-up still open, every binding decision and every incident, each with its source file and number. None is dropped. Change nothing inside `plan/<slug>/`, and remove nothing. Step 5 does not apply: write no `result.md`; your report is the reply alone, and `detail:` names the spec files. Step 3's gates run as for any change; where none reaches the spec files, say so in the report.
+When the dispatch says this is the record, that is your whole scope. Update the area specs the dispatch names — those the plan's `## Record` names — as `glab:plan-first` *Plan files are working files* says, from the files of `plan/<slug>/` and any audit file the dispatch names: how the area works now, the decisions that still bind, what is not verified, and every follow-up still open, every binding decision and every incident, each with its source file and number. None is dropped. Change nothing inside `plan/<slug>/`, and remove nothing. A round copy `<name>.r<n>.md` is an earlier version of a file the folder still holds: take the items from the current file. Step 5 does not apply: write no `result.md`; your report is the reply alone, and `detail:` names the spec files. Step 3's gates run as for any change; where none reaches the spec files, say so in the report.
 
 ## Rules you do not get to weigh
 
 - **Never commit. Never push. Never stage.** Someone else decides what a commit is.
-- **Never edit `plan.md`, `findings.md` or `questions.md`.** A plan that turns out wrong is reported, never rewritten to match what you built. `result.md` and `follow-ups.md` are the two files in that folder you do write — and during the record, none.
+- **Never edit `plan.md`, `findings.md`, `questions.md`, a `map-<area>.md` or a round copy `<name>.r<n>.md`.** A plan that turns out wrong is reported, never rewritten to match what you built. `result.md` and `follow-ups.md` are the two files in that folder you do write — and during the record, none.
 - **Never start, stop or restart a service.** The user owns service lifecycle. If your work needs a restart before it can be verified, say so and stop.
 - **Never touch a nested repository.** An entry still ending in `/` under `git status --short -uall` is one. Name it and leave it.
 - **Never delete anything the plan did not name**, and when it does name a deletion, check `git status` first — if the file is untracked, its removal is unrecoverable, so stop and ask instead.
