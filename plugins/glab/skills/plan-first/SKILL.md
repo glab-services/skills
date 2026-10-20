@@ -16,7 +16,7 @@ size → analyze → decide → plan → verify → implement → E2E tests → 
 - **Trivial** (skip this workflow): single-line changes, typo fixes, config one-liners, obvious renames, adding a known import — anything under ~5 lines with no architectural impact. Do it directly.
 - **Non-trivial** (follow the workflow): anything that touches logic, spans multiple files, changes behavior, introduces new concepts, or requires understanding existing code first.
 
-When in doubt, treat it as non-trivial. Non-trivial work is **normal** or **full** tier — `glab:manager` → *Pick the tier* says which. Normal tier writes one page: `plan.md` alone, with findings and decisions as sections of it. Full tier writes the separate files below.
+When in doubt, treat it as non-trivial. Non-trivial work is **normal** or **full** tier — `glab:manager` → *Pick the tier* says which. Normal tier writes one page: `plan.md` alone, with findings and decisions as sections of it. Map files the manager's mapping agents wrote, `map-<area>.md`, sit beside it (Step 1). Full tier writes the separate files below.
 
 ## Step 1 — Analyze
 
@@ -28,14 +28,19 @@ Write findings to `plan/{slug}/findings.md`. Include:
 - Separate **Proven behavior** from **Inferred behavior**. Never present inferred runtime behavior as proven.
 - Candidate implementation boundaries, and at least one rejected approach with a short reason.
 
-**Call-site audit.** For every existing method or function you plan to change or call, grep its real usage across the codebase first and record:
+**Start from the map when there is one.** When `plan/{slug}/map-<area>.md` files exist — written by mapping agents the manager dispatched (`glab:manager` Stage 1, *Explore once*) — they are the analysis of their area. Start from them, write down the gaps they leave that the plan needs, and read code only for those gaps, naming each in your findings. Do not re-read a path a map already read unless a gap names it. With no map, you explore yourself.
+
+**Call-site audit.** For every existing method or function the plan **changes** — its signature, return values, error cases, timing or behaviour — grep its real usage across the codebase first and record:
 
 - the caller list;
 - what each caller appears to rely on;
-- whether the contract is shared or caller-specific;
-- whether the call site you are designing can satisfy its preconditions.
+- whether the contract is shared or caller-specific.
 
-Do not assume how a method behaves from its name or signature alone.
+For every method the plan calls from a new call site, record the precondition that call site must meet and how the plan meets it. For a method it only **calls**, that is all: its other callers are not audited, because nothing they rely on changes.
+
+Do not assume how a method behaves from its name or signature alone: read the precondition from its body or its documented contract.
+
+A file the change only depends on — imported, configured, read — is listed by path and not read in full; read only the part a precondition or a finding needs.
 
 **State transitions** — required for rollback, delete, overwrite, versioning, and object-lock-sensitive flows:
 
@@ -82,10 +87,12 @@ Before implementing, confirm:
 - every gap is proven, decided, or answered by the user;
 - the plan covers every finding, with no gaps left;
 - at full tier, the user has approved the plan;
-- the call-site review is complete for any changed existing method;
+- the call-site review is complete for any changed existing method, and every method the plan only calls has its precondition recorded;
 - the chosen boundary is proven by the semantics of the existing implementation — not by naming or file placement;
 - rollback/delete/state semantics are proven where relevant;
 - ownership/lifecycle risks are reviewed on resource-sensitive paths.
+
+**Amending after a plan check.** Under `glab:manager` an amendment after `NOT BUILDABLE` is written by a new planning agent from the files on disk and the round's findings in its dispatch (`glab:manager` Stage 1b). Change what the findings name and what that forces, record each changed choice under `## Decisions`, and leave the `plan.r<n>.md` copies the manager kept as they are. Step 1 is not run again, except for a gap a finding opens.
 
 ## Step 5 — Implement
 

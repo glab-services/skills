@@ -6,7 +6,7 @@ to S3.
 
 | Plugin | What it adds |
 |---|---|
-| `glab` | Skills `glab:bootstrap`, `glab:manager`, `glab:security`, `glab:comments`, `glab:plan-first`, `glab:audit` · agents `glab:developer`, `glab:analyzer`, `glab:integrator`, `glab:reviewer`, `glab:committer` · commands `/glab:plan`, `/glab:develop`, `/glab:analyze`, `/glab:integrate`, `/glab:review`, `/glab:commit`, `/glab:push`, `/glab:ship` · a `SessionStart` hook that injects the session bootstrap rules |
+| `glab` | Skills `glab:bootstrap`, `glab:manager`, `glab:security`, `glab:comments`, `glab:plan-first`, `glab:audit` · agents `glab:developer`, `glab:analyzer`, `glab:integrator`, `glab:reviewer`, `glab:committer` · commands `/glab:plan`, `/glab:develop`, `/glab:analyze`, `/glab:integrate`, `/glab:review`, `/glab:commit`, `/glab:push`, `/glab:ship` · a `SessionStart` hook that injects the session bootstrap rules · a context hook on `UserPromptSubmit`, `PostToolUse` (`Agent`) and `Stop` that tells the session its context size and tells you when a turn crosses 300k or a further 100k |
 | `memory-sync` | Skill `memory-sync:sync-memory` · hooks on four events that run `memory-sync.sh` |
 
 In `glab` the skills, agents and commands are one set: `glab:manager`
@@ -26,10 +26,21 @@ A plugin cannot ship global instructions. The session rules reach a session
 through the `glab` `SessionStart` hook, so they hold only while `glab` is
 enabled.
 
+`glab`'s context hook adds one line of about ten tokens to the model's context
+on each message you send and after each subagent dispatch, and once the context
+has crossed 300k, 400k, … it shows you `glab: context <n>k … a good point to
+/compact, or to /clear between tasks` at the end of a turn — usually the turn
+after the crossing, because a turn's last model call is not yet in the
+transcript when the turn ends. It never blocks or prolongs a turn.
+The number is the last completed model call's, and can trail the turn a
+little. It runs in every session where `glab` is enabled, and not at all when
+hooks are turned off (`disableAllHooks`, `--bare`).
+
 ## Requirements
 
-Linux with bash. `jq` is optional: the `glab` hook falls back to plain text
-without it. `memory-sync` also needs GNU coreutils (`timeout`, `stat`,
+Linux with bash. `jq` is optional: without it the `glab` `SessionStart` hook
+falls back to plain text, and the context hook says nothing — `glab:manager`
+then counts dispatches instead. `memory-sync` also needs GNU coreutils (`timeout`, `stat`,
 `date`), util-linux `flock`, `rsync` and the AWS CLI. macOS is not supported.
 
 ## Install

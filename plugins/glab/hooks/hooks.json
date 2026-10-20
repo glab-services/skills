@@ -6,6 +6,28 @@
           { "type": "command", "command": "\"${CLAUDE_PLUGIN_ROOT}\"/scripts/manager-bootstrap.sh", "timeout": 5 }
         ]
       }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          { "type": "command", "command": "\"${CLAUDE_PLUGIN_ROOT}\"/scripts/context-size.sh prompt", "timeout": 5 }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Agent",
+        "hooks": [
+          { "type": "command", "command": "\"${CLAUDE_PLUGIN_ROOT}\"/scripts/context-size.sh agent", "timeout": 5 }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          { "type": "command", "command": "\"${CLAUDE_PLUGIN_ROOT}\"/scripts/context-size.sh stop", "timeout": 5 }
+        ]
+      }
     ]
   }
 }

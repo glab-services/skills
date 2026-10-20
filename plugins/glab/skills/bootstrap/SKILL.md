@@ -97,8 +97,10 @@ plan ⇄ analyze  →  develop ⇄ analyze  →  integrate  →  review ⇄  →
 
 That is the **full** pipeline, for the changes `glab:manager` → *Pick the tier*
 makes full tier.
-Normal work runs a one-page plan, one analysis and one review; trivial work is
-done directly. `glab:manager` → *Pick the tier* has the table and the round caps.
+Normal work runs a one-page plan, a plan check and a review, with no
+conformance stage; trivial work is done directly. Each check stage runs
+at most two rounds, a third only on a critical or high finding;
+`glab:manager` → *Pick the tier* has the table and the round caps.
 
 - **`plan ⇄ analyze`** — the plan is analyzed *before any code exists*: can this
   be built exactly as written? See `glab:manager` Stage 1b.

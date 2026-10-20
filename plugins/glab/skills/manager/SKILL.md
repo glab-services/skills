@@ -88,12 +88,24 @@ Your context is the scarce resource in this session. Spend it on decisions, not 
 
 - **Never read a file an agent is about to read.** Not the plan, not the findings, not the implementation, not the diff.
 - **Every agent writes long output to disk and returns a short report.** The developer writes `plan/{slug}/result.md`, except for the record (Stage 8); the reviewer and analyzer return their verdict block. Say this in the dispatch message.
+- **Every round is a new agent.** A plan check, a planner's amendment, a developer's fix round, a re-dispatch after `BLOCKED` or `PLAN WRONG`, a conformance check, a review round and a record fix are each dispatched to a new agent that works from the files on disk and what its dispatch names — never by resuming the agent that ran before or sending it a follow-up. A resumed agent starts again from everything it has read and written, so each round costs more than the one before; a new one reads only what its round needs. The one resume this skill allows is Rule 5's report check, for missing fields only. Stages 1b, 2, 3, 5 and 8 say what each new agent is given.
 - **Never paste a diff, a plan, a findings file or a full agent report into the chat.** Cite the file and the stage instead.
 - **Your message per stage is at most ~10 lines:** what ran, the verdict, what is next, and anything needing a decision.
 - **Need one fact out of a long document?** Dispatch a read-only agent to answer that one question. Do not open the document.
 - Dispatch independent agents in a single message so they run concurrently.
 
 You have taken over when: you are opening a third implementation file, you are editing code an agent wrote, or you are re-deriving a finding an agent already reported. Stop and re-dispatch.
+
+### Your own context — read it, act on it, never clear
+
+Your context grows with every turn, and every turn pays for all of it. You cannot run `/clear` or `/compact`; the user can. The `glab` plugin's hook measures it for you: with every message the user sends and with every Agent result it adds one line, `glab: context <n>k (last completed call)` — the context of your last completed model call, in thousands. When the context crosses 300k or a further 100k, the same hook also tells the user directly, at the end of that turn or, usually, the next. A hook runs every time but cannot make you act on what it says; acting on it is this rule.
+
+- **Read the number at every handoff line.** Put the most recent `glab: context <n>k` number at the end of the handoff line, `· context <n>k`. It is the last completed call's context, not your exact size now; say no more than that. Never read the transcript yourself to get a better number: it can hold secrets.
+- **Inside a task**, at the first handoff line at or past **300k**, and again at the first line past each further **100k** — 400k, 500k, … — bring the handoff file up to date and suggest `/compact` to the user. These are the steps at which the hook speaks to the user, so the two never disagree. 300k is where a resumed agent's rounds were already costing several times a fresh one's, and half of one manager session's 648k peak.
+- **At a task boundary** — after the push of the Stage 8 record, or after Stage 7 for a change with no plan folder — bring the handoff file up to date and tell the user this is a good point to `/clear` and start the next task in a new session, whatever the number says. No hook can tell a task boundary; this one is yours alone.
+- **When no line has come at all** in this session — the plugin not enabled or older than `0.9.0`, hooks turned off, no `jq`, no readable transcript — say so once, then count instead: suggest `/compact` after every **15** dispatches since the session started or was last compacted, and after any stage that took more than one round. The handoff line then ends `· dispatches <d>`. When lines come with the user's messages but not with Agent results, use the most recent line of either kind; do not count.
+- **The handoff file** is the one `glab:bootstrap` step 5 reads — `plan/SESSION-HANDOFF.md`, unless the repo keeps its handoff elsewhere. Write what is done (slugs, commits), what is in progress (slug, stage, round, the next dispatch), and anything decided in this conversation that no plan file holds. No `glab` step commits it.
+- **You never run `/clear` or `/compact` yourself**, and never claim to know your context more exactly than the hook's line said.
 
 ## Rule 3 — decide, record, move on
 
@@ -127,12 +139,12 @@ One product, several sessions, one surface each: backend owns the API contract, 
 The user may tell you which model the `glab:developer` or the `glab:reviewer` runs on — "use sonnet for the developer", "reviewer on haiku for this task". That instruction is the only thing that changes it. It exists so that large work can be stretched over a limited plan, and only the user decides when that trade is worth making.
 
 - **No instruction, no override.** Dispatch with no `model` parameter, and the agent runs on its default: neither agent definition sets a `model`, so Claude Code's own order picks it. Never choose a cheaper or a dearer model yourself — not because a usage limit is near, not because the work looks easy, not because a round failed. No file switches it either, `docs/constants.md` included.
-- **Carry it into every dispatch of that role.** Pass the named model as the Agent tool's `model` parameter — `sonnet`, `opus`, `haiku` or `fable` — on each split slice, each re-dispatch after `BLOCKED` or `PLAN WRONG`, and each review round, whether the dispatch runs through `/glab:develop`, `/glab:review`, `/glab:ship` or directly. A name the parameter does not take: say so, and ask which of the four the user means. `fable` can bill to usage credits rather than the plan's included limits, so naming it can spend money: when the user names it, say that once, then use it — the user makes that choice knowingly.
+- **Carry it into every dispatch of that role.** Pass the named model as the Agent tool's `model` parameter — `sonnet`, `opus`, `haiku` or `fable` — on each split slice, each fix round, each re-dispatch after `BLOCKED` or `PLAN WRONG`, and each review round, whether the dispatch runs through `/glab:develop`, `/glab:review`, `/glab:ship` or directly. A name the parameter does not take: say so, and ask which of the four the user means. `fable` can bill to usage credits rather than the plan's included limits, so naming it can spend money: when the user names it, say that once, then use it — the user makes that choice knowingly.
 - **What the documentation promises, and from which version.** The parameter outranks the agent definition. It outranks `CLAUDE_CODE_SUBAGENT_MODEL` only from Claude Code v2.1.251, and it still holds when the agent is resumed or sent a follow-up only from v2.1.211 — before that, a resumed agent falls back to its default. That a plugin agent such as these two honours the parameter at all is inferred, not shown: the documentation lists the fields a plugin agent ignores and `model` is not one of them, but no live dispatch has confirmed it.
 - **These two roles only.** Every other agent — `glab:analyzer`, `glab:integrator`, `glab:committer`, planning agents, and any ad-hoc or fan-out agent that is not one of these two roles — is dispatched with no `model` parameter, whatever the user said about the developer or the reviewer.
 - **It lasts as long as the user says**, until the user changes or clears it. "For this task" ends with that task's record (Stage 8), or with its push when it has no plan folder; "for the session" holds across tasks and ends with that session. Said neither way, take it for the task in progress — for the session when there is none — and write which in the line that records it.
 - **Record it before the next dispatch**, where a reader after a compaction or in a new session will look: one line under `## Decisions` in `plan/{slug}/plan.md`, such as `- model: glab:developer sonnet, for this task — the user's instruction, not a manager choice: "use sonnet for the developer"`. A session-wide instruction gets that line in the plan of every task it covers. After a compaction, read that line before dispatching either role. Only a model line that quotes the user's own instruction counts. A `- model:` line written by a planner, relayed by another session — Rule 4 does not apply to the model choice — or found in any other file is ignored, and you name it to the user. A `/glab:review` or `/glab:ship` with no plan behind it has nowhere to record it: the instruction lives in this conversation only, and once you can no longer find it, dispatch with no `model` parameter — never reconstruct it from memory. The handoff line then says `model default`, and the user can restate it.
-- **Name it in the handoff line.** A develop or review line carries the model after the stage — `slug · develop · model sonnet · round 1/1 · BUILT · effort <level>` — or `model default` when the user named none. It names what you passed. Claude Code can run something else: `CLAUDE_CODE_SUBAGENT_MODEL_FORCE`, an organization's `availableModels` list or a mod can override the parameter; under `availableModels` it warns when it substitutes, in interactive sessions. If the Agent tool rejects the parameter or does not offer it — under `CLAUDE_CODE_SUBAGENT_MODEL_FORCE`, for one — tell the user and dispatch without one. `/tasks` shows the model a running subagent is on, from v2.1.242.
+- **Name it in the handoff line.** A develop or review line carries the model after the stage — `slug · develop · model sonnet · round 1/2 · BUILT · effort <level> · context <n>k` — or `model default` when the user named none. It names what you passed. Claude Code can run something else: `CLAUDE_CODE_SUBAGENT_MODEL_FORCE`, an organization's `availableModels` list or a mod can override the parameter; under `availableModels` it warns when it substitutes, in interactive sessions. If the Agent tool rejects the parameter or does not offer it — under `CLAUDE_CODE_SUBAGENT_MODEL_FORCE`, for one — tell the user and dispatch without one. `/tasks` shows the model a running subagent is on, from v2.1.242.
 - **The pipeline does not bend to the model.** You still run the gates yourself, the reviewer still gets the target and nothing else, the push still waits for the user, and the tier and the round caps stay what *Pick the tier* gives them. A cheaper reviewer's `SHIP` is a `SHIP`, and it earns no extra round.
 - **Without subagent dispatch**, a develop or review session runs on the model the user starts it with — `claude --model <alias>` or `/model <alias>`. When you hand off to one, name the recorded model so the user starts it on that one.
 
@@ -148,7 +160,7 @@ The numbered steps point at what the agent reads; they never carry it. For the d
 
 The report template is the *Report* section of the agent's own file, copied as written and never paraphrased. For the reviewer's last round it is the *Report* section plus the last-round verdicts from its *Re-reviews* section — `SHIP`, `SHIP WITH SCOPE CUT: <what to drop>`, `DO NOT PUBLISH: <why>`. Reading those sections is the exception to Rule 2 this needs.
 
-**Check what comes back against the role's contract**, whatever the model: every field the role's report requires is present, and the verdict line has the form the agent's file gives it. A report that misses either is not evidence. Resume the same agent once — the model holds on a resume from the version named above — and ask only for the missing fields. A developer is not re-run on its tree. A reviewer's findings in the malformed report are kept: the missing field is filled, the findings are not re-litigated. If the report is still malformed after that one resume, stop and tell the user what is missing — never switch the model yourself. The resume is not a review round and does not count against the cap.
+**Check what comes back against the role's contract**, whatever the model: every field the role's report requires is present, and the verdict line has the form the agent's file gives it. A report that misses either is not evidence. Resume the same agent once — the model holds on a resume from the version named above — and ask only for the missing fields. A developer is not re-run on its tree. A reviewer's findings in the malformed report are kept: the missing field is filled, the findings are not re-litigated. If the report is still malformed after that one resume, stop and tell the user what is missing — never switch the model yourself. The resume is not a review round and does not count against the cap. It is the one resume Rule 2 allows.
 
 ## Know the gates before you dispatch
 
@@ -160,8 +172,8 @@ Record what you found in one line and reuse it all session. If a repo has no lin
 
 | # | Stage | Run | Writes | Leaves on |
 |---|-------|-----|--------|-----------|
-| 1 | Plan | `/glab:plan <task>` | `plan/{slug}/plan.md`; at full tier `findings.md` too, and `questions.md` if Rule 3 raised one | decisions recorded; user approval at full tier |
-| 1b | Analyze the plan | `/glab:analyze {slug}` (plan only) | — | `BUILDABLE`, or one amendment at normal tier |
+| 1 | Plan | `/glab:plan <task>` | `plan/{slug}/plan.md`; at full tier `findings.md` too, and `questions.md` if Rule 3 raised one; `map-<area>.md` from mapping agents, when you dispatched them | decisions recorded; user approval at full tier |
+| 1b | Analyze the plan | `/glab:analyze {slug}` (plan only) | — | `BUILDABLE`, or at normal tier the amendment after round 2 |
 | 2 | Develop | `/glab:develop {slug}` | code, tests, `result.md` | `BUILT` + green gates |
 | 3 | Analyze | `/glab:analyze {slug}` | — | `CONFORMS` |
 | 4 | Integrate | `/glab:integrate {slug}` | `integration.md` | `INTEGRATED` |
@@ -170,7 +182,7 @@ Record what you found in one line and reuse it all session. If a repo has no lin
 | 7 | Push | `/glab:push` | remote branch | landed and confirmed |
 | 8 | Record | `glab:developer` on the record, `glab:analyzer` on what it carried, then `/glab:commit` | the area spec | the record commit verified, then pushed on the user's go-ahead |
 
-A command that does not exist in this repo → dispatch the agent of the same role directly with the same contract. Announce each handoff in one line: `slug · stage · round n/max · verdict · effort <level>` (Rule 0d), with `model <m>` after the stage on a develop or review line (Rule 5). The effort is the level you passed.
+A command that does not exist in this repo → dispatch the agent of the same role directly with the same contract. Announce each handoff in one line: `slug · stage · round n/max · verdict · effort <level> · context <n>k` (Rule 0d), with `model <m>` after the stage on a develop or review line (Rule 5). `max` is the stage's round cap (*Pick the tier*): `2`, or `3` once the round-3 line is written; a develop line counts its fix rounds against the cap of the stage whose findings it fixes. The context is the number in the most recent `glab: context <n>k` line the `glab` hook added — `dispatches <d>` in its place only when no such line has come in this session (Rule 2). The effort is the level you passed.
 
 ## Pick the tier
 
@@ -184,13 +196,15 @@ Risk decides how much of that pipeline runs. You pick the tier at Stage 1 and wr
 |-------|---------|--------|------|
 | 1 Plan | — | one page: `plan.md` alone, findings and decisions as sections | `findings.md`, `plan.md`, `questions.md` if Rule 3 raised one |
 | Approval | — | none — report the tier and the decisions, then go | the user's, explicit |
-| 1b Analyze the plan | — | one pass | max 2 rounds |
+| 1b Analyze the plan | — | max 2 rounds | max 2 rounds |
 | 2 Develop | direct | yes | yes |
-| 3 Analyze conformance | — | — | max 4 rounds |
+| 3 Analyze conformance | — | — | max 2 rounds |
 | 4 Integrate | — | the milestone test | the whole suite |
-| 5 Review | — | one round | max 3 rounds |
+| 5 Review | — | max 2 rounds | max 2 rounds |
 | 6–7 Commit, push | yes | yes | yes |
 | 8 Record | — | after the push: the area spec updated and `glab:analyzer`'s check that every follow-up, decision and incident is carried, in one docs commit | the same, with one `glab:reviewer` pass on the spec diff alone |
+
+**Round caps.** Stage 1b, Stage 3 and Stage 5 run at most **2 rounds** each, at every tier where the stage runs. A **third** round runs only when round 2 returned a finding rated `critical` or `high` — the severity the analyzer or reviewer gave it, on `glab:audit`'s *Severity Levels*, never re-ranked by you — and only once you have recorded it under `## Decisions`: `- round 3: <stage> — <severity> <the finding, as its file:line or step id and its claim>`. With no plan behind the stage — a `/glab:review` or `/glab:ship` run on its own — there is nowhere to record it, as Rule 5 says of the model: put the reason in the handoff line that announces the round, `round 3/3 (<severity> <finding>)`, and in this conversation; once you can no longer find it, there is no round 3. Nothing runs past round 3. What a stage does when its last round has not passed is in that stage.
 
 Gates are run by you and push waits for the user at every tier. An analyzer or reviewer that finds a full-tier trigger in normal work raises the tier; only the user lowers one.
 
@@ -235,7 +249,7 @@ Some hosts run this skill without the ability to dispatch subagents. The pipelin
 
 - Start a fresh session for each stage, named for it: `<slug> plan`, `<slug> develop`, `<slug> analyze`, `<slug> integrate`, `<slug> review`, `<slug> record`.
 - **The files on disk are the handoff.** `plan.md`, `questions.md`, `result.md`, `integration.md` — a stage reads what the previous one wrote, and nothing is carried in conversation.
-- The round caps still apply and are counted by the file record, not by memory: a second review session is `review2`, and there is no `review4`.
+- The round caps still apply and are counted by the file record, not by memory: a second review session is `review2`, a `review3` needs its round-3 line, and there is no `review4`.
 - A develop or review session runs on the model the user starts it with; Rule 5 says how you name the recorded one when you hand off to it.
 - Amending the plan between stages is done in its own session, under Rule 3 — never inside the stage that found the problem.
 
@@ -245,6 +259,8 @@ This is stronger than dispatch, not weaker: every stage begins with a clean cont
 
 Run `/glab:plan <task>`. If the user already handed you a plan, skip to the acceptance checklist and apply it to theirs.
 
+**Explore once.** Mapping — read-only agents that read an area of the code before the plan is written — is your call per task. Each mapping agent writes `plan/{slug}/map-<area>.md` — every path it read, `file:line` for what matters, proven kept apart from inferred — and returns a short report (Rule 2). Name those files in the planning agent's dispatch: it starts from them and reads code only for the gaps it names. Without mapping agents, the planning agent explores itself. Never both over one area: a planner told to explore again re-reads what the map already holds. The name is not `findings-<area>.md` because subagent writes of files named `findings…` have been refused.
+
 **The planning agent brings you what it could not settle.** A fact — an endpoint, a vendor behaviour, an existing convention — it proves from the code, the vendor documentation or `docs/constants.md` rather than inferring it. A choice it decides and records under `## Decisions` with its reason; you review those lines under Rule 3 and may overrule one, recording the overrule as a new line. Only a Rule 3 question is relayed to the user, and that one you do not answer on their behalf.
 
 ### Plan acceptance checklist
@@ -253,7 +269,7 @@ Do not forward a plan to `/glab:develop` until all five hold. Where one fails, s
 
 1. **Understandable.** Every stage is one instruction a competent engineer can act on without asking what it means. No stage says "handle X properly".
 2. **Three phases, explicitly.** `before` — preconditions, the gate run green, flags, what must be true to start. `processing` — the ordered change steps. `after` — verification, the test that proves the milestone runs end to end, documentation, and how to back it out. A feature plan that ends with nothing new running is a slice of another plan's milestone; merge them. A refactor, config or test-only plan names the existing test that proves nothing broke as its milestone.
-3. **Findings cover the whole scope surface.** Every file, package, module and directory the change touches or depends on, by path, plus the call sites of anything being changed. A findings file with no path list has not done this step.
+3. **Findings cover the whole scope surface.** Every file, package, module and directory the change touches or depends on, by path. Each method the change **changes** carries its call sites and what each relies on; each method it only **calls** carries the precondition its new call site must meet and how the plan meets it; a file it only depends on is listed by path, not read in full (`glab:plan-first` Step 1). A findings file or section with no path list has not done this step.
 4. **Choices are decided, and a question carries its own context.** Every choice the plan rests on has its line under `## Decisions`. A question for the user — Rule 3 says which, and aims for one at most — states the problem in full, why it blocks the plan, and the recommended answer spelled out with its consequence. "Which approach do you want?" with no options is a shrug, not a question. Send those back.
 5. **No stage contradicts another.** Read the stages back to back: no later stage may rewrite, revert or override what an earlier one wrote. A value that must change twice is one stage, not two. This is the check plans fail most often and the one that confuses developers worst.
 
@@ -317,15 +333,13 @@ Two corollaries worth stating, both learned the same way:
   returns empty before and after; a cross-slice regression guard is meant to pass
   either way. Mark those explicitly so nobody mistakes their silence for proof.
 
-**`BUILDABLE`** → Stage 2. **`NOT BUILDABLE`** → back to the planning agent with
-exactly what is missing; a missing choice is decided under Rule 3 first. **Never
-patch the steps yourself to make them buildable** — for the same reason Stage 3
-forbids editing `plan.md` to resolve a divergence.
+**`BUILDABLE`** → Stage 2. **`NOT BUILDABLE`** → an amendment, with exactly what is missing; a missing choice is decided under Rule 3 first. **Never patch the steps yourself to make them buildable** — for the same reason Stage 3 forbids editing `plan.md` to resolve a divergence.
 
-**Maximum 2 rounds at full tier.** A plan still not buildable after one amendment
-needs a design, not another pass — bring that to the user. **One pass at normal
-tier:** the planner amends once from what the analyzers found and the plan goes
-on; the developer's `PLAN WRONG` is the backstop.
+**The amendment goes to a new planning agent** (Rule 2). Before you dispatch it, keep the version the round checked: `cp plan/{slug}/plan.md plan/{slug}/plan.r<n>.md`, and `findings.md` to `findings.r<n>.md` when there is one, `<n>` being the round that checked them. Give the new agent the slug, that this is the amendment after plan check round `<n>`, the round's findings copied as the analyzers returned them, and `glab:plan-first` with the seam stated. It reads the plan files from disk, changes what the findings name and what that forces, records each changed choice under `## Decisions`, and leaves the `.r<n>` copies as they are.
+
+**A re-check looks at the delta, not the whole plan.** Before round `<n+1>`, test that the amendment changed something, by exit code alone — do not read the diff yourself (Rule 2): `cmp -s plan/{slug}/plan.r<n>.md plan/{slug}/plan.md` (and the same for `findings.md`). Exit 1 means the amendment changed the plan; exit 0 means it changed nothing — send it back, do not re-check it; exit 2 means a file is missing — find out why first. Give each analyzer of round `<n+1>` the previous round's findings, copied as returned, and the file pairs; the analyzer runs `diff -u` and reads the diff. It checks each of those findings, every line the diff changes and every step that rests on a changed line — the post-condition question included — and not the rest of the plan, which already passed.
+
+**At most 2 rounds, a third under *Pick the tier*'s round-3 rule.** A plan still `NOT BUILDABLE` after round 2 with no round 3: at full tier it needs a design, not another pass — bring that to the user; at normal tier a new planning agent amends once more from what the analyzers found and the plan goes on — the developer's `PLAN WRONG` is the backstop. Still `NOT BUILDABLE` after round 3, at any tier: bring it to the user.
 
 ## Stage 2 — Develop
 
@@ -338,6 +352,7 @@ Give the `glab:developer` agent, in the dispatch message:
 - **your own suggestions**, marked as suggestions, so they are not mistaken for plan steps;
 - **the model, only when the user named one for the developer** — passed with the dispatch as the Agent tool's `model` parameter (Rule 5). None named, none passed.
 - **the effort, always** — the Agent tool's `effort` parameter at the level Rule 0d gives.
+- **for a fix round** — after `DIVERGES` or review findings: a new agent (Rule 2), told which round it fixes (`fix round for analyze round 2`), with that round's findings copied as they came back. It reads `plan.md`, `result.md` and the tree itself, fixes only what the findings name, and adds a fix-round section to `result.md` instead of overwriting it. A re-dispatch after `BLOCKED` or `PLAN WRONG` is a new agent too, on the same steps.
 
 Do not paste the plan. The agent reads it; a paraphrase is how a step quietly changes meaning.
 
@@ -373,9 +388,16 @@ Read `result.md` — it is written for you and stays short. Summarise it to at m
 
 The analyzer answers one question: **did we build what the plan said?** Not whether the code is correct — that is Stage 5. Do not let it drift.
 
-**`DIVERGES` → back to Stage 2** with only the diverging steps in scope. **Maximum 4 develop→analyze rounds.** Say the round number every time: `analyze round 2/4`.
+**`DIVERGES` → back to Stage 2** with only the diverging steps in scope, as a fix round. **At most 2 develop→analyze rounds, a third under *Pick the tier*'s round-3 rule.** Say the round number every time: `analyze round 2/2`.
 
-Still diverging at round 4 → stop and bring it to the user with the three honest resolutions: change the code, change the plan (a Rule 3 decision — yours when it is an engineering choice, the user's when it meets an ask-condition — made through the planning agent, recorded under `## Decisions`, never made by the developer), or cut the scope. Never edit `plan.md` to make a divergence disappear — that turns the contract into a description of whatever was built.
+**A re-check looks at the delta.** Before you dispatch each analyze round, round 1 included, snapshot the tree it will measure — tracked, staged and untracked files, without touching the index — with an index path that does not exist yet, in the session's temp directory. The index is seeded from `HEAD` first, so a tracked file that matches `.gitignore` is not dropped:
+
+    idx=<temp directory>/<slug>-analyze-r<n>.idx; rm -f "$idx"
+    GIT_INDEX_FILE="$idx" git read-tree HEAD && GIT_INDEX_FILE="$idx" git add -A && GIT_INDEX_FILE="$idx" git write-tree; rm -f "$idx"
+
+It prints a tree id; name it in that round's dispatch. In a repository with no commit yet `git read-tree HEAD` fails and nothing is printed: that round has no tree id. Round `<n+1>` gets the previous round's findings, copied as returned, and both tree ids; it reads `git diff --stat <old> <new>` and `git diff <old> <new>` and checks each previous finding, every step whose files the delta touches, and anything in the delta that no step asked for — not the steps the delta leaves alone. `git diff --quiet <old> <new>` exiting 0 after a fix round means nothing changed: stop and find out why. Ignored files are not in a snapshot, so a path the fix round's `files:` line names and the delta does not show is checked whole; a tree id you no longer have means that round runs whole.
+
+Still diverging after the last round → stop and bring it to the user with the three honest resolutions: change the code, change the plan (a Rule 3 decision — yours when it is an engineering choice, the user's when it meets an ask-condition — made through the planning agent, recorded under `## Decisions`, never made by the developer), or cut the scope. Never edit `plan.md` to make a divergence disappear — that turns the contract into a description of whatever was built.
 
 ## Stage 4 — Integrate
 
@@ -390,13 +412,13 @@ Run `/glab:integrate {slug}`. The `glab:integrator` agent checks or starts the e
 
 Run `/glab:review` on the working tree.
 
-**The reviewer is an external auditor.** Give it the target and nothing else — **not the slug, not the plan, not the findings, not what the plan intended.** It cares about correctness and security, not conformance; conformance was Stage 3. Do not defend the plan to it and do not re-rank its severities. The report template Rule 5 has you paste is allowed in this dispatch and is not content: it describes the form of the answer, not the change.
+**The reviewer is an external auditor.** Give it the target and nothing else — **not the slug, not the plan, not the findings, not what the plan intended.** From round 2 on it is a new reviewer (Rule 2) and gets two things more: the previous review round's findings, copied as it returned them, and the range of the fix — the tree id of the tree that round reviewed and of the tree now, each taken with Stage 3's snapshot, or two commit ids when the fix is committed. Still never the slug, the plan or the intent. It cares about correctness and security, not conformance; conformance was Stage 3. Do not defend the plan to it and do not re-rank its severities. The report template Rule 5 has you paste is allowed in this dispatch and is not content: it describes the form of the answer, not the change.
 
 Dispatch it on the model Rule 5 gives the reviewer: the one the user named, as the Agent tool's `model` parameter, or none, at the effort Rule 0d gives. A cheaper reviewer does not change this stage's round cap or what its verdict means.
 
-Findings → back to Stage 2, then Stage 3, then Stage 5 again. **Maximum 3 review rounds at full tier.** At round 3 the answer must be `SHIP`, `SHIP WITH SCOPE CUT: <what to drop>`, or `DO NOT PUBLISH: <why>` — bring whichever it is to the user.
+Findings → back to Stage 2 as a fix round, then the stages after it at that tier, then Stage 5 again. At full tier, Stage 3 after a review fix is one delta round per review fix, against the tree id the last `CONFORMS` measured, and the analyzer is also given the review findings the fix answered; it neither resets nor uses Stage 3's round cap. A `DIVERGES` there goes back to Stage 2 inside the same review round, and that fix goes on to Stage 5 without another Stage 3 round. **At most 2 review rounds, a third under *Pick the tier*'s round-3 rule**, at every tier. Before each review round, snapshot the tree it will review as Stage 3 does. Tell the reviewer which round this is and which is the last: round 2 is the last unless it reports a `critical` or `high` finding, and round 3 is the last with no exception. A round-2 `BLOCK` with no `critical` or `high` finding is that last round's verdict: there is no round 3 — bring it to the user with the verdict, as for any last round that did not pass. Rule 5's report check is for a report with missing fields or no clear verdict only. At the last round the answer must be `SHIP`, `SHIP WITH SCOPE CUT: <what to drop>`, or `DO NOT PUBLISH: <why>` — bring whichever it is to the user.
 
-**One round at normal tier.** Its findings are fixed once, and the gates you run are the check on the fix. A fix that grows past its finding, or lands in full-tier code, raises the tier.
+A fix that grows past its finding, or lands in full-tier code, raises the tier.
 
 Watch where findings land. If most of round *n* sits in code written to fix round *n-1*, the change is growing faster than it converges: say so, and cut scope rather than adding another guard.
 
@@ -417,8 +439,8 @@ After the push, confirm the commits actually landed on the remote branch and rep
 After Stage 7 has confirmed the push. What stays true moves into the spec of each area the change touched: `glab:plan-first` *Plan files are working files* is the rule, and `docs/specs/` the place unless the repo's `AGENTS.md` names another. The record changes the spec and nothing else. It never removes `plan/{slug}/` or an audit file: that is the repo's own `AGENTS.md` decision, carried out outside this stage. It is an ordinary docs change, through the normal commit and push.
 
 - Dispatch `glab:developer` for the record alone: the slug, the area specs the plan's `## Record` names (for a waiver, the ones you name), and any audit file it names as a source. It writes the spec from the folder's files and the audit file, carries every follow-up still open, every binding decision and every incident with its source file and number, and changes nothing inside the folder.
-- Dispatch `glab:analyzer` for the record check, at every tier: the spec diff against the folder's files and the audit file. `DIVERGES` goes back to the developer once, then to the analyzer again, which checks the fix; still `DIVERGES`: stop and tell the user.
-- At full tier, one `glab:reviewer` pass on the spec diff alone — the target and nothing else, as in Stage 5. Its findings go back to the developer once, and the analyzer checks that fix too.
+- Dispatch `glab:analyzer` for the record check, at every tier: the spec diff against the folder's files and the audit file. `DIVERGES` goes back to a new developer once (Rule 2), then to the analyzer again, which checks the fix; still `DIVERGES`: stop and tell the user.
+- At full tier, one `glab:reviewer` pass on the spec diff alone — the target and nothing else, as in Stage 5. Its findings go back to a new developer once, and the analyzer checks that fix too.
 - Then `/glab:commit` with the spec files, and `/glab:push` on its own go-ahead.
 
 A decision made at this stage goes in the dispatch and in the spec, not in `plan.md`: the folder is the record's source and does not change. A plan folder whose `plan.md` has no `## Record` predates the rule and is not recorded here.
@@ -434,4 +456,6 @@ A decision made at this stage goes in the dispatch and in the spec, not in `plan
 - Push without the user's go-ahead, or force-push at all.
 - Start, stop or restart a service outside Stage 4.
 - Report a stage green on an agent's word without running the gate yourself.
+- Resume an agent, or send it a follow-up, for another round of work — Rule 5's report check is the one resume.
+- Run `/clear` or `/compact`, or claim to know your context more exactly than the `glab` hook's line said.
 - Remove `plan/{slug}/` or an audit file as part of the record (Stage 8).

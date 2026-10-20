@@ -9,7 +9,8 @@ and this file disagree about how to work *in this repo*, this file wins.
 
 - `.claude-plugin/marketplace.json` — the marketplace. It lists both plugins.
 - `plugins/glab/` — the workflow plugin: its skills, agents and commands,
-  `hooks/hooks.json` and `scripts/manager-bootstrap.sh`.
+  `hooks/hooks.json`, `scripts/manager-bootstrap.sh` and
+  `scripts/context-size.sh`.
 - `plugins/memory-sync/` — the memory sync plugin: its one skill,
   `hooks/hooks.json`, `scripts/memory-sync.sh` and `settings.example.json`.
 - `docs/specs/` — one spec per area: how it works now, why, what is not
@@ -20,19 +21,21 @@ and this file disagree about how to work *in this repo*, this file wins.
 
 ## Gates
 
-The test creates its work directory under `$TMPDIR`. Export `TMPDIR` to the
-temp directory your host file names first, then run all three, in order, and
+The tests create their work directories under `$TMPDIR`. Export `TMPDIR` to the
+temp directory your host file names first, then run all four, in order, and
 paste what they print:
 
-    for s in plugins/memory-sync/scripts/memory-sync.sh plugins/glab/scripts/manager-bootstrap.sh tests/memory-sync.test.sh; do bash -n "$s" && test -x "$s"; echo "$s rc=$?"; done
-    shellcheck plugins/memory-sync/scripts/memory-sync.sh plugins/glab/scripts/manager-bootstrap.sh tests/memory-sync.test.sh; echo "rc=$?"
+    for s in plugins/memory-sync/scripts/memory-sync.sh plugins/glab/scripts/manager-bootstrap.sh plugins/glab/scripts/context-size.sh tests/memory-sync.test.sh tests/context-size.test.sh; do bash -n "$s" && test -x "$s"; echo "$s rc=$?"; done
+    shellcheck plugins/memory-sync/scripts/memory-sync.sh plugins/glab/scripts/manager-bootstrap.sh plugins/glab/scripts/context-size.sh tests/memory-sync.test.sh tests/context-size.test.sh; echo "rc=$?"
     bash tests/memory-sync.test.sh plugins/memory-sync/scripts/memory-sync.sh
+    bash tests/context-size.test.sh plugins/glab/scripts/context-size.sh
 
-Green is: three `rc=0` lines; `rc=0` with no findings; every line `ok`, last
-line `PASS n/n`. The `test -x` is there because a hook script that has lost
-its execute bit passes every other gate and then fails when the hook runs. It
-is joined to `bash -n` with `&&` so that the `rc` printed is the syntax
-check's when that fails; with `;` a syntax error printed `rc=0`.
+Green is: five `rc=0` lines; `rc=0` with no findings; for each test, every
+line `ok` and its last line `PASS n/n`. The `test -x` is there because a
+hook script that has lost its execute bit passes every other gate and then
+fails when the hook runs. It is joined to `bash -n` with `&&` so that the
+`rc` printed is the syntax check's when that fails; with `;` a syntax error
+printed `rc=0`.
 
 Then the plugin gates. `claude` is the Claude Code CLI: `claude` on `PATH`, or
 the path your host file names. A host without `claude` on `PATH` exports
@@ -64,7 +67,7 @@ the end. `CLAUDE_CONFIG_DIR` is never exported empty.
 Green is:
 
 - three `✔ Validation passed` lines;
-- for `glab`: `Skills (14)` naming the six skills and the eight commands, `Agents (5)`, and `Hooks (1)  SessionStart`;
+- for `glab`: `Skills (14)` naming the six skills and the eight commands, `Agents (5)`, and `Hooks (4)  SessionStart, UserPromptSubmit, PostToolUse, Stop`;
 - for `memory-sync`: `Skills (1)  sync-memory`, `Agents (0)`, and `Hooks (4)  SessionStart, SessionEnd, PostToolUse, Stop`;
 - `glab = glab` and `memory-sync = memory-sync`. Validation does not compare a marketplace entry with the plugin it points at; it passes with a wrong name and with a directory that does not exist;
 - `:0` after each `hooks.json`, then `rc=1`. `grep -c` exits 1 when it counts nothing, and nothing is the green result here. A `${user_config.…}` in a hook command passes validation and fails when the hook runs;
@@ -83,6 +86,8 @@ repo and to nothing else.
 
 - **A stub executable placed first on `PATH` is the allowed way to fake an
   external CLI** such as `aws`. `tests/memory-sync.test.sh` does this.
+  `tests/context-size.test.sh` fakes a missing `jq` the other way round, with
+  a `PATH` that lacks it.
 - **Coverage is reported as a list, not a number.** No tool measures it for
   bash. For each plan step, name the test cases that cover it; name each
   change no case covers, and why that is accepted.
@@ -100,12 +105,19 @@ repo and to nothing else.
   through `/plugin`. Installing is the user's step. An agent tests with
   `claude plugin validate` and `--plugin-dir`, under the `CLAUDE_CONFIG_DIR`
   rule in *Gates*.
-- **The hook contract of `memory-sync.sh` does not change without a plan:**
-  the mode names, exit 0 on every path, nothing on stdout, messages on stderr.
+- **The hook contracts do not change without a plan.** `memory-sync.sh`: the
+  mode names, exit 0 on every path, nothing on stdout, messages on stderr.
+  `context-size.sh`: the mode names, exit 0 on every path, on stdout one
+  JSON object or nothing, messages on stderr, and in mode `stop` no key but
+  `systemMessage` — it never blocks a turn or continues one.
 - **One fact, one value.** A number or name stated in more than one file
-  changes in all of them in the same commit. Known cases: the review round cap
-  (`plugins/glab/agents/reviewer.md`, `plugins/glab/commands/ship.md`,
-  `plugins/glab/skills/manager/SKILL.md`,
+  changes in all of them in the same commit. Known cases:
+  the round caps — Stage 1b, Stage 3 and Stage 5 at most 2 rounds at every
+  tier, a third only on a `critical` or `high` finding of round 2, recorded
+  first as a `## Decisions` line, or in the handoff line and this
+  conversation when there is no plan, none past 3
+  (`plugins/glab/agents/reviewer.md`, `plugins/glab/agents/analyzer.md`,
+  `plugins/glab/commands/ship.md`, `plugins/glab/skills/manager/SKILL.md`,
   `plugins/glab/skills/bootstrap/SKILL.md`); the four ask-conditions of
   `glab:manager` Rule 3 — destructive, costs money, exposes real data, changes
   what the product is (`plugins/glab/skills/manager/SKILL.md`,
@@ -136,7 +148,32 @@ repo and to nothing else.
   `plugins/glab/commands/ship.md`);
   the reviewer's verdict lines
   (`plugins/glab/agents/reviewer.md`, `plugins/glab/skills/manager/SKILL.md`,
-  `plugins/glab/commands/ship.md`); the plan lifecycle — specs in
+  `plugins/glab/commands/ship.md`); the severity levels — `critical`,
+  `high`, `medium`, `low` and their meanings
+  (`plugins/glab/skills/audit/SKILL.md`, `plugins/glab/agents/reviewer.md`,
+  `plugins/glab/agents/analyzer.md`); every round a new agent, Rule 5's
+  report check the one resume (`plugins/glab/skills/manager/SKILL.md`,
+  `plugins/glab/skills/plan-first/SKILL.md`,
+  `plugins/glab/agents/developer.md`, `plugins/glab/commands/develop.md`,
+  `plugins/glab/commands/ship.md`, `plugins/glab/commands/analyze.md`); the
+  mapping files `map-<area>.md` and the round copies `<name>.r<n>.md`
+  (`plugins/glab/skills/manager/SKILL.md`,
+  `plugins/glab/skills/plan-first/SKILL.md`,
+  `plugins/glab/agents/analyzer.md`, `plugins/glab/agents/developer.md`);
+  the handoff file `plan/SESSION-HANDOFF.md`
+  (`plugins/glab/skills/bootstrap/SKILL.md` step 5,
+  `plugins/glab/skills/manager/SKILL.md` Rule 2); the `glab` context hook —
+  the modes `prompt`, `agent` and `stop` on `UserPromptSubmit`,
+  `PostToolUse` with matcher `Agent` and `Stop`, the line
+  `glab: context <n>k (last completed call)`, the `Stop` message, and the
+  steps 300k and every 100k after it (`plugins/glab/scripts/context-size.sh`,
+  `tests/context-size.test.sh`, `plugins/glab/hooks/hooks.json`,
+  `plugins/glab/skills/manager/SKILL.md`, `README.md`); what a review round
+  after the first is given — a new reviewer, the target, the previous
+  round's findings verbatim and the range of the fix, never the plan, the
+  slug or the intent (`plugins/glab/agents/reviewer.md`,
+  `plugins/glab/skills/manager/SKILL.md`, `plugins/glab/commands/ship.md`);
+  the plan lifecycle — specs in
   `docs/specs/` unless `AGENTS.md` names another place, the record after the
   push, and that the record never removes the plan folder
   (`plugins/glab/skills/plan-first/SKILL.md`,

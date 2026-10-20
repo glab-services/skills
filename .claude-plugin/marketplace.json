@@ -8,7 +8,7 @@
     {
       "name": "glab",
       "source": "./plugins/glab",
-      "description": "The glab workflow: skills, agents, commands and the session bootstrap hook"
+      "description": "The glab workflow: skills, agents, commands, the session bootstrap hook and the context hook"
     },
     {
       "name": "memory-sync",

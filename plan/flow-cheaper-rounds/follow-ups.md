@@ -1,0 +1,8 @@
+# Follow-ups — flow-cheaper-rounds
+
+Found while building, outside the plan's closed list; none is acted on here.
+
+- FUa The *One fact* entries "the manual model rule" and "the session effort" in `AGENTS.md` both name the handoff-line format (`plugins/glab/skills/manager/SKILL.md` Rule 5 and *The pipeline*, `plugins/glab/commands/develop.md`, `review.md`, `ship.md`). The line now ends `· context <n>k` and Rule 5's example reads `round 1/2` (S1.4, S1.7); `develop.md`, `review.md` and `ship.md` were not in the plan's steps for that field and do not show the line's full form, so nothing disagrees today, but those two entries do not list the context field. Decide whether the context field joins them.
+- FUb *(review round 1, advisory)* Payload text cites a plan file: `plugins/glab/scripts/context-size.sh`, `tests/context-size.test.sh` and `plugins/glab/skills/manager/SKILL.md` cite `[flow-cheaper-rounds/plan.md F23]` (and the script `[flow-cheaper-rounds review round 1]`). The plan folder is removed after the Stage 8 record and is never part of an installed plugin, so an installer cannot follow the citation; it stays readable only through `git show <sha>:…`. Decide whether payload cites the area spec (`docs/specs/workflow.md`) instead.
+- FUc *(the user, 2026-10-20)* Next plan `flow-models-per-role`: a model per role (planner and plan check Opus; conformance and record check Sonnet; developer, reviewer, integrator Sonnet; committer Haiku) and two kinds of analyzer — extends `glab:manager` Rule 5 beyond the developer and reviewer.
+- FUd *(the manager)* A `PreToolUse` hook on `Agent` that refuses a dispatch missing `effort` or the `AGENTS.md` instruction (plan FU13), so Rule 0d and Rule 0c are enforced rather than remembered.

@@ -39,8 +39,9 @@ Give each `glab:developer` agent:
 - the slug, and the exact step ids it owns;
 - the file boundary, when there is more than one agent;
 - anything decided in this conversation that is not written in the plan — an answer I gave you, a constraint I added. The agent cannot see this conversation and will build the plan as written unless you tell it otherwise;
-- the model, only when I named one for the developer: pass it as the Agent tool's `model` parameter on every `glab:developer` dispatch, slices and re-dispatches alike. I named none → pass none. Never choose one yourself (`glab:manager` Rule 5).
+- the model, only when I named one for the developer: pass it as the Agent tool's `model` parameter on every `glab:developer` dispatch, slices, fix rounds and re-dispatches alike. I named none → pass none. Never choose one yourself (`glab:manager` Rule 5).
 - the effort, always: the Agent tool's `effort` parameter on every `glab:developer` dispatch, at the level `glab:manager` Rule 0d gives.
+- for a fix round — after `DIVERGES` or review findings — or a re-dispatch after `BLOCKED` or `PLAN WRONG`: a new agent, never the previous one resumed or sent a follow-up (`glab:manager` Rule 2). A fix round's dispatch says which round it fixes and quotes that round's findings as they came back; the agent reads `plan.md`, `result.md` and the tree itself.
 
 Do not paste the plan into the prompt. The agent reads it; a paraphrase is how a step quietly changes meaning.
 
