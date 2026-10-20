@@ -16,7 +16,10 @@ fact* entries) as of `33a28df`, and its `fix-external-agent-claims` lines
 lines (the version, the test count, the *One fact* entries) as of
 `abda43a`, and its `remove-external-agents` lines (the version, the
 component counts, the gates, the rules, the *One fact* entries) as of
-`467b7c4`; where this file and an owning file disagree, the
+`467b7c4`, and its `flow-cheaper-rounds` lines (the version, the hook
+events and component counts, the gates, the hook-contract rule, the *One
+fact* entries, the marketplace description, *Testing without installing*)
+as of `2a1e919`; where this file and an owning file disagree, the
 owning file is right and this spec is out of date.
 
 ## How it works now
@@ -31,15 +34,21 @@ owning file is right and this spec is out of date.
   which `docs/specs/external-agents.md` keeps as a record.
 - **What each plugin holds** (`AGENTS.md` *Gates*, `README.md`): `glab` —
   six skills and eight commands, which the CLI counts together as
-  `Skills (14)`, five agents, one `SessionStart` hook (seven skills and
+  `Skills (14)`, five agents, four hook events — `SessionStart`,
+  `UserPromptSubmit`, `PostToolUse` (matcher `Agent`) and `Stop`, the last
+  three running `plugins/glab/scripts/context-size.sh` (`Hooks (4)`, since
+  `2a1e919`; one `SessionStart` hook until then; seven skills and
   `Skills (15)`, with `glab:external-agents`, until `467b7c4`); `memory-sync` — one
   skill, `sync-memory`, no agent, hooks on `SessionStart`, `SessionEnd`,
   `PostToolUse` and `Stop`.
 - **Versions.** Each `plugin.json` carries an explicit `version` — `glab`
-  `0.8.0` (raised by `467b7c4`, `remove-external-agents`; `0.7.2` by
+  `0.9.0` (raised by `2a1e919`, `flow-cheaper-rounds`: a minor step, since
+  the change alters the pipeline's contract and adds a feature, and
+  features have raised the minor before 1.0; nothing removed, so no `!`;
+  `0.8.0` by `467b7c4`, `remove-external-agents`; `0.7.2` by
   `abda43a`, `0.7.1` by `3965622`,
   `0.7.0` by `33a28df`, `0.6.0` by `9108ac7`, `0.5.0` by `fed95f9` before
-  it), `memory-sync` `0.1.0`, at `467b7c4`. A change under
+  it), `memory-sync` `0.1.0`, at `2a1e919`. A change under
   `plugins/<name>/` raises that plugin's version in the same commit, because
   an installed copy is pinned to the version string and nothing else
   delivers a change (`AGENTS.md` *Rules*). `claude plugin validate --strict`
@@ -52,23 +61,47 @@ owning file is right and this spec is out of date.
   `~/.claude` (`AGENTS.md` *Rules*).
 - **Testing without installing.** `claude --plugin-dir ./plugins` loads both
   plugins for one session, `--plugin-dir ./plugins/glab` one; never the repo
-  root, which loads no plugin (*Incidents*). Every `claude` command run in
+  root, which loads no plugin (*Incidents*). Under an empty
+  `CLAUDE_CONFIG_DIR`, `--plugin-dir ./plugins/glab` loads `glab` alone
+  (`Hooks (1)  SessionStart` on the tree before `2a1e919`, and
+  `plugin details memory-sync` prints `Plugin "memory-sync" not found`); in
+  the user's **own** config the plugins they installed appear to load
+  beside it, as integration I1a showed when a second `Stop` hook ran and
+  ended `cancelled`, exit 1 — which plugin's it was is UNVERIFIED
+  (`[flow-cheaper-rounds/plan.md D64]`, `[flow-cheaper-rounds/plan.md FU18]`
+  in `docs/specs/workflow.md`; *Incidents*). Every `claude` command run in
   this repo has `CLAUDE_CONFIG_DIR` set to a new, empty directory under the
   host's temp directory, because the CLI writes into its config directory
   even for `plugin validate`.
 - **The gates** are the two blocks of `AGENTS.md` *Gates*, as of
-  `467b7c4`: the script block (`bash -n` joined to `test -x` for the three
-  scripts — `memory-sync.sh`, `manager-bootstrap.sh`,
-  `tests/memory-sync.test.sh` — `shellcheck` over the same three, and the one
-  stub test) and the plugin block (three `validate --strict`, the component
+  `2a1e919`: the script block (`bash -n` joined to `test -x` for the five
+  scripts — `memory-sync.sh`, `manager-bootstrap.sh`, `context-size.sh`,
+  `tests/memory-sync.test.sh`, `tests/context-size.test.sh` — `shellcheck`
+  over the same five, and the two tests: the `memory-sync` stub test and
+  `tests/context-size.test.sh`, which writes fixture transcripts under
+  `$TMPDIR` and fakes a missing `jq` with a `PATH` that lacks it; the
+  `AGENTS.md` says "run all four, in order" for the four commands, and green is
+  five `rc=0` lines, `rc=0` with no findings, and for each test every line
+  `ok` and a last line `PASS n/n`) and the plugin block (three `validate --strict`, the component
   counts of `plugin details`, the marketplace-to-manifest name check, the
   `user_config` search, the one pinned hedge phrase, `not yet confirmed`,
   and the prefixed `name:` search). Each line's reason is written beside it
-  there; this spec does not restate the blocks. Green at `467b7c4`, run for
-  this record: three `rc=0` lines, `shellcheck` `rc=0`, the `memory-sync`
-  suite `PASS 35/35`, three `✔ Validation passed`, `glab`
+  there; this spec does not restate the blocks. Green at `2a1e919`, run for
+  this record: five `rc=0` lines, `shellcheck` `rc=0`, the `memory-sync`
+  suite `PASS 35/35`, the context-size suite `PASS 21/21`, three
+  `✔ Validation passed`, `glab`
   `Skills (14)  analyze, audit, bootstrap, comments, commit, develop, integrate, manager, plan, plan-first, push, review, security, ship`,
-  `Agents (5)`, `Hooks (1)  SessionStart`, and `memory-sync` unchanged. No
+  `Agents (5)`, `Hooks (4)  SessionStart, UserPromptSubmit, PostToolUse, Stop`,
+  and `memory-sync` unchanged (`Skills (1)  sync-memory`, `Agents (0)`,
+  `Hooks (4)  SessionStart, SessionEnd, PostToolUse, Stop`); the `jq` name
+  check, the `user_config` counts `:0` then `rc=1`, the `not yet confirmed`
+  counts `1` `1` `1` then `rc=0` and the prefixed-`name:` search with no line
+  and `rc=1` as before. The events print in the key order of `hooks.json`,
+  so the green line depends on that order (`[flow-cheaper-rounds/plan.md F18]`).
+  History, until `2a1e919`: the script block covered three scripts and the
+  one stub test, green was three `rc=0` lines, and `glab` printed
+  `Hooks (1)  SessionStart` (green at `467b7c4`: `PASS 35/35`, the same
+  `Skills (14)` and `Agents (5)`). No
   external-agent suite runs, and the gates need no `bwrap`, `slirp4netns` or
   `python3`; the `Not yet shown: any reply from a DeepSeek model` gate line
   and its green bullet are gone. History, until `glab` 0.8.0 (`467b7c4`,
@@ -101,7 +134,11 @@ owning file is right and this spec is out of date.
   exception for shell scripts (a stub on `PATH`, coverage as a list), no
   secrets (`<bucket>`, `<prefix>`, `<profile, or delete this key>`), never
   running `memory-sync.sh` against a real backend (and, until `467b7c4`,
-  `external-agent.sh` against a real model), the hook contract of `memory-sync.sh`, the *One fact,
+  `external-agent.sh` against a real model), the hook contracts — `memory-sync.sh`'s (mode names, exit 0 on every path,
+  nothing on stdout, messages on stderr) and, since `2a1e919`,
+  `context-size.sh`'s (mode names, exit 0 on every path, on stdout one JSON
+  object or nothing, messages on stderr, and in mode `stop` no key but
+  `systemMessage`: it never blocks or continues a turn) — the *One fact,
   one value* list, comments and incidents kept, tests that clean up by PID,
   the version rule, Conventional Commits.
 - **The external-agent rule** — history: removed from `AGENTS.md` *Rules*
@@ -221,6 +258,48 @@ owning file is right and this spec is out of date.
   `scripts/external-agent.sh`, *Rules* lost the bullet "**Never run
   `external-agent.sh` against a real model from this repo.**" with its
   live-run exception, and *Tests* lost the `opencode`/`codex` stub sentence.
+- ***One fact* entries `flow-cheaper-rounds` rewrote or added** (`AGENTS.md`
+  *Rules*, as of `2a1e919`; S10.1–S10.4, `[flow-cheaper-rounds/plan.md D25]`,
+  `D40`, `D55`). **Rewritten**: "the review round cap" became "the round caps
+  — Stage 1b, Stage 3 and Stage 5 at most 2 rounds at every tier, a third
+  only on a `critical` or `high` finding of round 2, recorded first as a
+  `## Decisions` line, or in the handoff line and this conversation when
+  there is no plan, none past 3", over five files — `reviewer.md`,
+  `analyzer.md` (added by `D55`, because it states the round-3 trigger),
+  `ship.md`, the manager and `glab:bootstrap`. **Added**: the severity
+  levels — `critical`, `high`, `medium`, `low` and their meanings
+  (`audit/SKILL.md`, `reviewer.md`, `analyzer.md`); every round a new agent,
+  Rule 5's report check the one resume (the manager, `plan-first`,
+  `developer.md`, `develop.md`, `ship.md`, `analyze.md`); the mapping files
+  `map-<area>.md` and the round copies `<name>.r<n>.md` (the manager,
+  `plan-first`, `analyzer.md`, `developer.md`); the handoff file
+  `plan/SESSION-HANDOFF.md` (`glab:bootstrap` step 5, the manager Rule 2);
+  the `glab` context hook — the modes `prompt`, `agent` and `stop` on
+  `UserPromptSubmit`, `PostToolUse` with matcher `Agent` and `Stop`, the
+  line `glab: context <n>k (last completed call)`, the `Stop` message, and
+  the steps 300k and every 100k after it (`context-size.sh`,
+  `tests/context-size.test.sh`, `hooks.json`, the manager, `README.md`); and
+  what a review round after the first is given — a new reviewer, the
+  target, the previous round's findings verbatim and the range of the fix,
+  never the plan, the slug or the intent (`reviewer.md`, the manager,
+  `ship.md`). **Unchanged as entries, values changed in the same commit**:
+  what each plugin holds (`Hooks (4)  SessionStart, UserPromptSubmit,
+  PostToolUse, Stop` in *Gates*, `README.md` and `glab`'s `hooks.json`).
+  **Not extended**: "the manual model rule" and "the session effort" name
+  the handoff-line format but not its new `· context <n>k` field
+  (`[flow-cheaper-rounds/follow-ups.md FUa]`, open in
+  `docs/specs/workflow.md`). Outside *One fact*: *Layout* gained
+  `scripts/context-size.sh`; *Gates* gained the two new files, the fourth
+  command and the `Hooks (4)` line; *Tests* gained "`tests/context-size.test.sh`
+  fakes a missing `jq` the other way round, with a `PATH` that lacks it";
+  *Rules* changed the one hook-contract bullet into "The hook contracts do
+  not change without a plan"; `README.md` gained the `glab` row's context
+  hook, a `jq` sentence ("without it the `glab` `SessionStart` hook falls
+  back to plain text, and the context hook says nothing") and one paragraph on
+  the hook (`D40`, S16.1–S16.3); `.claude-plugin/marketplace.json` changed
+  the `glab` entry's `description` to "The glab workflow: skills, agents,
+  commands, the session bootstrap hook and the context hook" and nothing else
+  (`D58`; outside `plugins/`, so no version of its own).
 - **`docs/specs/` and `plan/`** (`AGENTS.md` *Layout* and *Rules*, the
   `plan/` rule; `README.md` *Working on this repo*), as of `09d2787`. `docs/specs/` holds
   one spec per area — this file (the marketplace, this repo's layout, gates
@@ -256,7 +335,7 @@ owning file is right and this spec is out of date.
 - [feature-plugin-marketplace/questions.md D4] Repo only: nothing is installed, enabled or changed in a machine's live Claude config by the work; testing is `--plugin-dir` and `plugin validate`.
 - [feature-plugin-marketplace/questions.md S1] The manager's test rules (no hand-written mocks, a generator directive, coverage of 95 % or more) are universal and stay as written; this repo's shell scripts have a scoped exception in `AGENTS.md` *Tests*.
 - [feature-plugin-marketplace/questions.md S2] In this repo a stub executable on `PATH` is the allowed way to fake a CLI for shell scripts.
-- [feature-plugin-marketplace/questions.md S3] The review round cap is 3 (stated in the files `AGENTS.md` *One fact* lists).
+- [feature-plugin-marketplace/questions.md S3] **Superseded by `[flow-cheaper-rounds/plan.md D2]` since `glab` 0.9.0 (`2a1e919`).** It was: the review round cap is 3 (stated in the files `AGENTS.md` *One fact* lists). The cap is now "the round caps" — 2 rounds for Stage 1b, Stage 3 and Stage 5 at every tier, a third only on a `critical` or `high` finding of round 2 — still one fact over the files that entry lists (`docs/specs/workflow.md`, *Round caps*).
 - [feature-plugin-marketplace/questions.md S4] `~/.claude/host.md` stays a per-machine file each person creates by hand.
 - [feature-plugin-marketplace/questions.md S5] No real bucket name, endpoint, profile or environment value anywhere.
 - [feature-plugin-marketplace/questions.md Q1] The marketplace is `glab-services`: `glab@glab-services`, `memory-sync@glab-services`. Renaming it later makes every user remove and re-add it.
@@ -270,6 +349,7 @@ owning file is right and this spec is out of date.
 - [remove-external-agents/plan.md D8] `AGENTS.md`'s `plan/` rule kept `external-agents.md` in its list of area specs, since the spec stays and the removal's own record updates it; whether to reword that item once the record has run was left to Stage 8 — answered by `[remove-external-agents/record.md review-r1-advisory]`, open below, since a change to `AGENTS.md` goes back through the pipeline.
 - [remove-external-agents/plan.md D10] No "removed" note in `README.md` or the payload: the user said remove all of it, and the narrow search had to come back empty. The record of the removal, with what a 0.7.x host can still hold, is the top note of `docs/specs/external-agents.md` and the commit body.
 - [remove-external-agents/plan.md D12] `glab` `0.7.2` → `0.8.0`, the user's choice; `memory-sync` was not touched and keeps `0.1.0`.
+- The decisions of `flow-cheaper-rounds` that bind this area — `[flow-cheaper-rounds/plan.md D25]` (the *One fact* entries), `D26` and `D42` (`glab` `0.9.0`, a minor step, `memory-sync` untouched at `0.1.0`), `D27` (one commit, `2a1e919`), `D40` (the `AGENTS.md` changes: the shell gates, the hook-contract rule, the context-hook entry, the green line), `D55`, `D57` ("run all four, in order") and `D58` (the marketplace description) — are carried in `docs/specs/workflow.md`, the change's primary area, each as a line of its own, and bind here too.
 
 ## Known limits and not verified
 
@@ -278,6 +358,8 @@ owning file is right and this spec is out of date.
 - [feature-plugin-marketplace/plan.md smoke-test-1] Smoke test part 1, `glab` alone under `--plugin-dir ./plugins/glab` (the `/glab:` listing, `/plugin` errors, item 4 of the bootstrap text, loading `glab:security`, dispatching `glab:developer`, `/glab:plan`), and the bare-name questions in a clean config directory: not run, as recorded. Its steps: `git show b853635:plan/feature-plugin-marketplace/plan.md`, *Smoke test*. Parts 2 and 3 are in `docs/specs/memory-sync.md`.
 - Validation does not compare a marketplace entry with the plugin it points at: it passes a wrong name and a directory that does not exist. The `jq` line of the plugin gates is what catches it (`AGENTS.md` *Gates*).
 - [remove-external-agents/plan.md validate-prose] Validation and the component count do not see dangling prose: a throwaway copy of `plugins/` with only the `external-agents` skill and the script removed, every `glab:external-agents` mention still in place, printed `✔ Validation passed` and `Skills (14)` (*Findings*, *Other facts*, proven). Only the plan's searches told the finished tree from a half-finished one.
+
+- The `glab` hook events and their commands are counted by `plugin details` and checked for `user_config` by the gates, but **no gate shows what a hook does when it runs**: the context hook's test passed `19/19` on a script that could never speak in a live session, because every fixture held a transcript entry that is not yet written when `Stop` runs (`docs/specs/workflow.md`, *Incidents*, `[flow-cheaper-rounds/plan.md IN1]`). Only a model run by the user (integration I1) shows the live behaviour; `plugin details` also labels every hook "harness-only — no model context cost", which is not true of one that returns `additionalContext` (`[flow-cheaper-rounds/plan.md FU12]`, open in `docs/specs/workflow.md`).
 
 ## Open follow-ups
 
@@ -312,6 +394,7 @@ owning file is right and this spec is out of date.
 - **A wrapped phrase defeats a per-line gate.** The hedge gate first counted `0` in the script: the plan's comment wrapped `not yet confirmed` over two lines, and `grep -F` reads one line at a time (feature-plugin-marketplace `result-slice-D.md`, *Blocked*). The comment was re-wrapped so the phrase sits on one line.
 - **`;` instead of `&&` hid a syntax error.** The first gate line printed `rc=0` for a script that failed `bash -n`, because the `rc` was `test -x`'s; it is now `bash -n "$s" && test -x "$s"` (`AGENTS.md` *Gates*).
 - **A removal path that is not exact removes all of `plan/`** (`feature-docs-specs`, review rounds 1 and 2, measured in throwaway repos): with an empty slug, `git rm -r -n -- "plan/$slug/"` listed every file under `plan/`, `rc=0`, and so did `plan/../` and `plan/./`. The `plan/` rule removes a folder by its exact path, after checking it is tracked, clean and identical on `origin/main`; the forms that are never valid are not yet named (`[feature-docs-specs/follow-ups.md 6]`).
+- **The installed plugins load beside `--plugin-dir` in the user's own config** (`flow-cheaper-rounds`, integration I1a, 2026-10-20; `[flow-cheaper-rounds/plan.md IN2]`, told in full in `docs/specs/workflow.md` *Incidents*): the earlier proof that `--plugin-dir ./plugins/glab` loads `glab` alone was under an empty `CLAUDE_CONFIG_DIR`; in the user's own config a second `Stop` hook ran and ended `cancelled`, exit 1. Which plugin's it was is UNVERIFIED. An agent still tests only under a new empty `CLAUDE_CONFIG_DIR` (*Testing without installing*).
 
 ## Records
 
@@ -341,3 +424,6 @@ owning file is right and this spec is out of date.
   - [remove-external-agents/plan.md L224] Tests and coverage → no test added; the 86 cases of `tests/external-agent.test.sh` removed with the script they tested; the Markdown steps covered by the searches C2–C6, as `AGENTS.md` *Tests* allows; nothing open.
   - [remove-external-agents/plan.md L536] Other facts → `[remove-external-agents/plan.md validate-prose]`, under *Known limits*; the rest (rule numbering, nothing untracked under the removed paths, no marker in the removed files, the version stated only in `plugin.json`) were that change's checks; nothing open.
   - [remove-external-agents/plan.md L247] Record → the open follow-up `[feature-docs-specs/follow-ups.md 8]` re-read, still open.
+- 2026-10-20 · flow-cheaper-rounds · recorded in `docs/specs/workflow.md`, its primary area; here: `glab` 0.9.0, the `glab` hook events (`Hooks (4)  SessionStart, UserPromptSubmit, PostToolUse, Stop`), the gates with five scripts and two tests (`PASS 35/35`, `PASS 21/21`), the hook-contract rule for `context-size.sh`, the rewritten and added *One fact* entries, the `glab` description in `.claude-plugin/marketplace.json`, *Testing without installing* (the installed plugins load beside `--plugin-dir` in the user's config); `[feature-plugin-marketplace/questions.md S3]` superseded by `D2` · change 2a1e919 · plan: `git ls-tree -r --name-only 2a1e919 -- plan/flow-cheaper-rounds/` (one file: `git show 2a1e919:plan/flow-cheaper-rounds/<file>`). `2a1e919` is the last commit on `origin/main` that holds it (`git log -1 --format=%h origin/main -- plan/flow-cheaper-rounds/`): one `docs(repo)` commit after this record removes it.
+  - [flow-cheaper-rounds/plan.md L1049] Record → the entries above; the decisions in `docs/specs/workflow.md`; the follow-ups `FU1`–`FU18` and `FUa`–`FUd` open or closed there, with `FUa` (the *One fact* entries "the manual model rule" and "the session effort" and the handoff line's context field) the one that concerns `AGENTS.md`.
+  - [flow-cheaper-rounds/plan.md L1044] Incidents → `IN2` here, `IN1` and `IN2` in `docs/specs/workflow.md`.
