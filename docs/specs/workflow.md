@@ -33,8 +33,12 @@ line's `· context <n>k`) as of `2a1e919` (`glab` `0.9.0`), and its
 `flow-planner` lines (`evidence.md`, the plan size budget and in-place
 amending, `glab:plan-first`'s `implement.md`, the developer's context
 rules, `GLAB_COMPACT_AT`) as of `2912002` (`glab` `0.10.0`), which added
-`plugins/glab/skills/plan-first/implement.md` to the owning files; where
-this file and an owning file disagree, the owning file is right.
+`plugins/glab/skills/plan-first/implement.md` to the owning files, and its
+`flow-master-plan` lines (the master plan and sub-plans, the intent check,
+the analyzer's plan check, Stage 6b, approval after Stage 1b and in plan
+mode, `## Record` in the master, the stage listings) as of `0cbf5b0`
+(`glab` `0.11.0`); where this file and an owning file disagree, the owning
+file is right.
 
 ## How it works now
 
@@ -50,7 +54,9 @@ this file and an owning file disagree, the owning file is right.
 - **The pipeline** (`glab:manager` *The pipeline*): 1 Plan (`/glab:plan`),
   1b Analyze the plan (`/glab:analyze`, plan only), 2 Develop
   (`/glab:develop`), 3 Analyze conformance, 4 Integrate (`/glab:integrate`),
-  5 Review (`/glab:review`), 6 Commit (`/glab:commit`), 7 Push
+  5 Review (`/glab:review`), 6 Commit (`/glab:commit`), 6b Final check
+  (`/glab:analyze {slug}` as the final check, since `glab` 0.11.0,
+  `0cbf5b0`; *Stage 6b*, below), 7 Push
   (`/glab:push`, no push agent), 8 Record (after the push: `glab:developer`
   on the record, `glab:analyzer` on what it carried, then `/glab:commit`; it
   leaves on the record commit verified, then pushed on the user's go-ahead).
@@ -70,8 +76,18 @@ this file and an owning file disagree, the owning file is right.
   sentence went on "for a Codex agent the level sent, after Rule 6's
   mapping; an OpenCode line names no effort, since OpenCode takes none".
   Without subagent dispatch each stage is a fresh
-  session, `<slug> record` among them. The bootstrap diagram ends on `record`,
-  and the hook text reads `-> push -> record at full tier`.
+  session, `<slug> record` among them, and `<slug> final` since `0cbf5b0`.
+  With sub-plans the handoff line names the sub-plan for the slug,
+  `{slug}/02-hooks · analyze · round 1/2 · …`. The stage sequence is one
+  fact in three places (`AGENTS.md` *One fact*, since `0cbf5b0`): the
+  manager's description reads "→ review → commit → final check → push →
+  record", the bootstrap diagram (step 4) "review ⇄  →  commit  →  final
+  check  →  push  →  record", and the hook text "plan -> develop -> analyze
+  -> integrate -> review -> commit -> final check -> push -> record, as far
+  as the tier runs them (`glab:manager` -> *Pick the tier* says which)" —
+  no tier runs every stage once a single full-tier plan skips the final
+  check (`[flow-master-plan/plan.md D33]`, `D40`). Until `0cbf5b0` the hook
+  text read `-> push -> record at full tier`.
 - **The tier** (`glab:manager` *Pick the tier*), the first line of `plan.md`
   with its reason; no tier line means full. **Full**: a schema or data
   migration, a stored or wire format, code that decides who may do what,
@@ -82,7 +98,16 @@ this file and an owning file disagree, the owning file is right.
   at most 2 rounds. **Normal**: everything else — a one-page `plan.md`, no
   approval (the tier and decisions are reported), 1b at most 2 rounds, no
   conformance stage, the milestone test at integrate, review at most 2
-  rounds. **Trivial**: Rule 1's five lines, done directly. Each cap can
+  rounds. **Since `glab` 0.11.0** (`0cbf5b0`) every tier that plans writes
+  `master.md` too (*The master plan and sub-plans*, below); the *Approval*
+  row reads "Approval, after 1b": at normal tier yours, reported — the
+  user's when the work split — and at full tier the user's, explicit, of
+  `master.md` and of every full-tier `plan.md`, a single plan's or a
+  sub-plan's; a sub-plan runs Stage 3 at every tier, max 2 rounds; and the
+  row "6b Final check" is max 2 rounds at normal tier and at full tier,
+  where a single plan uses Stage 3's instead. Until `0cbf5b0` full-tier
+  approval came before Stage 1b (`[flow-master-plan/plan.md D26]`).
+  **Trivial**: Rule 1's five lines, done directly. Each cap can
   grow by one round under *Round caps*, below (`glab:manager` *Pick the
   tier*, as of `2a1e919`). History, until `glab` 0.9.0 (`2a1e919`): the
   caps were 1b 2 rounds (full) or one pass (normal), conformance 4, review
@@ -149,7 +174,8 @@ this file and an owning file disagree, the owning file is right.
   steps, writes `plan/{slug}/result.md` and `follow-ups.md`, never stages;
   at the record it updates the area specs only and writes no `result.md`),
   `glab:analyzer` (plan-only and conformance analysis, and the record check
-  of Stage 8), `glab:integrator`
+  of Stage 8; since `0cbf5b0` also the plan check, the master check and
+  the final check, each with the intent question), `glab:integrator`
   (the real running system, local only), `glab:reviewer` (correctness and
   `AGENTS.md` rules, gets the target and nothing else; its verdict lines are
   one fact with `ship.md` and the manager — and, until `467b7c4`, the
@@ -192,7 +218,12 @@ this file and an owning file disagree, the owning file is right.
 - **Round caps** (`glab:manager` *Pick the tier*, *Round caps*, as of
   `2a1e919`, `glab` 0.9.0). Stage 1b, Stage 3 and Stage 5 each run at most
   **2 rounds** at every tier where the stage runs (normal tier has no Stage
-  3). A **third** round runs only when round 2 returned a finding rated
+  3). Since `0cbf5b0` the final check (Stage 6b) has the same cap, and
+  every cap counts per sub-plan where there are sub-plans; normal tier runs
+  Stage 3 for a sub-plan; a sub-plan's round-3 line and round copies stay
+  in its folder, and the master and final checks have theirs in `index.md`
+  (`plan.md` with no sub-plans) (`[flow-master-plan/plan.md D29]`). A
+  **third** round runs only when round 2 returned a finding rated
   `critical` or `high`, and only after the manager has recorded it under
   `## Decisions` as `- round 3: <stage> — <severity> <the finding, as its
   file:line or step id and its claim>`; with no plan behind the stage — a
@@ -250,7 +281,15 @@ this file and an owning file disagree, the owning file is right.
   step that rests on one, not the rest of the plan. A copy, not git,
   because the plan folder is untracked while it is planned and a snapshot
   of a gitignored `plan/` would be empty. The copies stay in the folder and
-  are committed with it. *Stage 3.* Before each analyze round, round 1
+  are committed with it. Since `0cbf5b0` the same holds for `master.md`
+  before its approval and for `index.md` (`master.r<n>.md`,
+  `index.r<n>.md`, per sub-plan folder for a sub-plan's files; a master
+  check has no `plan.md` to copy); after the approval a changed request
+  leaves only a version copy `master.v<n>.md` (*The master plan and
+  sub-plans*). The `cmp -s` runs as
+  `cmp -s plan/{slug}/<name>.r<n>.md plan/{slug}/<name>.md` for each file
+  the round checked; exit 1 on any file means the amendment changed the
+  plan, exit 0 on every file that it changed nothing. *Stage 3.* Before each analyze round, round 1
   included, the manager snapshots the tree into a tree object through a
   temporary index, seeded from `HEAD` first (`GIT_INDEX_FILE="$idx" git
   read-tree HEAD && … git add -A && … git write-tree`), because a tracked
@@ -431,7 +470,10 @@ this file and an owning file disagree, the owning file is right.
   edits `evidence.md` or `findings.md`.
 - **`glab:plan-first` since `glab` 0.10.0** (`2912002`). *Size and shape*,
   after Step 3: `plan.md` and `evidence.md` at most **48 KB** each
-  (`wc -c`), because every later agent reads them again; a decision is one
+  (`wc -c`) — since `0cbf5b0` `master.md`, `plan.md`, `index.md` and
+  `evidence.md`, the manager's checklist item 6 checking the same four,
+  which extends `[flow-planner/plan.md D2]` — because every later agent
+  reads them again; a decision is one
   line, choice and reason in at most two sentences, evidence cited by id and
   never restated; a fact is written once; a plan that will not fit is split,
   and one that cannot be carries `- size: <n> KB — <why it is one plan>`
@@ -451,7 +493,17 @@ this file and an owning file disagree, the owning file is right.
   0–4, a pointer *Steps 5 to 7 — Implement, E2E tests, unit tests*, and "A
   planning agent stops at Step 4 and does not read it." The waiver
   paragraph says "Then implement, from `implement.md`" (review fix round 1,
-  `[flow-planner/result.md R3]`). `/glab:develop`'s "glab:plan-first steps
+  `[flow-planner/result.md R3]`), and since `0cbf5b0` goes on ": the
+  waiver stands in for the verified, approved plan it asks for"; the
+  pointer reads "Read it once the plan is verified and approved (Step 4),
+  or once a waiver is written (*User Override*)", and `implement.md` l. 3
+  "Start them only once the plan is verified and approved
+  (`glab:plan-first` Step 4), or once `plan/{slug}/waived.md` records a
+  waiver (*User Override* in `SKILL.md`), which stands in for both"
+  (`[flow-master-plan/plan.md S9]`, `D47`). The manager's checklist has a
+  seventh item since `0cbf5b0`, *A master*: `grep -c '^## \(Request\|Goals\|Out of scope\|Final check\|Record\)$' plan/{slug}/master.md`
+  prints `5`, and with sub-plans `index.md` has one line per sub-plan
+  folder. `/glab:develop`'s "glab:plan-first steps
   5 to 7" still resolves (`[flow-planner/plan.md D7]`, `D8`). Step 1
   writes `plan/{slug}/evidence.md`, "not `findings.md`: Claude Code refuses
   a subagent's Write of a file by that name".
@@ -589,25 +641,35 @@ this file and an owning file disagree, the owning file is right.
   planning; since `glab` 0.9.0 also `map-<area>.md` from mapping agents and
   the round copies `<name>.r<n>.md` the manager keeps at Stage 1b (an
   earlier version of a file the folder still holds: a record takes its
-  items from the current file); a waiver's folder is recorded like a plan's. The rule is
+  items from the current file); a waiver's folder is recorded like a plan's.
+  Since `glab` 0.11.0 (`0cbf5b0`) also `master.md`, `master.sha256`, a
+  version copy `master.v<n>.md` when the request changed after approval,
+  and, when the work split, `index.md` and the sub-plan folders
+  `<nn>-<name>/`, each a full plan folder (*The master plan and
+  sub-plans*, below). The rule is
   "**Plan files are working files; the spec is what stays.**" Step 1 reads
   the spec of each area the change touches first — its decisions still
   bind, its known limits still hold, its open follow-ups may already
-  describe the task. Step 3's `plan.md` includes `## Record`: the area spec
+  describe the task. Step 3's `plan.md` includes `## Record` — since
+  `0cbf5b0` `master.md` does, and `plan.md` only in a folder with no master
+  (`[flow-master-plan/plan.md D39]`): the area spec
   or specs the change updates once it is pushed, any audit file under
   `plan/` it acts on, and what the entry will say; `/glab:plan` reports the
   spec it names. A follow-up stays in `follow-ups.md` until the record moves
   it into the area spec. Specs live in `docs/specs/`, one file per area,
   unless the repo's `AGENTS.md` names another place. A plan folder whose
   `plan.md` has no `## Record` was written before the repo followed the rule
-  and is not recorded. An audit file stays where `glab:audit` writes it;
+  and is not recorded — since `0cbf5b0`, whose `master.md`, or `plan.md` in
+  a folder with no master, has none. An audit file stays where `glab:audit` writes it;
   the plan that acts on it names it in `## Record`, and its open items reach
   the spec at that change's record (`glab:audit` *After Writing*, item 4).
 - **Stage 8 — Record** (`glab:manager` *Stage 8 — Record*), after Stage 7
   has confirmed the push. `glab:developer` is dispatched for the record
-  alone — the slug, the area specs the plan's `## Record` names (for a
+  alone — the slug, the area specs the plan's `## Record` names (since
+  `0cbf5b0` `master.md`'s, `plan.md`'s with no master; for a
   waiver, the ones the manager names), any audit file it names — and
-  updates each spec from the folder's files: how the area works now, the
+  updates each spec from the folder's files, sub-plan folders included
+  since `0cbf5b0`: how the area works now, the
   decisions that still bind, what is not verified, every follow-up still
   open, every binding decision and every incident with its source file and
   number. It changes nothing inside the folder, removes nothing and writes
@@ -629,6 +691,139 @@ this file and an owning file disagree, the owning file is right.
   `AGENTS.md` says otherwise"; its handoff step looks in the area specs for
   what a finished change left open. This repo's own rule — the manager
   session removes a landed folder — is in `docs/specs/marketplace.md`.
+- **The master plan and sub-plans** (since `glab` 0.11.0, `0cbf5b0`;
+  `glab:plan-first` Step 3 *The master plan, and sub-plans when the work
+  splits*, `glab:manager` *The master plan and sub-plans*;
+  `[flow-master-plan/plan.md D23]`–`D30`). Every plan folder starts with
+  `master.md` — what the user asked for, constant once accepted; the plans
+  say how. Its sections: `## Request` (the user's words, verbatim and
+  dated, never paraphrased), `## Goals` (`G1`, `G2`, …, one line each,
+  citing those words), `## Out of scope`, `## Final check`, `## Record`
+  and `## Approval`, which only the manager writes. Normal tier writes
+  `master.md` and one page, `plan.md`; full tier `master.md`,
+  `evidence.md`, `plan.md` and `questions.md` if one was raised. **One plan
+  by default**; the work is **split** only into parts with their own goals
+  and milestone test, built, reviewed and committed one after another, and
+  never across files the repo changes in one commit. Each part is a
+  sub-plan folder `plan/{slug}/<nn>-<name>/` — `<nn>` two digits in build
+  order, never reused — that is a plan folder under every rule; the split
+  is `index.md`, one line per sub-plan (`<nn>-<name> · goals G1, G3 ·
+  depends … | none · tier <normal | full>`) and a `## Decisions` section,
+  amended like a plan (`index.r<n>.md`). **The master is constant:** after
+  its `## Approval` line the manager runs
+  `sha256sum plan/{slug}/master.md > plan/{slug}/master.sha256` from the
+  repo root and never edits it again; every analyzer and `/glab:develop`
+  check it with `sha256sum -c`, anything but `OK` an analyzer finding rated
+  `high` (`D25`). No round amends an approved master: a changed request is
+  a new `master.md`, the old kept as `master.v<n>.md` — a version copy,
+  never `.r<n>` — whose approval and hash do not carry over; the manager
+  removes `master.sha256` when it dispatches that planner, the new master
+  gets its own Stage 1b, approval and hash, and every sub-plan not yet
+  committed its Stage 1b again (review fix round 1,
+  `[flow-master-plan/result.md R1]`). **Planning in cycles:** the first
+  planning agent writes `master.md` and, when the work splits, `index.md`
+  and no sub-plan; each sub-plan is planned by its own agent once what it
+  depends on is committed, from `master.md`, its own `index.md` line and
+  the slug-level `map-<area>.md` files its dispatch names, never from
+  another sub-plan's folder (`D27`, `D28`). **Each sub-plan runs its own
+  cycle** — Stages 1, 1b, 2, 3, 4, 5 and 6, Stage 3 at every tier — in
+  `<nn>` order, development, review and commit one at a time, so each
+  review sees only its own change; commands take `{slug}/<nn>-<name>` as
+  the slug (`/glab:analyze {slug}/02-hooks`), the master a level up. **One
+  commit per sub-plan** — its own folder, the first also `master.md`,
+  `master.sha256`, `index.md` and the map files — then one final check,
+  one push and one record per slug (`D30`); a single plan commits once.
+  The developer reads `master.md` as context, not scope — a step that,
+  built as written, cannot serve its goal is `PLAN WRONG` — and never edits
+  `master.md`, `master.sha256`, `index.md` or a version copy.
+- **The intent check** (since `0cbf5b0`; `glab:analyzer` *The intent
+  question*, *The plan check*, *The final check*;
+  `[flow-master-plan/plan.md D32]`–`D36`). The analyzer — never the
+  reviewer, which stays blind to the plan, `master.md` and `index.md` —
+  asks, on top of its check, whether the work serves what the user asked
+  for, wherever there is a master: **in a plan check** (Stage 1b), of the
+  master whether every request reaches a goal or `## Out of scope`, each
+  goal says no more and no less than its words, and every goal reaches a
+  line of `index.md` (the coverage question, the *master check* of a split
+  folder before any sub-plan is planned); of a plan whether its steps
+  deliver its goals as `## Request` words them — for a single plan one
+  analyzer asks both of `master.md` and `plan.md` together (`D42`); **in a
+  conformance check** (Stage 3), whether the build serves the goals beyond
+  matching the steps; **in the final check**, for each goal, delivered and
+  where. Each goal is reported as a step, `goal G<n>: <served | partial |
+  missing | reshaped>`, quoting the request. A folder with no master — from
+  before 0.11.0 — gets no intent question, and the analyzer says so. An
+  intent gap after the build is a defect of the plan: a planning agent's
+  amendment, then Stage 2, never a developer told to build past its plan
+  (`D34`). The analyzer's own file now holds the plan check and its
+  verdicts `BUILDABLE` and `NOT BUILDABLE`, beside `CONFORMS`,
+  `DIVERGES: <n> steps` and `BLOCK: target unresolved` — the five one fact
+  in `AGENTS.md` (`D35`); a master check or a final check has no `plan.md`,
+  so its contract is `master.md` and `index.md`, and `BLOCK` only when
+  there is no `master.md` either. For a sub-plan, an untracked file in
+  another sub-plan's folder is not its implementation. Its description
+  names the plan check, the conformance check and the final check
+  (`[flow-master-plan/result.md R5]`). `/glab:analyze` asks "did we build
+  the thing the plan said, and does it serve what the user asked for?" and
+  routes `BUILDABLE` to the approval and `/glab:develop` (or, after a
+  master check, the sub-plans' planning), `NOT BUILDABLE` to a new planning
+  agent, and `CONFORMS` after the final check to `/glab:push`. One analyzer
+  agent still does every kind of check: the split into two kinds is
+  `flow-models-per-role`'s (`D36`, `[flow-planner/plan.md FU1]`).
+- **Stage 6b — Final check** (since `0cbf5b0`; `glab:manager`
+  *Stage 6b — Final check*; `[flow-master-plan/plan.md D33]`). After the
+  slug's last commit, before the push, at every tier: `/glab:analyze {slug}`
+  as the final check. The analyzer reads `master.md`, `index.md` (the plan,
+  with no index) and the range from the `## Approval` base to `HEAD`, does
+  not walk the sub-plans' steps, and answers the intent question for every
+  goal; the manager runs the gates on that tree. Skipped only for a single
+  plan at full tier, whose Stage 3, delta rounds included, asked it.
+  `CONFORMS` → Stage 7; `DIVERGES` → the gaps go to a new planning agent —
+  a new sub-plan with the next `<nn>`, or an amendment of `plan.md` without
+  sub-plans — which runs its cycle to its commit; round 2 gets round 1's
+  findings and the two commit ids; at most 2 rounds, a third under the
+  round-3 rule, then the user. Nothing is pushed before it, and Stage 7
+  shows the `## Decisions` lines of each plan the push carries.
+- **Approval after Stage 1b** (since `0cbf5b0`; `glab:manager` Stage 1;
+  `[flow-master-plan/plan.md D26]`, `D46`). The user approves a checked
+  plan: after Stage 1b has passed — the master check, when the work split —
+  explicitly at full tier and whenever the work split; at normal tier with
+  no sub-plans the manager reports the tier and the decisions and goes on.
+  The manager then writes `master.md`'s last section, one line —
+  `- approved by the user, <date>, in chat | in plan mode: "<their words>"; base <git rev-parse --short HEAD>`,
+  or `- accepted at normal tier, reported to the user, <date>; base <sha>`
+  — and hashes it; the base is where the final check's range starts. At
+  full tier the user also approves `plan.md` explicitly — a single plan's
+  together with the master, each full-tier sub-plan's after its own Stage
+  1b — and that `plan.md` ends with its own `## Approval` line in the same
+  form; at normal tier the master's approval covers the sub-plans (`D46`,
+  extended to a single full-tier plan by review fix round 1,
+  `[flow-master-plan/result.md R2]`). `/glab:develop`'s *Approval*
+  precondition: with a `master.md`, its `## Approval` line, `sha256sum -c`
+  printing `OK`, and at full tier the `plan.md`'s own line — or stop; with
+  none, a plan from before 0.11.0, full tier only, as before. `/glab:plan`
+  reports the goals, and the sub-plans when the work split.
+- **Approval in Claude Code's plan mode** (since `0cbf5b0`; `glab:manager`
+  *Approval in Claude Code's plan mode — only when the user asks for it*;
+  `[flow-master-plan/plan.md D37]`, the user's: the flow should "work with
+  claude app|cli builtin flow"). Only when the user asked for it, in the
+  session or a standing instruction; otherwise the approval is asked in the
+  chat. Only the main session can (no subagent has the plan-mode tools,
+  UNVERIFIED: L7), after Stage 1b with no agent running (L5); the manager
+  first tells the user in one line that the dialog sets the session's
+  permission mode from then on (L4) and that changes go through "No, keep
+  planning", not Ctrl+G (L3); it calls EnterPlanMode, then ExitPlanMode
+  with `master.md` as the plan (L1, L2). It writes no plan file outside the
+  repo — `~/.claude/plans` by default — and asks the user to leave plan
+  mode and approve in the chat instead; inside the repo, where the user's
+  own `plansDirectory` put it, it writes `master.md`'s text there byte for
+  byte and never commits it; it never changes `plansDirectory`. Approved →
+  the `## Approval` line says `in plan mode`; "No, keep planning" → the
+  user leaves plan mode before the amendment, and their words go into
+  `## Request`. Every plan-mode claim is read from Claude Code's
+  documentation and marked UNVERIFIED in the payload and `README.md`, each
+  naming the live test L1–L7 that settles it (*Known limits*, below); a
+  step whose claim fails falls back to approval in the chat.
 
 ## Decisions that still bind
 
@@ -657,7 +852,7 @@ this file and an owning file disagree, the owning file is right.
 - [sync-local-edits/result-followups.md D2] A `plan.md` with no tier line is full tier, stated once in *Pick the tier*.
 - [sync-local-edits/result-followups.md D3] Rule 3 keeps `glab:security`'s stop list and its *Destructive operations are proven* rule, and states confirmation before every destructive action and every push as the manager's own rule (as corrected after review, #3).
 - [sync-local-edits/result-followups.md D4] Bootstrap stays on the review-round-cap list, and the four ask-conditions are a known *One fact* case naming every file that states them.
-- [sync-local-edits/result-followups.md D5] `/glab:integrate` runs after `/glab:analyze` at full tier and after `/glab:develop` at normal; normal tier runs the milestone test, full tier the whole suite.
+- [sync-local-edits/result-followups.md D5] `/glab:integrate` runs after `/glab:analyze` at full tier and after `/glab:develop` at normal; normal tier runs the milestone test, full tier the whole suite. **Amended by `[flow-master-plan/plan.md D31]` since `glab` 0.11.0 (`0cbf5b0`), for sub-plans only:** a sub-plan runs Stage 3 at every tier, so `/glab:integrate` follows `/glab:analyze` there; a normal-tier plan with no sub-plans keeps this decision (`commands/develop.md`: "`/glab:analyze` at full tier and for every sub-plan, `/glab:integrate` at normal with no sub-plans").
 - [sync-local-edits/result-followups.md D6] After an amendment, the develop handoff re-runs the plan's next stage.
 - [sync-local-edits/result-followups.md D8] `/glab:analyze` says "If the plan is amended".
 - [sync-local-edits/result-followups.md D9] The planner decides each choice and records it with its reason; the manager reviews those lines and may overrule one, recording the overrule as a new line.
@@ -680,7 +875,7 @@ this file and an owning file disagree, the owning file is right.
 - [feature-docs-specs/plan.md D2] Fixed headings and greppable tags: every follow-up, question and open list keeps its source as `[<slug>/<file> <id>]`, so "none lost" is a search, not a judgment.
 - [feature-docs-specs/plan.md D3] A spec names the last commit that holds the folder, not the removal commit, because a commit cannot carry its own hash; in this repo that is the last commit on `origin/main` that holds it (`AGENTS.md`, the `plan/` rule).
 - [feature-docs-specs/plan.md D4] Stage 8 — Record, after Stage 7: `glab:developer` writes the spec from the folder and changes nothing inside it, so it writes no `result.md`; at full tier one `glab:reviewer` pass on the spec diff alone is what "checked by independent readers" now means; the commit goes out on its own go-ahead — its removal by `glab:committer` was cut (`[feature-docs-specs/plan.md U10]`, D34).
-- [feature-docs-specs/plan.md D5] Installer wording: specs in `docs/specs/` unless the repo's `AGENTS.md` names another place, and a folder from before the rule (a `plan.md` with no `## Record`) is not recorded; its removal clauses moved to the repo's own `AGENTS.md` (`[feature-docs-specs/plan.md U10]`), where no untracked file under `plan/` is removed.
+- [feature-docs-specs/plan.md D5] Installer wording: specs in `docs/specs/` unless the repo's `AGENTS.md` names another place, and a folder from before the rule (a `plan.md` with no `## Record`) is not recorded; its removal clauses moved to the repo's own `AGENTS.md` (`[feature-docs-specs/plan.md U10]`), where no untracked file under `plan/` is removed. **Amended by `[flow-master-plan/plan.md D39]` since `glab` 0.11.0 (`0cbf5b0`):** `## Record` is in `master.md`, so a pre-rule folder is one whose `master.md` — or `plan.md`, in a folder with no master — has no `## Record`.
 - [feature-docs-specs/plan.md D8] Payload text cites the spec, named with its repository, never a `plan/` path or a commit of this repo: an installer can follow neither.
 - [feature-docs-specs/plan.md D10] A spec is not one of the *One fact* files: it states a fact as of its last record and names the file that owns it; `AGENTS.md`'s `plan/` rule says so.
 - [feature-docs-specs/plan.md D11] Closed items migrate too, under *Closed follow-ups* with their evidence (`AGENTS.md`: every follow-up, open or closed).
@@ -688,7 +883,7 @@ this file and an owning file disagree, the owning file is right.
 - [feature-docs-specs/plan.md D22] A model choice "for this task" ends with the task's record, not its push; a task with no plan folder ends with its push. Only `manager/SKILL.md` Rule 5 states the duration.
 - [feature-docs-specs/plan.md D26] An audit file stays where `glab:audit` puts it, directly under `plan/`; the plan's `## Record` names it and Stage 8 hands it to the developer and the analyzer as a source — its removal by the committer was cut (`[feature-docs-specs/plan.md U10]`).
 - [feature-docs-specs/plan.md D27] The record check is `glab:analyzer`, at every tier, with the folder's tracked files as its contract (the payload reads every file: `[feature-docs-specs/follow-ups.md 2]`); one fix round, then the analyzer again; still `DIVERGES` → the user. The full-tier reviewer pass stays, on the spec diff alone.
-- [feature-docs-specs/plan.md D28] A pre-rule folder is one whose `plan.md` has no `## Record`; a waiver's folder has no `plan.md` and is recorded.
+- [feature-docs-specs/plan.md D28] A pre-rule folder is one whose `plan.md` has no `## Record`; a waiver's folder has no `plan.md` and is recorded. **Amended by `[flow-master-plan/plan.md D39]` since `glab` 0.11.0 (`0cbf5b0`):** the `## Record` looked for is `master.md`'s, `plan.md`'s only in a folder with no master.
 - [feature-docs-specs/plan.md D32] Tags are matched as items: only a line that starts with `- [tag]` counts, a tag inside another item is a cross-reference, and no tag sits under both *Open* and *Closed follow-ups*.
 - [feature-docs-specs/plan.md D33] Stage 6 does not commit `plan/{slug}/`: nothing in the payload needs plan files in git, since the record reads the folder from disk; whether plan files are committed is the repo's convention (this repo's `AGENTS.md`: they are).
 - [feature-docs-specs/plan.md D34] `committer.md`, `commit.md`, `push.md` and `ship.md` carry no record text: the record commit is an ordinary docs commit.
@@ -718,7 +913,7 @@ this file and an owning file disagree, the owning file is right.
 - [remove-external-agents/plan.md approval] Approved by the user, 2026-10-20: "go ahead". Its session line, `- effort: high (the user's words: "let's for now set the effort for your subagent you current session high level"), for the session`, was that change's own and is spent.
 - [remove-external-agents/plan.md spent] D1 (tier full), D13 (one `glab:developer`), D15 (`edits.py` as the exact edit list), D16 (nothing into `docs/specs/` in the change itself) — scoping of that change; `D2`, `D8`, `D10` and `D12` are in `docs/specs/marketplace.md`, `D3` in `docs/specs/external-agents.md`.
 - [flow-cheaper-rounds/plan.md D1] Tier normal for the change — payload text, the `glab` manifest version, `AGENTS.md`, `README.md`, and one read-only hook script with its test; no full-tier trigger. The `severity:` line is a contract between agents that nothing parses (`F13`). Scoping of that change; it governs no later work. Re-checked by D36.
-- [flow-cheaper-rounds/plan.md D2] The round caps — **the user's decision**, relayed by the manager: "set 2 and only one more if something critical is behind". Stage 1b, Stage 3 and Stage 5 each run at most 2 rounds at every tier where the stage runs; a third only when round 2 returned a `critical` or `high` finding, recorded first as a `- round 3: <stage> — <severity> <finding>` line under `## Decisions`; nothing past round 3. It supersedes `[bug-reviewer-findings/questions.md Q3]`, `[feature-plugin-marketplace/questions.md S3]` (`docs/specs/marketplace.md`) and `[sync-local-edits/result-followups.md D11]`.
+- [flow-cheaper-rounds/plan.md D2] The round caps — **the user's decision**, relayed by the manager: "set 2 and only one more if something critical is behind". Stage 1b, Stage 3 and Stage 5 each run at most 2 rounds at every tier where the stage runs; a third only when round 2 returned a `critical` or `high` finding, recorded first as a `- round 3: <stage> — <severity> <finding>` line under `## Decisions`; nothing past round 3. It supersedes `[bug-reviewer-findings/questions.md Q3]`, `[feature-plugin-marketplace/questions.md S3]` (`docs/specs/marketplace.md`) and `[sync-local-edits/result-followups.md D11]`. **Extended by `[flow-master-plan/plan.md D29]` since `glab` 0.11.0 (`0cbf5b0`):** the final check (Stage 6b) has the same cap, every cap counts per sub-plan where there are sub-plans, and the master and final checks write their round-3 line in `index.md` (`plan.md` with no sub-plans).
 - [flow-cheaper-rounds/plan.md D3] "Critical **or high**", not "critical" alone — **the manager's choice, not the user's**: the real case that needed a third round was rated high. The user may overrule it; then only the word list in D2's files changes.
 - [flow-cheaper-rounds/plan.md D4] The severity is given by the agent that reports the finding (`glab:reviewer`, `glab:analyzer`), as a `severity:` line on `glab:audit`'s four *Severity Levels*, and never re-ranked by the manager.
 - [flow-cheaper-rounds/plan.md D5] Reviewer round 2 is the last round unless it reports a `critical` or `high` finding; then it answers `BLOCK: <n> issues` and round 3 may run, which is the last with no exception. The verdict strings did not change.
@@ -726,7 +921,7 @@ this file and an owning file disagree, the owning file is right.
 - [flow-cheaper-rounds/plan.md D7] Every round is a new agent — a plan check, a planner's amendment, a developer's fix round, a re-dispatch after `BLOCKED` or `PLAN WRONG`, a conformance check, a review round and a Stage 8 record fix; Rule 5's report check (missing fields only) is the one resume (`[feature-model-switch/plan.md D22]` binds). It sits in Rule 2 because its reason is cost.
 - [flow-cheaper-rounds/plan.md D8] A round's findings travel in the next agent's dispatch, copied as the agent returned them — the one input not on disk; the manager writes no findings file (Rule 1) and the analyzer and reviewer are read-only.
 - [flow-cheaper-rounds/plan.md D9] A fix-round developer adds `## Fix round — <stage> round <n>` to `result.md` and does not overwrite it; the overwrite rule stays for a re-dispatch of the same steps.
-- [flow-cheaper-rounds/plan.md D10] The Stage 1b delta is a copy `plan.r<n>.md` (and `findings.r<n>.md`) made before the amendment is dispatched, not git: the plan folder is untracked while it is planned. The copies stay and are committed with the folder. Amended by D49: the manager tests the delta with `cmp -s`, only the analyzer runs `diff -u`. **Amended by `[flow-planner/plan.md D38]` since `glab` 0.10.0 (`2912002`), by the file name only:** the copy is `evidence.r<n>.md` of `evidence.md`, and `findings.r<n>.md` only in a folder from before 0.10.0.
+- [flow-cheaper-rounds/plan.md D10] The Stage 1b delta is a copy `plan.r<n>.md` (and `findings.r<n>.md`) made before the amendment is dispatched, not git: the plan folder is untracked while it is planned. The copies stay and are committed with the folder. Amended by D49: the manager tests the delta with `cmp -s`, only the analyzer runs `diff -u`. **Amended by `[flow-planner/plan.md D38]` since `glab` 0.10.0 (`2912002`), by the file name only:** the copy is `evidence.r<n>.md` of `evidence.md`, and `findings.r<n>.md` only in a folder from before 0.10.0. **Extended since `glab` 0.11.0 (`0cbf5b0`; `[flow-master-plan/evidence.md F11]`, `[flow-master-plan/result.md R1]`):** also `master.r<n>.md` before the master's approval and `index.r<n>.md`, per sub-plan folder for a sub-plan's files; after approval only a version copy `master.v<n>.md`.
 - [flow-cheaper-rounds/plan.md D11] The Stage 3 delta is a tree object snapshotted before each analyze round through a temporary index; round `<n+1>` gets both tree ids. Amended by D50: the index is seeded with `git read-tree HEAD` first. A path the fix round names that the delta does not show is checked whole; a lost tree id means that round runs whole.
 - [flow-cheaper-rounds/plan.md D12] An empty delta is a stop, not a pass, because `diff` and `git diff --quiet` exit 0 when nothing changed; an analyzer handed an empty delta reports `BLOCK: target unresolved`. For the plan the manager's check is `cmp -s` (D49).
 - [flow-cheaper-rounds/plan.md D13] **Superseded by `D51` in Stage 1b round 1.** It was: review rounds are not changed, on the assumption that the same reviewer asks what changed; D51 gave a later round a new reviewer and the range of the fix.
@@ -743,7 +938,7 @@ this file and an owning file disagree, the owning file is right.
 - [flow-cheaper-rounds/plan.md D24] The handoff line's `max` is the stage's cap, `2` or `3` once the round-3 line is written; a develop line counts its fix rounds against the cap of the stage whose findings it fixes; Rule 5's example reads `round 1/2`.
 - [flow-cheaper-rounds/plan.md D25] `AGENTS.md` *One fact*: the review-round-cap entry became "the round caps" (all three stages, five files); new entries for the severity levels, every round a new agent, the mapping and round-copy file names, the handoff file, and the context hook (`docs/specs/marketplace.md`). It closed `[sync-local-edits/follow-ups.md 18]`.
 - [flow-cheaper-rounds/plan.md D26] `glab` `0.8.0` → `0.9.0`: the change alters the pipeline's contract and adds a feature, and features have raised the minor before 1.0; nothing removed, so no `!`. `memory-sync` untouched, `0.1.0`.
-- [flow-cheaper-rounds/plan.md D27] One commit for all seven items with the plan folder, because the *One fact* rule wants each fact's files together and the hook events are one fact across `hooks/hooks.json`, `README.md` and `AGENTS.md`; the manager may split it. Done as one commit, `2a1e919`.
+- [flow-cheaper-rounds/plan.md D27] One commit for all seven items with the plan folder, because the *One fact* rule wants each fact's files together and the hook events are one fact across `hooks/hooks.json`, `README.md` and `AGENTS.md`; the manager may split it. Done as one commit, `2a1e919`. A slug with sub-plans commits once per sub-plan since `glab` 0.11.0 (`[flow-master-plan/plan.md D30]`); this decision bound its own change only.
 - [flow-cheaper-rounds/plan.md D28] Out of scope, recorded as follow-ups: a dedicated `glab:planner` agent (FU1), splitting the implementation steps out of `glab:plan-first` (FU2), the user-level copies under `~/.claude` (FU3), the "cleanup glob deleted a reviewer report" incident (FU4), and the hooks the user did not choose (FU16).
 - [flow-cheaper-rounds/plan.md D29] The context hook — **the user's decision**, as amended during round 2: "We need a clear rule stating that the agent must check token usage, and we need a definitive hook that triggers whenever an agent finishes its turn or after I send a message. We have to choose an approach that is impossible to bypass." (Its first form, `PostToolUse` on `Agent` alone, was superseded.) Three hook events — `UserPromptSubmit`, `PostToolUse` with matcher `Agent`, `Stop` — all running one script, `plugins/glab/scripts/context-size.sh`, chosen by a mode argument. Not `PostToolBatch`; not `SubagentStop`, whose `additionalContext` goes to the subagent, not the parent. Supersedes D17.
 - [flow-cheaper-rounds/plan.md D30] The script takes `transcript_path` from the hook input on stdin and nothing from the environment. Supersedes D18; `[flow-cheaper-rounds/plan.md FU9]`'s question became moot.
@@ -765,7 +960,7 @@ this file and an owning file disagree, the owning file is right.
 - [flow-cheaper-rounds/plan.md D46] `stop` never blocks and never continues the conversation: no exit 2, no `decision`, no `reason`, no `continue`, no `hookSpecificOutput`, no `additionalContext`; `systemMessage` is its only key; nothing reads `stop_hook_active`. Test cases assert the key set on every `stop` output.
 - [flow-cheaper-rounds/plan.md D47] D19's thresholds became fixed steps — 300k and every 100k after it — for the manager's prose as for the `stop` mode: one rule stated once. The task-boundary `/clear` stays the manager's, because no hook can tell a task boundary. After I1 (D61): the manager reads the current `agent` line, so its suggestion may come before the user's line; the two never disagree on the steps. **Amended by `[flow-planner/plan.md D12]` since `glab` 0.10.0 (`2912002`), by the variable only:** the first step is 300k by default or `GLAB_COMPACT_AT` thousand when set, every 100k after it; the manager reads it from the line's `; compact at <t>k`.
 - [flow-cheaper-rounds/plan.md D48] "Impossible to bypass" — what holds: the hooks run in the harness whatever the model does, in every session where `glab` is enabled. What does not: they do not run when the plugin is disabled, under `--bare`, or under `disableAllHooks: true`; managed policy can restrict hook sources (effect on a plugin's hooks UNVERIFIED, FU15); an interrupted turn fires no `Stop`. Each is a setting or an act of the user or organisation, not something the model can do; the dispatch-count fallback covers a session where no line comes. Whether a live model follows the prose rule stays UNVERIFIED.
-- [flow-cheaper-rounds/plan.md D49] Manager decision, Stage 1b round 1: the manager tests the plan delta with `cmp -s plan/{slug}/plan.r<n>.md plan/{slug}/plan.md` (and `findings.md`), reading the exit code only — 0 identical, 1 changed, 2 a file missing — and never reads the diff itself; only the analyzer of round `<n+1>` runs `diff -u`. Amends D10 and D12. **Amended by `[flow-planner/plan.md D38]` since `glab` 0.10.0 (`2912002`), by the file name only:** the second `cmp` is of `evidence.md`, or `findings.md` in a folder from before 0.10.0.
+- [flow-cheaper-rounds/plan.md D49] Manager decision, Stage 1b round 1: the manager tests the plan delta with `cmp -s plan/{slug}/plan.r<n>.md plan/{slug}/plan.md` (and `findings.md`), reading the exit code only — 0 identical, 1 changed, 2 a file missing — and never reads the diff itself; only the analyzer of round `<n+1>` runs `diff -u`. Amends D10 and D12. **Amended by `[flow-planner/plan.md D38]` since `glab` 0.10.0 (`2912002`), by the file name only:** the second `cmp` is of `evidence.md`, or `findings.md` in a folder from before 0.10.0. **Extended since `glab` 0.11.0 (`0cbf5b0`; `[flow-master-plan/plan.md S2]`):** one `cmp -s plan/{slug}/<name>.r<n>.md plan/{slug}/<name>.md` per file the round checked — `master.md` and `index.md` too where it checked them; exit 1 on any file is a change, exit 0 on every file none.
 - [flow-cheaper-rounds/plan.md D50] Manager decision, Stage 1b round 1: the Stage 3 snapshot seeds its temporary index from `HEAD` first, because a tracked file that matches `.gitignore` is skipped by `git add -A` into an empty index. Limits kept in FU8: with no commit yet `git read-tree HEAD` fails and that round runs whole; a file force-added to the index but not committed that matches `.gitignore` is still missed. Amends D11.
 - [flow-cheaper-rounds/plan.md D51] Manager decision, Stage 1b round 1: a review round `<n>` ≥ 2 goes to a new reviewer with the target, the previous round's findings verbatim and the range of the fix, and never the plan, the slug or the intent. A *One fact* entry binds `reviewer.md`, the manager and `ship.md`. Supersedes D13 and closed FU7.
 - [flow-cheaper-rounds/plan.md D52] Manager decision, Stage 1b round 1: a round-2 `BLOCK` with no `critical` or `high` finding is that last round's verdict — there is no round 3; the stage ends as D6 says, to the user. Rule 5's report check stays for malformed reports only.
@@ -785,14 +980,14 @@ this file and an owning file disagree, the owning file is right.
 - [flow-cheaper-rounds/plan.md model] `- model: glab:developer sonnet, glab:reviewer sonnet, for this task` — **the user's instruction**, not a manager choice: "okay", in reply to the manager's recommendation. "For this task" ended with this task's record (Rule 5, `[feature-docs-specs/plan.md D22]`); **it does not bind later tasks.**
 - [flow-cheaper-rounds/plan.md effort] `- effort: high`, the user's words for the session (as in `[subagent-effort/plan.md approval]`) — that session's own line, spent.
 - [flow-planner/plan.md D1] The plan's findings file is `evidence.md`: a subagent's Write of `findings.md` is refused and `evidence.md` was accepted (`[flow-planner/evidence.md F8]`, `IN1`).
-- [flow-planner/plan.md D2] `plan.md` and `evidence.md` are at most 48 KB each (`wc -c`), because every later agent reads them again; `flow-cheaper-rounds`' plan grew from 59 KB to 155 KB over three amendments (`[flow-planner/evidence.md F1]`).
+- [flow-planner/plan.md D2] `plan.md` and `evidence.md` are at most 48 KB each (`wc -c`), because every later agent reads them again; `flow-cheaper-rounds`' plan grew from 59 KB to 155 KB over three amendments (`[flow-planner/evidence.md F1]`). **Extended by `[flow-master-plan/plan.md S1]` since `glab` 0.11.0 (`0cbf5b0`):** the 48 KB budget covers `master.md`, `plan.md`, `index.md` and `evidence.md`.
 - [flow-planner/plan.md D3] A decision is one line, choice and reason in at most two sentences, evidence cited by id and never restated; a fact is written once.
 - [flow-planner/plan.md D4] A plan that cannot be split carries `- size: <n> KB — <why it is one plan>` under `## Decisions`, and the manager decides under Rule 3.
 - [flow-planner/plan.md D5] Amendments replace the text they change, in place, under the same id; the `.r<n>` copies are the history (`[flow-cheaper-rounds/plan.md D10]`), and the manager's overrule line stays (`[sync-local-edits/result-followups.md D9]`).
 - [flow-planner/plan.md D6] The manager checks the size by `wc -c` alone (Rule 2 forbids reading the plan); the analyzer checks in-place amending on its re-check, as the one reader of the diff.
 - [flow-planner/plan.md D7] Steps 5–7 of `glab:plan-first` and the three implementation-only repo rules moved byte for byte, numbers kept, to `plan-first/implement.md`, so no caller breaks (`[flow-planner/evidence.md F2]`). It closed `[flow-cheaper-rounds/plan.md FU2]`.
 - [flow-planner/plan.md D8] Rejected homes for Steps 5–7: `glab:developer` (a session implementing without subagents loses them, and "steps 5 to 7" points at nothing) and a new `glab:implement` skill (`Skills (14)` → 15 in four files) (`[flow-planner/evidence.md B1]`, `B2`).
-- [flow-planner/plan.md D9] No `glab:planner` agent in that change — **the user's decision**, carried: the agent count changes once, in `flow-models-per-role` (`[flow-planner/evidence.md F3]`; `[flow-planner/plan.md FU1]`).
+- [flow-planner/plan.md D9] No `glab:planner` agent in that change — **the user's decision**, carried: the agent count changes once, in `flow-models-per-role` (`[flow-planner/evidence.md F3]`; `[flow-planner/plan.md FU1]`). Carried again by `[flow-master-plan/plan.md D36]`: the analyzer's two kinds wait for the same plan.
 - [flow-planner/plan.md D10] The developer's context rules are prose in `glab:developer` — **the user's decision**, carried; no hook is shown to shorten a tool's output (`[flow-planner/evidence.md F4]`).
 - [flow-planner/plan.md D11] No `scripts/gate.sh`: one inline line does it.
 - [flow-planner/plan.md D12] The first context step is `GLAB_COMPACT_AT` thousand when set, default 300k, then every 100k — **the user's decision**, carried. It amends `[flow-cheaper-rounds/plan.md D45]` and `D47` by the variable only (`[flow-planner/evidence.md F5]`).
@@ -802,13 +997,38 @@ this file and an owning file disagree, the owning file is right.
 - [flow-planner/plan.md D16] Empty is unset: no warning.
 - [flow-planner/plan.md D17] On a window not larger than the first step plus 100k the manager tells the user once and names the variable; the number is the user's.
 - [flow-planner/plan.md D18] `glab` `0.9.0` → `0.10.0`, nothing removed, so no `!`; `memory-sync` untouched, `0.1.0`.
-- [flow-planner/plan.md D20] One commit with the plan folder, because *One fact* wants each fact's files together and the plan has no sub-plans. Done as one commit, `2912002`.
+- [flow-planner/plan.md D20] One commit with the plan folder, because *One fact* wants each fact's files together and the plan has no sub-plans. Done as one commit, `2912002`. Since `glab` 0.11.0 a slug with sub-plans commits once per sub-plan (`[flow-master-plan/plan.md D30]`).
 - [flow-planner/plan.md D21] `flow-models-per-role` stays a separate plan, after this one — **the user's decision**, carried (`[flow-planner/evidence.md F7]`; `[flow-cheaper-rounds/follow-ups.md FUc]`).
 - [flow-planner/plan.md D22] `AGENTS.md` *One fact* changed as its S8 says: the mapping-files entry names `evidence.md`, the context-hook entry the suffix, the first step and the warning, and three entries are new — the plan size budget, in-place amendments, `glab:plan-first`'s step numbers (`docs/specs/marketplace.md`).
 - [flow-planner/plan.md D38] `evidence.md` and `evidence.r<n>.md` wherever the payload names the file; readers, and the manager's Stage 1b copy and `cmp`, still accept `findings.md` in a folder from before 0.10.0. It amends `[flow-cheaper-rounds/plan.md D10]` and `D49` by the name only (`[flow-planner/evidence.md F9]`, `F11`).
 - [flow-planner/plan.md D19] One `glab:developer` for the change, since most steps shared `manager/SKILL.md` or `AGENTS.md` — scoping of that change, spent.
 - [flow-planner/plan.md D41] The change ran under the 0.9.0 rules it changed, with no `master.md` — scoping of that change, spent. Round 3 split round 2's plan in two, on the user's approval: the plan carried D1–D22, D38 and D41 of round 2's ids, and round 2's other decisions, its S3 and S6 and FU7 and FU9 moved to `plan/flow-master-plan/`, not recorded here.
 - [flow-planner/plan.md effort] `- effort: high`, the user's words for that session after its compact — that session's own line, spent.
+- [flow-master-plan/plan.md D23] **The user's decision:** a constant master plan and isolated sub-plans — "planner must logical isolated plan stages to separated plans … the based high level plan as a constatn / sub plans witch are must be a low level plans / each low level plans must be iterated with isolated planning cycle / and must be good to have low level plan specs constant validation or verification flow also"; its aim: "subagents can read all plan … it can consume more tokens".
+- [flow-master-plan/plan.md D24] Every folder gets `master.md`, and beside it one `plan.md` by default or `index.md` and sub-plan folders, each a full plan folder: a small task has two files and no tree (`[flow-master-plan/evidence.md B5]`). The split lives in `index.md`, an engineering choice that amendments change (`B6`).
+- [flow-master-plan/plan.md D25] Constant means hashed: `master.sha256` after `## Approval`, checked with `sha256sum -c` by every analyzer and by `/glab:develop`; `chmod a-w` was rejected (`[flow-master-plan/evidence.md B11]`).
+- [flow-master-plan/plan.md D26] Approval comes after Stage 1b, so the user approves a checked plan — the user's at full tier and whenever the work split. It amends the manager's earlier order, in which full-tier approval came before Stage 1b (`glab:manager` Stage 1 until `0cbf5b0`; `[flow-master-plan/evidence.md F11]`).
+- [flow-master-plan/plan.md D27] Split only into parts with their own goals and milestone, never across a fact the repo changes in one commit (`[flow-master-plan/evidence.md F15]`); each is planned once its dependencies are committed and built one at a time in `<nn>` order, so it cites the tree it is built on and each review sees one change.
+- [flow-master-plan/plan.md D28] An agent reads `master.md`, its own folder, its `index.md` line and the slug-level map files its dispatch names — the user's token aim (D23); only the coverage and final checks read all of `index.md`.
+- [flow-master-plan/plan.md D29] Round caps per sub-plan and stage; the master and final checks have the same cap, their round-3 line in `index.md` (`plan.md` with no sub-plans). It extends `[flow-cheaper-rounds/plan.md D2]` (marked above).
+- [flow-master-plan/plan.md D30] One commit per sub-plan, one push and one record per slug; a single plan commits once (`[flow-master-plan/evidence.md B7]`: with one commit per slug the blind reviewer of sub-plan 2 would see sub-plan 1's uncommitted change). `AGENTS.md`'s version rule then reads per push: the push's first commit that changes the plugin raises it (`[flow-master-plan/evidence.md F15]`; `docs/specs/marketplace.md`).
+- [flow-master-plan/plan.md D31] Stage 3 runs for every sub-plan at every tier, as the user listed the cycle "plan → analyzer plan check → develop → analyzer conformance → review"; it amends `[sync-local-edits/result-followups.md D5]` for sub-plans only (marked above); a normal-tier single plan keeps none (`[flow-master-plan/evidence.md B12]`).
+- [flow-master-plan/plan.md D32] **The user's decision:** the analyzer checks the intent at Stage 1b, Stage 3 and the final check — "analyzed … on every stage must validate and find gaps between original business plan and implementation"; the reviewer stays blind — "review agent must only check the code itself without any plan" — so no reviewer file and no *One fact* review entry changed (`[flow-master-plan/evidence.md F10]`, `B9`). `[feature-model-switch/plan.md D5]` and `[flow-cheaper-rounds/plan.md D51]` stand.
+- [flow-master-plan/plan.md D33] The final check is Stage 6b, after the slug's last commit and before the push; skipped only for a single full-tier plan, whose Stage 3 asked it.
+- [flow-master-plan/plan.md D34] An intent gap after the build is a defect of the plan: it goes to a planning agent, and a developer reports it as `PLAN WRONG`.
+- [flow-master-plan/plan.md D35] `glab:analyzer` gets the plan check and its verdicts `BUILDABLE` and `NOT BUILDABLE`, until then stated only by the manager (`[flow-master-plan/evidence.md F10]`); a master check or a final check has no `plan.md`, so its contract is `master.md` and `index.md` (`[flow-master-plan/evidence.md F17]`). It closes `[flow-cheaper-rounds/plan.md FU5]`.
+- [flow-master-plan/plan.md D36] No two analyzer kinds in that change: each check gains the intent question, and the split goes to `flow-models-per-role` with the planner agent (`[flow-master-plan/evidence.md B8]`, `[flow-planner/plan.md FU1]`).
+- [flow-master-plan/plan.md D37] **The user's decision:** the flow should "work with claude app|cli builtin flow". Plan mode carries the master's approval only when the user asks, main session only (`[flow-master-plan/evidence.md F12]`), after Stage 1b with no agent running, no plan file outside the repo, `plansDirectory` untouched. L1–L7 are the user's and no precondition of Stage 2; until they run, the payload and `README.md` mark each plan-mode claim F12 holds inferred or UNVERIFIED as `UNVERIFIED` and name the live test that settles it — the manager's decision after plan check round 1. A `PreToolUse` hook on `ExitPlanMode` to record the approval was rejected (`[flow-master-plan/evidence.md B10]`).
+- [flow-master-plan/plan.md D39] `## Record` moves to `master.md`; a folder with no master keeps `plan.md`'s. It amends `[feature-docs-specs/plan.md D5]` and `D28` (marked above).
+- [flow-master-plan/plan.md D40] The stage listings gain "final check" (`[flow-master-plan/evidence.md F13]`): the manager's description, `glab:bootstrap` step 4 and the hook text.
+- [flow-master-plan/plan.md D42] A single plan's Stage 1b analyzer reads `master.md` and `plan.md` together.
+- [flow-master-plan/plan.md D43] (round 3 of `flow-planner`, the split) The plan was built on the tree `flow-planner` left on `origin/main`, `28f7d1d`, and nothing in `flow-planner` depends on it — scoping of that change, spent.
+- [flow-master-plan/plan.md D44] (the split) As `[flow-planner/plan.md D18]`, `D19`, `D20` and `D22`, for this change: `glab` 0.10.0 → 0.11.0, nothing removed, so no `!`, `memory-sync` untouched at `0.1.0`; one `glab:developer`, one commit with the plan folder (`0cbf5b0`), and *One fact* changed as its S8 says (`docs/specs/marketplace.md`) — scoping of that change, spent but for the version.
+- [flow-master-plan/plan.md D45] (the split) The change ran under the 0.10.0 rules it changed, as `[flow-planner/plan.md D41]` did under 0.9.0: no `master.md`, its findings in `evidence.md`; the user's words are in D23, D32, D37 — scoping of that change, spent. The first plan to run under the master rules is the next one (`[flow-master-plan/plan.md FU9]`).
+- [flow-master-plan/plan.md D46] The manager's decision after plan check round 1: at full tier each sub-plan's `plan.md` also gets the user's explicit approval after its own Stage 1b, as an `## Approval` line at its end; at normal tier the master's approval covers the sub-plans — so *Pick the tier*'s explicit approval holds for every full-tier plan. Extended in review fix round 1 to a single full-tier plan's `plan.md`, approved together with the master (`[flow-master-plan/result.md R2]`).
+- [flow-master-plan/plan.md D47] The change closed the two follow-ups `flow-planner`'s record left it, `[flow-planner/record.md review-waiver-implement]` (S1, S9) and `[flow-planner/record.md review-t19-comment]` (S10) (`[flow-master-plan/evidence.md F17]`); both under *Closed follow-ups*.
+- [flow-master-plan/result.md R1] Review fix round 1, the manager's decision on a blocking finding: no round amends an approved `master.md`; a changed request is a new master, the old kept as `master.v<n>.md`, its approval and hash not carried over, `master.sha256` removed when the planner is dispatched, and a new Stage 1b, approval and hash.
+- [flow-master-plan/plan.md effort] `- effort: high`, the user's words for that session after its compact — that session's own line, spent.
 ## Known limits and not verified
 
 - [feature-model-switch/plan.md I1] That the Agent tool on the manager's host takes `model` with the values `sonnet`, `opus`, `haiku`, `fable`, ranked above the definition's frontmatter — read from the tool definition given to one session; it depends on the Claude Code version and host. Its documentation citations (F1–F7, F16) were not re-fetched by the developer (`result.md` *Not done*).
@@ -840,13 +1060,17 @@ this file and an owning file disagree, the owning file is right.
 - [flow-planner/evidence.md F8] The Write-tool probe of round 2 (one subagent, one session): `findings.md` refused; `evidence.md`, `master.md`, `01-probe/plan.md`, `01-probe/evidence.md`, `index.md` and `evidence.r1.md` accepted. **Inferred:** the refusal keys on the name, not the directory or the agent type. Which other names it refuses (`summary.md`, `report.md`) is not known (`[flow-planner/plan.md FU8]`); this extends `[flow-cheaper-rounds/plan.md F9]`.
 - [flow-planner/plan.md S7] One branch of the `GLAB_COMPACT_AT` code is covered by no case: the warning printed together with a failure line. Unreachable by construction — the variable is read after every `fail` path, and `fail` exits (`[flow-planner/result.md S7]`).
 - [flow-planner/plan.md S8] The Markdown steps (S1, S2, S4, S5, S8 and the manager's S7 text) have no runtime: their searches, `bash -n`, shellcheck and `plugin validate` show the text is there, not that a live session follows it — UNVERIFIED, as for every prose rule. The plan's `grep -c … → 0` checks print `0` on an untouched tree too, so each is paired with a presence check.
-- [flow-master-plan/plan.md L1] UNVERIFIED, the user's live test of approval in plan mode — inline plan. Steps: in a throwaway repo (`d=$(mktemp -d "$TMPDIR/pm.XXXXXX"); cd "$d"; git init -q`), start `claude` and ask "Call EnterPlanMode, then ExitPlanMode with exactly the plan text `L1 probe`. Write no file."; list `~/.claude/plans` before and after. Settled by: whether ExitPlanMode took the text without a Write, whether a file appeared under `~/.claude/plans` (name, content), what the dialog showed. Each live test ends with `rm -rf "$d"`.
-- [flow-master-plan/plan.md L2] UNVERIFIED — `plansDirectory`. Steps: write `$d/.claude/settings.local.json` as `{"plansDirectory": "plans-l2"}` by hand, restart `claude`, repeat L1. Settled by: where the plan file landed, and under which name.
-- [flow-master-plan/plan.md L3] UNVERIFIED — the dialog's three answers. Steps: L1 three times — approve; "No, keep planning" with `change one line`; Ctrl+G, add a line, approve — each time asking the model to quote the ExitPlanMode result. Settled by: whether the result carries the feedback and the edit, and whether Shift+Tab then leaves plan mode.
-- [flow-master-plan/plan.md L4] UNVERIFIED — the permission mode after approval. Steps: approve through each mode the dialog offers. Settled by: the footer's mode afterwards, and whether the session's earlier mode is offered.
-- [flow-master-plan/plan.md L5] UNVERIFIED — writes in plan mode. Steps: in plan mode, ask "Write `l5a.txt` here", then "Dispatch a general-purpose subagent to write `l5.txt` here." Settled by: any refusal, and `ls l5*.txt`.
-- [flow-master-plan/plan.md L6] UNVERIFIED — the desktop app. Steps: L1 in the desktop app. Settled by: what the Plan pane shows.
-- [flow-master-plan/plan.md L7] UNVERIFIED — who has the plan-mode tools. Steps: ask the main session, then a general-purpose subagent, "List your tools whose names contain PlanMode." Settled by: which of the two lists EnterPlanMode and ExitPlanMode.
+- [flow-master-plan/plan.md L1] UNVERIFIED, the user's live test of approval in plan mode — inline plan. Steps: in a throwaway repo (`d=$(mktemp -d "${TMPDIR:?}/pm.XXXXXX") && cd "$d" && git init -q`, which stops before `git init` when `TMPDIR` is unset or `mktemp` fails; the plan's own `;` form ran `git init` in the current directory then — final review, low, fixed in this record), start `claude` and ask "Call EnterPlanMode, then ExitPlanMode with exactly the plan text `L1 probe`. Write no file."; list `~/.claude/plans` before and after. Settled by: whether ExitPlanMode took the text without a Write, whether a file appeared under `~/.claude/plans` (name, content), what the dialog showed. Each live test ends with `rm -rf "$d"`. The payload claim it settles: the plan-mode dialog can carry the master's approval, and whether ExitPlanMode takes the plan as text (`glab:manager` *Approval in Claude Code's plan mode*, `README.md`; `[flow-master-plan/evidence.md F12]`, `F17`). Not run as of `0cbf5b0`; the manager carries the results into a record (`[flow-master-plan/plan.md FU7]`, open).
+- [flow-master-plan/plan.md L2] UNVERIFIED — `plansDirectory`. Steps: write `$d/.claude/settings.local.json` as `{"plansDirectory": "plans-l2"}` by hand, restart `claude`, repeat L1. Settled by: where the plan file landed, and under which name. Settles: where the plan file lands and how `plansDirectory` moves it (`F12`, `F17`; `FU7`).
+- [flow-master-plan/plan.md L3] UNVERIFIED — the dialog's three answers. Steps: L1 three times — approve; "No, keep planning" with `change one line`; Ctrl+G, add a line, approve — each time asking the model to quote the ExitPlanMode result. Settled by: whether the result carries the feedback and the edit, and whether Shift+Tab then leaves plan mode. Settles: what "No, keep planning" and a Ctrl+G edit pass on, and leaving plan mode by Shift+Tab (`F12`, `F17`; `FU7`).
+- [flow-master-plan/plan.md L4] UNVERIFIED — the permission mode after approval. Steps: approve through each mode the dialog offers. Settled by: the footer's mode afterwards, and whether the session's earlier mode is offered. Settles: that the dialog sets the session's permission mode from then on — the one-line warning the manager gives first (`F12`, `F17`; `FU7`).
+- [flow-master-plan/plan.md L5] UNVERIFIED — writes in plan mode. Steps: in plan mode, ask "Write `l5a.txt` here", then "Dispatch a general-purpose subagent to write `l5.txt` here." Settled by: any refusal, and `ls l5*.txt`. Settles: that plan mode blocks the main session's edits and a subagent's — why the manager dispatches no agent in it (`F12`, `F17`; `FU7`).
+- [flow-master-plan/plan.md L6] UNVERIFIED — the desktop app. Steps: L1 in the desktop app. Settled by: what the Plan pane shows. Settles: which source the desktop Plan pane shows, UNVERIFIED in `F12`; no payload text rests on it (`FU7`).
+- [flow-master-plan/plan.md L7] UNVERIFIED — who has the plan-mode tools. Steps: ask the main session, then a general-purpose subagent, "List your tools whose names contain PlanMode." Settled by: which of the two lists EnterPlanMode and ExitPlanMode. Settles: that no subagent has the plan-mode tools, so only the main session can approve there (`F12`, `F17`; `FU7`).
+- [flow-master-plan/evidence.md F12] The plan-mode facts the payload rests on came from a `claude-code-guide` agent reading Claude Code's documentation, relayed by the manager and not re-fetched — inferred; `EnterPlanMode` is in the manager's tool list but not in the docs, and the plan file's name, whether ExitPlanMode takes text, and the desktop Plan pane's source are UNVERIFIED. The planning subagent had neither tool, consistent with L7, not a proof of it. Each point is one of L1–L7 (above).
+- [flow-master-plan/evidence.md F16] Inferred from the command text, not run: that `$ARGUMENTS` keeps a `/`, so `/glab:analyze <slug>/<nn>-<name>` reaches the sub-plan's folder through `plan/$ARGUMENTS/` (`commands/analyze.md`, `develop.md`, `integrate.md`); the developer ran no command with a sub-plan slug (`[flow-master-plan/result.md Not done]`).
+- [flow-master-plan/evidence.md F11] Inferred from git's pathspec semantics, not run: that this repo's removal checks, `git status --short -uall -- plan/<slug>/` and `git diff --quiet origin/main -- plan/<slug>/`, take the sub-plan folders with them.
+- [flow-master-plan/plan.md Milestone] The Markdown has no runtime: the S1–S10 searches, `bash -n`, shellcheck, `PASS 24/24` and `plugin validate` show the text is there, not that a live session follows it — UNVERIFIED, as for every prose rule. The sub-plan cycle, the master hash and Stage 6b have never run; they first run in the next split plan (`[flow-master-plan/plan.md FU9]`). Each `→ 0` search of the plan prints `0` on an untouched tree too, so each is paired with a presence search (`[flow-master-plan/evidence.md F18]`).
 
 ## Open follow-ups
 
@@ -855,7 +1079,7 @@ this file and an owning file disagree, the owning file is right.
 - [sync-local-edits/follow-ups.md 14] Stage 1: recording an overrule as a new line leaves steps built on the old choice. Suggested: send the plan back to the planning agent to amend them — open.
 - [sync-local-edits/follow-ups.md 15] Rule 3 still reads as "the manager writes the decision line", while Stage 1 says the planner writes it. Suggested: one clause, during planning the planner writes it and the manager reviews it — open.
 - [sync-local-edits/follow-ups.md 16] `commands/integrate.md:10`: the integrator agent is never told the normal-tier scope (milestone test only). Suggested: "Say which in the dispatch." — open.
-- [sync-local-edits/follow-ups.md 17] `scripts/manager-bootstrap.sh:17`: "-> commit -> push -> record at full tier" (as at `09d2787`; it read "-> push at full tier" when raised) can read as "only at full tier", and Stage 1b is missing. Suggested: "At full tier work moves through plan -> analyze -> develop -> …" — open.
+- [sync-local-edits/follow-ups.md 17] `scripts/manager-bootstrap.sh:17`: "-> commit -> push -> record at full tier" (as at `09d2787`; it read "-> push at full tier" when raised) can read as "only at full tier", and Stage 1b is missing. Suggested: "At full tier work moves through plan -> analyze -> develop -> …" — open. Re-read at `0cbf5b0`: the hook text now reads "plan -> develop -> analyze -> integrate -> review -> commit -> final check -> push -> record, as far as the tier runs them" (`[flow-master-plan/plan.md S7]`), so the "only at full tier" reading is gone; Stage 1b is still not named — still open, for that half.
 - [bug-reviewer-findings/follow-ups.md 16] `reviewer.md` and `integrator.md` fell back to "the scratchpad" while `CLAUDE.md` and bootstrap said "`$TMPDIR` if set, scratchpad otherwise" — changed since, not shown fixed: both now say "the temp directory the dispatch message names (the scratchpad only if it names none)" (`reviewer.md:73`, `integrator.md:39` at `6838133`); whether that agrees with bootstrap's wording was not re-checked.
 - [bug-reviewer-findings/follow-ups.md 18] Cosmetic: `agents/developer.md:15` calls the fallback file "the working agreement" in passing; `commands/commit.md:6` has two dashes in a row — open: re-read at `6838133`, `commit.md:6` still reads `— say so) — the commit format`, and `developer.md:15` still reads `(or CLAUDE.md if the repo has none — say so) — the working agreement`.
 - [bug-reviewer-findings/follow-ups.md 19] Bootstrap's grep hazard ("leading alternation returns zero matches") did not reproduce in three attempts and is worded as observed — open: `bootstrap/SKILL.md:156` (at `09d2787`; `:151` at `6838133`) still reads "observed returning **zero matches with no error**".
@@ -873,7 +1097,6 @@ this file and an owning file disagree, the owning file is right.
 - [flow-cheaper-rounds/plan.md FU1] A dedicated `glab:planner` agent (out of scope by the brief) — open; carried since `glab` 0.10.0 as `[flow-planner/plan.md FU1]`, into `flow-models-per-role`.
 - [flow-cheaper-rounds/plan.md FU3] The user-level copies under `~/.claude` — the user ports them (out of scope by the brief) — open.
 - [flow-cheaper-rounds/plan.md FU4] The "cleanup glob deleted a reviewer report" incident (out of scope by the brief) — open.
-- [flow-cheaper-rounds/plan.md FU5] `agents/analyzer.md` has no plan-check mode: `BUILDABLE` / `NOT BUILDABLE` appear only in `skills/manager/SKILL.md`, and its Steps 2–3 are written for an implementation — open.
 - [flow-cheaper-rounds/plan.md FU8] Snapshot limits: a nested repository is recorded as a gitlink with a warning and a large untracked directory that is not ignored is hashed in full (not tested); a repository with no commit yet gets no tree id (`git read-tree HEAD` fails), so its rounds run whole; a file force-added to the index but not committed that matches `.gitignore` is still missed — open.
 - [flow-cheaper-rounds/plan.md FU11] Whether the matcher `Agent` matches a `Task` call on a CLI older than 2.1.63 — UNVERIFIED, open. An older CLI still gets the `prompt` line, and the handoff line then uses it (`D38`).
 - [flow-cheaper-rounds/plan.md FU12] `claude plugin details` labels every hook "harness-only — no model context cost", which is not true of one that returns `additionalContext`: the CLI's wording, to report upstream if anyone wants to — open.
@@ -887,14 +1110,17 @@ this file and an owning file disagree, the owning file is right.
 - [flow-cheaper-rounds/follow-ups.md FUb] Payload text cites a plan file: `plugins/glab/scripts/context-size.sh`, `tests/context-size.test.sh` and `plugins/glab/skills/manager/SKILL.md` cite `[flow-cheaper-rounds/plan.md F23]` (and the script `[flow-cheaper-rounds review round 1]`). The plan folder is removed after the record and is never part of an installed plugin, so an installer cannot follow the citation; it stays readable only through `git show <sha>:…` (cf. `[feature-docs-specs/plan.md D8]`: payload cites the spec, never a `plan/` path). Decide whether payload cites the area spec instead — open (review round 1, advisory).
 - [flow-cheaper-rounds/follow-ups.md FUc] **The user's, 2026-10-20:** the next plan `flow-models-per-role` — a model per role (planner and plan check Opus; conformance and record check Sonnet; developer, reviewer, integrator Sonnet; committer Haiku) and two kinds of analyzer; it extends `glab:manager` Rule 5 beyond the developer and reviewer — open, not planned.
 - [flow-cheaper-rounds/follow-ups.md FUd] The manager's: a `PreToolUse` hook on `Agent` that refuses a dispatch missing `effort` or the `AGENTS.md` instruction (`[flow-cheaper-rounds/plan.md FU13]`), so Rule 0d and Rule 0c are enforced rather than remembered — open.
-- [flow-planner/plan.md FU1] A `glab:planner` agent and the analyzer's two kinds — into `flow-models-per-role` (`[flow-planner/plan.md D9]`, `D21`; carries `[flow-cheaper-rounds/plan.md FU1]`) — open.
+- [flow-planner/plan.md FU1] A `glab:planner` agent and the analyzer's two kinds — into `flow-models-per-role` (`[flow-planner/plan.md D9]`, `D21`; carries `[flow-cheaper-rounds/plan.md FU1]`) — open. Re-read at `0cbf5b0`: `[flow-master-plan/plan.md D36]` keeps one analyzer with every kind of check and leaves the split to `flow-models-per-role` — still open.
 - [flow-planner/plan.md FU3] A size warning for a subagent's own context: needs proof that hooks fire inside a subagent, and with which `transcript_path` — open, UNVERIFIED.
 - [flow-planner/plan.md FU4] Whether a settings file's `env` block reaches a plugin hook, so `GLAB_COMPACT_AT` could be set there — open, UNVERIFIED.
 - [flow-planner/plan.md FU5] The manager's own gate runs could use the developer's log template (*Keep your context small*) — open.
 - [flow-planner/plan.md FU8] Which other names the Write rule refuses (`summary.md`, `report.md`) is untested (`[flow-planner/evidence.md F8]`) — open.
 - [flow-planner/follow-ups.md FD2] `plugins/glab/scripts/context-size.sh` l. 37: the contract comment's `GLAB_COMPACT_AT` sentence sits as its own unwrapped line between two wrapped ones, so the plan's searched phrase stays on one line; no reflow was done, since no step named one — open, cosmetic.
-- [flow-planner/record.md review-waiver-implement] Review advisory, carried from the manager's Stage 8 dispatch (no review file is in the folder), for the later plan `flow-master-plan`: `glab:plan-first`'s waiver paragraph (`plugins/glab/skills/plan-first/SKILL.md:122` at `2912002`) says "Then implement, from `implement.md`", but `implement.md` (l. 3) says to start Steps 5–7 "only once the plan is verified (Step 4) and, at full tier, approved" — a condition a waived task, which has no plan, cannot meet — open.
-- [flow-planner/record.md review-t19-comment] Review advisory, from the same dispatch, for `flow-master-plan`: the T19 comment in `tests/context-size.test.sh` (l. 335 at `2912002`) reads "judged over every stop run above, T20's and T21's included", but T24's `stop` run now feeds `stopouts` too (review fix round 1, `[flow-planner/result.md R4]`), and T23's runs through `stop_case` — open, comment only.
+- [flow-master-plan/plan.md FU7] L1–L7 are unverified until the user runs them; if ExitPlanMode needs a file and `plansDirectory` stays default, plan-mode approval stays unused — open (*Known limits*, L1–L7).
+- [flow-master-plan/plan.md FU9] The first split plan first runs the sub-plan cycle, the hash and Stage 6b; its record says what they cost and caught — open.
+- [flow-master-plan/follow-ups.md DEV1] `plugins/glab/skills/manager/SKILL.md` Stage 8 dispatch bullet reads "from the folder's files, sub-plan folders included and the audit file" with no comma after "included", unlike `developer.md`'s "sub-plan folders included,"; built as the plan wrote it — open, a one-character wording fix.
+- [flow-master-plan/follow-ups.md DEV2] `glab:manager` *Pick the tier* table: the row `Approval, after 1b` sits above the `1b` row, and `6b Final check` after `5 Review` and before `6–7 Commit, push`, as the plan placed them; whether the row order should follow the stage order — open.
+- [flow-master-plan/follow-ups.md DEV3] `AGENTS.md` *One fact* round-caps entry names the final check, but of the files it lists only `plugins/glab/skills/manager/SKILL.md` states the final check's cap; `agents/analyzer.md` *The final check* names round 2 but no cap, and the reviewer files stay untouched by decision (D32). The value, 2, agrees wherever it is stated; whether each listed file must state it — open, for a later plan.
 
 ## Closed follow-ups
 
@@ -925,6 +1151,9 @@ this file and an owning file disagree, the owning file is right.
 - [flow-planner/plan.md FU2] `[flow-cheaper-rounds/plan.md FU2]`, Steps 5–7 out of `glab:plan-first` — closed by S1 (above).
 - [flow-planner/plan.md FU6] `[flow-cheaper-rounds/plan.md FU6]`, a subagent cannot write `findings.md` — closed by `evidence.md` (S1, S2, S4, S5; `[flow-planner/evidence.md F8]`).
 - [flow-planner/follow-ups.md FD1] `context-size.sh` l. 37: the contract sentence the plan prescribed, "the run goes on with the default and still prints its JSON", was loose for `stop` below a step, where nothing prints — closed in review fix round 1 on the manager's instruction: it reads "prints on stdout what it would print with the variable unset - one JSON object or nothing"; no other file carried the sentence (`[flow-planner/result.md FD1]`).
+- [flow-cheaper-rounds/plan.md FU5] `agents/analyzer.md` has no plan-check mode: `BUILDABLE` / `NOT BUILDABLE` appear only in `skills/manager/SKILL.md`, and its Steps 2–3 are written for an implementation — closed by `flow-master-plan` (`0cbf5b0`, `glab` 0.11.0; `[flow-master-plan/plan.md D35]`, S4): `agents/analyzer.md` has *The plan check — `glab:manager` Stage 1b*, skips Step 2 there, and lists `BUILDABLE` and `NOT BUILDABLE` among its verdicts.
+- [flow-planner/record.md review-waiver-implement] Review advisory, carried from the manager's Stage 8 dispatch (no review file is in the folder), for the later plan `flow-master-plan`: `glab:plan-first`'s waiver paragraph (`plugins/glab/skills/plan-first/SKILL.md:122` at `2912002`) says "Then implement, from `implement.md`", but `implement.md` (l. 3) says to start Steps 5–7 "only once the plan is verified (Step 4) and, at full tier, approved" — a condition a waived task, which has no plan, cannot meet — closed by `flow-master-plan` (`0cbf5b0`; `[flow-master-plan/plan.md D47]`, S1, S9): `implement.md` l. 3 now starts Steps 5–7 "once the plan is verified and approved (`glab:plan-first` Step 4), or once `plan/{slug}/waived.md` records a waiver (*User Override* in `SKILL.md`), which stands in for both", and the waiver paragraph says the waiver "stands in for the verified, approved plan it asks for".
+- [flow-planner/record.md review-t19-comment] Review advisory, from the same dispatch, for `flow-master-plan`: the T19 comment in `tests/context-size.test.sh` (l. 335 at `2912002`) reads "judged over every stop run above, T20's and T21's included", but T24's `stop` run now feeds `stopouts` too (review fix round 1, `[flow-planner/result.md R4]`), and T23's runs through `stop_case` — closed by `flow-master-plan` (`0cbf5b0`; `[flow-master-plan/plan.md D47]`, S10): the comment (l. 335) reads "judged over every stop run above: T18's, T20's, T21's and T23's through stop_case, and T24's own"; one line out, one in, `PASS 24/24`.
 ## Incidents
 
 - **#7 and #10 were reopened by the review's scope cut** (2026-10-16): one normal-tier review of the follow-up fixes returned `SHIP WITH SCOPE CUT`. The waiver routing was removed, since a waiver has no plan and no tier; the manager's spec-entry paragraph was removed, since it dispatched the developer outside any plan step and a re-dispatch overwrites `result.md`. The earlier sync review had already cut "— one at normal tier —" from `ship.md:32`, because `/glab:ship` takes only a path and cannot know a plan's tier.
@@ -941,6 +1170,7 @@ this file and an owning file disagree, the owning file is right.
 - **A file named `findings.md` and `findings-probe.md` were refused for a subagent a third time** (`flow-cheaper-rounds`, the planning session): the Write tool answered "Subagents should return findings as text, not write report files" for both and accepted `map-probe.md`, which was then removed; the plan therefore names mapping files `map-<area>.md` (`D15`) and the plan's findings are its *Findings* section.
 - **Review round 1/1 of the built change returned `SHIP` with one low finding** (`flow-cheaper-rounds`, `[flow-cheaper-rounds/result.md review-fix-1]`, under *Known limits*): the script header's "twice at most" was not true with fewer than two prompts in the window; fixed by comment only.
 - **A file named `findings.md` was refused a fourth and a fifth time, and the plan's findings file was renamed** (`flow-planner`, 2026-10-22; IN1, `[flow-planner/plan.md IN1]`): the Write tool refused `plan/flow-planner/findings.md` to the planning subagent — "Subagents should return findings as text, not write report files" — in round 1 and again in round 2's probe, which accepted `evidence.md` and five other names (`[flow-planner/evidence.md F8]`). After three refusals worked around by a *Findings* section, `glab` 0.10.0 names the file `evidence.md` in the payload (`[flow-planner/plan.md D1]`, `D38`); this closes `[flow-cheaper-rounds/plan.md FU6]`. The folder holds `evidence.md` and its round copies `evidence.r2.md`, `evidence.r3.md`, and no `findings.md`.
+- **A planning agent died mid-amendment on an API 403** (`flow-master-plan`, 2026-10-22; carried from the manager's Stage 8 dispatch — no file in the plan folder records it): the agent amending the plan after plan check round 1 stopped on an API error, HTTP 403 `oauth_org_not_allowed`, with its edits to the plan files written but unverified and two temp files left under the temp directory. Nothing was trusted on the dead agent's word: the round-2 plan check, a new analyzer, verified the edits (the versions round 1 checked are kept as `plan.r1.md` and `evidence.r1.md`); the two temp files, `fmp-checks.<pid>.sh` and `fmp-out.<pid>.txt`, which the developer later found and left as not its own (`result.md` *Not done*), were removed by the manager. Lesson: an agent that dies mid-write leaves a half-amended plan that looks finished; the delta check of the next round, not the agent's report, is what shows what landed.
 
 ## Records
 
@@ -1006,4 +1236,12 @@ this file and an owning file disagree, the owning file is right.
   - [flow-planner/result.md B0] Result → every step (B0, S1, S2, S4, S5, S7, S8, *After*) done, nothing blocked, no unplanned change in the build (fix round 1's five, R1–R4 and FD1, are below); tests T22–T24 added, `PASS 24/24`, `FAIL 3/24` against the `cf614ec` script, `tests/memory-sync.test.sh` unchanged at `PASS 35/35`; the one uncovered branch → `[flow-planner/plan.md S7]`, under *Known limits*; the inferred items → `[flow-planner/evidence.md F2]` and `F5`.
   - [flow-planner/result.md R1] Fix round 1 (review round 1 findings 1–4 and the manager's FD1) → `R1` (blocking: the log template's braces) and `R3` (the waiver points at `implement.md`) in *How it works now*, `R2` (the smaller-window bullet only when the line names no `compact at <t>k`) in *The context rule*, `R4` (T24's `stop` run judged by T19) in `[flow-planner/record.md review-t19-comment]`, `FD1` closed.
   - [flow-planner/follow-ups.md FD1] Follow-ups (developer) → `FD1` closed, `FD2` open, above.
-  - Review advisories for `flow-master-plan`, from the manager's Stage 8 dispatch (no review file is in the folder) → `[flow-planner/record.md review-waiver-implement]` and `[flow-planner/record.md review-t19-comment]`, open.
+  - Review advisories for `flow-master-plan`, from the manager's Stage 8 dispatch (no review file is in the folder) → `[flow-planner/record.md review-waiver-implement]` and `[flow-planner/record.md review-t19-comment]`, open; both closed since by `flow-master-plan` (`0cbf5b0`).
+- 2026-10-22 · flow-master-plan · the master plan and sub-plans: every plan folder starts with a constant, hashed `master.md` (the request verbatim, the goals, the final check, the record), one `plan.md` or `index.md` and sub-plan folders that each run their own cycle and commit; the analyzer's intent question at Stage 1b, Stage 3 and the new Stage 6b final check, and its own plan check with `BUILDABLE` and `NOT BUILDABLE`; the user's approval after Stage 1b, in plan mode only when asked, its claims UNVERIFIED until L1–L7; `## Record` in the master; the stage listings with the final check; the two `flow-planner` advisories closed; `glab` 0.11.0 · change 0cbf5b0 · plan: `git ls-tree -r --name-only 0cbf5b0 -- plan/flow-master-plan/` (one file: `git show 0cbf5b0:plan/flow-master-plan/<file>`; the whole folder: `git archive 0cbf5b0 plan/flow-master-plan/ | tar -x -C "$(mktemp -d "${TMPDIR:?}/plan.XXXXXX")"`). `0cbf5b0` is the last commit on `origin/main` that holds it (`git log -1 --format=%h origin/main -- plan/flow-master-plan/`): one `docs(repo)` commit after this record removes it. The folder holds `plan.md` and its earlier versions `plan.r1.md`, `plan.r2.md`, `evidence.md` and its earlier versions `evidence.r1.md`, `evidence.r2.md` (round copies: the record takes its items from `plan.md` and `evidence.md`), `result.md` and `follow-ups.md`; no `master.md`, since the change ran under the 0.10.0 rules it changed (`[flow-master-plan/plan.md D45]`).
+  - [flow-master-plan/plan.md D23] Decisions → `D23`–`D37`, `D39`, `D40`, `D42`–`D47`, `effort` and fix round 1's `R1`, above under *Decisions that still bind*, each in its own line; the user's are D23, D32 and D37, the manager's D37's UNVERIFIED rule and D46; D43–D45 and `effort` spent. Marked in place: `[sync-local-edits/result-followups.md D5]` amended by D31, `[feature-docs-specs/plan.md D5]` and `D28` by D39; `[flow-cheaper-rounds/plan.md D2]` extended by D29, `D10` and `D49` by the master and index copies, `[flow-planner/plan.md D2]` by S1; `[flow-cheaper-rounds/plan.md D27]` and `[flow-planner/plan.md D20]` noted with D30, `[flow-planner/plan.md D9]` with D36. D26 amends the manager's order of approval before Stage 1b, which no tagged decision held.
+  - [flow-master-plan/evidence.md F0] Evidence → `F11`, `F12`, `F16` under *Known limits and not verified*, `F12` with L1–L7; `F0`, `F3`, `F10`, `F13`–`F15`, `F17`, `F18` were that change's scope, readings, baselines and searches, and their conclusions are in the decisions they support (`D30`, `D32`, `D35`, `D36`, `D40`, `D47`), `F18` also in `[flow-master-plan/plan.md Milestone]`. *Boundary* `B5`–`B12`, rejected alternatives → D24 (`B5`, `B6`), D30 (`B7`), D36 (`B8`), D32 (`B9`), D37 (`B10`), D25 (`B11`), D31 (`B12`).
+  - [flow-master-plan/plan.md FU7] Follow-ups → `FU7` and `FU9` open; `[flow-master-plan/follow-ups.md DEV1]`, `DEV2`, `DEV3` open; closed: `[flow-planner/record.md review-waiver-implement]`, `[flow-planner/record.md review-t19-comment]` (D47) and `[flow-cheaper-rounds/plan.md FU5]` (D35); re-read, still open: `[sync-local-edits/follow-ups.md 17]` (half answered by S7) and `[flow-planner/plan.md FU1]` (D36).
+  - [flow-master-plan/plan.md L1] Live tests → `L1`–`L7`, the user's, not run, under *Known limits* (written there by fix round 1, `[flow-master-plan/result.md R3]`), each linked to the claim it settles and to `FU7`; the setup line now stops when `mktemp` fails (final review, one low finding, fixed in this record; no review file is in the folder).
+  - Incidents → the planning agent that died on an API 403, above under *Incidents*, carried from the manager's Stage 8 dispatch; no file in the folder records it.
+  - [flow-master-plan/result.md B0] Result → every step (B0, S1–S10) done, nothing blocked; unplanned changes only re-wraps in `plugins/glab/skills/bootstrap/SKILL.md`, `README.md` and `AGENTS.md`, so each searched phrase sits on one line; no test added, `PASS 35/35` and `PASS 24/24`, S10 one comment line; `$ARGUMENTS` with a `/` → `[flow-master-plan/evidence.md F16]`. Fix round 1 (review round 1) → `R1` and `R2` (blocking) in *How it works now* and the decisions, `R3` (blocking) the L1–L7 entries, `R4`–`R6` (low): the final check's "(the plan, with no index)" in `analyzer.md` and Stage 6b, the analyzer's description, `README.md`'s Stage 1b and Stage 3 sentence; two S1 searches of the plan moved to `0` by R1 and R2.
+  - [flow-master-plan/plan.md Record] Record → this record, in this file and `docs/specs/marketplace.md` (the *One fact* changes, the version rule per push, `glab` `0.11.0`); no audit file.
