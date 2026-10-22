@@ -29,8 +29,12 @@ statement of an external agent marked as history) as of `467b7c4` (`glab`
 `0.8.0`), and its `flow-cheaper-rounds` lines (the round caps, every round a
 new agent, the delta re-checks, explore once, the narrower call-site audit,
 the severity line, the context rule and the context hook, the handoff
-line's `· context <n>k`) as of `2a1e919` (`glab` `0.9.0`); where this file
-and an owning file disagree, the owning file is right.
+line's `· context <n>k`) as of `2a1e919` (`glab` `0.9.0`), and its
+`flow-planner` lines (`evidence.md`, the plan size budget and in-place
+amending, `glab:plan-first`'s `implement.md`, the developer's context
+rules, `GLAB_COMPACT_AT`) as of `2912002` (`glab` `0.10.0`), which added
+`plugins/glab/skills/plan-first/implement.md` to the owning files; where
+this file and an owning file disagree, the owning file is right.
 
 ## How it works now
 
@@ -71,7 +75,8 @@ and an owning file disagree, the owning file is right.
 - **The tier** (`glab:manager` *Pick the tier*), the first line of `plan.md`
   with its reason; no tier line means full. **Full**: a schema or data
   migration, a stored or wire format, code that decides who may do what,
-  handles secrets or moves money — `findings.md`, `plan.md`, `questions.md`
+  handles secrets or moves money — `evidence.md` (`findings.md` until
+  `glab` 0.10.0, `2912002`), `plan.md`, `questions.md`
   if a question was raised, the user's explicit approval, 1b at most 2
   rounds, conformance at most 2 rounds, the whole suite at integrate, review
   at most 2 rounds. **Normal**: everything else — a one-page `plan.md`, no
@@ -234,9 +239,12 @@ and an owning file disagree, the owning file is right.
   `agents/analyzer.md` *Re-checks — round 2 and later*). *Stage 1b.* Before
   the amendment goes to a new planner the manager keeps the version the
   round checked: `cp plan/{slug}/plan.md plan/{slug}/plan.r<n>.md`, and
-  `findings.md` to `findings.r<n>.md` when there is one. It tests that the
+  `evidence.md` to `evidence.r<n>.md` when there is one — `findings.md` to
+  `findings.r<n>.md` in a folder from before `glab` 0.10.0, the only form
+  until `2912002` (`[flow-planner/plan.md D38]`). It tests that the
   amendment changed something by exit code alone, `cmp -s` (0 identical,
-  1 changed, 2 a file missing) — an empty delta is a stop, not a pass — and
+  1 changed, 2 a file missing), for `plan.md` and for `evidence.md` (or
+  `findings.md` in an older folder) — an empty delta is a stop, not a pass — and
   never reads the diff itself; only the analyzer of round `<n+1>` runs
   `diff -u`, and checks each previous finding, every changed line and every
   step that rests on one, not the rest of the plan. A copy, not git,
@@ -281,7 +289,9 @@ and an owning file disagree, the owning file is right.
   without mapping agents the planner explores itself; never both over one
   area. The name is not `findings-<area>.md` because the Write tool refused
   that name for a subagent (*Incidents*). The analyzer reads the map files
-  with the plan, the developer the ones the plan cites.
+  with the plan, the developer the ones the plan cites. Since `glab` 0.10.0
+  (`2912002`) the same refusal names the plan's own findings file
+  `evidence.md` (*Plan files*, below; `[flow-planner/plan.md D1]`).
 - **The planner's call-site audit** (`glab:plan-first` Step 1, Step 4;
   `glab:manager` checklist item 3). The full audit — callers, what each
   relies on, shared or caller-specific contract — covers methods the plan
@@ -295,9 +305,17 @@ and an owning file disagree, the owning file is right.
   `glab: context <n>k` line the hook added and puts it at the end of every
   handoff line (`· context <n>k`), as "the last completed call's context"
   and no more exact; it never reads the transcript. Inside a task, at the
-  first handoff line at or past **300k**, and again at the first past each
+  first handoff line at or past the first step — **300k**, or `<t>k` when
+  the line names `compact at <t>k` (since `glab` 0.10.0, `2912002`; a fixed
+  300k until then) — and again at the first past each
   further **100k**, it brings the handoff file up to date and suggests
-  `/compact`; at a task boundary — after the push of the Stage 8 record, or
+  `/compact`. **A smaller window** (since `2912002`): when the line names no
+  `compact at <t>k` and the manager's model has a context window not larger
+  than the first step plus 100k — a 200k window under the default — it tells
+  the user once that the step is near or past the window and that
+  `GLAB_COMPACT_AT`, in thousands, exported in the shell that starts Claude
+  Code, moves it; the number is the user's, never the manager's
+  (`[flow-planner/plan.md D17]`). At a task boundary — after the push of the Stage 8 record, or
   after Stage 7 when there is no plan folder — it suggests `/clear` and a
   new session whatever the number says (no hook can tell a task boundary).
   Only when no `glab: context` line has come at all in the session (the
@@ -333,7 +351,26 @@ and an owning file disagree, the owning file is right.
   `{"systemMessage":"glab: context <n>k (last completed call) — a good point
   to /compact, or to /clear between tasks"}`, when the step of the latest
   written call (300k, 400k, 500k, …) is higher than the step at the real
-  prompt before the last one. Why the user: a hook fires every time but
+  prompt before the last one. **`GLAB_COMPACT_AT`** (since `glab` 0.10.0,
+  `2912002`; `[flow-planner/plan.md D12]` to `D16`): read from the
+  environment after the transcript, in thousands. Unset or empty, the first
+  step is 300k and the line is as above. A value matching
+  `^[1-9][0-9]{0,5}$` makes the first step that many thousand, the steps
+  after it stay 100k apart, and the line ends `; compact at <t>k)` in all
+  three modes — `glab: context <n>k (last completed call; compact at <t>k)` —
+  so the manager reads the step from the line. Any other value prints one
+  stderr line, `glab context-size: GLAB_COMPACT_AT is not a whole number of
+  thousands from 1 to 999999; using 300`, and the run goes on with the
+  default, printing on stdout what it would print with the variable unset:
+  a typo must not silence the number, and reading it after the transcript
+  keeps each failure path at exactly one stderr line. The default is
+  absolute, not a share of the window — the user's working limit, the same
+  on every model — and there is no per-model table, because the hook is not
+  told the window. Tested by T22 (the suffix in `agent` and `prompt`), T23
+  (a moved step, the 100k steps after it and the suffix in `stop`) and T24
+  (invalid values, an invalid value in `stop`, empty), with
+  `unset GLAB_COMPACT_AT` before T1 so T1–T21 run on the default; `PASS
+  24/24`, and `FAIL 3/24` against the `0.9.0` script. Why the user: a hook fires every time but
   cannot make the model act, so the one message that must not depend on the
   model goes to the person who can run `/compact` or `/clear`. `stop` is
   stateless (no file remembers a suggestion) and **never blocks or
@@ -372,6 +409,52 @@ and an owning file disagree, the owning file is right.
   (read `result.md` and the tree first, add `## Fix round — <stage> round
   <n>`), reads the map files its plan cites and never edits a
   `map-<area>.md` or a round copy.
+- **The agents since `glab` 0.10.0** (`2912002`): `glab:analyzer` and
+  `glab:developer` read `plan/<slug>/evidence.md`, and `findings.md` in a
+  folder from before 0.10.0 (`[flow-planner/plan.md D38]`); the analyzer's
+  *Re-checks* pairs each `<name>.r<n>.md` the manager kept with its current
+  file and, for a plan check, reports an amendment added beside what it
+  changes — an amendment section, a "superseded" line, a round marker, an
+  old step or decision left standing — as one finding on that id
+  (`[flow-planner/plan.md D6]`). `glab:developer` gains *Keep your context
+  small*, unnumbered between Step 1 and Step 2, prose only
+  (`[flow-planner/plan.md D10]`, `D11`): read the contract once and re-open
+  only by `grep -n` and line range; gate and test output go to a log under
+  the repo's or host's temp directory —
+  `log=$(mktemp "${TMPDIR:?}/gate.XXXXXX"); { <the gate command>; } >"$log" 2>&1; rc=$?; tail -n 30 "$log"; echo "rc=$rc"`,
+  the braces sending every command of a compound gate line to the log
+  (added in review fix round 1, `[flow-planner/result.md R1]`) — and only its
+  tail, its `rc` and its failure lines are read; no re-read after an edit
+  (`git diff -- <file>` instead); Edit, not a whole-file Write; search
+  before reading. Its reason: one developer in another project peaked past
+  500k tokens in one round (`[flow-planner/evidence.md F4]`). It never
+  edits `evidence.md` or `findings.md`.
+- **`glab:plan-first` since `glab` 0.10.0** (`2912002`). *Size and shape*,
+  after Step 3: `plan.md` and `evidence.md` at most **48 KB** each
+  (`wc -c`), because every later agent reads them again; a decision is one
+  line, choice and reason in at most two sentences, evidence cited by id and
+  never restated; a fact is written once; a plan that will not fit is split,
+  and one that cannot be carries `- size: <n> KB — <why it is one plan>`
+  under `## Decisions` for the manager to decide under Rule 3
+  (`[flow-planner/plan.md D2]`–`D4`). The manager's acceptance checklist
+  has a sixth item, *Within its size*: `wc -c` on each file against 49152
+  bytes and `grep -c '^- size: '`, never reading them (Rule 2;
+  `[flow-planner/plan.md D6]`). *Amending after a plan check* (Step 4) and
+  Stage 1b: an amendment replaces the text it changes, in place, under the
+  same id — no amendment section, "superseded" line or round marker; the
+  `.r<n>` copies are the history; a line the manager added to overrule a
+  decision stays as written (`[flow-planner/plan.md D5]`). Steps 5–7 and the
+  three repo rules that bind only the implementation (service lifecycle,
+  nested repositories, commits) moved byte for byte, numbers kept, to
+  `plugins/glab/skills/plan-first/implement.md`, a sibling file with no
+  frontmatter — not a skill, so `Skills (14)` holds; `SKILL.md` keeps Steps
+  0–4, a pointer *Steps 5 to 7 — Implement, E2E tests, unit tests*, and "A
+  planning agent stops at Step 4 and does not read it." The waiver
+  paragraph says "Then implement, from `implement.md`" (review fix round 1,
+  `[flow-planner/result.md R3]`). `/glab:develop`'s "glab:plan-first steps
+  5 to 7" still resolves (`[flow-planner/plan.md D7]`, `D8`). Step 1
+  writes `plan/{slug}/evidence.md`, "not `findings.md`: Claude Code refuses
+  a subagent's Write of a file by that name".
 - **The model rule** (Rule 5): the user may name the model of the developer
   or the reviewer — `sonnet`, `opus`, `haiku` or `fable` — and nothing else
   changes it. The manager passes it as the Agent tool's per-dispatch `model`
@@ -497,7 +580,10 @@ and an owning file disagree, the owning file is right.
   `[subagent-effort/result.md finding-4]`, open), and no agent definition
   has an `effort:` key (`[subagent-effort/plan.md D6]`). The session effort
   is a *One fact* entry of `AGENTS.md` (`docs/specs/marketplace.md`).
-- **Plan files** (`glab:plan-first`): `plan/{slug}/` holds `findings.md`,
+- **Plan files** (`glab:plan-first`): `plan/{slug}/` holds `evidence.md`
+  (`findings.md` until `glab` 0.10.0, `2912002`: a subagent's Write of that
+  name is refused, *Incidents*; every reader still accepts `findings.md` in
+  an older folder, `[flow-planner/plan.md D38]`),
   `questions.md`, `plan.md`, the developer's `result.md` and
   `follow-ups.md`, `integration.md`, and `waived.md` when the user waives
   planning; since `glab` 0.9.0 also `map-<area>.md` from mapping agents and
@@ -640,7 +726,7 @@ and an owning file disagree, the owning file is right.
 - [flow-cheaper-rounds/plan.md D7] Every round is a new agent — a plan check, a planner's amendment, a developer's fix round, a re-dispatch after `BLOCKED` or `PLAN WRONG`, a conformance check, a review round and a Stage 8 record fix; Rule 5's report check (missing fields only) is the one resume (`[feature-model-switch/plan.md D22]` binds). It sits in Rule 2 because its reason is cost.
 - [flow-cheaper-rounds/plan.md D8] A round's findings travel in the next agent's dispatch, copied as the agent returned them — the one input not on disk; the manager writes no findings file (Rule 1) and the analyzer and reviewer are read-only.
 - [flow-cheaper-rounds/plan.md D9] A fix-round developer adds `## Fix round — <stage> round <n>` to `result.md` and does not overwrite it; the overwrite rule stays for a re-dispatch of the same steps.
-- [flow-cheaper-rounds/plan.md D10] The Stage 1b delta is a copy `plan.r<n>.md` (and `findings.r<n>.md`) made before the amendment is dispatched, not git: the plan folder is untracked while it is planned. The copies stay and are committed with the folder. Amended by D49: the manager tests the delta with `cmp -s`, only the analyzer runs `diff -u`.
+- [flow-cheaper-rounds/plan.md D10] The Stage 1b delta is a copy `plan.r<n>.md` (and `findings.r<n>.md`) made before the amendment is dispatched, not git: the plan folder is untracked while it is planned. The copies stay and are committed with the folder. Amended by D49: the manager tests the delta with `cmp -s`, only the analyzer runs `diff -u`. **Amended by `[flow-planner/plan.md D38]` since `glab` 0.10.0 (`2912002`), by the file name only:** the copy is `evidence.r<n>.md` of `evidence.md`, and `findings.r<n>.md` only in a folder from before 0.10.0.
 - [flow-cheaper-rounds/plan.md D11] The Stage 3 delta is a tree object snapshotted before each analyze round through a temporary index; round `<n+1>` gets both tree ids. Amended by D50: the index is seeded with `git read-tree HEAD` first. A path the fix round names that the delta does not show is checked whole; a lost tree id means that round runs whole.
 - [flow-cheaper-rounds/plan.md D12] An empty delta is a stop, not a pass, because `diff` and `git diff --quiet` exit 0 when nothing changed; an analyzer handed an empty delta reports `BLOCK: target unresolved`. For the plan the manager's check is `cmp -s` (D49).
 - [flow-cheaper-rounds/plan.md D13] **Superseded by `D51` in Stage 1b round 1.** It was: review rounds are not changed, on the assumption that the same reviewer asks what changed; D51 gave a later round a new reviewer and the range of the fix.
@@ -675,11 +761,11 @@ and an owning file disagree, the owning file is right.
 - [flow-cheaper-rounds/plan.md D42] Version `0.9.0` kept (D26).
 - [flow-cheaper-rounds/plan.md D43] Matcher `Agent` alone, not `Agent|Task`: the user named `Agent`, and how the CLI reads `|` for an older tool name is not shown (FU11).
 - [flow-cheaper-rounds/plan.md D44] The script reads no field of `tool_input`, `tool_response` or `prompt`; they pass through the hook's stdin and are never printed, logged or stored.
-- [flow-cheaper-rounds/plan.md D45] `stop` speaks to the **user**, not the model, with `systemMessage`; stateless; a step is `-1` below 300k, else `floor((x - 300000) / 100000)`; it speaks when the step of the latest written call is above the step at an earlier prompt. Amended after I1 by D61–D62: that earlier prompt is the real prompt before the last one. A real prompt is a user entry that is not a sidechain, not `isMeta` and not a `tool_result`. I1 proved that `Stop` shows `systemMessage` to the user in the terminal and the turn ends there. Whether the model also sees the `Stop` text stays UNVERIFIED.
+- [flow-cheaper-rounds/plan.md D45] `stop` speaks to the **user**, not the model, with `systemMessage`; stateless; a step is `-1` below 300k, else `floor((x - 300000) / 100000)`; it speaks when the step of the latest written call is above the step at an earlier prompt. Amended after I1 by D61–D62: that earlier prompt is the real prompt before the last one. A real prompt is a user entry that is not a sidechain, not `isMeta` and not a `tool_result`. I1 proved that `Stop` shows `systemMessage` to the user in the terminal and the turn ends there. Whether the model also sees the `Stop` text stays UNVERIFIED. **Amended by `[flow-planner/plan.md D12]` since `glab` 0.10.0 (`2912002`), by the variable only:** the step is counted from the first step — 300k, or `GLAB_COMPACT_AT` thousand when set — not from a fixed 300k.
 - [flow-cheaper-rounds/plan.md D46] `stop` never blocks and never continues the conversation: no exit 2, no `decision`, no `reason`, no `continue`, no `hookSpecificOutput`, no `additionalContext`; `systemMessage` is its only key; nothing reads `stop_hook_active`. Test cases assert the key set on every `stop` output.
-- [flow-cheaper-rounds/plan.md D47] D19's thresholds became fixed steps — 300k and every 100k after it — for the manager's prose as for the `stop` mode: one rule stated once. The task-boundary `/clear` stays the manager's, because no hook can tell a task boundary. After I1 (D61): the manager reads the current `agent` line, so its suggestion may come before the user's line; the two never disagree on the steps.
+- [flow-cheaper-rounds/plan.md D47] D19's thresholds became fixed steps — 300k and every 100k after it — for the manager's prose as for the `stop` mode: one rule stated once. The task-boundary `/clear` stays the manager's, because no hook can tell a task boundary. After I1 (D61): the manager reads the current `agent` line, so its suggestion may come before the user's line; the two never disagree on the steps. **Amended by `[flow-planner/plan.md D12]` since `glab` 0.10.0 (`2912002`), by the variable only:** the first step is 300k by default or `GLAB_COMPACT_AT` thousand when set, every 100k after it; the manager reads it from the line's `; compact at <t>k`.
 - [flow-cheaper-rounds/plan.md D48] "Impossible to bypass" — what holds: the hooks run in the harness whatever the model does, in every session where `glab` is enabled. What does not: they do not run when the plugin is disabled, under `--bare`, or under `disableAllHooks: true`; managed policy can restrict hook sources (effect on a plugin's hooks UNVERIFIED, FU15); an interrupted turn fires no `Stop`. Each is a setting or an act of the user or organisation, not something the model can do; the dispatch-count fallback covers a session where no line comes. Whether a live model follows the prose rule stays UNVERIFIED.
-- [flow-cheaper-rounds/plan.md D49] Manager decision, Stage 1b round 1: the manager tests the plan delta with `cmp -s plan/{slug}/plan.r<n>.md plan/{slug}/plan.md` (and `findings.md`), reading the exit code only — 0 identical, 1 changed, 2 a file missing — and never reads the diff itself; only the analyzer of round `<n+1>` runs `diff -u`. Amends D10 and D12.
+- [flow-cheaper-rounds/plan.md D49] Manager decision, Stage 1b round 1: the manager tests the plan delta with `cmp -s plan/{slug}/plan.r<n>.md plan/{slug}/plan.md` (and `findings.md`), reading the exit code only — 0 identical, 1 changed, 2 a file missing — and never reads the diff itself; only the analyzer of round `<n+1>` runs `diff -u`. Amends D10 and D12. **Amended by `[flow-planner/plan.md D38]` since `glab` 0.10.0 (`2912002`), by the file name only:** the second `cmp` is of `evidence.md`, or `findings.md` in a folder from before 0.10.0.
 - [flow-cheaper-rounds/plan.md D50] Manager decision, Stage 1b round 1: the Stage 3 snapshot seeds its temporary index from `HEAD` first, because a tracked file that matches `.gitignore` is skipped by `git add -A` into an empty index. Limits kept in FU8: with no commit yet `git read-tree HEAD` fails and that round runs whole; a file force-added to the index but not committed that matches `.gitignore` is still missed. Amends D11.
 - [flow-cheaper-rounds/plan.md D51] Manager decision, Stage 1b round 1: a review round `<n>` ≥ 2 goes to a new reviewer with the target, the previous round's findings verbatim and the range of the fix, and never the plan, the slug or the intent. A *One fact* entry binds `reviewer.md`, the manager and `ship.md`. Supersedes D13 and closed FU7.
 - [flow-cheaper-rounds/plan.md D52] Manager decision, Stage 1b round 1: a round-2 `BLOCK` with no `critical` or `high` finding is that last round's verdict — there is no round 3; the stage ends as D6 says, to the user. Rule 5's report check stays for malformed reports only.
@@ -698,6 +784,31 @@ and an owning file disagree, the owning file is right.
 - [flow-cheaper-rounds/plan.md D65] The two built texts that say when the user sees the `Stop` line were changed with D61 to stay true: `glab:manager` Rule 2 ("…tells the user directly, at the end of that turn or, usually, the next.") and `README.md` ("usually the turn after the crossing"). The steps did not change (D47), so the rest of those texts stands.
 - [flow-cheaper-rounds/plan.md model] `- model: glab:developer sonnet, glab:reviewer sonnet, for this task` — **the user's instruction**, not a manager choice: "okay", in reply to the manager's recommendation. "For this task" ended with this task's record (Rule 5, `[feature-docs-specs/plan.md D22]`); **it does not bind later tasks.**
 - [flow-cheaper-rounds/plan.md effort] `- effort: high`, the user's words for the session (as in `[subagent-effort/plan.md approval]`) — that session's own line, spent.
+- [flow-planner/plan.md D1] The plan's findings file is `evidence.md`: a subagent's Write of `findings.md` is refused and `evidence.md` was accepted (`[flow-planner/evidence.md F8]`, `IN1`).
+- [flow-planner/plan.md D2] `plan.md` and `evidence.md` are at most 48 KB each (`wc -c`), because every later agent reads them again; `flow-cheaper-rounds`' plan grew from 59 KB to 155 KB over three amendments (`[flow-planner/evidence.md F1]`).
+- [flow-planner/plan.md D3] A decision is one line, choice and reason in at most two sentences, evidence cited by id and never restated; a fact is written once.
+- [flow-planner/plan.md D4] A plan that cannot be split carries `- size: <n> KB — <why it is one plan>` under `## Decisions`, and the manager decides under Rule 3.
+- [flow-planner/plan.md D5] Amendments replace the text they change, in place, under the same id; the `.r<n>` copies are the history (`[flow-cheaper-rounds/plan.md D10]`), and the manager's overrule line stays (`[sync-local-edits/result-followups.md D9]`).
+- [flow-planner/plan.md D6] The manager checks the size by `wc -c` alone (Rule 2 forbids reading the plan); the analyzer checks in-place amending on its re-check, as the one reader of the diff.
+- [flow-planner/plan.md D7] Steps 5–7 of `glab:plan-first` and the three implementation-only repo rules moved byte for byte, numbers kept, to `plan-first/implement.md`, so no caller breaks (`[flow-planner/evidence.md F2]`). It closed `[flow-cheaper-rounds/plan.md FU2]`.
+- [flow-planner/plan.md D8] Rejected homes for Steps 5–7: `glab:developer` (a session implementing without subagents loses them, and "steps 5 to 7" points at nothing) and a new `glab:implement` skill (`Skills (14)` → 15 in four files) (`[flow-planner/evidence.md B1]`, `B2`).
+- [flow-planner/plan.md D9] No `glab:planner` agent in that change — **the user's decision**, carried: the agent count changes once, in `flow-models-per-role` (`[flow-planner/evidence.md F3]`; `[flow-planner/plan.md FU1]`).
+- [flow-planner/plan.md D10] The developer's context rules are prose in `glab:developer` — **the user's decision**, carried; no hook is shown to shorten a tool's output (`[flow-planner/evidence.md F4]`).
+- [flow-planner/plan.md D11] No `scripts/gate.sh`: one inline line does it.
+- [flow-planner/plan.md D12] The first context step is `GLAB_COMPACT_AT` thousand when set, default 300k, then every 100k — **the user's decision**, carried. It amends `[flow-cheaper-rounds/plan.md D45]` and `D47` by the variable only (`[flow-planner/evidence.md F5]`).
+- [flow-planner/plan.md D13] No per-model table and no fraction of the window: the hook is not told the window.
+- [flow-planner/plan.md D14] A set, valid value ends the line `; compact at <t>k)` in all three modes, so the manager reads the step from the line.
+- [flow-planner/plan.md D15] An invalid value (not `^[1-9][0-9]{0,5}$`) warns once on stderr and uses the default; it is read after the transcript, so each failure path keeps one stderr line.
+- [flow-planner/plan.md D16] Empty is unset: no warning.
+- [flow-planner/plan.md D17] On a window not larger than the first step plus 100k the manager tells the user once and names the variable; the number is the user's.
+- [flow-planner/plan.md D18] `glab` `0.9.0` → `0.10.0`, nothing removed, so no `!`; `memory-sync` untouched, `0.1.0`.
+- [flow-planner/plan.md D20] One commit with the plan folder, because *One fact* wants each fact's files together and the plan has no sub-plans. Done as one commit, `2912002`.
+- [flow-planner/plan.md D21] `flow-models-per-role` stays a separate plan, after this one — **the user's decision**, carried (`[flow-planner/evidence.md F7]`; `[flow-cheaper-rounds/follow-ups.md FUc]`).
+- [flow-planner/plan.md D22] `AGENTS.md` *One fact* changed as its S8 says: the mapping-files entry names `evidence.md`, the context-hook entry the suffix, the first step and the warning, and three entries are new — the plan size budget, in-place amendments, `glab:plan-first`'s step numbers (`docs/specs/marketplace.md`).
+- [flow-planner/plan.md D38] `evidence.md` and `evidence.r<n>.md` wherever the payload names the file; readers, and the manager's Stage 1b copy and `cmp`, still accept `findings.md` in a folder from before 0.10.0. It amends `[flow-cheaper-rounds/plan.md D10]` and `D49` by the name only (`[flow-planner/evidence.md F9]`, `F11`).
+- [flow-planner/plan.md D19] One `glab:developer` for the change, since most steps shared `manager/SKILL.md` or `AGENTS.md` — scoping of that change, spent.
+- [flow-planner/plan.md D41] The change ran under the 0.9.0 rules it changed, with no `master.md` — scoping of that change, spent. Round 3 split round 2's plan in two, on the user's approval: the plan carried D1–D22, D38 and D41 of round 2's ids, and round 2's other decisions, its S3 and S6 and FU7 and FU9 moved to `plan/flow-master-plan/`, not recorded here.
+- [flow-planner/plan.md effort] `- effort: high`, the user's words for that session after its compact — that session's own line, spent.
 ## Known limits and not verified
 
 - [feature-model-switch/plan.md I1] That the Agent tool on the manager's host takes `model` with the values `sonnet`, `opus`, `haiku`, `fable`, ranked above the definition's frontmatter — read from the tool definition given to one session; it depends on the Claude Code version and host. Its documentation citations (F1–F7, F16) were not re-fetched by the developer (`result.md` *Not done*).
@@ -713,7 +824,7 @@ and an owning file disagree, the owning file is right.
 - [feature-docs-specs/findings.md inferred] The specs, the payload text and `AGENTS.md` are prose: no command judges them correct. An installed copy follows the rule only from `0.5.0`; the agents that built and recorded `feature-docs-specs` ran the installed `0.4.2`, so its folders were removed under `0.4.2` contracts, and its record (X1) was dispatched with Stage 8's steps in the message.
 - [flow-cheaper-rounds/plan.md F1] **Measured by the manager in another project, not reproducible here** — the evidence the change rests on: total input over all turns 597M tokens, of which developers 49%, planners 21%, Stage 1b plan checks 11%, reviewers 8%, mapping agents 6%. Fix rounds sent back to the same resumed agent cost 149M, each round restarting at 300–450k context, modelled as fresh agents at about 37–64M. A Stage 1b round 2 that re-read the whole plan cost 9.5M against round 1's 9.0M; targeted re-check rounds cost about 40% of round 1. The planner, handed three mapping files, re-touched 40 of its 157 paths that mapping had already read. Normal-tier plans were run against full-tier caps. The manager session itself: 1,054 turns, a 648k peak, 348M tokens (about 37% of the run), five tasks and one compaction. **Inferred, not shown:** the savings each change brings, and that a live session follows the edited prose (UNVERIFIED, as for every rule of this change).
 - [flow-cheaper-rounds/plan.md F8] Untested cases of the two delta mechanisms: a nested repository in the tree (`git add -A` would record a gitlink with a warning) and a large untracked directory that is not ignored (every file is hashed). Shown in a throwaway repo only: the snapshot catches tracked, staged, untracked and deleted files, leaves the real index and `git status` unchanged, skips ignored files, gives the same id for the same tree; `cmp -s` exits 0, 1 or 2 with no output. Limits kept in `[flow-cheaper-rounds/plan.md FU8]`.
-- [flow-cheaper-rounds/plan.md F9] The Write-tool probe was partial: only `findings-probe.md`, `findings.md` (refused) and `map-probe.md` (accepted) were tried; which other names the guard refuses is not known.
+- [flow-cheaper-rounds/plan.md F9] The Write-tool probe was partial: only `findings-probe.md`, `findings.md` (refused) and `map-probe.md` (accepted) were tried; which other names the guard refuses is not known. Extended by `[flow-planner/evidence.md F8]` (below): `evidence.md` and five other names accepted, `summary.md` and `report.md` still untried.
 - [flow-cheaper-rounds/plan.md F15] Round 1's UNVERIFIED — that `CLAUDE_CODE_SESSION_ID` is set and names the transcript on any host other than the manager's — no longer binds anything: nothing reads the variable since `D30` (`FU9`, closed as moot).
 - [flow-cheaper-rounds/plan.md F20] **Documented by Claude Code, not proven here, and UNVERIFIED where marked:** `PostToolUse` and `UserPromptSubmit` take `additionalContext`; `Stop` takes `systemMessage` (common field, "Warning message shown to the user") and, with exit 0 and no `decision`, lets the turn end; `SubagentStop`'s `additionalContext` goes to the subagent; the transcript "is written asynchronously and may lag"; hooks do not run under `disableAllHooks: true` or `--bare`. UNVERIFIED: that the matcher `Agent` matches a `Task` call on a CLI older than 2.1.63 (`FU11`); whether `allowManagedHooksOnly` and `strictPluginOnlyCustomization.hooks` stop a plugin's hooks (`FU15`); whether the Agent `tool_input` carries `effort` (`FU13`); which transcript a subagent that itself calls `Agent` is handed, if the hook fires there (changes nothing above). An interrupted turn fires no `Stop` (documented), so shows nothing; the next turn's `prompt` line still carries the number.
 - [flow-cheaper-rounds/plan.md F23] What integration I1 showed and did not (the user ran it in their terminal, Claude Code `2.1.304`, one host, one version): shown — `agent` line current at `PostToolUse` (a 36,185-token request printed `37k`), the `prompt` line reached the model, `Stop`'s `systemMessage` shown to the user in the terminal with the turn ending there, and at `Stop` the turn's last call not yet written (there 1 s later). **Not observed:** whether the model also sees the `Stop` text (I1b's quote prompt was not reported); a display other than the terminal, such as the desktop app (`FU17`); how far the lag can grow on another host or under load (D62 relies on the transcript catching up within one turn); which plugin's second `Stop` hook ended `cancelled`, exit 1, in I1a (`FU18`). I1c, the re-run of I1b on the rebuilt `stop` (expected: nothing on turn 1, the line on turn 2, the turn ending there), **passed**: the plan folder holds no I1c output (`F24` holds the fixture run only); what it showed turn by turn, as the manager observed it from the user's screenshot, is in *Incidents* (IN1).
@@ -723,6 +834,12 @@ and an owning file disagree, the owning file is right.
 - [flow-cheaper-rounds/plan.md F17] Not measured: how long `context-size.sh` takes on any host but this one. T9 prints it (0.07 s here on a 36 MB transcript); the hook's 5 s `timeout` is the bound if a host is slower. UNVERIFIED elsewhere.
 - [flow-cheaper-rounds/result.md digit-guard] Not covered by any test case: the defensive digit guard in `context-size.sh` (`[[ $v =~ ^[0-9]{1,15}$ ]]`, its `fail` branch) — `jq`'s `floor` cannot fail it for any usage the fixtures can hold except an exponent form (usage above 1e17); it exists so the script can never reach a bash arithmetic error, which would break the exit-0 contract.
 - [flow-cheaper-rounds/plan.md F18] The CLI labels every hook "harness-only — no model context cost" in `plugin details`, which is not true of a hook that returns `additionalContext` (`FU12`); the gate's green line for `glab` prints the events in the file's key order, so reordering `hooks.json` changes the line.
+- [flow-planner/evidence.md F2] Shown: a sibling file in a skill folder changes neither validation nor the counts (a throwaway copy with `implement.md` added, a fresh `CLAUDE_CONFIG_DIR`: `✔ Validation passed`, `Skills (14)`, `Agents (5)`), and in that session the Skill tool put only `SKILL.md` into context. **Inferred:** that a sibling file costs nothing until read on other Claude Code versions, and that a session following `SKILL.md`'s pointer reads `implement.md` (Markdown has no runtime).
+- [flow-planner/evidence.md F4] The developer figures — a 509k peak in one round, about 480k characters of tool output, `plan.md` read three times — are the caller's measurements of another project, inferred here. **UNVERIFIED:** that a `PostToolUse` hook can shorten a built-in tool's output (`[flow-planner/plan.md FU3]`); the context rules are prose, and whether a live developer follows them is not shown.
+- [flow-planner/evidence.md F5] `GLAB_COMPACT_AT` was proven on throwaway copies and by T22–T24 only. **Inferred:** that a variable exported in the shell that starts Claude Code reaches its hooks (child processes); **UNVERIFIED:** that a settings file's `env` block does (`[flow-planner/plan.md FU4]`). No live session with the variable set has been run.
+- [flow-planner/evidence.md F8] The Write-tool probe of round 2 (one subagent, one session): `findings.md` refused; `evidence.md`, `master.md`, `01-probe/plan.md`, `01-probe/evidence.md`, `index.md` and `evidence.r1.md` accepted. **Inferred:** the refusal keys on the name, not the directory or the agent type. Which other names it refuses (`summary.md`, `report.md`) is not known (`[flow-planner/plan.md FU8]`); this extends `[flow-cheaper-rounds/plan.md F9]`.
+- [flow-planner/plan.md S7] One branch of the `GLAB_COMPACT_AT` code is covered by no case: the warning printed together with a failure line. Unreachable by construction — the variable is read after every `fail` path, and `fail` exits (`[flow-planner/result.md S7]`).
+- [flow-planner/plan.md S8] The Markdown steps (S1, S2, S4, S5, S8 and the manager's S7 text) have no runtime: their searches, `bash -n`, shellcheck and `plugin validate` show the text is there, not that a live session follows it — UNVERIFIED, as for every prose rule. The plan's `grep -c … → 0` checks print `0` on an untouched tree too, so each is paired with a presence check.
 
 ## Open follow-ups
 
@@ -746,12 +863,10 @@ and an owning file disagree, the owning file is right.
 - [subagent-effort/result.md finding-4] Review round 1's finding 4: `commands/commit.md`, `commands/analyze.md` and `commands/integrate.md` dispatch an agent and do not mention the effort; accepted as-is under `[subagent-effort/plan.md D4]` (commands change only where they list Agent tool parameters), not fixed — open.
 - [subagent-effort/record.md round-2-ultra] Review round 2 advisory, carried from the manager's Stage 8 dispatch record (no review file is in the folder): `skills/manager/SKILL.md` Rule 0d (`:71` at `abda43a`) has the manager ask which level the user means when they name `ultra` for an Agent tool dispatch, but does not say how far that answer reaches — for that dispatch only, or for the session; Codex still takes `ultra` — open. Re-read at `467b7c4`: Rule 0d (`:71`) still does not say how far the answer reaches; Rule 0d's Codex sentence is gone with Rule 6, so "Codex still takes `ultra`" is history — still open.
 - [subagent-effort/record.md round-2-pipeline-default] Review round 2 advisory, from the same dispatch record: *The pipeline*'s handoff sentence (`skills/manager/SKILL.md:189` at `abda43a`) says the effort is "the level you passed" and does not name `effort default`, which Rule 0d (`:67`) has the handoff line carry when the Agent tool rejects or does not offer `effort` — open. Re-read at `467b7c4`: the sentence (`:173`) now ends "The effort is the level you passed." and still does not name `effort default` — still open.
-- [flow-cheaper-rounds/plan.md FU1] A dedicated `glab:planner` agent (out of scope by the brief) — open.
-- [flow-cheaper-rounds/plan.md FU2] Splitting the implementation steps (5–7) out of `glab:plan-first` (out of scope by the brief) — open.
+- [flow-cheaper-rounds/plan.md FU1] A dedicated `glab:planner` agent (out of scope by the brief) — open; carried since `glab` 0.10.0 as `[flow-planner/plan.md FU1]`, into `flow-models-per-role`.
 - [flow-cheaper-rounds/plan.md FU3] The user-level copies under `~/.claude` — the user ports them (out of scope by the brief) — open.
 - [flow-cheaper-rounds/plan.md FU4] The "cleanup glob deleted a reviewer report" incident (out of scope by the brief) — open.
 - [flow-cheaper-rounds/plan.md FU5] `agents/analyzer.md` has no plan-check mode: `BUILDABLE` / `NOT BUILDABLE` appear only in `skills/manager/SKILL.md`, and its Steps 2–3 are written for an implementation — open.
-- [flow-cheaper-rounds/plan.md FU6] `glab:plan-first` prescribes `findings.md` at full tier, but a subagent planner's Write is refused that name; a full-tier planner subagent cannot write its findings file as the skill says — open (see *Incidents*).
 - [flow-cheaper-rounds/plan.md FU8] Snapshot limits: a nested repository is recorded as a gitlink with a warning and a large untracked directory that is not ignored is hashed in full (not tested); a repository with no commit yet gets no tree id (`git read-tree HEAD` fails), so its rounds run whole; a file force-added to the index but not committed that matches `.gitignore` is still missed — open.
 - [flow-cheaper-rounds/plan.md FU11] Whether the matcher `Agent` matches a `Task` call on a CLI older than 2.1.63 — UNVERIFIED, open. An older CLI still gets the `prompt` line, and the handoff line then uses it (`D38`).
 - [flow-cheaper-rounds/plan.md FU12] `claude plugin details` labels every hook "harness-only — no model context cost", which is not true of one that returns `additionalContext`: the CLI's wording, to report upstream if anyone wants to — open.
@@ -765,6 +880,14 @@ and an owning file disagree, the owning file is right.
 - [flow-cheaper-rounds/follow-ups.md FUb] Payload text cites a plan file: `plugins/glab/scripts/context-size.sh`, `tests/context-size.test.sh` and `plugins/glab/skills/manager/SKILL.md` cite `[flow-cheaper-rounds/plan.md F23]` (and the script `[flow-cheaper-rounds review round 1]`). The plan folder is removed after the record and is never part of an installed plugin, so an installer cannot follow the citation; it stays readable only through `git show <sha>:…` (cf. `[feature-docs-specs/plan.md D8]`: payload cites the spec, never a `plan/` path). Decide whether payload cites the area spec instead — open (review round 1, advisory).
 - [flow-cheaper-rounds/follow-ups.md FUc] **The user's, 2026-10-20:** the next plan `flow-models-per-role` — a model per role (planner and plan check Opus; conformance and record check Sonnet; developer, reviewer, integrator Sonnet; committer Haiku) and two kinds of analyzer; it extends `glab:manager` Rule 5 beyond the developer and reviewer — open, not planned.
 - [flow-cheaper-rounds/follow-ups.md FUd] The manager's: a `PreToolUse` hook on `Agent` that refuses a dispatch missing `effort` or the `AGENTS.md` instruction (`[flow-cheaper-rounds/plan.md FU13]`), so Rule 0d and Rule 0c are enforced rather than remembered — open.
+- [flow-planner/plan.md FU1] A `glab:planner` agent and the analyzer's two kinds — into `flow-models-per-role` (`[flow-planner/plan.md D9]`, `D21`; carries `[flow-cheaper-rounds/plan.md FU1]`) — open.
+- [flow-planner/plan.md FU3] A size warning for a subagent's own context: needs proof that hooks fire inside a subagent, and with which `transcript_path` — open, UNVERIFIED.
+- [flow-planner/plan.md FU4] Whether a settings file's `env` block reaches a plugin hook, so `GLAB_COMPACT_AT` could be set there — open, UNVERIFIED.
+- [flow-planner/plan.md FU5] The manager's own gate runs could use the developer's log template (*Keep your context small*) — open.
+- [flow-planner/plan.md FU8] Which other names the Write rule refuses (`summary.md`, `report.md`) is untested (`[flow-planner/evidence.md F8]`) — open.
+- [flow-planner/follow-ups.md FD2] `plugins/glab/scripts/context-size.sh` l. 37: the contract comment's `GLAB_COMPACT_AT` sentence sits as its own unwrapped line between two wrapped ones, so the plan's searched phrase stays on one line; no reflow was done, since no step named one — open, cosmetic.
+- [flow-planner/record.md review-waiver-implement] Review advisory, carried from the manager's Stage 8 dispatch (no review file is in the folder), for the later plan `flow-master-plan`: `glab:plan-first`'s waiver paragraph (`plugins/glab/skills/plan-first/SKILL.md:122` at `2912002`) says "Then implement, from `implement.md`", but `implement.md` (l. 3) says to start Steps 5–7 "only once the plan is verified (Step 4) and, at full tier, approved" — a condition a waived task, which has no plan, cannot meet — open.
+- [flow-planner/record.md review-t19-comment] Review advisory, from the same dispatch, for `flow-master-plan`: the T19 comment in `tests/context-size.test.sh` (l. 335 at `2912002`) reads "judged over every stop run above, T20's and T21's included", but T24's `stop` run now feeds `stopouts` too (review fix round 1, `[flow-planner/result.md R4]`), and T23's runs through `stop_case` — open, comment only.
 
 ## Closed follow-ups
 
@@ -790,6 +913,11 @@ and an owning file disagree, the owning file is right.
 - [sync-local-edits/follow-ups.md 18] `AGENTS.md` *One fact*: the analysis round caps were stated in the manager and bootstrap but not listed — closed by `flow-cheaper-rounds` (`2a1e919`, `D25`): the entry "the round caps" lists all three stages and their five files.
 - [sync-local-edits/follow-ups.md 19] After a normal-tier review fix the develop handoff re-ran integrate and review while the manager said the gates were the only check on that fix, and `/glab:ship` had no normal-tier exception — closed by `flow-cheaper-rounds` (`2a1e919`) as the plan's `F11` reads it: the cap is now one at every tier, so a normal-tier review fix gets a round 2, and `/glab:ship` states the same cap with no tier exception. The record did not re-read the line numbers the item cites (`commands/develop.md:67`, `commands/ship.md:32`).
 
+- [flow-cheaper-rounds/plan.md FU2] Splitting the implementation steps (5–7) out of `glab:plan-first` — closed by `flow-planner` (`2912002`, `glab` 0.10.0; `[flow-planner/plan.md FU2]`, S1): Steps 5–7 and the three implementation-only repo rules are in `plugins/glab/skills/plan-first/implement.md`, numbers kept.
+- [flow-cheaper-rounds/plan.md FU6] `glab:plan-first` prescribed `findings.md` at full tier, but a subagent planner's Write is refused that name — closed by `flow-planner` (`2912002`; `[flow-planner/plan.md FU6]`, S1, S2, S4, S5): the file is `evidence.md`, which a subagent's Write accepts (`[flow-planner/evidence.md F8]`), and every reader still accepts `findings.md` in an older folder (*Incidents*, the fourth and fifth refusal).
+- [flow-planner/plan.md FU2] `[flow-cheaper-rounds/plan.md FU2]`, Steps 5–7 out of `glab:plan-first` — closed by S1 (above).
+- [flow-planner/plan.md FU6] `[flow-cheaper-rounds/plan.md FU6]`, a subagent cannot write `findings.md` — closed by `evidence.md` (S1, S2, S4, S5; `[flow-planner/evidence.md F8]`).
+- [flow-planner/follow-ups.md FD1] `context-size.sh` l. 37: the contract sentence the plan prescribed, "the run goes on with the default and still prints its JSON", was loose for `stop` below a step, where nothing prints — closed in review fix round 1 on the manager's instruction: it reads "prints on stdout what it would print with the variable unset - one JSON object or nothing"; no other file carried the sentence (`[flow-planner/result.md FD1]`).
 ## Incidents
 
 - **#7 and #10 were reopened by the review's scope cut** (2026-10-16): one normal-tier review of the follow-up fixes returned `SHIP WITH SCOPE CUT`. The waiver routing was removed, since a waiver has no plan and no tier; the manager's spec-entry paragraph was removed, since it dispatched the developer outside any plan step and a re-dispatch overwrites `result.md`. The earlier sync review had already cut "— one at normal tier —" from `ship.md:32`, because `/glab:ship` takes only a path and cannot know a plan's tier.
@@ -805,6 +933,7 @@ and an owning file disagree, the owning file is right.
 - **The installed plugins load beside `--plugin-dir` in the user's own config** (`flow-cheaper-rounds`, integration I1a; IN2, `[flow-cheaper-rounds/plan.md IN2]`): the plan said no `memory-sync` hook runs under `--plugin-dir ./plugins/glab`; in the user's own config a second `Stop` hook ran and ended `cancelled`, exit 1, when `-p` exited. Which plugin's it was is UNVERIFIED (inferred: the installed `memory-sync`'s network sync cut off when `-p` exited; `context-size.sh` exits 0 in about 0.07 s) — `[flow-cheaper-rounds/plan.md FU18]`. The earlier proof that `--plugin-dir ./plugins/glab` loads `glab` alone was under an empty config only (`docs/specs/marketplace.md`, *Testing without installing*).
 - **A file named `findings.md` and `findings-probe.md` were refused for a subagent a third time** (`flow-cheaper-rounds`, the planning session): the Write tool answered "Subagents should return findings as text, not write report files" for both and accepted `map-probe.md`, which was then removed; the plan therefore names mapping files `map-<area>.md` (`D15`) and the plan's findings are its *Findings* section.
 - **Review round 1/1 of the built change returned `SHIP` with one low finding** (`flow-cheaper-rounds`, `[flow-cheaper-rounds/result.md review-fix-1]`, under *Known limits*): the script header's "twice at most" was not true with fewer than two prompts in the window; fixed by comment only.
+- **A file named `findings.md` was refused a fourth and a fifth time, and the plan's findings file was renamed** (`flow-planner`, 2026-10-22; IN1, `[flow-planner/plan.md IN1]`): the Write tool refused `plan/flow-planner/findings.md` to the planning subagent — "Subagents should return findings as text, not write report files" — in round 1 and again in round 2's probe, which accepted `evidence.md` and five other names (`[flow-planner/evidence.md F8]`). After three refusals worked around by a *Findings* section, `glab` 0.10.0 names the file `evidence.md` in the payload (`[flow-planner/plan.md D1]`, `D38`); this closes `[flow-cheaper-rounds/plan.md FU6]`. The folder holds `evidence.md` and its round copies `evidence.r2.md`, `evidence.r3.md`, and no `findings.md`.
 
 ## Records
 
@@ -861,3 +990,13 @@ and an owning file disagree, the owning file is right.
   - [flow-cheaper-rounds/result.md L172] Not done → I1 and I1c, the user's runs, and that a live session follows the new prose → `[flow-cheaper-rounds/plan.md F23]` and `[flow-cheaper-rounds/plan.md F1]` (*Inferred, not shown*), under *Known limits*.
   - [flow-cheaper-rounds/result.md L178] Fix round 1 — I1 stop lag (S13.1, S13.4, S13.5, S14.2, S14.3, one sentence of S1.16, one of S16.3; the `stop_spec` helper in the test is an implementation choice) → `D61`–`D65`; Review fix round 1 (`L288`, comment only) → `[flow-cheaper-rounds/result.md review-fix-1]`.
   - [flow-cheaper-rounds/follow-ups.md L1] Follow-ups → `[flow-cheaper-rounds/follow-ups.md FUa]`, `FUb`, `FUc`, `FUd`, open, above.
+- 2026-10-22 · flow-planner · cheaper plans and developers: `evidence.md` in place of `findings.md` (older folders still read), a 48 KB budget for `plan.md` and `evidence.md` with the manager's size check, amendments replaced in place, `glab:plan-first` Steps 5–7 moved to `implement.md`, the developer's *Keep your context small*, and `GLAB_COMPACT_AT` for the context hook's first step with tests T22–T24; `glab` 0.10.0 · change 2912002 · plan: `git ls-tree -r --name-only 2912002 -- plan/flow-planner/` (one file: `git show 2912002:plan/flow-planner/<file>`; the whole folder: `git archive 2912002 plan/flow-planner/ | tar -x -C "$(mktemp -d "${TMPDIR:?}/plan.XXXXXX")"`). `2912002` is the last commit on `origin/main` that holds it (`git log -1 --format=%h origin/main -- plan/flow-planner/`): one `docs(repo)` commit after this record removes it. The folder holds `plan.md` and its earlier versions `plan.r1.md`, `plan.r2.md`, `plan.r3.md`, `evidence.md` and its earlier versions `evidence.r2.md`, `evidence.r3.md` (round copies: the record takes its items from `plan.md` and `evidence.md`), `result.md` and `follow-ups.md`.
+  - [flow-planner/plan.md D1] Decisions → `D1`–`D22`, `D38`, `D41` and `effort`, above under *Decisions that still bind*, each in its own line; the user's are D9, D10, D12 and D21. Amended in earlier records, marked in place: `[flow-cheaper-rounds/plan.md D10]` and `D49` (by D38), `D45` and `D47` (by D12).
+  - [flow-planner/evidence.md F0] Evidence → `F2`, `F4`, `F5`, `F8` under *Known limits and not verified*, `F8` also extending `[flow-cheaper-rounds/plan.md F9]`; `F0`, `F1`, `F3`, `F6`, `F7`, `F9`, `F11`, `F14` were that change's scope, measurements, searches and baselines, and their conclusions are in the decisions they support (`D2`, `D9`, `D21`, `D38`). *Boundary* `B1` and `B2` → `D8`, `B4` → `D13`; `B3`, rejected: a `PreToolUse` hook refusing an oversized `plan.md`, because it fires in every repo with `glab` enabled and stops a planner mid-write.
+  - [flow-planner/plan.md FU1] Follow-ups → `FU1`, `FU3`, `FU4`, `FU5`, `FU8` open; `FU2` and `FU6` closed, with `[flow-cheaper-rounds/plan.md FU2]` and `FU6`; `[flow-cheaper-rounds/plan.md FU1]` re-pointed to `FU1`; `FU7` and `FU9` belong to `flow-master-plan`, not recorded here.
+  - [flow-planner/plan.md IN1] Incidents → `IN1`, above under *Incidents*.
+  - [flow-planner/plan.md S8] Record → this record, in this file and `docs/specs/marketplace.md` (the *One fact* changes, `glab` `0.10.0`, the gates' `PASS 24/24`); no audit file.
+  - [flow-planner/result.md B0] Result → every step (B0, S1, S2, S4, S5, S7, S8, *After*) done, nothing blocked, no unplanned change in the build (fix round 1's five, R1–R4 and FD1, are below); tests T22–T24 added, `PASS 24/24`, `FAIL 3/24` against the `cf614ec` script, `tests/memory-sync.test.sh` unchanged at `PASS 35/35`; the one uncovered branch → `[flow-planner/plan.md S7]`, under *Known limits*; the inferred items → `[flow-planner/evidence.md F2]` and `F5`.
+  - [flow-planner/result.md R1] Fix round 1 (review round 1 findings 1–4 and the manager's FD1) → `R1` (blocking: the log template's braces) and `R3` (the waiver points at `implement.md`) in *How it works now*, `R2` (the smaller-window bullet only when the line names no `compact at <t>k`) in *The context rule*, `R4` (T24's `stop` run judged by T19) in `[flow-planner/record.md review-t19-comment]`, `FD1` closed.
+  - [flow-planner/follow-ups.md FD1] Follow-ups (developer) → `FD1` closed, `FD2` open, above.
+  - Review advisories for `flow-master-plan`, from the manager's Stage 8 dispatch (no review file is in the folder) → `[flow-planner/record.md review-waiver-implement]` and `[flow-planner/record.md review-t19-comment]`, open.

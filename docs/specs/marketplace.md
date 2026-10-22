@@ -19,7 +19,8 @@ component counts, the gates, the rules, the *One fact* entries) as of
 `467b7c4`, and its `flow-cheaper-rounds` lines (the version, the hook
 events and component counts, the gates, the hook-contract rule, the *One
 fact* entries, the marketplace description, *Testing without installing*)
-as of `2a1e919`; where this file and an owning file disagree, the
+as of `2a1e919`, and its `flow-planner` lines (the version, the gates' test
+count, the *One fact* entries) as of `2912002`; where this file and an owning file disagree, the
 owning file is right and this spec is out of date.
 
 ## How it works now
@@ -42,13 +43,15 @@ owning file is right and this spec is out of date.
   skill, `sync-memory`, no agent, hooks on `SessionStart`, `SessionEnd`,
   `PostToolUse` and `Stop`.
 - **Versions.** Each `plugin.json` carries an explicit `version` — `glab`
-  `0.9.0` (raised by `2a1e919`, `flow-cheaper-rounds`: a minor step, since
+  `0.10.0` (raised by `2912002`, `flow-planner`: a minor step, nothing
+  removed, so no `!`, `[flow-planner/plan.md D18]`; `0.9.0` by `2a1e919`,
+  `flow-cheaper-rounds`: a minor step, since
   the change alters the pipeline's contract and adds a feature, and
   features have raised the minor before 1.0; nothing removed, so no `!`;
   `0.8.0` by `467b7c4`, `remove-external-agents`; `0.7.2` by
   `abda43a`, `0.7.1` by `3965622`,
   `0.7.0` by `33a28df`, `0.6.0` by `9108ac7`, `0.5.0` by `fed95f9` before
-  it), `memory-sync` `0.1.0`, at `2a1e919`. A change under
+  it), `memory-sync` `0.1.0`, at `2912002`. A change under
   `plugins/<name>/` raises that plugin's version in the same commit, because
   an installed copy is pinned to the version string and nothing else
   delivers a change (`AGENTS.md` *Rules*). `claude plugin validate --strict`
@@ -86,9 +89,10 @@ owning file is right and this spec is out of date.
   counts of `plugin details`, the marketplace-to-manifest name check, the
   `user_config` search, the one pinned hedge phrase, `not yet confirmed`,
   and the prefixed `name:` search). Each line's reason is written beside it
-  there; this spec does not restate the blocks. Green at `2a1e919`, run for
+  there; this spec does not restate the blocks. Green at `2912002`, run for
   this record: five `rc=0` lines, `shellcheck` `rc=0`, the `memory-sync`
-  suite `PASS 35/35`, the context-size suite `PASS 21/21`, three
+  suite `PASS 35/35`, the context-size suite `PASS 24/24` (`PASS 21/21`
+  from `2a1e919` until `2912002` added T22–T24), three
   `✔ Validation passed`, `glab`
   `Skills (14)  analyze, audit, bootstrap, comments, commit, develop, integrate, manager, plan, plan-first, push, review, security, ship`,
   `Agents (5)`, `Hooks (4)  SessionStart, UserPromptSubmit, PostToolUse, Stop`,
@@ -300,6 +304,31 @@ owning file is right and this spec is out of date.
   the `glab` entry's `description` to "The glab workflow: skills, agents,
   commands, the session bootstrap hook and the context hook" and nothing else
   (`D58`; outside `plugins/`, so no version of its own).
+- ***One fact* entries `flow-planner` rewrote or added** (`AGENTS.md`
+  *Rules*, as of `2912002`; its S8, `[flow-planner/plan.md D22]`).
+  **Rewritten**: the mapping-files entry became "the mapping files
+  `map-<area>.md`, the evidence file `evidence.md` — a subagent's Write of
+  `findings.md` is refused — and the round copies `<name>.r<n>.md`", its
+  four files unchanged; the context-hook entry names the line "with
+  `; compact at <t>k` before the `)` when `GLAB_COMPACT_AT` is set" and "the
+  first step 300k, or `GLAB_COMPACT_AT` thousand when set, and every 100k
+  after it, and the warning for an invalid value", its five files unchanged.
+  **Added**, after the session-effort entry, whose closing `.` became `;`:
+  the plan size budget — 48 KB each for `plan.md` and `evidence.md`, and
+  the `- size:` line (`plan-first/SKILL.md` Step 3, the manager's acceptance
+  checklist item 6); amendments replace the text they change, in place
+  (`plan-first/SKILL.md` Step 4, the manager's Stage 1b, `analyzer.md`
+  *Re-checks*); `glab:plan-first`'s step numbers — 0 to 4 in `SKILL.md`, 5
+  to 7 in `implement.md` (`plan-first/SKILL.md`, `plan-first/implement.md`,
+  `commands/plan.md`, `commands/develop.md`, the manager). **Unchanged**:
+  the version rule in *Rules* (its change belongs to the later plan
+  `flow-master-plan`), *Gates*, *Layout* and *Tests* — `implement.md` is not
+  a skill, so `Skills (14)` and `Agents (5)` hold (`docs/specs/workflow.md`,
+  `[flow-planner/evidence.md F2]`). Outside *One fact*: `README.md` gained
+  four lines after "It never blocks or prolongs a turn.": 300k is the
+  default first step, and on a model with a smaller window
+  `export GLAB_COMPACT_AT=150` in the shell that starts Claude Code makes the
+  steps 150k, 250k, …, every line then ending `; compact at 150k)`.
 - **`docs/specs/` and `plan/`** (`AGENTS.md` *Layout* and *Rules*, the
   `plan/` rule; `README.md` *Working on this repo*), as of `09d2787`. `docs/specs/` holds
   one spec per area — this file (the marketplace, this repo's layout, gates
@@ -350,6 +379,7 @@ owning file is right and this spec is out of date.
 - [remove-external-agents/plan.md D10] No "removed" note in `README.md` or the payload: the user said remove all of it, and the narrow search had to come back empty. The record of the removal, with what a 0.7.x host can still hold, is the top note of `docs/specs/external-agents.md` and the commit body.
 - [remove-external-agents/plan.md D12] `glab` `0.7.2` → `0.8.0`, the user's choice; `memory-sync` was not touched and keeps `0.1.0`.
 - The decisions of `flow-cheaper-rounds` that bind this area — `[flow-cheaper-rounds/plan.md D25]` (the *One fact* entries), `D26` and `D42` (`glab` `0.9.0`, a minor step, `memory-sync` untouched at `0.1.0`), `D27` (one commit, `2a1e919`), `D40` (the `AGENTS.md` changes: the shell gates, the hook-contract rule, the context-hook entry, the green line), `D55`, `D57` ("run all four, in order") and `D58` (the marketplace description) — are carried in `docs/specs/workflow.md`, the change's primary area, each as a line of its own, and bind here too.
+- The decisions of `flow-planner` that bind this area — `[flow-planner/plan.md D18]` (`glab` `0.10.0`, a minor step, `memory-sync` untouched at `0.1.0`), `D20` (one commit with the plan folder, `2912002`) and `D22` (the *One fact* changes) — are carried in `docs/specs/workflow.md`, the change's primary area, each as a line of its own, and bind here too.
 
 ## Known limits and not verified
 
@@ -427,3 +457,5 @@ owning file is right and this spec is out of date.
 - 2026-10-20 · flow-cheaper-rounds · recorded in `docs/specs/workflow.md`, its primary area; here: `glab` 0.9.0, the `glab` hook events (`Hooks (4)  SessionStart, UserPromptSubmit, PostToolUse, Stop`), the gates with five scripts and two tests (`PASS 35/35`, `PASS 21/21`), the hook-contract rule for `context-size.sh`, the rewritten and added *One fact* entries, the `glab` description in `.claude-plugin/marketplace.json`, *Testing without installing* (the installed plugins load beside `--plugin-dir` in the user's config); `[feature-plugin-marketplace/questions.md S3]` superseded by `D2` · change 2a1e919 · plan: `git ls-tree -r --name-only 2a1e919 -- plan/flow-cheaper-rounds/` (one file: `git show 2a1e919:plan/flow-cheaper-rounds/<file>`). `2a1e919` is the last commit on `origin/main` that holds it (`git log -1 --format=%h origin/main -- plan/flow-cheaper-rounds/`): one `docs(repo)` commit after this record removes it.
   - [flow-cheaper-rounds/plan.md L1049] Record → the entries above; the decisions in `docs/specs/workflow.md`; the follow-ups `FU1`–`FU18` and `FUa`–`FUd` open or closed there, with `FUa` (the *One fact* entries "the manual model rule" and "the session effort" and the handoff line's context field) the one that concerns `AGENTS.md`.
   - [flow-cheaper-rounds/plan.md L1044] Incidents → `IN2` here, `IN1` and `IN2` in `docs/specs/workflow.md`.
+- 2026-10-22 · flow-planner · recorded in `docs/specs/workflow.md`, its primary area; here: `glab` 0.10.0, the gates' context-size suite at `PASS 24/24` (`PASS 35/35` unchanged, the component counts unchanged), the two rewritten and three added *One fact* entries, the `GLAB_COMPACT_AT` lines of `README.md` · change 2912002 · plan: `git ls-tree -r --name-only 2912002 -- plan/flow-planner/` (one file: `git show 2912002:plan/flow-planner/<file>`). `2912002` is the last commit on `origin/main` that holds it (`git log -1 --format=%h origin/main -- plan/flow-planner/`): one `docs(repo)` commit after this record removes it.
+  - [flow-planner/plan.md S8] Record → the entries above; the decisions, follow-ups and incident in `docs/specs/workflow.md`; none of its follow-ups concerns `AGENTS.md`.
