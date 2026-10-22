@@ -20,7 +20,9 @@ component counts, the gates, the rules, the *One fact* entries) as of
 events and component counts, the gates, the hook-contract rule, the *One
 fact* entries, the marketplace description, *Testing without installing*)
 as of `2a1e919`, and its `flow-planner` lines (the version, the gates' test
-count, the *One fact* entries) as of `2912002`; where this file and an owning file disagree, the
+count, the *One fact* entries) as of `2912002`, and its `flow-master-plan`
+lines (the version, the version rule per push, the *One fact* entries, the
+`README.md` paragraphs) as of `0cbf5b0`; where this file and an owning file disagree, the
 owning file is right and this spec is out of date.
 
 ## How it works now
@@ -43,18 +45,25 @@ owning file is right and this spec is out of date.
   skill, `sync-memory`, no agent, hooks on `SessionStart`, `SessionEnd`,
   `PostToolUse` and `Stop`.
 - **Versions.** Each `plugin.json` carries an explicit `version` — `glab`
-  `0.10.0` (raised by `2912002`, `flow-planner`: a minor step, nothing
-  removed, so no `!`, `[flow-planner/plan.md D18]`; `0.9.0` by `2a1e919`,
+  `0.11.0` (raised by `0cbf5b0`, `flow-master-plan`: a minor step, nothing
+  removed, so no `!`, `[flow-master-plan/plan.md D44]`; `0.10.0` by
+  `2912002`, `flow-planner`, as a minor step, `[flow-planner/plan.md D18]`;
+  `0.9.0` by `2a1e919`,
   `flow-cheaper-rounds`: a minor step, since
   the change alters the pipeline's contract and adds a feature, and
   features have raised the minor before 1.0; nothing removed, so no `!`;
   `0.8.0` by `467b7c4`, `remove-external-agents`; `0.7.2` by
   `abda43a`, `0.7.1` by `3965622`,
   `0.7.0` by `33a28df`, `0.6.0` by `9108ac7`, `0.5.0` by `fed95f9` before
-  it), `memory-sync` `0.1.0`, at `2912002`. A change under
+  it), `memory-sync` `0.1.0`, at `0cbf5b0`. A change under
   `plugins/<name>/` raises that plugin's version in the same commit, because
   an installed copy is pinned to the version string and nothing else
-  delivers a change (`AGENTS.md` *Rules*). `claude plugin validate --strict`
+  delivers a change (`AGENTS.md` *Rules*). Since `0cbf5b0` the rule reads
+  per push: "When one push carries several commits of one change — one per
+  sub-plan — the first that changes `plugins/<name>/` raises it, once."
+  The reason given is what an installer receives, which is a push, not a
+  commit (`[flow-master-plan/plan.md D30]`,
+  `[flow-master-plan/evidence.md F15]`, inferred there). `claude plugin validate --strict`
   is clean only with a version present.
 - **Install is the user's step.** The README documents
   `claude plugin marketplace add glab-services/skills` and
@@ -144,7 +153,8 @@ owning file is right and this spec is out of date.
   object or nothing, messages on stderr, and in mode `stop` no key but
   `systemMessage`: it never blocks or continues a turn) — the *One fact,
   one value* list, comments and incidents kept, tests that clean up by PID,
-  the version rule, Conventional Commits.
+  the version rule (per push since `0cbf5b0`, *Versions* above),
+  Conventional Commits.
 - **The external-agent rule** — history: removed from `AGENTS.md` *Rules*
   in `glab` 0.8.0 (`467b7c4`, 2026-10-20), with the script; as it stood
   until then (`AGENTS.md` *Rules*, as of `30f2c80`):
@@ -329,6 +339,41 @@ owning file is right and this spec is out of date.
   default first step, and on a model with a smaller window
   `export GLAB_COMPACT_AT=150` in the shell that starts Claude Code makes the
   steps 150k, 250k, …, every line then ending `; compact at 150k)`.
+- ***One fact* entries `flow-master-plan` rewrote or added** (`AGENTS.md`
+  *Rules*, as of `0cbf5b0`; its S8 and review fix round 1,
+  `[flow-master-plan/plan.md D44]`, `[flow-master-plan/result.md R1]`).
+  **Rewritten**: the round caps — "Stage 1b, Stage 3, Stage 5 and the final
+  check (Stage 6b) at most 2 rounds at every tier, per sub-plan where there
+  are", its five files unchanged (`[flow-master-plan/follow-ups.md DEV3]`:
+  of them only `glab:manager` states the final check's cap); the mapping
+  files entry adds "the version copies `master.v<n>.md`" beside the round
+  copies; the plan size budget is "48 KB each for `master.md`, `plan.md`,
+  `index.md` and `evidence.md`". **Added**, after the step-numbers entry,
+  whose closing `.` became `;`: the master plan and sub-plans — `master.md`
+  with its six sections, constant after `## Approval` and hashed in
+  `master.sha256`, a changed request a new master with the old kept as
+  `master.v<n>.md` and its approval and hash not carried over, `index.md`,
+  the folders `<nn>-<name>/`, the user's approval of every full-tier
+  `plan.md`, one commit per sub-plan, one final check, push and record per
+  slug, and `## Record` in the master (nine files); the intent check — the
+  analyzer at Stage 1b, Stage 3 and the final check, never the reviewer
+  (four files); the analyzer's verdict lines — `BUILDABLE`,
+  `NOT BUILDABLE`, `CONFORMS`, `DIVERGES: <n> steps`,
+  `BLOCK: target unresolved` (four files); approval in plan mode — only
+  when the user asks, no plan file outside the repo, `plansDirectory` never
+  changed, its claims UNVERIFIED until L1–L7 (the manager, `README.md`);
+  the stage sequence with the final check (the manager's description,
+  `glab:bootstrap` step 4, `scripts/manager-bootstrap.sh`). The full file
+  lists are in `AGENTS.md`. **Rewritten outside *One fact***: the version
+  rule (*Versions*, above). **Unchanged**: *Gates*, *Layout* and *Tests* —
+  no skill, agent or hook was added, so `Skills (14)`, `Agents (5)` and the
+  hook events hold, and the gates print `PASS 35/35` and `PASS 24/24`
+  (`[flow-master-plan/result.md B0]`). `README.md` gained the master and
+  sub-plan paragraph (`master.md`, the analyzer before and after the build,
+  the blind reviewer, the final check before the push; its wording from
+  `[flow-master-plan/result.md R6]`) and one paragraph on approval in plan
+  mode, its UNVERIFIED pointing at the live tests L1–L7 in
+  `docs/specs/workflow.md`; `.claude-plugin/marketplace.json` unchanged.
 - **`docs/specs/` and `plan/`** (`AGENTS.md` *Layout* and *Rules*, the
   `plan/` rule; `README.md` *Working on this repo*), as of `09d2787`. `docs/specs/` holds
   one spec per area — this file (the marketplace, this repo's layout, gates
@@ -368,7 +413,7 @@ owning file is right and this spec is out of date.
 - [feature-plugin-marketplace/questions.md S4] `~/.claude/host.md` stays a per-machine file each person creates by hand.
 - [feature-plugin-marketplace/questions.md S5] No real bucket name, endpoint, profile or environment value anywhere.
 - [feature-plugin-marketplace/questions.md Q1] The marketplace is `glab-services`: `glab@glab-services`, `memory-sync@glab-services`. Renaming it later makes every user remove and re-add it.
-- [feature-plugin-marketplace/questions.md Q6] An explicit `version` in each manifest, raised by the commit that changes the plugin, with the `AGENTS.md` bump rule; `validate --strict` must be clean.
+- [feature-plugin-marketplace/questions.md Q6] An explicit `version` in each manifest, raised by the commit that changes the plugin, with the `AGENTS.md` bump rule; `validate --strict` must be clean. **Amended by `[flow-master-plan/plan.md D30]` since `glab` 0.11.0 (`0cbf5b0`):** when one push carries several commits of one change — one per sub-plan — the first that changes the plugin raises it, once.
 - [feature-plugin-marketplace/questions.md Q7] The root `CLAUDE.md` is deleted; its two rules missing from the hook (the Rule 0c pointer and the host-file temp rule) went into the `SessionStart` hook text, which is the only copy of the session rules a plugin can ship.
 - [bug-reviewer-findings/questions.md Q1] Repo only: nothing is copied, symlinked or installed into `~/.claude` by the work, and there is no install script; the live copies were the user's to deal with, and the plugin install later replaced the copy install.
 - [bug-reviewer-findings/questions.md Q4] Machine-specific text is split out: generic text in the repo, host facts in the unshipped `~/.claude/host.md` that `glab:bootstrap` reads, with `host.example.md` shipped as the template; the manager's test rules are universal.
@@ -380,6 +425,7 @@ owning file is right and this spec is out of date.
 - [remove-external-agents/plan.md D12] `glab` `0.7.2` → `0.8.0`, the user's choice; `memory-sync` was not touched and keeps `0.1.0`.
 - The decisions of `flow-cheaper-rounds` that bind this area — `[flow-cheaper-rounds/plan.md D25]` (the *One fact* entries), `D26` and `D42` (`glab` `0.9.0`, a minor step, `memory-sync` untouched at `0.1.0`), `D27` (one commit, `2a1e919`), `D40` (the `AGENTS.md` changes: the shell gates, the hook-contract rule, the context-hook entry, the green line), `D55`, `D57` ("run all four, in order") and `D58` (the marketplace description) — are carried in `docs/specs/workflow.md`, the change's primary area, each as a line of its own, and bind here too.
 - The decisions of `flow-planner` that bind this area — `[flow-planner/plan.md D18]` (`glab` `0.10.0`, a minor step, `memory-sync` untouched at `0.1.0`), `D20` (one commit with the plan folder, `2912002`) and `D22` (the *One fact* changes) — are carried in `docs/specs/workflow.md`, the change's primary area, each as a line of its own, and bind here too.
+- The decisions of `flow-master-plan` that bind this area — `[flow-master-plan/plan.md D30]` (one commit per sub-plan, one push and one record per slug; the version rule per push, amending `[feature-plugin-marketplace/questions.md Q6]`), `D44` (`glab` `0.11.0`, a minor step, nothing removed, `memory-sync` untouched at `0.1.0`; one commit with the plan folder, `0cbf5b0`; the *One fact* changes of its S8) and `D27` (no sub-plan boundary through a fact the repo changes in one commit, `[flow-master-plan/evidence.md F15]`) — are carried in `docs/specs/workflow.md`, the change's primary area, each as a line of its own, and bind here too.
 
 ## Known limits and not verified
 
@@ -459,3 +505,5 @@ owning file is right and this spec is out of date.
   - [flow-cheaper-rounds/plan.md L1044] Incidents → `IN2` here, `IN1` and `IN2` in `docs/specs/workflow.md`.
 - 2026-10-22 · flow-planner · recorded in `docs/specs/workflow.md`, its primary area; here: `glab` 0.10.0, the gates' context-size suite at `PASS 24/24` (`PASS 35/35` unchanged, the component counts unchanged), the two rewritten and three added *One fact* entries, the `GLAB_COMPACT_AT` lines of `README.md` · change 2912002 · plan: `git ls-tree -r --name-only 2912002 -- plan/flow-planner/` (one file: `git show 2912002:plan/flow-planner/<file>`). `2912002` is the last commit on `origin/main` that holds it (`git log -1 --format=%h origin/main -- plan/flow-planner/`): one `docs(repo)` commit after this record removes it.
   - [flow-planner/plan.md S8] Record → the entries above; the decisions, follow-ups and incident in `docs/specs/workflow.md`; none of its follow-ups concerns `AGENTS.md`.
+- 2026-10-22 · flow-master-plan · recorded in `docs/specs/workflow.md`, its primary area; here: `glab` 0.11.0, the version rule per push (`[feature-plugin-marketplace/questions.md Q6]` amended by D30), the three rewritten and five added *One fact* entries, the two `README.md` paragraphs; the gates unchanged at `PASS 35/35` and `PASS 24/24`, the component counts and `.claude-plugin/marketplace.json` unchanged · change 0cbf5b0 · plan: `git ls-tree -r --name-only 0cbf5b0 -- plan/flow-master-plan/` (one file: `git show 0cbf5b0:plan/flow-master-plan/<file>`). `0cbf5b0` is the last commit on `origin/main` that holds it (`git log -1 --format=%h origin/main -- plan/flow-master-plan/`): one `docs(repo)` commit after this record removes it.
+  - [flow-master-plan/plan.md Record] Record → the entries above; the decisions, follow-ups and incident in `docs/specs/workflow.md`; of its follow-ups `[flow-master-plan/follow-ups.md DEV3]` (the round-caps entry and the final check's cap) concerns `AGENTS.md`, open in `docs/specs/workflow.md`.
