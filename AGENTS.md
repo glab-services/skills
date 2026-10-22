@@ -156,7 +156,9 @@ repo and to nothing else.
   `plugins/glab/skills/plan-first/SKILL.md`,
   `plugins/glab/agents/developer.md`, `plugins/glab/commands/develop.md`,
   `plugins/glab/commands/ship.md`, `plugins/glab/commands/analyze.md`); the
-  mapping files `map-<area>.md` and the round copies `<name>.r<n>.md`
+  mapping files `map-<area>.md`, the evidence file `evidence.md` — a
+  subagent's Write of `findings.md` is refused — and the round copies
+  `<name>.r<n>.md`
   (`plugins/glab/skills/manager/SKILL.md`,
   `plugins/glab/skills/plan-first/SKILL.md`,
   `plugins/glab/agents/analyzer.md`, `plugins/glab/agents/developer.md`);
@@ -165,8 +167,11 @@ repo and to nothing else.
   `plugins/glab/skills/manager/SKILL.md` Rule 2); the `glab` context hook —
   the modes `prompt`, `agent` and `stop` on `UserPromptSubmit`,
   `PostToolUse` with matcher `Agent` and `Stop`, the line
-  `glab: context <n>k (last completed call)`, the `Stop` message, and the
-  steps 300k and every 100k after it (`plugins/glab/scripts/context-size.sh`,
+  `glab: context <n>k (last completed call)`,
+  with `; compact at <t>k` before the `)` when `GLAB_COMPACT_AT` is set, the
+  `Stop` message, and the first step 300k, or `GLAB_COMPACT_AT` thousand
+  when set, and every 100k after it, and the warning for an invalid value
+  (`plugins/glab/scripts/context-size.sh`,
   `tests/context-size.test.sh`, `plugins/glab/hooks/hooks.json`,
   `plugins/glab/skills/manager/SKILL.md`, `README.md`); what a review round
   after the first is given — a new reviewer, the target, the previous
@@ -192,7 +197,19 @@ repo and to nothing else.
   `plugins/glab/skills/manager/SKILL.md`,
   `plugins/glab/commands/develop.md`, `plugins/glab/commands/review.md`,
   `plugins/glab/commands/ship.md`, `plugins/glab/skills/bootstrap/SKILL.md`,
-  `plugins/glab/scripts/manager-bootstrap.sh`, `README.md`).
+  `plugins/glab/scripts/manager-bootstrap.sh`, `README.md`); the plan size
+  budget — 48 KB each for `plan.md` and `evidence.md`, and the `- size:`
+  line (`plugins/glab/skills/plan-first/SKILL.md` Step 3,
+  `plugins/glab/skills/manager/SKILL.md` acceptance checklist item 6);
+  amendments replace the text they change, in place
+  (`plugins/glab/skills/plan-first/SKILL.md` Step 4,
+  `plugins/glab/skills/manager/SKILL.md` Stage 1b,
+  `plugins/glab/agents/analyzer.md` *Re-checks*); `glab:plan-first`'s step
+  numbers — 0 to 4 in `SKILL.md`, 5 to 7 in `implement.md`
+  (`plugins/glab/skills/plan-first/SKILL.md`,
+  `plugins/glab/skills/plan-first/implement.md`,
+  `plugins/glab/commands/plan.md`, `plugins/glab/commands/develop.md`,
+  `plugins/glab/skills/manager/SKILL.md`).
 - **Comments and recorded incidents are kept.** Update them when the thing
   they describe changes; do not delete them.
 - **Tests clean up by PID.** A test kills only processes it started itself,

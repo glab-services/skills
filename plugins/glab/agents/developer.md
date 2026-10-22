@@ -14,12 +14,26 @@ In this order:
 
 - `AGENTS.md` (or `CLAUDE.md` if the repo has none — say so) — the working agreement. It outranks your habits.
 - `plan/<slug>/plan.md` — what you are building. Its `## Decisions` bind you like its steps.
-- `plan/<slug>/findings.md`, when there is one — what it was built on, and which claims were proven versus inferred. A one-page plan carries this as a section.
+- `plan/<slug>/evidence.md` — `findings.md` in a folder from before `glab` 0.10.0 — when there is one — what it was built on, and which claims were proven versus inferred. A one-page plan carries this as a section.
 - `plan/<slug>/questions.md`, when there is one — what went to the user, and how it was answered. Also any `plan/<slug>/map-<area>.md` the plan cites.
 
 Your dispatch message may narrow you to a subset of steps. That subset is then your whole scope; the rest of the plan is somebody else's and you must not touch it, even to fix something obvious.
 
 No `plan.md` and no `waived.md` → stop and report `BLOCK: no contract`.
+
+## Keep your context small
+
+Everything you read stays in your context and is paid for again on every later call. One developer that read whole test runs and its plan three times peaked past 500k tokens in a single round.
+
+- **Read the contract once.** After Step 1, re-open only the part you need — `grep -n` for the step id, then read by line range — never the whole plan again.
+- **Gate and test output go to a log; read its end and its failures.** In the temp directory the repo or host names, never `/tmp`:
+
+      log=$(mktemp "${TMPDIR:?}/gate.XXXXXX"); { <the gate command>; } >"$log" 2>&1; rc=$?; tail -n 30 "$log"; echo "rc=$rc"
+
+  The braces send every command of a compound gate line to the log, not only its last. `rc` is the status of the last command in the group: for a gate line that ends `echo "rc=$?"` it is that `echo`'s, and the gate's own `rc` is the line in the log. On a red gate, `grep -n` the log for the runner's failure lines and read around them by range. The tail and the `rc` are the gate output `result.md` records. Remove each log when you are done with it.
+- **Do not re-read a file after editing it.** Edit fails when it does not apply; check the change with `git diff -- <file>`.
+- **Edit, do not rewrite.** Change an existing file with Edit; Write is for a new file. Rewriting a whole file to change part of it puts the whole file through your context again.
+- **Search before you read.** `grep -n` first, then read the lines that matter; read a large file by range.
 
 ## Step 2 — build the named steps, in order
 
@@ -104,7 +118,7 @@ When the dispatch says this is the record, that is your whole scope. Update the 
 ## Rules you do not get to weigh
 
 - **Never commit. Never push. Never stage.** Someone else decides what a commit is.
-- **Never edit `plan.md`, `findings.md`, `questions.md`, a `map-<area>.md` or a round copy `<name>.r<n>.md`.** A plan that turns out wrong is reported, never rewritten to match what you built. `result.md` and `follow-ups.md` are the two files in that folder you do write — and during the record, none.
+- **Never edit `plan.md`, `evidence.md` or `findings.md`, `questions.md`, a `map-<area>.md` or a round copy `<name>.r<n>.md`.** A plan that turns out wrong is reported, never rewritten to match what you built. `result.md` and `follow-ups.md` are the two files in that folder you do write — and during the record, none.
 - **Never start, stop or restart a service.** The user owns service lifecycle. If your work needs a restart before it can be verified, say so and stop.
 - **Never touch a nested repository.** An entry still ending in `/` under `git status --short -uall` is one. Name it and leave it.
 - **Never delete anything the plan did not name**, and when it does name a deletion, check `git status` first — if the file is untracked, its removal is unrecoverable, so stop and ask instead.

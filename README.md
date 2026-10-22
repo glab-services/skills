@@ -32,6 +32,10 @@ has crossed 300k, 400k, … it shows you `glab: context <n>k … a good point to
 /compact, or to /clear between tasks` at the end of a turn — usually the turn
 after the crossing, because a turn's last model call is not yet in the
 transcript when the turn ends. It never blocks or prolongs a turn.
+300k is the default first step. On a model with a smaller context window,
+export `GLAB_COMPACT_AT` with the first step in thousands —
+`export GLAB_COMPACT_AT=150` in the shell that starts Claude Code — and the
+steps become 150k, 250k, …; every line then ends `; compact at 150k)`.
 The number is the last completed model call's, and can trail the turn a
 little. It runs in every session where `glab` is enabled, and not at all when
 hooks are turned off (`disableAllHooks`, `--bare`).

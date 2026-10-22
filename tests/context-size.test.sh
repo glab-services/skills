@@ -70,6 +70,8 @@ pad() { head -c "$1" /dev/zero | tr '\0' x; }
 
 MSG_TAIL=' — a good point to /compact, or to /clear between tasks'
 : >"$W/stopouts"
+# T1-T21 test the default first step, 300k, whatever the caller exported; T22-T24 set it themselves.
+unset GLAB_COMPACT_AT
 
 # T1 agent, normal transcript
 f=$(fx t1 "$(P)" "$(printf '{"type":"assistant","message":{"usage":{"input_tokens":5,"cache_read_input_tokens":142000,"cache_creation_input_tokens":300}}}')" "$(P again)")
@@ -209,6 +211,7 @@ done_case T17 "no jq: no stdout, one stderr line"
 # F23). So the base is the size at the real prompt before the last one, one turn further back than
 # the turn's own prompt. Each: name, expected ('' for nothing, else the number printed), fixture.
 # stop_case <name> <expected k or ''> <line>...
+# SUFFIX, empty unless a case sets it, is what a valid GLAB_COMPACT_AT adds before the line's `)`.
 stop_case() {
 	local name=$1 want=$2 file
 	shift 2
@@ -218,7 +221,7 @@ stop_case() {
 	if [ -z "$want" ]; then
 		[ -z "$OUT" ] || bad "$name: expected nothing, got [$OUT]"
 	else
-		jq -e --arg t "glab: context ${want}k (last completed call)$MSG_TAIL" \
+		jq -e --arg t "glab: context ${want}k (last completed call${SUFFIX:-})$MSG_TAIL" \
 			'keys == ["systemMessage"] and .systemMessage == $t' <<<"$OUT" >/dev/null 2>&1 \
 			|| bad "$name: expected the ${want}k message with only systemMessage, got [$OUT]"
 	fi
@@ -280,6 +283,54 @@ stop_spec 'T21 not last, stop 3' 310 "$pre P A250000 P A280000 P A290000 R A3100
 stop_spec 'T21 not last, stop 4' 315 "$pre P A250000 P A280000 P A290000 R A310000 R A315000 P"
 stop_spec 'T21 not last, stop 5' '' "$pre P A250000 P A280000 P A290000 R A310000 R A315000 P A320000 P"
 done_case T21 "stop, a crossing already written at its own Stop: speaks then and once more, never a third time"
+
+# T22 GLAB_COMPACT_AT set: the line names the first step, in both context modes. T1's fixture.
+export GLAB_COMPACT_AT=150
+runt "$W/t1.jsonl" agent
+expect_ctx PostToolUse 'glab: context 143k (last completed call; compact at 150k)'
+expect_no_err
+runt "$W/t1.jsonl" prompt
+expect_ctx UserPromptSubmit 'glab: context 143k (last completed call; compact at 150k)'
+expect_no_err
+unset GLAB_COMPACT_AT
+done_case T22 "GLAB_COMPACT_AT=150: agent and prompt lines end '; compact at 150k)'"
+
+# T23 GLAB_COMPACT_AT moves the first step of stop; the steps after it stay 100k apart.
+export GLAB_COMPACT_AT=150
+SUFFIX='; compact at 150k'
+stop_spec 'below 150k' '' 'P A100000 P R A140000'
+stop_spec 'crossed 150k' 160 'A140000 P A145000 P A160000'
+stop_spec 'same step' '' 'A160000 P A200000 P A240000'
+stop_spec 'crossed 250k' 251 'A240000 P A245000 P A251000'
+SUFFIX=''
+unset GLAB_COMPACT_AT
+done_case T23 "stop with GLAB_COMPACT_AT=150: speaks at 150k and 250k, with the suffix, and not between"
+
+# T24 an invalid GLAB_COMPACT_AT warns once on stderr and the run goes on with the default; empty is
+# unset, with no warning.
+WARN='GLAB_COMPACT_AT is not a whole number of thousands from 1 to 999999; using 300'
+for v in abc 0 1234567 15.5 -1; do
+	export GLAB_COMPACT_AT="$v"
+	runt "$W/t1.jsonl" agent
+	jq -e --arg t 'glab: context 143k (last completed call)' \
+		'keys == ["hookSpecificOutput"] and .hookSpecificOutput.additionalContext == $t' \
+		<<<"$OUT" >/dev/null 2>&1 || bad "[$v]: stdout [$OUT] is not the default line"
+	[ "$ERR" = "glab context-size: $WARN" ] || bad "[$v]: stderr [$ERR] is not the warning"
+done
+# stop speaks on the default step, so not through stop_case, which wants stderr empty.
+export GLAB_COMPACT_AT=abc
+runt "$(fx t24-stop "$(A 250000)" "$(P)" "$(A 280000)" "$(P)" "$(A 310000)")" stop
+printf '%s\n' "$OUT" >>"$W/stopouts"
+jq -e --arg t "glab: context 310k (last completed call)$MSG_TAIL" \
+	'keys == ["systemMessage"] and .systemMessage == $t' <<<"$OUT" >/dev/null 2>&1 \
+	|| bad "[abc] stop: expected the 310k default message, got [$OUT]"
+[ "$ERR" = "glab context-size: $WARN" ] || bad "[abc] stop: stderr [$ERR] is not the warning"
+export GLAB_COMPACT_AT=
+runt "$W/t1.jsonl" agent
+expect_ctx PostToolUse 'glab: context 143k (last completed call)'
+expect_no_err
+unset GLAB_COMPACT_AT
+done_case T24 "an invalid GLAB_COMPACT_AT: one warning, the default line; empty: no warning"
 
 # T19 stop never blocks or continues - judged over every stop run above, T20's and T21's included
 if /usr/bin/grep -q -E 'decision|continue|reason|hookSpecificOutput|additionalContext' "$W/stopouts"; then

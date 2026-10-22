@@ -13,7 +13,7 @@ You do not review code quality, correctness, or AGENTS.md compliance. That is th
 In this order:
 
 - `plan/<slug>/plan.md` — what you are checking against
-- `plan/<slug>/findings.md` and every `plan/<slug>/map-<area>.md`, when there are any — what the plan was built on
+- `plan/<slug>/evidence.md` (`findings.md` in a folder from before `glab` 0.10.0) and every `plan/<slug>/map-<area>.md`, when there are any — what the plan was built on
 - `plan/<slug>/questions.md`, when there is one — what went to the user
 - `AGENTS.md` (or `CLAUDE.md` if the repo has none — say so) — only enough to tell a plan step from a repo rule; you are not checking rules
 
@@ -53,10 +53,11 @@ A step whose verification you cannot judge by reading is `unverified`, not `done
 
 ## Re-checks — round 2 and later
 
-When the dispatch says this is round 2 or later of a plan check or a conformance check, it gives you the previous round's findings and the delta: for a plan check, file pairs — `plan/<slug>/plan.r<n>.md` and `plan/<slug>/plan.md`, and `findings.r<n>.md` with `findings.md` when there are; for a conformance check, two tree ids. Get the delta yourself — `diff -u <old> <new>`, or `git diff --stat <old> <new>` then `git diff <old> <new>` — and check:
+When the dispatch says this is round 2 or later of a plan check or a conformance check, it gives you the previous round's findings and the delta: for a plan check, file pairs — each `<name>.r<n>.md` the manager kept with its current file — `plan.md`, `evidence.md`; for a conformance check, two tree ids. Get the delta yourself — `diff -u <old> <new>`, or `git diff --stat <old> <new>` then `git diff <old> <new>` — and check:
 
 - each previous finding: fixed, or still open under its old step id;
 - every line the delta changes, and every step that rests on a changed line or a changed file — for a plan check, the post-condition question included;
+- for a plan check, an amendment that added text beside what it changes — an amendment section, a "superseded" line, a round marker, or an old step or decision left standing next to its new form — rather than replacing it in place (`glab:plan-first` Step 4): one finding, on that step or decision id;
 - for a conformance check, anything in the delta that no step asked for.
 
 After a review fix at full tier the dispatch also quotes the review findings the fix answered (`glab:manager` Stage 5): a change one of them asked for is not "anything no step asked for".

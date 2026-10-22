@@ -50,7 +50,7 @@ when it does not:**
 - **`glab:audit`** — for an agent examining a service, module or subsystem to produce
   *findings* rather than a change. It gives the document its shape: architecture
   summary, working flow, severity-classified issues, prioritized recommendations.
-- **`glab:plan-first`** — for a planning agent, for the `findings.md` / `questions.md`
+- **`glab:plan-first`** — for a planning agent, for the `evidence.md` / `questions.md`
   / `plan.md` structure it enforces. **Mind the seam:** `glab:plan-first` describes a
   workflow that runs through to implementation, and under this skill a planner
   stops at the plan and hands it to Stage 1b. Say which applies, or you have
@@ -98,10 +98,11 @@ You have taken over when: you are opening a third implementation file, you are e
 
 ### Your own context — read it, act on it, never clear
 
-Your context grows with every turn, and every turn pays for all of it. You cannot run `/clear` or `/compact`; the user can. The `glab` plugin's hook measures it for you: with every message the user sends and with every Agent result it adds one line, `glab: context <n>k (last completed call)` — the context of your last completed model call, in thousands. When the context crosses 300k or a further 100k, the same hook also tells the user directly, at the end of that turn or, usually, the next. A hook runs every time but cannot make you act on what it says; acting on it is this rule.
+Your context grows with every turn, and every turn pays for all of it. You cannot run `/clear` or `/compact`; the user can. The `glab` plugin's hook measures it for you: with every message the user sends and with every Agent result it adds one line, `glab: context <n>k (last completed call)`, ending `; compact at <t>k)` when the user set `GLAB_COMPACT_AT` — the context of your last completed model call, in thousands. When the context crosses the first step — 300k, or the user's `GLAB_COMPACT_AT` — or a further 100k, the same hook also tells the user directly, at the end of that turn or, usually, the next. A hook runs every time but cannot make you act on what it says; acting on it is this rule.
 
 - **Read the number at every handoff line.** Put the most recent `glab: context <n>k` number at the end of the handoff line, `· context <n>k`. It is the last completed call's context, not your exact size now; say no more than that. Never read the transcript yourself to get a better number: it can hold secrets.
-- **Inside a task**, at the first handoff line at or past **300k**, and again at the first line past each further **100k** — 400k, 500k, … — bring the handoff file up to date and suggest `/compact` to the user. These are the steps at which the hook speaks to the user, so the two never disagree. 300k is where a resumed agent's rounds were already costing several times a fresh one's, and half of one manager session's 648k peak.
+- **Inside a task**, at the first handoff line at or past the first step — **300k**, or `<t>k` when the line names `compact at <t>k` — and again at the first line past each further **100k** — bring the handoff file up to date and suggest `/compact` to the user. These are the steps at which the hook speaks to the user, so the two never disagree. 300k is where a resumed agent's rounds were already costing several times a fresh one's, and half of one manager session's 648k peak.
+- **A smaller window.** When the line names no `compact at <t>k` and your model's context window is not larger than the first step plus 100k — a 200k window under the default — tell the user once that the step is near or past the window, and that `GLAB_COMPACT_AT`, in thousands, exported in the shell that starts Claude Code, moves it. The number is the user's; never choose it yourself.
 - **At a task boundary** — after the push of the Stage 8 record, or after Stage 7 for a change with no plan folder — bring the handoff file up to date and tell the user this is a good point to `/clear` and start the next task in a new session, whatever the number says. No hook can tell a task boundary; this one is yours alone.
 - **When no line has come at all** in this session — the plugin not enabled or older than `0.9.0`, hooks turned off, no `jq`, no readable transcript — say so once, then count instead: suggest `/compact` after every **15** dispatches since the session started or was last compacted, and after any stage that took more than one round. The handoff line then ends `· dispatches <d>`. When lines come with the user's messages but not with Agent results, use the most recent line of either kind; do not count.
 - **The handoff file** is the one `glab:bootstrap` step 5 reads — `plan/SESSION-HANDOFF.md`, unless the repo keeps its handoff elsewhere. Write what is done (slugs, commits), what is in progress (slug, stage, round, the next dispatch), and anything decided in this conversation that no plan file holds. No `glab` step commits it.
@@ -172,7 +173,7 @@ Record what you found in one line and reuse it all session. If a repo has no lin
 
 | # | Stage | Run | Writes | Leaves on |
 |---|-------|-----|--------|-----------|
-| 1 | Plan | `/glab:plan <task>` | `plan/{slug}/plan.md`; at full tier `findings.md` too, and `questions.md` if Rule 3 raised one; `map-<area>.md` from mapping agents, when you dispatched them | decisions recorded; user approval at full tier |
+| 1 | Plan | `/glab:plan <task>` | `plan/{slug}/plan.md`; at full tier `evidence.md` too, and `questions.md` if Rule 3 raised one; `map-<area>.md` from mapping agents, when you dispatched them | decisions recorded; user approval at full tier |
 | 1b | Analyze the plan | `/glab:analyze {slug}` (plan only) | — | `BUILDABLE`, or at normal tier the amendment after round 2 |
 | 2 | Develop | `/glab:develop {slug}` | code, tests, `result.md` | `BUILT` + green gates |
 | 3 | Analyze | `/glab:analyze {slug}` | — | `CONFORMS` |
@@ -194,7 +195,7 @@ Risk decides how much of that pipeline runs. You pick the tier at Stage 1 and wr
 
 | Stage | Trivial | Normal | Full |
 |-------|---------|--------|------|
-| 1 Plan | — | one page: `plan.md` alone, findings and decisions as sections | `findings.md`, `plan.md`, `questions.md` if Rule 3 raised one |
+| 1 Plan | — | one page: `plan.md` alone, findings and decisions as sections | `evidence.md`, `plan.md`, `questions.md` if Rule 3 raised one |
 | Approval | — | none — report the tier and the decisions, then go | the user's, explicit |
 | 1b Analyze the plan | — | max 2 rounds | max 2 rounds |
 | 2 Develop | direct | yes | yes |
@@ -265,13 +266,14 @@ Run `/glab:plan <task>`. If the user already handed you a plan, skip to the acce
 
 ### Plan acceptance checklist
 
-Do not forward a plan to `/glab:develop` until all five hold. Where one fails, say which and send it back.
+Do not forward a plan to `/glab:develop` until all six hold. Where one fails, say which and send it back.
 
 1. **Understandable.** Every stage is one instruction a competent engineer can act on without asking what it means. No stage says "handle X properly".
 2. **Three phases, explicitly.** `before` — preconditions, the gate run green, flags, what must be true to start. `processing` — the ordered change steps. `after` — verification, the test that proves the milestone runs end to end, documentation, and how to back it out. A feature plan that ends with nothing new running is a slice of another plan's milestone; merge them. A refactor, config or test-only plan names the existing test that proves nothing broke as its milestone.
 3. **Findings cover the whole scope surface.** Every file, package, module and directory the change touches or depends on, by path. Each method the change **changes** carries its call sites and what each relies on; each method it only **calls** carries the precondition its new call site must meet and how the plan meets it; a file it only depends on is listed by path, not read in full (`glab:plan-first` Step 1). A findings file or section with no path list has not done this step.
 4. **Choices are decided, and a question carries its own context.** Every choice the plan rests on has its line under `## Decisions`. A question for the user — Rule 3 says which, and aims for one at most — states the problem in full, why it blocks the plan, and the recommended answer spelled out with its consequence. "Which approach do you want?" with no options is a shrug, not a question. Send those back.
 5. **No stage contradicts another.** Read the stages back to back: no later stage may rewrite, revert or override what an earlier one wrote. A value that must change twice is one stage, not two. This is the check plans fail most often and the one that confuses developers worst.
+6. **Within its size.** `glab:plan-first` Step 3 caps `plan.md` and `evidence.md` at 49152 bytes (48 KB) each. Check it by size alone, without reading them (Rule 2): `wc -c` on each that exists, and `grep -c '^- size: ' plan/{slug}/plan.md`. Over the cap with no `- size:` line: send it back to be split or cut. With one: that is a Rule 3 choice of yours — accept it, or send it back to be split.
 
 Where the work reimplements a documented external API, the findings must cite that vendor documentation by URL. A plan with no citations has unverified behavioural claims.
 
@@ -335,9 +337,9 @@ Two corollaries worth stating, both learned the same way:
 
 **`BUILDABLE`** → Stage 2. **`NOT BUILDABLE`** → an amendment, with exactly what is missing; a missing choice is decided under Rule 3 first. **Never patch the steps yourself to make them buildable** — for the same reason Stage 3 forbids editing `plan.md` to resolve a divergence.
 
-**The amendment goes to a new planning agent** (Rule 2). Before you dispatch it, keep the version the round checked: `cp plan/{slug}/plan.md plan/{slug}/plan.r<n>.md`, and `findings.md` to `findings.r<n>.md` when there is one, `<n>` being the round that checked them. Give the new agent the slug, that this is the amendment after plan check round `<n>`, the round's findings copied as the analyzers returned them, and `glab:plan-first` with the seam stated. It reads the plan files from disk, changes what the findings name and what that forces, records each changed choice under `## Decisions`, and leaves the `.r<n>` copies as they are.
+**The amendment goes to a new planning agent** (Rule 2). Before you dispatch it, keep the version the round checked: `cp plan/{slug}/plan.md plan/{slug}/plan.r<n>.md`, and `evidence.md` to `evidence.r<n>.md` when there is one — `findings.md` to `findings.r<n>.md` in a folder from before `glab` 0.10.0 — `<n>` being the round that checked them. Give the new agent the slug, that this is the amendment after plan check round `<n>`, the round's findings copied as the analyzers returned them, and `glab:plan-first` with the seam stated. It reads the plan files from disk, changes what the findings name and what that forces, replacing the changed text in place rather than adding beside it (`glab:plan-first` Step 4), and leaves the `.r<n>` copies as they are.
 
-**A re-check looks at the delta, not the whole plan.** Before round `<n+1>`, test that the amendment changed something, by exit code alone — do not read the diff yourself (Rule 2): `cmp -s plan/{slug}/plan.r<n>.md plan/{slug}/plan.md` (and the same for `findings.md`). Exit 1 means the amendment changed the plan; exit 0 means it changed nothing — send it back, do not re-check it; exit 2 means a file is missing — find out why first. Give each analyzer of round `<n+1>` the previous round's findings, copied as returned, and the file pairs; the analyzer runs `diff -u` and reads the diff. It checks each of those findings, every line the diff changes and every step that rests on a changed line — the post-condition question included — and not the rest of the plan, which already passed.
+**A re-check looks at the delta, not the whole plan.** Before round `<n+1>`, test that the amendment changed something, by exit code alone — do not read the diff yourself (Rule 2): `cmp -s plan/{slug}/plan.r<n>.md plan/{slug}/plan.md` (and the same for `evidence.md`, or `findings.md` in a folder from before `glab` 0.10.0). Exit 1 means the amendment changed the plan; exit 0 means it changed nothing — send it back, do not re-check it; exit 2 means a file is missing — find out why first. Give each analyzer of round `<n+1>` the previous round's findings, copied as returned, and the file pairs; the analyzer runs `diff -u` and reads the diff. It checks each of those findings, every line the diff changes and every step that rests on a changed line — the post-condition question included — and not the rest of the plan, which already passed.
 
 **At most 2 rounds, a third under *Pick the tier*'s round-3 rule.** A plan still `NOT BUILDABLE` after round 2 with no round 3: at full tier it needs a design, not another pass — bring that to the user; at normal tier a new planning agent amends once more from what the analyzers found and the plan goes on — the developer's `PLAN WRONG` is the backstop. Still `NOT BUILDABLE` after round 3, at any tier: bring it to the user.
 

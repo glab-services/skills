@@ -8,11 +8,22 @@
 #                            # message the user sends
 #   context-size.sh agent    # PostToolUse, matcher Agent: adds the same line after every subagent
 #                            # dispatch, so glab:manager has a fresh number for its handoff line
-#   context-size.sh stop     # Stop: shows the USER one line when the context has crossed 300k or a
-#                            # further 100k (400k, 500k, ...) - usually at the end of the turn
-#                            # after the crossing, see the `stop` comment; says nothing otherwise
+#   context-size.sh stop     # Stop: shows the USER one line when the context has crossed the first
+#                            # step - 300k, or GLAB_COMPACT_AT thousand when set - or a further 100k
+#                            # after it - usually at the end of the turn after the crossing, see the
+#                            # `stop` comment; says nothing otherwise
 #
-# The line is `glab: context <n>k (last completed call)`, n in thousands, rounded up.
+# The line is `glab: context <n>k (last completed call)`, n in thousands, rounded up; with a valid GLAB_COMPACT_AT it ends `; compact at <t>k)` instead.
+#
+# GLAB_COMPACT_AT, in thousands, moves the first step: unset or empty, the first step is 300k and the
+# line has no suffix; a whole number from 1 to 999999 makes it that many thousand, the steps after it
+# stay 100k apart, and every line ends `; compact at <t>k)`, so glab:manager reads the step from the
+# line. The default is an absolute size, not a share of the window: 300k is the user's working limit,
+# the same on every model. Not a per-model table and not a fraction of the window, because the hook
+# is not told the window; on a smaller window the user sets the variable (glab:manager Rule 2). An
+# invalid value warns instead of failing, because a typo must not silence the number: the run goes on
+# with the default. It is read after the transcript, so that each failure path keeps exactly one
+# stderr line - its failure - and the warning is never printed beside one.
 #
 # Why three events and why `stop` speaks to the user: a hook fires every time, whatever the model
 # does, but it cannot make the model act - `additionalContext` is text the model may ignore. So the
@@ -22,7 +33,10 @@
 #
 # Contract, like memory-sync.sh's (AGENTS.md *Rules*): exit 0 on every path; on stdout either
 # exactly one JSON object or nothing; every failure is one line on stderr, `glab context-size:
-# <reason>`, and no JSON. An unknown or missing mode is a failure like any other. The JSON is built
+# <reason>`, and no JSON.
+# The one stderr line that is not a failure is the GLAB_COMPACT_AT warning: the run goes on with the default
+# and prints on stdout what it would print with the variable unset - one JSON object or nothing.
+# An unknown or missing mode is a failure like any other. The JSON is built
 # by `jq -n --arg`, never by printf, so no text can break out of it. In mode `stop` the only key is
 # `systemMessage`: it never blocks a turn and never asks for another one - no exit 2, no
 # `decision`, no `reason`, no `continue`, no `hookSpecificOutput`, and nothing reads
@@ -49,7 +63,7 @@
 # `prompt` and `agent` add one line of about ten tokens, `stop` prints a line to the user once per
 # crossing of a 100k step, twice at most (see the `stop` comment), and every failure is silent on
 # stdout. One case keeps that bound from holding: with fewer than two real prompts inside the 8 MiB
-# window `stop` has no base (0) and speaks at every turn end while the context is at or past 300k.
+# window `stop` has no base (0) and speaks at every turn end while the context is at or past the first step.
 # That needs more than 8 MiB of transcript between two consecutive prompts - one turn of very large
 # tool results - and it stops with the next ordinary turn, which puts two prompts back in the
 # window. Accepted: the window is what bounds the read cost, and a line too many is the cheaper
@@ -110,7 +124,22 @@ for v in "$k" "$cur" "$base"; do
 	[[ $v =~ ^[0-9]{1,15}$ ]] || fail 'no usage in the transcript'
 done
 
-line="glab: context ${k}k (last completed call)"
+# The first step and the line's suffix, from GLAB_COMPACT_AT - see the header. Read only here,
+# after the transcript, so a run that failed above printed its one failure line and no warning.
+# Empty counts as unset: no warning. The pattern caps it at six digits, so the product below stays
+# far inside bash arithmetic, and its first digit is never 0, so bash never reads it as octal.
+first=300000
+suffix=''
+if [ -n "${GLAB_COMPACT_AT:-}" ]; then
+	if [[ $GLAB_COMPACT_AT =~ ^[1-9][0-9]{0,5}$ ]]; then
+		first=$((GLAB_COMPACT_AT * 1000))
+		suffix="; compact at ${GLAB_COMPACT_AT}k"
+	else
+		printf 'glab context-size: %s\n' 'GLAB_COMPACT_AT is not a whole number of thousands from 1 to 999999; using 300' >&2
+	fi
+fi
+
+line="glab: context ${k}k (last completed call${suffix})"
 
 case "$MODE" in
 	prompt)
@@ -120,9 +149,9 @@ case "$MODE" in
 		jq -n -c --arg c "$line" '{hookSpecificOutput: {hookEventName: "PostToolUse", additionalContext: $c}}'
 		;;
 	stop)
-		# step(x): -1 below 300000, else how many whole 100000s lie past 300000 - 300k is the size at
-		# which the rounds of an agent that carries its whole history already cost several times a
-		# fresh agent's, and 100k keeps a declined suggestion from repeating on every turn. Speaks
+		# step(x): -1 below the first step, else how many whole 100000s lie past it - the first step,
+		# 300k unless GLAB_COMPACT_AT moves it, is the size at which the rounds of an agent that
+		# carries its whole history already cost several times a fresh agent's, and 100k keeps a declined suggestion from repeating on every turn. Speaks
 		# when the latest written call is in a higher step than the size at the real prompt before the
 		# last one; stateless, so no file remembers a suggestion.
 		# Why one turn further back than the turn's own prompt: when Stop runs, the transcript does
@@ -137,8 +166,8 @@ case "$MODE" in
 		# every turn end) and a state file per session.
 		step_cur=-1
 		step_base=-1
-		[ "$cur" -ge 300000 ] && step_cur=$(((cur - 300000) / 100000))
-		[ "$base" -ge 300000 ] && step_base=$(((base - 300000) / 100000))
+		[ "$cur" -ge "$first" ] && step_cur=$(((cur - first) / 100000))
+		[ "$base" -ge "$first" ] && step_base=$(((base - first) / 100000))
 		if [ "$step_cur" -gt "$step_base" ]; then
 			jq -n -c --arg c "$line — a good point to /compact, or to /clear between tasks" '{systemMessage: $c}'
 		fi
