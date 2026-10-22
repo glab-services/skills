@@ -16,7 +16,7 @@ size → analyze → decide → plan → verify → implement → E2E tests → 
 - **Trivial** (skip this workflow): single-line changes, typo fixes, config one-liners, obvious renames, adding a known import — anything under ~5 lines with no architectural impact. Do it directly.
 - **Non-trivial** (follow the workflow): anything that touches logic, spans multiple files, changes behavior, introduces new concepts, or requires understanding existing code first.
 
-When in doubt, treat it as non-trivial. Non-trivial work is **normal** or **full** tier — `glab:manager` → *Pick the tier* says which. Normal tier writes one page: `plan.md` alone, with findings and decisions as sections of it. Map files the manager's mapping agents wrote, `map-<area>.md`, sit beside it (Step 1). Full tier writes the separate files below.
+When in doubt, treat it as non-trivial. Non-trivial work is **normal** or **full** tier — `glab:manager` → *Pick the tier* says which. Normal tier writes `master.md` and one page, `plan.md`, with evidence and decisions as sections of it. Map files the manager's mapping agents wrote, `map-<area>.md`, sit beside it (Step 1). Full tier writes the separate files below.
 
 ## Step 1 — Analyze
 
@@ -76,11 +76,28 @@ Write to `plan/{slug}/plan.md`. Must include:
 - test names to be added or updated;
 - the chosen implementation boundary;
 - why the other candidate boundaries were rejected;
-- `## Record` — the area spec or specs this change updates once it is pushed, any audit file under `plan/` it acts on, and what the entry will say. `glab:manager` Stage 8 runs it (*Plan files are working files*).
+- `## Record`, in `master.md` (below) — the area spec or specs this change updates once it is pushed, any audit file under `plan/` it acts on, and what the entry will say. `glab:manager` Stage 8 runs it (*Plan files are working files*).
 
 Do not prescribe a concrete implementation shape until the boundary is proven by findings and recorded decisions. The plan must be complete enough that another agent could execute it without follow-ups.
 
-**Size and shape — every later agent reads the plan again**, round after round, so every line is paid for many times. Keep `plan.md` and `evidence.md` at or under **48 KB** each (`wc -c`). A decision is one line: the choice and its reason, in at most two sentences; its evidence stays in `evidence.md` and is cited by id, never restated. Write a fact once, where it belongs, and cite it elsewhere. A plan that will not fit is usually two plans: split it. When it cannot be split, say why under `## Decisions` as `- size: <n> KB — <why it is one plan>`, and the manager decides (`glab:manager` Rule 3).
+**Size and shape — every later agent reads the plan again**, round after round, so every line is paid for many times. Keep `master.md`, `plan.md`, `index.md` and `evidence.md` at or under **48 KB** each (`wc -c`). A decision is one line: the choice and its reason, in at most two sentences; its evidence stays in `evidence.md` and is cited by id, never restated. Write a fact once, where it belongs, and cite it elsewhere. A plan that will not fit is usually two plans: split it (below). When it cannot be split, say why under `## Decisions` as `- size: <n> KB — <why it is one plan>`, and the manager decides (`glab:manager` Rule 3).
+
+### The master plan, and sub-plans when the work splits
+
+Every plan folder starts with `plan/{slug}/master.md` — what the user asked for, constant once accepted; the plans say how. It holds:
+
+- `## Request` — the user's words that define the task, verbatim and dated, later words added the same way until approval. Never paraphrase them: every intent check reads them.
+- `## Goals` — `G1`, `G2`, …: one line each, what must be true for the user when done, citing its words, saying no more and no less.
+- `## Out of scope` — what the user excluded, in their words, or `none`.
+- `## Final check` — the test that shows the whole request done, end to end.
+- `## Record` — the record, as Step 3 says.
+- `## Approval` — the manager writes it (`glab:manager` Stage 1); you never do. After it the master is never edited.
+
+**One plan by default** — one `plan.md` beside the master — when the work has one milestone and fits the size budget. **Split it** only into parts that each serve their own goals, carry their own milestone test and can be built, reviewed and committed one after another. Each part is a sub-plan: a folder `plan/{slug}/<nn>-<name>/` that is a plan folder under every rule of this skill — its own `plan.md`, tier line, `evidence.md`, `questions.md` and round copies. `<nn>` is two digits in build order, never reused or renumbered; `<name>` is kebab-case. Files the repo requires to change in one commit belong to one sub-plan.
+
+The split goes into `plan/{slug}/index.md`, one line per sub-plan — `<nn>-<name> · goals G1, G3 · depends <nn>-<name>, … | none · tier <normal | full>` — and a `## Decisions` section for choices about the split. Every goal is on at least one line.
+
+**Planning in cycles.** The first planning agent writes `master.md` and, when the work splits, `index.md` — no sub-plan yet. Each sub-plan is then planned by its own agent from `master.md`, its own `index.md` line and the map files it needs — `plan/{slug}/map-<area>.md`, at the slug's level — never from another sub-plan, once what it depends on is committed, so it cites the tree it will be built on. A sub-plan that needs another goal or another sub-plan's files says so and does not reach into them: the split is the manager's.
 
 ## Step 4 — Verify the Plan
 
@@ -88,21 +105,21 @@ Before implementing, confirm:
 
 - every gap is proven, decided, or answered by the user;
 - the plan covers every finding, with no gaps left;
-- at full tier, the user has approved the plan;
+- the plan check has passed and `master.md` has its `## Approval` line — the user's at full tier and whenever the work split — and a full-tier `plan.md`, a single plan's or a sub-plan's, ends with its own;
 - the call-site review is complete for any changed existing method, and every method the plan only calls has its precondition recorded;
 - the chosen boundary is proven by the semantics of the existing implementation — not by naming or file placement;
 - rollback/delete/state semantics are proven where relevant;
 - ownership/lifecycle risks are reviewed on resource-sensitive paths.
 
-**Amending after a plan check.** Under `glab:manager` an amendment after `NOT BUILDABLE` is written by a new planning agent from the files on disk and the round's findings in its dispatch (`glab:manager` Stage 1b). Change what the findings name and what that forces, and **replace the text you change, in place**: the step, the finding or the decision line is rewritten under its own id, a changed choice with its new reason. Never append an amendment section, a "superseded" line or a round marker beside the old text — the `<name>.r<n>.md` copies the manager kept are the history; leave them as they are. A line the manager added to overrule a decision stays as the manager wrote it. Step 1 is not run again, except for a gap a finding opens.
+**Amending after a plan check.** Under `glab:manager` an amendment after `NOT BUILDABLE` is written by a new planning agent from the files on disk and the round's findings in its dispatch (`glab:manager` Stage 1b). Change what the findings name and what that forces, and **replace the text you change, in place**: the step, the finding or the decision line is rewritten under its own id, a changed choice with its new reason. Never append an amendment section, a "superseded" line or a round marker beside the old text — the `<name>.r<n>.md` copies the manager kept are the history; leave them as they are. A line the manager added to overrule a decision stays as the manager wrote it. No round amends a `master.md` that has an `## Approval` line. When the user changes the request, the manager has a planning agent keep the old master as `master.v<n>.md` — a version copy, never `.r<n>` — and write a new `master.md`; the old `## Approval` line and `master.sha256` do not carry over, and the new master goes through its own plan check (Stage 1b), then a new approval and a new hash. Step 1 is not run again, except for a gap a finding opens.
 
 ## Steps 5 to 7 — Implement, E2E tests, unit tests
 
-They are in [`implement.md`](implement.md), beside this file, with the repo rules that bind only the implementation — service lifecycle, nested repositories, commits. Read it once the plan is verified (Step 4) and, at full tier, approved. **A planning agent stops at Step 4 and does not read it.**
+They are in [`implement.md`](implement.md), beside this file, with the repo rules that bind only the implementation — service lifecycle, nested repositories, commits. Read it once the plan is verified and approved (Step 4), or once a waiver is written (*User Override*). **A planning agent stops at Step 4 and does not read it.**
 
 ## Repo Rules
 
-**Plan files are working files; the spec is what stays.** Once the change is pushed, `glab:manager` Stage 8 records it: a docs change updates the spec of each area the change touched — how the area works now, the decisions that still bind, what is not verified, and every follow-up still open and every incident, each under its source file and number. Specs live in `docs/specs/`, one file per area, unless the repo's `AGENTS.md` names another place. The record never removes `plan/{slug}/` or an audit file: whether a recorded plan folder is then removed, and how, is the repo's own `AGENTS.md` decision. A plan folder whose `plan.md` has no `## Record` was written before the repo followed this rule, and Stage 8 does not record it.
+**Plan files are working files; the spec is what stays.** Once the change is pushed, `glab:manager` Stage 8 records it: a docs change updates the spec of each area the change touched — how the area works now, the decisions that still bind, what is not verified, and every follow-up still open and every incident, each under its source file and number. Specs live in `docs/specs/`, one file per area, unless the repo's `AGENTS.md` names another place. The record never removes `plan/{slug}/` or an audit file: whether a recorded plan folder is then removed, and how, is the repo's own `AGENTS.md` decision. A plan folder whose `master.md` — or `plan.md`, in a folder with no master — has no `## Record` was written before the repo followed this rule, and Stage 8 does not record it.
 
 **One slug per task.** Reuse the same folder for findings, questions, and plan.
 
@@ -119,16 +136,17 @@ Use the task ID instead if the user provides one.
 
 ## User Override
 
-If the user explicitly waives planning after you flag it ("I already know what I want, just do it"), accept it and write `plan/{slug}/waived.md` with the date, what was waived, and their reason. Then implement, from [`implement.md`](implement.md). This keeps the paper trail without blocking work. Its folder is recorded like a plan's (*Plan files are working files*).
+If the user explicitly waives planning after you flag it ("I already know what I want, just do it"), accept it and write `plan/{slug}/waived.md` with the date, what was waived, and their reason. Then implement, from [`implement.md`](implement.md): the waiver stands in for the verified, approved plan it asks for. This keeps the paper trail without blocking work. Its folder is recorded like a plan's (*Plan files are working files*).
 
 ## Quick Reference
 
 | Phase | Output | Location |
 |-------|--------|----------|
+| Intent | Request, goals, final check, record | `plan/{slug}/master.md`, the split in `index.md` |
 | Analyze | Findings | `plan/{slug}/evidence.md` |
 | Decide | Decisions; one question at most | `## Decisions` in `plan.md`; `plan/{slug}/questions.md` |
 | Plan | Implementation steps | `plan/{slug}/plan.md` |
-| Verify | Plan review | with the user, at full tier |
+| Verify | Plan review | the plan check, then the master's approval, and at full tier `plan.md`'s |
 | Implement | Code changes | the repo |
 | E2E tests | the repo's canonical runner | wherever the suite lives |
 | Unit tests | the repo's test target | the repo |

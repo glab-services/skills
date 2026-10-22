@@ -92,27 +92,31 @@ the gate silently.
 ## 4. Confirm the pipeline
 
 ```
-plan ⇄ analyze  →  develop ⇄ analyze  →  integrate  →  review ⇄  →  commit  →  push  →  record
+plan ⇄ analyze  →  develop ⇄ analyze  →  integrate  →  review ⇄  →  commit  →  final check  →  push  →  record
 ```
 
 That is the **full** pipeline, for the changes `glab:manager` → *Pick the tier*
-makes full tier.
-Normal work runs a one-page plan, a plan check and a review, with no
-conformance stage; trivial work is done directly. Each check stage runs
+makes full tier; a full-tier plan with no sub-plans
+skips the final check, which its conformance check asked.
+Normal work runs a one-page plan, a plan check, a review and the final
+check, with no conformance stage unless it splits into sub-plans; trivial
+work is done directly. Each check stage runs
 at most two rounds, a third only on a critical or high finding;
 `glab:manager` → *Pick the tier* has the table and the round caps.
 
 - **`plan ⇄ analyze`** — the plan is analyzed *before any code exists*: can this
   be built exactly as written? See `glab:manager` Stage 1b.
-- **`develop ⇄ analyze`** — conformance: did we build what the plan said? Full
-  tier only.
+- **`develop ⇄ analyze`** — conformance: did we build what the plan said?
+  Full tier, and every sub-plan at every tier.
 - **`integrate`** — against a real running system, local only, never a live
   endpoint. Skip only when the change cannot be exercised at runtime, and say
   you are skipping it and why.
 - **`review ⇄`** — an external auditor gets the target and nothing else. Not the
   slug, not the plan, not what it was supposed to do.
-- **`commit`**, then **`push`** — push waits for the user's explicit go-ahead,
-  every time.
+- **`commit`**, **`final check`**, then **`push`** — one commit per sub-plan;
+  the final check compares everything committed with the user's request in
+  `master.md` (`glab:manager` Stage 6b); push waits for the user's explicit
+  go-ahead, every time.
 - **`record`** — after the push, what stays true goes into the area spec, in a
   docs commit of its own (`glab:manager` Stage 8); the plan folder stays unless
   the repo's `AGENTS.md` says otherwise.

@@ -1,9 +1,9 @@
 ---
-description: Implement a plan (approved, at full tier) through glab:developer agents — glab:plan-first steps 5 to 7 — then hand off to /glab:analyze at full tier or /glab:integrate at normal
+description: Implement a plan (approved, at full tier) through glab:developer agents — glab:plan-first steps 5 to 7 — then hand off to /glab:analyze at full tier or for a sub-plan, /glab:integrate otherwise
 argument-hint: "[plan slug]"
 ---
 
-Read `AGENTS.md` (or `CLAUDE.md` if the repo has none — say so), then `plan/$ARGUMENTS/plan.md`. If no slug was given, ask which plan; do not guess, and do not pick the most recent.
+Read `AGENTS.md` (or `CLAUDE.md` if the repo has none — say so), then `plan/$ARGUMENTS/plan.md`. The slug may name a sub-plan, `<slug>/<nn>-<name>`; its `master.md` is a level up. If no slug was given, ask which plan; do not guess, and do not pick the most recent.
 
 You are the orchestrator here. **You do not write the implementation yourself** — the `glab:developer` agent does. Your job is to check the preconditions, decide how the work is split, dispatch, and verify what comes back.
 
@@ -12,7 +12,7 @@ You are the orchestrator here. **You do not write the implementation yourself** 
 - **No plan and no `waived.md`** → stop. That is `/glab:plan`, not this.
 - **`plan/{slug}/waived.md` exists** → that is `glab:plan-first`'s waiver and it is a valid start; say you are working from a waiver, not a plan, and that `/glab:analyze` therefore has nothing to measure against.
 - **`plan/{slug}/questions.md` exists** → read it. These files have no single convention, so do not refuse on stale text. A question that is mine — destructive, costs money, exposes real data, changes what the product is — and is not plainly answered: ask me, do not assume. Anything else still open in it is yours to decide and record under `## Decisions` (`glab:manager` Rule 3).
-- **Approval** → full tier only; a plan with no tier line is full (`glab:manager` → *Pick the tier*). Nothing records it, so do not pretend to check: ask me to confirm the plan is approved before any agent writes code, unless I approved it in this conversation. A normal-tier plan starts without it.
+- **Approval** → with a `master.md` (a level up for a sub-plan), its `## Approval` line is there, `sha256sum -c plan/<slug>/master.sha256`, run from the repo root, prints `OK`, and at full tier `plan.md` — a single plan's or a sub-plan's — ends with its own `## Approval` line — or stop and tell me. With none — a plan from before `glab` 0.11.0 — full tier only; a plan with no tier line is full (`glab:manager` → *Pick the tier*). Nothing records it, so do not pretend to check: ask me to confirm the plan is approved before any agent writes code, unless I approved it in this conversation. A normal-tier plan starts without it.
 - **Green tree** → run the plan's own gate once before touching anything. Dispatching onto a red tree means every agent inherits a failure it did not cause and cannot tell apart from its own.
 
 ## Decide the split
@@ -37,6 +37,7 @@ Sequential agents are a third option and a good one for a long plan: one agent p
 Give each `glab:developer` agent:
 
 - the slug, and the exact step ids it owns;
+- the paths of `master.md` and of the plan folder, and that no other sub-plan's folder is read;
 - the file boundary, when there is more than one agent;
 - anything decided in this conversation that is not written in the plan — an answer I gave you, a constraint I added. The agent cannot see this conversation and will build the plan as written unless you tell it otherwise;
 - the model, only when I named one for the developer: pass it as the Agent tool's `model` parameter on every `glab:developer` dispatch, slices, fix rounds and re-dispatches alike. I named none → pass none. Never choose one yourself (`glab:manager` Rule 5).
@@ -67,4 +68,4 @@ If an agent returns `BLOCKED`, decide whether it is unblockable — a missing de
 
 **Build the plan, not your own better idea.** That applies to you as much as to the agents. If you find yourself fixing an agent's work beyond a mechanical consequence, you have taken over the implementation, and the split stopped meaning anything.
 
-When all three gates are green, hand off to the plan's next stage — `/glab:analyze` at full tier, `/glab:integrate` at normal. Do not run `/glab:review` yourself. Do not commit. Do not push.
+When all three gates are green, hand off to the plan's next stage — `/glab:analyze` at full tier and for every sub-plan, `/glab:integrate` at normal with no sub-plans. Do not run `/glab:review` yourself. Do not commit. Do not push.
