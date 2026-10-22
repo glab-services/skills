@@ -112,8 +112,9 @@ repo and to nothing else.
   `systemMessage` — it never blocks a turn or continues one.
 - **One fact, one value.** A number or name stated in more than one file
   changes in all of them in the same commit. Known cases:
-  the round caps — Stage 1b, Stage 3 and Stage 5 at most 2 rounds at every
-  tier, a third only on a `critical` or `high` finding of round 2, recorded
+  the round caps — Stage 1b, Stage 3, Stage 5 and the final check (Stage 6b)
+  at most 2 rounds at every tier, per sub-plan where there are, a third only
+  on a `critical` or `high` finding of round 2, recorded
   first as a `## Decisions` line, or in the handoff line and this
   conversation when there is no plan, none past 3
   (`plugins/glab/agents/reviewer.md`, `plugins/glab/agents/analyzer.md`,
@@ -157,8 +158,8 @@ repo and to nothing else.
   `plugins/glab/agents/developer.md`, `plugins/glab/commands/develop.md`,
   `plugins/glab/commands/ship.md`, `plugins/glab/commands/analyze.md`); the
   mapping files `map-<area>.md`, the evidence file `evidence.md` — a
-  subagent's Write of `findings.md` is refused — and the round copies
-  `<name>.r<n>.md`
+  subagent's Write of `findings.md` is refused — the round copies
+  `<name>.r<n>.md` and the version copies `master.v<n>.md`
   (`plugins/glab/skills/manager/SKILL.md`,
   `plugins/glab/skills/plan-first/SKILL.md`,
   `plugins/glab/agents/analyzer.md`, `plugins/glab/agents/developer.md`);
@@ -198,8 +199,9 @@ repo and to nothing else.
   `plugins/glab/commands/develop.md`, `plugins/glab/commands/review.md`,
   `plugins/glab/commands/ship.md`, `plugins/glab/skills/bootstrap/SKILL.md`,
   `plugins/glab/scripts/manager-bootstrap.sh`, `README.md`); the plan size
-  budget — 48 KB each for `plan.md` and `evidence.md`, and the `- size:`
-  line (`plugins/glab/skills/plan-first/SKILL.md` Step 3,
+  budget —
+  48 KB each for `master.md`, `plan.md`, `index.md` and `evidence.md`, and
+  the `- size:` line (`plugins/glab/skills/plan-first/SKILL.md` Step 3,
   `plugins/glab/skills/manager/SKILL.md` acceptance checklist item 6);
   amendments replace the text they change, in place
   (`plugins/glab/skills/plan-first/SKILL.md` Step 4,
@@ -209,7 +211,36 @@ repo and to nothing else.
   (`plugins/glab/skills/plan-first/SKILL.md`,
   `plugins/glab/skills/plan-first/implement.md`,
   `plugins/glab/commands/plan.md`, `plugins/glab/commands/develop.md`,
-  `plugins/glab/skills/manager/SKILL.md`).
+  `plugins/glab/skills/manager/SKILL.md`);
+  the master plan and sub-plans — `master.md` with its six sections,
+  constant after `## Approval` and hashed in `master.sha256`, a changed
+  request a new master with the old kept as `master.v<n>.md` and its
+  approval and hash not carried over, `index.md`, the folders
+  `<nn>-<name>/`, the user's approval of every full-tier `plan.md`, a
+  single plan's or a sub-plan's, one commit per sub-plan, one final check, push and record per
+  slug, and `## Record` in the master
+  (`plugins/glab/skills/plan-first/SKILL.md`,
+  `plugins/glab/skills/manager/SKILL.md`, `plugins/glab/agents/analyzer.md`,
+  `plugins/glab/agents/developer.md`, `plugins/glab/commands/plan.md`,
+  `plugins/glab/commands/analyze.md`, `plugins/glab/commands/develop.md`,
+  `plugins/glab/skills/audit/SKILL.md`, `README.md`);
+  the intent check — the analyzer at Stage 1b, Stage 3 and the final check,
+  never the reviewer (`plugins/glab/agents/analyzer.md`,
+  `plugins/glab/skills/manager/SKILL.md`,
+  `plugins/glab/commands/analyze.md`, `README.md`);
+  the analyzer's verdict lines — `BUILDABLE`, `NOT BUILDABLE`, `CONFORMS`,
+  `DIVERGES: <n> steps`, `BLOCK: target unresolved`
+  (`plugins/glab/agents/analyzer.md`,
+  `plugins/glab/skills/manager/SKILL.md`,
+  `plugins/glab/commands/analyze.md`,
+  `plugins/glab/skills/plan-first/SKILL.md`); approval in plan mode — only
+  when the user asks, no plan file outside the repo, `plansDirectory` never
+  changed, its claims UNVERIFIED until L1–L7
+  (`plugins/glab/skills/manager/SKILL.md`, `README.md`);
+  the stage sequence with the final check
+  (`plugins/glab/skills/manager/SKILL.md` description,
+  `plugins/glab/skills/bootstrap/SKILL.md` step 4,
+  `plugins/glab/scripts/manager-bootstrap.sh`).
 - **Comments and recorded incidents are kept.** Update them when the thing
   they describe changes; do not delete them.
 - **Tests clean up by PID.** A test kills only processes it started itself,
@@ -238,7 +269,9 @@ repo and to nothing else.
   No untracked file under `plan/` is removed; `plan/SESSION-HANDOFF.md` is
   never committed.
 - **A change under `plugins/<name>/` raises that plugin's `version`** in
-  `plugins/<name>/.claude-plugin/plugin.json`, in the same commit. An installed
+  `plugins/<name>/.claude-plugin/plugin.json`, in the same commit. When one
+  push carries several commits of one change — one per sub-plan — the first
+  that changes `plugins/<name>/` raises it, once. An installed
   copy is pinned to the version string: without a new one nobody receives the
   change, and nothing says so.
 - **Payload text names a plugin component by its prefixed name** —

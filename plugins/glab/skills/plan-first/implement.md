@@ -1,6 +1,6 @@
 # Plan First — implementation
 
-Steps 5 to 7 of `glab:plan-first`, kept apart so that a planning agent does not load them. Start them only once the plan is verified (Step 4) and, at full tier, approved.
+Steps 5 to 7 of `glab:plan-first`, kept apart so that a planning agent does not load them. Start them only once the plan is verified and approved (`glab:plan-first` Step 4), or once `plan/{slug}/waived.md` records a waiver (*User Override* in `SKILL.md`), which stands in for both.
 
 ## Step 5 — Implement
 

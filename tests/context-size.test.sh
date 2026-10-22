@@ -332,7 +332,7 @@ expect_no_err
 unset GLAB_COMPACT_AT
 done_case T24 "an invalid GLAB_COMPACT_AT: one warning, the default line; empty: no warning"
 
-# T19 stop never blocks or continues - judged over every stop run above, T20's and T21's included
+# T19 stop never blocks or continues - judged over every stop run above: T18's, T20's, T21's and T23's through stop_case, and T24's own
 if /usr/bin/grep -q -E 'decision|continue|reason|hookSpecificOutput|additionalContext' "$W/stopouts"; then
 	bad "a stop output holds a blocking or context key: $(/usr/bin/grep -E 'decision|continue|reason|hookSpecificOutput|additionalContext' "$W/stopouts" | head -n 1)"
 fi

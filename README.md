@@ -15,8 +15,14 @@ dispatches the agents through the commands, and every agent carries
 which the manager passes on every dispatch. The two plugins do not depend on
 each other; install either alone.
 
-Each change's working files — findings, plan, results — live in
-`plan/<slug>/`. Once the change has been pushed, the workflow records what
+Each change's working files live in `plan/<slug>/`: `master.md` —
+your request in your words, its goals and the final check, constant once
+accepted — and one `plan.md`, or sub-plans `<nn>-<name>/` that each run
+their own cycle. The analyzer checks the plan against `master.md` before
+the build (Stage 1b) and the build after it (Stage 3), the reviewer sees
+only the code, and the analyzer's final check before the push compares the
+master with everything built.
+Once the change has been pushed, the workflow records what
 stays true — how the area works, the decisions that still bind, what is open
 — in `docs/specs/<area>.md`, as a docs commit of its own. It never removes the
 plan folder: whether a repo does is that repo's `AGENTS.md` decision. A
@@ -39,6 +45,15 @@ steps become 150k, 250k, …; every line then ends `; compact at 150k)`.
 The number is the last completed model call's, and can trail the turn a
 little. It runs in every session where `glab` is enabled, and not at all when
 hooks are turned off (`disableAllHooks`, `--bare`).
+
+Ask for it, and the manager has you
+approve `master.md` in Claude Code's plan mode instead of the chat.
+UNVERIFIED: how the dialog takes the plan and that it sets the session's
+permission mode from then on are read from Claude Code's documentation, not
+yet run — the live tests L1–L7 in `docs/specs/workflow.md` settle them;
+until then pick the mode you were in. The plugin
+never changes `plansDirectory`, and the manager writes no plan file under
+`~/.claude/plans`.
 
 ## Requirements
 

@@ -1,0 +1,5 @@
+# Follow-ups — flow-master-plan (from the developer, not built)
+
+- DEV1 `plugins/glab/skills/manager/SKILL.md` Stage 8 dispatch bullet now reads "from the folder's files, sub-plan folders included and the audit file": S3's replacement text has no closing comma, unlike S5's equivalent in `developer.md` ("sub-plan folders included,"). Built as written; a one-character wording fix for a later plan.
+- DEV2 `plugins/glab/skills/manager/SKILL.md` *Pick the tier* table: as S2 says, the renamed row `Approval, after 1b` stays above the `1b` row, and `6b Final check` sits after `5 Review` and before `6–7 Commit, push`. Built as written; whether the row order should follow the stage order is for a later plan.
+- DEV3 `AGENTS.md` *One fact* round-caps entry now names the final check (S8), but of the files that entry lists only `plugins/glab/skills/manager/SKILL.md` states the final check's cap; `agents/analyzer.md` *The final check* names round 2 but no cap, and the reviewer files stay untouched by decision. The value (2) agrees everywhere it is stated; whether the listed files must each state the new cap is for the record or a later plan.

@@ -67,4 +67,4 @@ Fill in `references/plan-template.md`, which carries the full skeleton. Every do
 1. Confirm the file is saved under `plan/` (create the directory if needed).
 2. Tell the user the path and a one-line summary of what it contains.
 3. Ask whether they want to act on any finding now — if so, that work goes through [glab:plan-first](../plan-first/SKILL.md).
-4. When a change acts on the file, its plan's `## Record` names it, and that change's record (`glab:manager` Stage 8) carries what is still open into the area spec and `glab:analyzer` checks it was carried. The record never removes the file; whether it is removed afterwards is the repo's own `AGENTS.md` decision.
+4. When a change acts on the file, its plan's `## Record` — `master.md`'s, where there is one — names it, and that change's record (`glab:manager` Stage 8) carries what is still open into the area spec and `glab:analyzer` checks it was carried. The record never removes the file; whether it is removed afterwards is the repo's own `AGENTS.md` decision.
