@@ -20,7 +20,7 @@ When in doubt, treat it as non-trivial. Non-trivial work is **normal** or **full
 
 ## Step 1 — Analyze
 
-Write findings to `plan/{slug}/findings.md`. Include:
+Write findings to `plan/{slug}/evidence.md` — not `findings.md`: Claude Code refuses a subagent's Write of a file by that name. Include:
 
 - Scope: what exists, what's missing, dependencies, risks.
 - The spec of each area the change touches, read first — `docs/specs/<area>.md`, or where the repo's `AGENTS.md` puts specs. Its decisions still bind, its known limits still hold, and its open follow-ups may already describe this task.
@@ -80,6 +80,8 @@ Write to `plan/{slug}/plan.md`. Must include:
 
 Do not prescribe a concrete implementation shape until the boundary is proven by findings and recorded decisions. The plan must be complete enough that another agent could execute it without follow-ups.
 
+**Size and shape — every later agent reads the plan again**, round after round, so every line is paid for many times. Keep `plan.md` and `evidence.md` at or under **48 KB** each (`wc -c`). A decision is one line: the choice and its reason, in at most two sentences; its evidence stays in `evidence.md` and is cited by id, never restated. Write a fact once, where it belongs, and cite it elsewhere. A plan that will not fit is usually two plans: split it. When it cannot be split, say why under `## Decisions` as `- size: <n> KB — <why it is one plan>`, and the manager decides (`glab:manager` Rule 3).
+
 ## Step 4 — Verify the Plan
 
 Before implementing, confirm:
@@ -92,73 +94,13 @@ Before implementing, confirm:
 - rollback/delete/state semantics are proven where relevant;
 - ownership/lifecycle risks are reviewed on resource-sensitive paths.
 
-**Amending after a plan check.** Under `glab:manager` an amendment after `NOT BUILDABLE` is written by a new planning agent from the files on disk and the round's findings in its dispatch (`glab:manager` Stage 1b). Change what the findings name and what that forces, record each changed choice under `## Decisions`, and leave the `plan.r<n>.md` copies the manager kept as they are. Step 1 is not run again, except for a gap a finding opens.
+**Amending after a plan check.** Under `glab:manager` an amendment after `NOT BUILDABLE` is written by a new planning agent from the files on disk and the round's findings in its dispatch (`glab:manager` Stage 1b). Change what the findings name and what that forces, and **replace the text you change, in place**: the step, the finding or the decision line is rewritten under its own id, a changed choice with its new reason. Never append an amendment section, a "superseded" line or a round marker beside the old text — the `<name>.r<n>.md` copies the manager kept are the history; leave them as they are. A line the manager added to overrule a decision stays as the manager wrote it. Step 1 is not run again, except for a gap a finding opens.
 
-## Step 5 — Implement
+## Steps 5 to 7 — Implement, E2E tests, unit tests
 
-**Strict scope. The plan is a closed list.** Implement the steps it names and nothing else.
-Every hunk you write must map to a named step. If it does not, it does not go in this change.
-
-This binds hardest on things that look like improvements:
-
-- A bug you spotted in passing — even one the plan's own findings called out as
-  *"pre-existing, unrelated, out of scope."* Out of scope means out of scope.
-- A better file layout than the plan's target tree. If the plan says two files, write two files.
-- A richer API than the step described. "Move it as-is" means move it as-is — no new exported
-  interface, no new option family, no new result types.
-- Errors, constants, helpers or config defaults for machinery a later plan will build.
-  A plan that forbids a registry also forbids the registry's vocabulary.
-- Renames, import regrouping, formatting sweeps, and stray blank lines left where deleted
-  code used to be.
-
-The only changes allowed beyond the plan's text are the **unavoidable mechanical consequences**
-of a step: a call site forced to change by a signature the plan changed, a test deleted with the
-function it covered. Say so in the commit body when you rely on this.
-
-Everything else that wants doing gets written to `plan/{slug}/follow-ups.md` and stays there until the change is recorded, when each one still open moves into the area spec.
-Scope creep is not free: it is unreviewed behaviour riding in under an approved plan, and it
-makes the plan stop being a contract anyone can check the work against.
-
-Execute the plan. After every material change, build the affected package and run the single
-test closest to what you just touched — not the whole suite, which is slow enough that you will
-stop doing it. Use the repo's own targets (`make`, `just`, `npm run`, `scripts/`) rather than
-hand-rolled commands, so you run what CI runs.
-
-A clean build is the minimum bar before running tests. If the repo has no build step, its
-typecheck or lint stands in for one.
-
-## Step 6 — E2E / Integration Tests
-
-If the repo has an E2E or integration suite, use its canonical runner — the script or target the
-repo provides, never the underlying test tool directly. The runner usually loads environment,
-endpoints and credentials that a raw invocation will not, and a suite run without them fails in
-ways that look like product bugs.
-
-Find it before you need it: a `scripts/` entry, a `make` target, or a section in the repo's
-README. If the suite talks to a running service, that service must be reachable first — check,
-do not assume.
-
-If there is no such suite, say so rather than skipping the step silently.
-
-## Step 7 — Unit Tests
-
-- Put tests in the file the repo's convention pairs with the implementation file.
-- Push toward 100% coverage for touched code paths unless a branch is structurally unreachable.
-- Run the repo's test target for the affected package.
+They are in [`implement.md`](implement.md), beside this file, with the repo rules that bind only the implementation — service lifecycle, nested repositories, commits. Read it once the plan is verified (Step 4) and, at full tier, approved. **A planning agent stops at Step 4 and does not read it.**
 
 ## Repo Rules
-
-**Service lifecycle.** If services are already running and the user manages them, never start or
-stop one yourself. After implementing or fixing, tell the user to restart the affected service
-before E2E tests will reflect the changes.
-
-**Nested repositories.** A directory with its own `.git` is separate history. Commit changes
-there separately, with their own message, and never stage the pointer from the outer repo.
-
-**Commits.** `AGENTS.md` owns the format — read it. Failing a repo-specific rule, Conventional
-Commits: `type(scope): subject`, types `feat`, `fix`, `refactor`, `perf`, `test`, `docs`,
-`build`, `ci`, `chore`. Scope short, lowercase, component-oriented. One logical change per
-commit, and separate commits per repository when more than one is involved.
 
 **Plan files are working files; the spec is what stays.** Once the change is pushed, `glab:manager` Stage 8 records it: a docs change updates the spec of each area the change touched — how the area works now, the decisions that still bind, what is not verified, and every follow-up still open and every incident, each under its source file and number. Specs live in `docs/specs/`, one file per area, unless the repo's `AGENTS.md` names another place. The record never removes `plan/{slug}/` or an audit file: whether a recorded plan folder is then removed, and how, is the repo's own `AGENTS.md` decision. A plan folder whose `plan.md` has no `## Record` was written before the repo followed this rule, and Stage 8 does not record it.
 
@@ -177,13 +119,13 @@ Use the task ID instead if the user provides one.
 
 ## User Override
 
-If the user explicitly waives planning after you flag it ("I already know what I want, just do it"), accept it and write `plan/{slug}/waived.md` with the date, what was waived, and their reason. Then implement. This keeps the paper trail without blocking work. Its folder is recorded like a plan's (*Plan files are working files*).
+If the user explicitly waives planning after you flag it ("I already know what I want, just do it"), accept it and write `plan/{slug}/waived.md` with the date, what was waived, and their reason. Then implement, from [`implement.md`](implement.md). This keeps the paper trail without blocking work. Its folder is recorded like a plan's (*Plan files are working files*).
 
 ## Quick Reference
 
 | Phase | Output | Location |
 |-------|--------|----------|
-| Analyze | Findings | `plan/{slug}/findings.md` |
+| Analyze | Findings | `plan/{slug}/evidence.md` |
 | Decide | Decisions; one question at most | `## Decisions` in `plan.md`; `plan/{slug}/questions.md` |
 | Plan | Implementation steps | `plan/{slug}/plan.md` |
 | Verify | Plan review | with the user, at full tier |
