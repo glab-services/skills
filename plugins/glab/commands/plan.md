@@ -3,7 +3,7 @@ description: Size, analyze, question and plan a task with the glab:plan-first sk
 argument-hint: "[what to build or fix]"
 ---
 
-Read `AGENTS.md` (or `CLAUDE.md` if the repo has none — say so), then follow the `glab:plan-first` skill for: $ARGUMENTS
+Read `AGENTS.md` (or `CLAUDE.md` if the repo has none — say so), then use the **glab:planner** agent for: $ARGUMENTS, dispatched as `glab:manager` Rules 0c, 0d and 5 say; it follows the `glab:plan-first` skill.
 
 That skill owns the procedure — the findings contract, the call-site audit, the proven-vs-inferred split, the slug naming. Do not restate it here and do not shortcut it.
 

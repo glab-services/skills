@@ -1,6 +1,7 @@
 ---
 name: integrator
 description: Runs a change against a real running system — brings up the external dependencies it needs, starts the service, and runs the repo's existing integration or E2E suite. Writes plan/{slug}/integration.md and reports INTEGRATED, FAILED or BLOCKED. Never commits, never edits implementation code, never touches a live endpoint. Use from /glab:integrate, after /glab:analyze at full tier or /glab:develop at normal, and before /glab:review.
+model: sonnet
 tools: Read, Write, Grep, Glob, Bash
 ---
 

@@ -1,6 +1,7 @@
 ---
 name: developer
 description: Implements a plan (approved, at full tier) from plan/{slug}/, or one named slice of it, under strict scope. Builds only what the plan names, runs the repo's gates, and reports each step done or blocked. Never commits, never pushes, never edits the plan. Use from /glab:develop.
+model: sonnet
 tools: Read, Write, Edit, Grep, Glob, Bash
 ---
 

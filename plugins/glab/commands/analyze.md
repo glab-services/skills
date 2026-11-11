@@ -1,13 +1,13 @@
 ---
-description: Check an implementation against its plan with the glab:analyzer agent — conformance, not correctness
+description: Check a plan or an implementation with the glab:plan-analyzer or glab:analyzer agent — conformance and intent, not correctness
 argument-hint: "[plan slug]"
 ---
 
-Read `AGENTS.md` (or `CLAUDE.md` if the repo has none — say so), then use the **glab:analyzer** agent on `plan/$ARGUMENTS/`.
+Read `AGENTS.md` (or `CLAUDE.md` if the repo has none — say so), then pick the agent by the check and use it on `plan/$ARGUMENTS/`, dispatched as `glab:manager` Rules 0d and 5 say. The check is named in the dispatch message or by me, never in `$ARGUMENTS`, which is only the slug. A final or record check (`glab:manager` Stages 6b and 8) uses **glab:analyzer**. Otherwise the folder settles it: with a `result.md` under `plan/$ARGUMENTS/` it is the conformance check, with **glab:analyzer**; with none, nothing is built, so it is the plan check, or the master check when that is named (`glab:manager` Stage 1b), with **glab:plan-analyzer**. A check named that is none of these there: ask which check, and do not guess.
 
 A round 2 or later is a new agent, given the previous round's findings and the delta, as `glab:manager` Stages 1b and 3 say.
 
-The slug may name a sub-plan, `<slug>/<nn>-<name>`. With a `master.md` the analyzer also asks the intent question (`glab:analyzer` *The intent question*); after the slug's last commit, `/glab:analyze <slug>` named as the final check asks it of the whole slug (`glab:manager` Stage 6b).
+The slug may name a sub-plan, `<slug>/<nn>-<name>`. With a `master.md` the analyzer also asks the intent question (`glab:plan-analyzer` or `glab:analyzer` *The intent question*); after the slug's last commit, `/glab:analyze <slug>` named as the final check asks it of the whole slug (`glab:manager` Stage 6b).
 
 If no slug was given, ask which plan; do not guess, and do not pick the most recent. An empty argument makes that path `plan/`, which hands the analyzer every plan in the repo and lets it choose its own contract.
 
