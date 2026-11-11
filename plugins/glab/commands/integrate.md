@@ -3,7 +3,7 @@ description: Run the change against a running system with the glab:integrator ag
 argument-hint: "[plan slug]"
 ---
 
-Read `AGENTS.md` (or `CLAUDE.md` if the repo has none — say so), then use the **glab:integrator** agent on `plan/$ARGUMENTS/`.
+Read `AGENTS.md` (or `CLAUDE.md` if the repo has none — say so), then use the **glab:integrator** agent on `plan/$ARGUMENTS/`, dispatched as `glab:manager` Rules 0d and 5 say.
 
 If no slug was given, ask which plan; do not guess and do not pick the most recent.
 

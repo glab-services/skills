@@ -6,7 +6,7 @@ to S3.
 
 | Plugin | What it adds |
 |---|---|
-| `glab` | Skills `glab:bootstrap`, `glab:manager`, `glab:security`, `glab:comments`, `glab:plan-first`, `glab:audit` · agents `glab:developer`, `glab:analyzer`, `glab:integrator`, `glab:reviewer`, `glab:committer` · commands `/glab:plan`, `/glab:develop`, `/glab:analyze`, `/glab:integrate`, `/glab:review`, `/glab:commit`, `/glab:push`, `/glab:ship` · a `SessionStart` hook that injects the session bootstrap rules · a context hook on `UserPromptSubmit`, `PostToolUse` (`Agent`) and `Stop` that tells the session its context size and tells you when a turn crosses 300k or a further 100k |
+| `glab` | Skills `glab:bootstrap`, `glab:manager`, `glab:security`, `glab:comments`, `glab:plan-first`, `glab:audit` · agents `glab:planner`, `glab:plan-analyzer`, `glab:analyzer`, `glab:developer`, `glab:integrator`, `glab:reviewer`, `glab:committer` · commands `/glab:plan`, `/glab:develop`, `/glab:analyze`, `/glab:integrate`, `/glab:review`, `/glab:commit`, `/glab:push`, `/glab:ship` · a `SessionStart` hook that injects the session bootstrap rules · a context hook on `UserPromptSubmit`, `PostToolUse` (`Agent`) and `Stop` that tells the session its context size and tells you when a turn crosses 300k or a further 100k |
 | `memory-sync` | Skill `memory-sync:sync-memory` · hooks on four events that run `memory-sync.sh` |
 
 In `glab` the skills, agents and commands are one set: `glab:manager`
@@ -15,13 +15,23 @@ dispatches the agents through the commands, and every agent carries
 which the manager passes on every dispatch. The two plugins do not depend on
 each other; install either alone.
 
+Each `glab` agent runs on the model its definition names: the planner and
+the plan check on Opus; the analyzer, developer, reviewer and integrator on
+Sonnet; the committer on Haiku. They were chosen for cost, and every
+installer pays these models' prices. Tell the manager to use another model
+for a role and it passes that one instead. From Claude Code v2.1.251,
+`CLAUDE_CODE_SUBAGENT_MODEL` no longer reaches these agents, because a
+definition's model outranks it; `CLAUDE_CODE_SUBAGENT_MODEL_FORCE=1` with it
+does, from Claude Code v2.1.257, and overrides the definitions and the model
+you named alike.
+
 Each change's working files live in `plan/<slug>/`: `master.md` —
 your request in your words, its goals and the final check, constant once
 accepted — and one `plan.md`, or sub-plans `<nn>-<name>/` that each run
-their own cycle. The analyzer checks the plan against `master.md` before
-the build (Stage 1b) and the build after it (Stage 3), the reviewer sees
-only the code, and the analyzer's final check before the push compares the
-master with everything built.
+their own cycle. `glab:plan-analyzer` checks the plan against `master.md`
+before the build (Stage 1b), `glab:analyzer` the build after it (Stage 3),
+the reviewer sees only the code, and `glab:analyzer`'s final check before
+the push compares the master with everything built.
 Once the change has been pushed, the workflow records what
 stays true — how the area works, the decisions that still bind, what is open
 — in `docs/specs/<area>.md`, as a docs commit of its own. It never removes the

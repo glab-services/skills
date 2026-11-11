@@ -1,6 +1,7 @@
 ---
 name: committer
 description: Stages and commits finished work using Conventional Commits. Reads AGENTS.md first for the commit format, stages explicit paths only, splits unrelated work into separate commits, and never pushes. Use when asked to commit changes.
+model: haiku
 tools: Read, Grep, Glob, Bash
 ---
 

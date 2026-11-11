@@ -54,6 +54,7 @@ without the variable that directory is the live `~/.claude`.
     jq -r '.plugins[] | .name + " " + .source' .claude-plugin/marketplace.json | while read -r n s; do echo "$n = $(jq -r .name "$s/.claude-plugin/plugin.json")"; done
     command grep -c user_config plugins/*/hooks/hooks.json; echo "rc=$?"
     command grep -c -F 'not yet confirmed' plugins/memory-sync/scripts/memory-sync.sh plugins/memory-sync/skills/sync-memory/SKILL.md README.md; echo "rc=$?"
+    command grep -H '^model: ' plugins/*/agents/*.md; echo "rc=$?"
     command grep -rH --include='*.md' '^name: .*:' plugins; echo "rc=$?"
 
 The first line finds the CLI. When there is none it stops the block with the
@@ -67,11 +68,12 @@ the end. `CLAUDE_CONFIG_DIR` is never exported empty.
 Green is:
 
 - three `✔ Validation passed` lines;
-- for `glab`: `Skills (14)` naming the six skills and the eight commands, `Agents (5)`, and `Hooks (4)  SessionStart, UserPromptSubmit, PostToolUse, Stop`;
+- for `glab`: `Skills (14)` naming the six skills and the eight commands, `Agents (7)` naming `analyzer`, `committer`, `developer`, `integrator`, `plan-analyzer`, `planner` and `reviewer` in any order (the CLI lists them in directory read order, which is not stable), and `Hooks (4)  SessionStart, UserPromptSubmit, PostToolUse, Stop`;
 - for `memory-sync`: `Skills (1)  sync-memory`, `Agents (0)`, and `Hooks (4)  SessionStart, SessionEnd, PostToolUse, Stop`;
 - `glab = glab` and `memory-sync = memory-sync`. Validation does not compare a marketplace entry with the plugin it points at; it passes with a wrong name and with a directory that does not exist;
 - `:0` after each `hooks.json`, then `rc=1`. `grep -c` exits 1 when it counts nothing, and nothing is the green result here. A `${user_config.…}` in a hook command passes validation and fails when the hook runs;
 - a count of `1` or more after each of the three files, then `rc=0`. Read the counts, not the `rc`: `grep -c` exits 0 as soon as one file matches. The phrase is the hedge on `CLAUDE_CODE_SESSIONEND_HOOKS_TIMEOUT_MS` — documented as the override for the `SessionEnd` budget, not yet shown to cover a hook that a plugin provides — and no other gate notices when the script comment, the skill or the README starts stating it as fact;
+- exactly these seven lines, then `rc=0`: `plugins/glab/agents/analyzer.md:model: sonnet`, `plugins/glab/agents/committer.md:model: haiku`, `plugins/glab/agents/developer.md:model: sonnet`, `plugins/glab/agents/integrator.md:model: sonnet`, `plugins/glab/agents/plan-analyzer.md:model: opus`, `plugins/glab/agents/planner.md:model: opus`, `plugins/glab/agents/reviewer.md:model: sonnet`. `plugin validate --strict` passes an unknown model value and `plugin details` shows none, so nothing else catches a typo;
 - no line, then `rc=1`, from the last command. A frontmatter `name:` that carries the plugin prefix passes validation and `plugin details`, and nothing else catches it.
 
 The Markdown files have no gate. A change to one is verified by running the
@@ -118,6 +120,7 @@ repo and to nothing else.
   first as a `## Decisions` line, or in the handoff line and this
   conversation when there is no plan, none past 3
   (`plugins/glab/agents/reviewer.md`, `plugins/glab/agents/analyzer.md`,
+  `plugins/glab/agents/plan-analyzer.md`,
   `plugins/glab/commands/ship.md`, `plugins/glab/skills/manager/SKILL.md`,
   `plugins/glab/skills/bootstrap/SKILL.md`); the four ask-conditions of
   `glab:manager` Rule 3 — destructive, costs money, exposes real data, changes
@@ -142,17 +145,23 @@ repo and to nothing else.
   the hedged sentence about its override (the script comment, the
   `memory-sync:sync-memory` skill, `README.md`, and the
   `CLAUDE_CODE_SESSIONEND_HOOKS_TIMEOUT_MS` key in the plugin's settings
-  example); the manual model rule — the developer and reviewer only, and no
-  `model` parameter without the user's instruction (`glab:manager` Rule 5 and
-  its handoff-line format in `plugins/glab/skills/manager/SKILL.md`,
-  `plugins/glab/commands/develop.md`, `plugins/glab/commands/review.md`,
-  `plugins/glab/commands/ship.md`);
+  example); the model per role — each agent's frontmatter `model` per the
+  table, the user's words overriding any role, no `model` parameter
+  otherwise, and `model <alias>` on every agent stage's handoff line
+  (`glab:manager` Rule 5 and its handoff-line format in
+  `plugins/glab/skills/manager/SKILL.md`, the seven
+  `plugins/glab/agents/*.md`, `plugins/glab/commands/develop.md`,
+  `plugins/glab/commands/review.md`, `plugins/glab/commands/ship.md`,
+  `plugins/glab/commands/analyze.md`, `plugins/glab/commands/integrate.md`,
+  `plugins/glab/commands/commit.md`, `plugins/glab/commands/plan.md`,
+  `README.md`, and the model gate in this file's *Gates*);
   the reviewer's verdict lines
   (`plugins/glab/agents/reviewer.md`, `plugins/glab/skills/manager/SKILL.md`,
   `plugins/glab/commands/ship.md`); the severity levels — `critical`,
   `high`, `medium`, `low` and their meanings
   (`plugins/glab/skills/audit/SKILL.md`, `plugins/glab/agents/reviewer.md`,
-  `plugins/glab/agents/analyzer.md`); every round a new agent, Rule 5's
+  `plugins/glab/agents/analyzer.md`, `plugins/glab/agents/plan-analyzer.md`);
+  every round a new agent, Rule 5's
   report check the one resume (`plugins/glab/skills/manager/SKILL.md`,
   `plugins/glab/skills/plan-first/SKILL.md`,
   `plugins/glab/agents/developer.md`, `plugins/glab/commands/develop.md`,
@@ -162,7 +171,8 @@ repo and to nothing else.
   `<name>.r<n>.md` and the version copies `master.v<n>.md`
   (`plugins/glab/skills/manager/SKILL.md`,
   `plugins/glab/skills/plan-first/SKILL.md`,
-  `plugins/glab/agents/analyzer.md`, `plugins/glab/agents/developer.md`);
+  `plugins/glab/agents/analyzer.md`, `plugins/glab/agents/plan-analyzer.md`
+  (all but the version copies), `plugins/glab/agents/developer.md`);
   the handoff file `plan/SESSION-HANDOFF.md`
   (`plugins/glab/skills/bootstrap/SKILL.md` step 5,
   `plugins/glab/skills/manager/SKILL.md` Rule 2); the `glab` context hook —
@@ -197,7 +207,9 @@ repo and to nothing else.
   Stages 2 and 5 and *The pipeline* in
   `plugins/glab/skills/manager/SKILL.md`,
   `plugins/glab/commands/develop.md`, `plugins/glab/commands/review.md`,
-  `plugins/glab/commands/ship.md`, `plugins/glab/skills/bootstrap/SKILL.md`,
+  `plugins/glab/commands/ship.md`, `plugins/glab/commands/analyze.md`,
+  `plugins/glab/commands/integrate.md`, `plugins/glab/commands/commit.md`,
+  `plugins/glab/commands/plan.md`, `plugins/glab/skills/bootstrap/SKILL.md`,
   `plugins/glab/scripts/manager-bootstrap.sh`, `README.md`); the plan size
   budget —
   48 KB each for `master.md`, `plan.md`, `index.md` and `evidence.md`, and
@@ -206,7 +218,7 @@ repo and to nothing else.
   amendments replace the text they change, in place
   (`plugins/glab/skills/plan-first/SKILL.md` Step 4,
   `plugins/glab/skills/manager/SKILL.md` Stage 1b,
-  `plugins/glab/agents/analyzer.md` *Re-checks*); `glab:plan-first`'s step
+  `plugins/glab/agents/plan-analyzer.md` *Re-checks*); `glab:plan-first`'s step
   numbers — 0 to 4 in `SKILL.md`, 5 to 7 in `implement.md`
   (`plugins/glab/skills/plan-first/SKILL.md`,
   `plugins/glab/skills/plan-first/implement.md`,
@@ -221,16 +233,19 @@ repo and to nothing else.
   slug, and `## Record` in the master
   (`plugins/glab/skills/plan-first/SKILL.md`,
   `plugins/glab/skills/manager/SKILL.md`, `plugins/glab/agents/analyzer.md`,
+  `plugins/glab/agents/plan-analyzer.md`,
   `plugins/glab/agents/developer.md`, `plugins/glab/commands/plan.md`,
   `plugins/glab/commands/analyze.md`, `plugins/glab/commands/develop.md`,
   `plugins/glab/skills/audit/SKILL.md`, `README.md`);
-  the intent check — the analyzer at Stage 1b, Stage 3 and the final check,
-  never the reviewer (`plugins/glab/agents/analyzer.md`,
+  the intent check — the analyzers at Stage 1b (`glab:plan-analyzer`), Stage
+  3 and the final check (`glab:analyzer`), never the reviewer
+  (`plugins/glab/agents/analyzer.md`, `plugins/glab/agents/plan-analyzer.md`,
   `plugins/glab/skills/manager/SKILL.md`,
   `plugins/glab/commands/analyze.md`, `README.md`);
-  the analyzer's verdict lines — `BUILDABLE`, `NOT BUILDABLE`, `CONFORMS`,
-  `DIVERGES: <n> steps`, `BLOCK: target unresolved`
-  (`plugins/glab/agents/analyzer.md`,
+  the analyzers' verdict lines — `BUILDABLE`, `NOT BUILDABLE`
+  (`glab:plan-analyzer`), `CONFORMS`, `DIVERGES: <n> steps` (`glab:analyzer`),
+  `BLOCK: target unresolved` (both)
+  (`plugins/glab/agents/analyzer.md`, `plugins/glab/agents/plan-analyzer.md`,
   `plugins/glab/skills/manager/SKILL.md`,
   `plugins/glab/commands/analyze.md`,
   `plugins/glab/skills/plan-first/SKILL.md`); approval in plan mode — only
