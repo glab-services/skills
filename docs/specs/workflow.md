@@ -2,8 +2,9 @@
 
 The `glab` workflow: how a session runs a change through plan, analysis,
 development, integration, review, commit and push, at the depth a tier
-gives it; the rules of `glab:manager`; the agents and commands; the user's
-choice of model for the developer and reviewer; and what happens to a
+gives it; the rules of `glab:manager`; the agents and commands; the model
+each agent runs on and the user's override of it (until `glab` 0.12.0 the
+user's choice of model for the developer and reviewer only); and what happens to a
 change's plan files, up to the record that moves what stays true into an
 area spec. Owned by `plugins/glab/skills/manager/SKILL.md`,
 `plugins/glab/skills/plan-first/SKILL.md`,
@@ -37,8 +38,12 @@ rules, `GLAB_COMPACT_AT`) as of `2912002` (`glab` `0.10.0`), which added
 `flow-master-plan` lines (the master plan and sub-plans, the intent check,
 the analyzer's plan check, Stage 6b, approval after Stage 1b and in plan
 mode, `## Record` in the master, the stage listings) as of `0cbf5b0`
-(`glab` `0.11.0`); where this file and an owning file disagree, the owning
-file is right.
+(`glab` `0.11.0`), and its `flow-models-per-role` lines (the model per
+role in each agent's frontmatter, Rule 5 reworded, `model <alias>` on every
+agent stage's handoff line, `glab:planner` and `/glab:plan` dispatching it,
+the two analyzer kinds and `/glab:analyze`'s routing by kind, the dispatch
+table for the default) as of `517b7b6` (`glab` `0.12.0`); where this file
+and an owning file disagree, the owning file is right.
 
 ## How it works now
 
@@ -51,8 +56,10 @@ file is right.
   the full sequence — agreement and `docs/constants.md`, skills, the repo's
   real gates, the handoff, the host's hazards — and ends on the one-line
   check. The hook text and the skill are one fact (`AGENTS.md` *One fact*).
-- **The pipeline** (`glab:manager` *The pipeline*): 1 Plan (`/glab:plan`),
-  1b Analyze the plan (`/glab:analyze`, plan only), 2 Develop
+- **The pipeline** (`glab:manager` *The pipeline*): 1 Plan (`/glab:plan`,
+  `glab:planner` since `glab` 0.12.0, `09d5664`),
+  1b Analyze the plan (`/glab:analyze`, plan only, `glab:plan-analyzer`
+  since `09d5664`), 2 Develop
   (`/glab:develop`), 3 Analyze conformance, 4 Integrate (`/glab:integrate`),
   5 Review (`/glab:review`), 6 Commit (`/glab:commit`), 6b Final check
   (`/glab:analyze {slug}` as the final check, since `glab` 0.11.0,
@@ -66,7 +73,11 @@ file is right.
   `· context <n>k` field since `glab` 0.9.0, `2a1e919`, with
   `· dispatches <d>` in its place only when no `glab: context` line has
   come in the session — *The context rule*, below), with
-  `model <m>` after the stage on a develop or review line. `max` is the
+  `model <m>` after the stage on every line of a stage that dispatches an
+  agent (Rule 5; since `09d5664`, `[flow-models-per-role/plan.md D11]`:
+  the definition's alias when no parameter was passed, `model <alias> (user)`
+  when the user's override was; until then on a develop or review line
+  only, `model default` when the user had named none). `max` is the
   stage's round cap, `2`, or `3` once the round-3 line is written, and a
   develop line counts its fix rounds against the cap of the stage whose
   findings it fixes (`glab:manager` *The pipeline*;
@@ -128,10 +139,14 @@ file is right.
     output or write `UNVERIFIED`; no stage is green on an agent's word.
   - Rule 0c — every dispatch names `glab:security` and `glab:comments`;
     `glab:audit` and `glab:plan-first` per dispatch, with the plan-first seam
-    stated.
+    stated; since `09d5664` `glab:plan-first` is "for `glab:planner`, the
+    planning agent".
   - Rule 0d — every dispatch, to every subagent, passes the Agent tool's
     `effort` parameter at the session's level (*The session effort*,
-    below); since `abda43a`.
+    below); since `abda43a`. Since `09d5664` its agent list names
+    `glab:planner` and `glab:plan-analyzer` too, and "An agent dispatched
+    with no `model` parameter — on its definition's model (Rule 5) — still
+    gets `effort`."
   - Rule 1 — the manager does not implement; questions and trivial changes
     are not the pipeline.
   - Rule 2 — the context budget: never read what an agent will read; agents
@@ -144,9 +159,14 @@ file is right.
     one question per plan.
   - Rule 4 — one surface per session; seams are settled through the channel
     `docs/constants.md` names, or the user relays.
-  - Rule 5 — the model a `glab:developer` or `glab:reviewer` runs on is the
-    user's call (below): `sonnet`, `opus`, `haiku` or `fable`, and nothing
-    else (as of `467b7c4`). History, until `glab` 0.8.0 (`467b7c4`,
+  - Rule 5 — since `glab` 0.12.0 (`09d5664`), "each agent runs on its
+    role's model; the user's words override it" (*The model rule*,
+    below): each of the seven agents' definitions sets its model, and the
+    user's words, passed as `sonnet`, `opus`, `haiku` or `fable`, override
+    it for the role they name. History, from `467b7c4` until `09d5664`: the
+    model a `glab:developer` or `glab:reviewer` runs on was the user's call,
+    `sonnet`, `opus`, `haiku` or `fable`, and nothing else; every other role
+    got no `model` parameter. History, until `glab` 0.8.0 (`467b7c4`,
     2026-10-20): an external reviewer on OpenCode or Codex, and an external
     developer on Codex only, were included. "Only the reviewer, on either
     backend, and the developer, on Codex, can be external; no other role
@@ -170,20 +190,75 @@ file is right.
     for OpenCode — for Codex, naming one or leaving it to Codex's default.
     **Codex's effort** is the session's (Rule 0d), or the level the user
     named for that agent or role (below).
-- **Agents** (`plugins/glab/agents/`): `glab:developer` (builds the named
+- **Agents** (`plugins/glab/agents/`; seven since `glab` 0.12.0,
+  `09d5664`, each with its frontmatter `model`, *The model rule* below):
+  `glab:planner` (`model: opus`, new in `09d5664`: plans one task in its
+  folder by `glab:plan-first` and stops where that skill says planning
+  ends; never writes code, never edits outside the plan folder its dispatch
+  names — a new sub-plan's line in the slug's index and a new master when
+  the user changed the request only when the dispatch grants it — never
+  stages or commits; `tools: Read, Write, Edit, Grep, Glob, Bash, Skill,
+  WebFetch, WebSearch`, no `Agent`; restates no `glab:plan-first` value,
+  `[flow-models-per-role/plan.md D4]`, `D5`, `D18`), `glab:plan-analyzer`
+  (`model: opus`, new in `09d5664`: the plan check and the master check of
+  Stage 1b, with the intent question's plan-check part and the plan-check
+  re-checks, ending `BUILDABLE`, `NOT BUILDABLE` or
+  `BLOCK: target unresolved`; read-only, `tools: Read, Grep, Glob, Bash`;
+  a conformance, final or record check dispatched to it ends
+  `BLOCK: target unresolved`, naming `glab:analyzer`; `D6`, `D18`, `D20`),
+  `glab:developer` (`model: sonnet`; builds the named
   steps, writes `plan/{slug}/result.md` and `follow-ups.md`, never stages;
   at the record it updates the area specs only and writes no `result.md`),
-  `glab:analyzer` (plan-only and conformance analysis, and the record check
-  of Stage 8; since `0cbf5b0` also the plan check, the master check and
-  the final check, each with the intent question), `glab:integrator`
-  (the real running system, local only), `glab:reviewer` (correctness and
+  `glab:analyzer` (`model: sonnet`; since `09d5664` the conformance check,
+  the final check and the record check of Stage 8, ending `CONFORMS`,
+  `DIVERGES: <n> steps` or `BLOCK: target unresolved`, and a plan check or
+  master check dispatched to it ends `BLOCK: target unresolved`, naming
+  `glab:plan-analyzer`, `D6`, `D7`; until `09d5664` it also did the
+  plan-only analysis of Stage 1b — since `0cbf5b0` the plan check and the
+  master check, with `BUILDABLE` and `NOT BUILDABLE` — each check with the
+  intent question since `0cbf5b0`), `glab:integrator`
+  (`model: sonnet`; the real running system, local only), `glab:reviewer`
+  (`model: sonnet`; correctness and
   `AGENTS.md` rules, gets the target and nothing else; its verdict lines are
   one fact with `ship.md` and the manager — and, until `467b7c4`, the
   external-agent validator),
-  `glab:committer` (explicit paths, never `git add -A`; Conventional
-  Commits as `AGENTS.md` says). **Commands** (`plugins/glab/commands/`):
+  `glab:committer` (`model: haiku`; explicit paths, never `git add -A`;
+  Conventional Commits as `AGENTS.md` says). Until `09d5664` there were
+  five agents, none with a `model` line, and no planning agent of its own:
+  `/glab:plan` had the invoking session follow `glab:plan-first` itself,
+  and the manager dispatched a generic agent for planning, on the main
+  conversation's model (`[flow-models-per-role/plan.md E7]`, inferred
+  there). **Commands** (`plugins/glab/commands/`):
   `/glab:plan`, `/glab:develop`, `/glab:analyze`, `/glab:integrate`,
-  `/glab:review`, `/glab:commit`, `/glab:push`, `/glab:ship`.
+  `/glab:review`, `/glab:commit`, `/glab:push`, `/glab:ship`. Since
+  `09d5664` `/glab:plan` uses the `glab:planner` agent, "dispatched as
+  `glab:manager` Rules 0c, 0d and 5 say; it follows the `glab:plan-first`
+  skill", as `/glab:analyze` dispatches its analyzer (`D4`); its three gates
+  and its report list are unchanged. `/glab:analyze` keeps its one name and
+  its slug argument and **routes by kind** (`D8`, `commands/analyze.md:6`
+  as of `517b7b6`): the check is named in the dispatch message or by the
+  user, never in `$ARGUMENTS`, which is only the slug; a named check comes
+  first, whatever the folder holds — a plan check or a master check
+  (Stage 1b) goes to `glab:plan-analyzer`, even when a `result.md` from an
+  earlier build is there, as after a plan is amended; a final or record
+  check (Stages 6b and 8) to `glab:analyzer`; with no check named, the
+  folder settles it — a `result.md` under `plan/$ARGUMENTS/` means the
+  conformance check, `glab:analyzer`, none means the plan check,
+  `glab:plan-analyzer`; a named check that is none of these is asked about,
+  never guessed. The named check is tested before the folder because a
+  slug with sub-plans has no `result.md` at its own level, so its final
+  check would otherwise reach `glab:plan-analyzer` (review round 1,
+  `[flow-models-per-role/result.md R2.4]`, the manager's decision, which
+  replaced "otherwise ask which check" for every unnamed check with a
+  `result.md`); and a named plan or master check is tested before the
+  folder because an amended plan keeps its earlier `result.md` (the PR #7
+  review comment, fixed in `517b7b6`, D8 updated in place). A plan or
+  master check sent to `glab:analyzer`, or a conformance, final or record
+  check sent to `glab:plan-analyzer`, ends `BLOCK: target unresolved`
+  (`[flow-models-per-role/result.md blast-radius]`). Since `09d5664`
+  `/glab:analyze`, `/glab:integrate` and `/glab:commit` say their agent is
+  "dispatched as `glab:manager` Rules 0d and 5 say" (review round 1,
+  `[flow-models-per-role/result.md R2.10]`).
   Since `glab` 0.8.0 (`467b7c4`) no command has an external path:
   `/glab:develop` dispatches `glab:developer` only, and `/glab:review` and
   `/glab:ship` the `glab:reviewer` only; `/glab:ship` keeps
@@ -245,7 +320,7 @@ file is right.
   `SHIP`, `SHIP WITH SCOPE CUT: <what to drop>` or `DO NOT PUBLISH: <why>`;
   the verdict strings did not change. The round caps are one fact in
   `reviewer.md`, `analyzer.md`, `ship.md`, the manager and bootstrap
-  (`AGENTS.md` *One fact*). History, until `glab` 0.9.0: plan analysis 2
+  (`AGENTS.md` *One fact*), and `plan-analyzer.md` since `09d5664`. History, until `glab` 0.9.0: plan analysis 2
   (full) or one pass (normal); conformance 4; review 3 (full) or 1
   (normal), "round 1 of 1" in Rule 5's example line.
 - **Every round is a new agent** (`glab:manager` Rule 2, *Every round is a
@@ -276,7 +351,8 @@ file is right.
   amendment changed something by exit code alone, `cmp -s` (0 identical,
   1 changed, 2 a file missing), for `plan.md` and for `evidence.md` (or
   `findings.md` in an older folder) — an empty delta is a stop, not a pass — and
-  never reads the diff itself; only the analyzer of round `<n+1>` runs
+  never reads the diff itself; only the analyzer of round `<n+1>` —
+  `glab:plan-analyzer` since `09d5664` — runs
   `diff -u`, and checks each previous finding, every changed line and every
   step that rests on one, not the rest of the plan. A copy, not git,
   because the plan folder is untracked while it is planned and a snapshot
@@ -313,7 +389,7 @@ file is right.
   inside the same review round, and that fix goes on to Stage 5 without a
   second Stage 3 round, so the loop stays bounded (`D54`).
 - **Severity.** Each finding of `glab:reviewer` and each gap of
-  `glab:analyzer` carries a `severity:` line, `critical`, `high`, `medium`
+  `glab:analyzer` — and of `glab:plan-analyzer` since `09d5664` — carries a `severity:` line, `critical`, `high`, `medium`
   or `low`, on `glab:audit`'s *Severity Levels*, given by the agent that
   reports it and never re-ranked by the manager; it is the value the
   round-3 condition reads (`D4`). Nothing parses it (`F13`): it is a
@@ -455,7 +531,9 @@ file is right.
   file and, for a plan check, reports an amendment added beside what it
   changes — an amendment section, a "superseded" line, a round marker, an
   old step or decision left standing — as one finding on that id
-  (`[flow-planner/plan.md D6]`). `glab:developer` gains *Keep your context
+  (`[flow-planner/plan.md D6]`); since `09d5664` that plan-check part is
+  `glab:plan-analyzer`'s *Re-checks*, and `glab:analyzer`'s keeps the
+  conformance parts (`[flow-models-per-role/plan.md S2]`, `S3`). `glab:developer` gains *Keep your context
   small*, unnumbered between Step 1 and Step 2, prose only
   (`[flow-planner/plan.md D10]`, `D11`): read the contract once and re-open
   only by `grep -n` and line range; gate and test output go to a log under
@@ -507,7 +585,86 @@ file is right.
   5 to 7" still resolves (`[flow-planner/plan.md D7]`, `D8`). Step 1
   writes `plan/{slug}/evidence.md`, "not `findings.md`: Claude Code refuses
   a subagent's Write of a file by that name".
-- **The model rule** (Rule 5): the user may name the model of the developer
+- **The model rule** (`glab:manager` Rule 5, "each agent runs on its
+  role's model; the user's words override it", since `glab` 0.12.0,
+  `09d5664`; `[flow-models-per-role/plan.md D2]`, `D3`, `D9`–`D13`; the
+  user's answer "Default", `[flow-models-per-role/questions.md Q1]`). Each
+  agent's definition sets its model in its frontmatter `model`, an alias,
+  never a full ID (`D3`): `glab:planner` `opus` (planning, sub-plan
+  planning, amendments), `glab:plan-analyzer` `opus` (the plan check, the
+  master check), `glab:analyzer` `sonnet` (the conformance check, the final
+  check, the record check), `glab:developer` `sonnet` (develop, fix rounds,
+  the record), `glab:reviewer` `sonnet` (review, the record's review),
+  `glab:integrator` `sonnet`, `glab:committer` `haiku` — the table the user
+  approved on 2026-10-20 ("good let's use your suggestions") for cost
+  (`flow-models-per-role/master.md` *Request*: in one measured run
+  developers were 49% of tokens, planners 21%, plan checks 11%, reviewers
+  8%; "A cheaper model lowers the price per token, not the number of
+  tokens"). The definitions ship with the plugin, so every installer runs
+  on these models and pays their price; the reviewer has no `haiku`
+  default, "it is the last gate" (review round 1,
+  `[flow-models-per-role/result.md R2.7]`). **No instruction, no
+  parameter**: the manager dispatches with no `model` and the definition's
+  model runs; it never picks a cheaper or a dearer one, and no file
+  switches it, `docs/constants.md` included; an agent with no definition —
+  a mapping agent, a read-only question, any ad-hoc or fan-out agent not
+  one of the seven — gets no parameter unless the user names a model for
+  it, and Claude Code's own order picks (`D9`, `D19`). **The user's words
+  override the role they name** — `sonnet`, `opus`, `haiku` or `fable`,
+  for any role — passed as the Agent tool's `model` parameter on every
+  dispatch of that role: each split slice, fix round, re-dispatch after
+  `BLOCKED` or `PLAN WRONG`, analyze round and review round, through a
+  `/glab:` command or directly; a name the parameter does not take is said
+  and asked about; naming `fable` can spend money and is said once. The
+  override is recorded as a `- model:` line quoting the user under
+  `## Decisions` in `plan.md` (the example is now
+  `- model: glab:reviewer opus, for this task — … "use opus for the reviewer"`,
+  since the developer's default is already `sonnet`, R2.7); a `/glab:review`
+  or `/glab:ship` with no plan, **and the Stage 8 record's agents**, keep it
+  in the conversation only, and once it cannot be found the dispatch goes
+  with no parameter and the handoff line names the definition's model
+  (`D12`). Its duration is unchanged: "For this task" ends with that task's
+  record (Stage 8), or with its push when it has no plan folder; "for the
+  session" with the session. **The handoff line** names the model on every
+  line of a stage that dispatches an agent —
+  `slug · develop · model sonnet · round 1/2 · BUILT · effort <level> · context <n>k`
+  — the definition's alias when the user named none, `model haiku (user)`
+  when the override was passed (`D11`). **The documented order**
+  (`[flow-models-per-role/plan.md E1]`, `E2`): the per-dispatch parameter,
+  then the definition's frontmatter `model`, then
+  `CLAUDE_CODE_SUBAGENT_MODEL`, then the main conversation's model, in that
+  order from Claude Code v2.1.251; so `CLAUDE_CODE_SUBAGENT_MODEL` no longer
+  reaches the seven agents, and only `CLAUDE_CODE_SUBAGENT_MODEL_FORCE`,
+  from v2.1.257, overrides the definitions and the parameter alike — Rule 5
+  and `README.md` say so, because an installer who set the variable to save
+  money would otherwise lose that without a word (`D13`); a family alias
+  runs the main conversation's exact model when it is of that family; the
+  parameter holds on resume from v2.1.211; `model` is documented among the
+  fields a plugin agent supports, and that a live dispatch honours it is
+  not yet shown (I1, *Known limits*). **The dispatch-per-model table**
+  applies to the model the agent runs on, its default included (`D10`,
+  `[feature-model-switch/plan.md D20]`'s rule kept): rows `opus`, `fable`
+  (nothing changes), "default — an agent with no definition, on Claude
+  Code's own order" (nothing changes; R2.8), `sonnet` (the role's report
+  template pasted in full), `haiku` (shorter, every instruction explicit,
+  numbered reference steps, the template pasted); so a `glab:committer`
+  dispatch is written for `haiku` and every Sonnet-default dispatch pastes
+  the role's *Report* section. The report check is unchanged: every
+  report is checked against the role's contract, the agent resumed once for
+  missing fields (the one resume the manager allows since `glab` 0.9.0,
+  *Every round is a new agent* above). **Without subagent dispatch** a
+  stage session runs on the model the user starts it with, and the manager
+  names the role's model or the recorded override when it hands off (review
+  round 1, `[flow-models-per-role/result.md R1.4]`). Every role gets
+  `effort` (Rule 0d: "The model is Rule 5's, the effort is this rule's.");
+  no frontmatter has an `effort:` key, and a subagent on a model other than
+  the main conversation's does not take the session's level unless `effort`
+  is passed — one more reason it always is (`D14`,
+  `[flow-models-per-role/plan.md E4]`). The pipeline does not bend: the
+  manager still runs the gates, the reviewer still gets only the target,
+  push still waits for the user, and a reviewer's `SHIP` on any model is a
+  `SHIP`. History, until `glab` 0.12.0 (`09d5664`), as it stood
+  (`[feature-model-switch/plan.md D2]`, `D8`, superseded): the user may name the model of the developer
   or the reviewer — `sonnet`, `opus`, `haiku` or `fable` — and nothing else
   changes it. The manager passes it as the Agent tool's per-dispatch `model`
   parameter on every dispatch of that role, records it as a `- model:` line
@@ -598,7 +755,8 @@ file is right.
   (`docs/specs/marketplace.md`).
 - **The session effort** (`glab:manager` Rule 0d, as of `abda43a`). Every
   dispatch, to every subagent — `glab:developer`, `glab:reviewer`,
-  `glab:analyzer`, `glab:integrator`, `glab:committer`, and any other —
+  `glab:analyzer`, `glab:integrator`, `glab:committer`, and any other;
+  `glab:planner` and `glab:plan-analyzer` named too since `09d5664` —
   passes the Agent tool's `effort` parameter: omitted, the agent runs at its
   own usual effort, which is not necessarily the session's, and nothing in
   its report says which. The level, in order: the one the user named for
@@ -629,8 +787,12 @@ file is right.
   agent "runs at the session's effort level, which the manager passes on
   every dispatch". `/glab:plan`, `/glab:analyze`, `/glab:integrate` and
   `/glab:commit` do not mention it (`[subagent-effort/plan.md D4]`;
-  `[subagent-effort/result.md finding-4]`, open), and no agent definition
-  has an `effort:` key (`[subagent-effort/plan.md D6]`). The session effort
+  `[subagent-effort/result.md finding-4]`, open); since `09d5664` they cite
+  the rule instead — `/glab:plan` "dispatched as `glab:manager` Rules 0c,
+  0d and 5 say", the other three "Rules 0d and 5"
+  (`[flow-models-per-role/result.md R2.10]`) — and no agent definition
+  has an `effort:` key (`[subagent-effort/plan.md D6]`,
+  `[flow-models-per-role/plan.md D14]`). The session effort
   is a *One fact* entry of `AGENTS.md` (`docs/specs/marketplace.md`).
 - **Plan files** (`glab:plan-first`): `plan/{slug}/` holds `evidence.md`
   (`findings.md` until `glab` 0.10.0, `2912002`: a subagent's Write of that
@@ -767,9 +929,27 @@ file is right.
   the thing the plan said, and does it serve what the user asked for?" and
   routes `BUILDABLE` to the approval and `/glab:develop` (or, after a
   master check, the sub-plans' planning), `NOT BUILDABLE` to a new planning
-  agent, and `CONFORMS` after the final check to `/glab:push`. One analyzer
-  agent still does every kind of check: the split into two kinds is
-  `flow-models-per-role`'s (`D36`, `[flow-planner/plan.md FU1]`).
+  agent, and `CONFORMS` after the final check to `/glab:push`. Until
+  `09d5664` one analyzer agent did every kind of check (`D36`). **Since
+  `glab` 0.12.0** the analyzer is two kinds (`[flow-models-per-role/plan.md D6]`,
+  `D7`): `glab:plan-analyzer` (`opus`) holds the plan check, the master
+  check, the intent question's plan-check part and the verdicts
+  `BUILDABLE` and `NOT BUILDABLE`; `glab:analyzer` (`sonnet`) keeps its
+  name — so the Stage 3, 6b and 8 citations and `/glab:analyze`'s name
+  stay — with the conformance, final and record checks, the conformance and
+  final-check parts of the intent question and `CONFORMS` and
+  `DIVERGES: <n> steps`; both end `BLOCK: target unresolved` on a check that
+  is not theirs. Two files, not one with two modes, because a frontmatter
+  default is per file and a per-dispatch model would put the default back
+  in the manager's memory (`[flow-models-per-role/plan.md B2]`, rejected), and each file
+  loads less: `analyzer.md` was 11269 bytes, its plan-check text read by
+  every conformance, final and record dispatch (`[flow-models-per-role/plan.md E10]`).
+  Stage 1b's citations moved to `glab:plan-analyzer` (Stage 1b cites
+  `glab:plan-analyzer` *The intent question*); the intent check and the
+  analyzers' verdict lines are one fact in both files (`AGENTS.md` *One
+  fact*, `docs/specs/marketplace.md`). In `analyzer.md` "except in a
+  coverage or final check", "except in a master check or a final check"
+  and "in a master check or a final check" became "in a final check" (`S3`).
 - **Stage 6b — Final check** (since `0cbf5b0`; `glab:manager`
   *Stage 6b — Final check*; `[flow-master-plan/plan.md D33]`). After the
   slug's last commit, before the push, at every tier: `/glab:analyze {slug}`
@@ -827,23 +1007,23 @@ file is right.
 
 ## Decisions that still bind
 
-- [feature-model-switch/plan.md D1] Manual only: the model changes only when the user names it, for one dispatch, a task or the session; never on the manager's own initiative, never because of quota, never from a file.
-- [feature-model-switch/plan.md D2] Developer and reviewer only; analyzer, integrator, committer and planning agents get no `model` parameter.
+- [feature-model-switch/plan.md D1] Manual only: the model changes only when the user names it, for one dispatch, a task or the session; never on the manager's own initiative, never because of quota, never from a file. **Amended by `[flow-models-per-role/plan.md D2]` and `D9` since `glab` 0.12.0 (`09d5664`):** each role now has a default, its definition's frontmatter `model`; this decision still governs every change from that default.
+- [feature-model-switch/plan.md D2] **Superseded by `[flow-models-per-role/plan.md D9]` since `glab` 0.12.0 (`09d5664`).** It was: developer and reviewer only; analyzer, integrator, committer and planning agents get no `model` parameter. The user's words now override any role, and an agent with no definition gets no parameter unless the user names one.
 - [feature-model-switch/plan.md D3] The user does not run commands: the user tells the manager, who carries the choice into every dispatch of the role until the user changes or clears it.
 - [feature-model-switch/plan.md D4] The handoff line names the model, so the user sees what was asked for.
 - [feature-model-switch/plan.md D5] The pipeline does not bend to the model: gates, the reviewer's target-only brief, the push go-ahead, the tier and the round caps stay.
 - [feature-model-switch/plan.md D6] The mechanism is the Agent tool's per-invocation `model` parameter, passed on each dispatch; it tops the documented order and holds across a resume.
 - [feature-model-switch/plan.md D7] One home for the rule, `glab:manager` Rule 5; the stages and commands point to it, the commands restating only the minimum.
-- [feature-model-switch/plan.md D8] No change to the agent files: no `model` in their frontmatter, so the documented default applies without an instruction.
+- [feature-model-switch/plan.md D8] **Superseded by `[flow-models-per-role/plan.md D2]` since `glab` 0.12.0 (`09d5664`).** It was: no change to the agent files: no `model` in their frontmatter, so the documented default applies without an instruction. Each of the seven definitions now sets its role's `model`.
 - [feature-model-switch/plan.md D9] The choice is recorded as a `- model:` line under `## Decisions` in the task's `plan.md`; a review or ship with no plan keeps it in conversation only, and a lost one falls back to the default.
 - [feature-model-switch/plan.md D10] An unspecified duration means the task in progress (the session when there is no task): a lost choice falls back to the default, never to a cheaper model.
-- [feature-model-switch/plan.md D11] Develop and review handoff lines always name the model, `model default` included.
+- [feature-model-switch/plan.md D11] Develop and review handoff lines always name the model, `model default` included. **Amended by `[flow-models-per-role/plan.md D11]` since `glab` 0.12.0 (`09d5664`):** every line of a stage that dispatches an agent names it, the definition's alias when none was passed and `model <alias> (user)` for the user's override; `model default` is gone.
 - [feature-model-switch/plan.md D12] Rule 5 names its limits: the line states what was passed; a forced subagent model, an allowlist or a mod can run something else, and `/tasks` shows what runs.
 - [feature-model-switch/plan.md D13] Without subagent dispatch the stage session runs on the model the user starts it with, and the manager names the recorded model in the handoff.
-- [feature-model-switch/plan.md D14] `AGENTS.md` *One fact* carries the manual model rule as a known case.
+- [feature-model-switch/plan.md D14] `AGENTS.md` *One fact* carries the manual model rule as a known case. **Amended since `glab` 0.12.0 (`09d5664`; `[flow-models-per-role/plan.md S8]`):** the entry is "the model per role" (`docs/specs/marketplace.md`).
 - [feature-model-switch/plan.md D17] Rule 5 states the version floors and that a plugin agent honouring the parameter is inferred, not shown.
 - [feature-model-switch/plan.md D18] Naming `fable` is the user's money choice: said once, then used; not a Rule 3 question.
-- [feature-model-switch/plan.md D20] The dispatch fits the model: Rule 5's table says what changes in the message per model; the agent files do not change.
+- [feature-model-switch/plan.md D20] The dispatch fits the model: Rule 5's table says what changes in the message per model; the agent files do not change. **Extended by `[flow-models-per-role/plan.md D10]` since `glab` 0.12.0 (`09d5664`):** the table applies to the model the agent runs on, its definition's default included.
 - [feature-model-switch/plan.md D21] The report template is the agent's own *Report* section, copied as written; reading it is Rule 2's one exception.
 - [feature-model-switch/plan.md D22] A malformed report is not evidence: check the required fields and the verdict line's form, correct once on the same model, then stop and tell the user; not a review round. (The review fix round made the correction a resume of the same agent.)
 - [feature-model-switch/plan.md spent] D15, D16, D19 — scoping of that change: the `0.3.0` bump, leaving bootstrap and the hook untouched, and its Stage 1b amendment.
@@ -939,7 +1119,7 @@ file is right.
 - [flow-cheaper-rounds/plan.md D25] `AGENTS.md` *One fact*: the review-round-cap entry became "the round caps" (all three stages, five files); new entries for the severity levels, every round a new agent, the mapping and round-copy file names, the handoff file, and the context hook (`docs/specs/marketplace.md`). It closed `[sync-local-edits/follow-ups.md 18]`.
 - [flow-cheaper-rounds/plan.md D26] `glab` `0.8.0` → `0.9.0`: the change alters the pipeline's contract and adds a feature, and features have raised the minor before 1.0; nothing removed, so no `!`. `memory-sync` untouched, `0.1.0`.
 - [flow-cheaper-rounds/plan.md D27] One commit for all seven items with the plan folder, because the *One fact* rule wants each fact's files together and the hook events are one fact across `hooks/hooks.json`, `README.md` and `AGENTS.md`; the manager may split it. Done as one commit, `2a1e919`. A slug with sub-plans commits once per sub-plan since `glab` 0.11.0 (`[flow-master-plan/plan.md D30]`); this decision bound its own change only.
-- [flow-cheaper-rounds/plan.md D28] Out of scope, recorded as follow-ups: a dedicated `glab:planner` agent (FU1), splitting the implementation steps out of `glab:plan-first` (FU2), the user-level copies under `~/.claude` (FU3), the "cleanup glob deleted a reviewer report" incident (FU4), and the hooks the user did not choose (FU16).
+- [flow-cheaper-rounds/plan.md D28] Out of scope, recorded as follow-ups: a dedicated `glab:planner` agent (FU1), splitting the implementation steps out of `glab:plan-first` (FU2), the user-level copies under `~/.claude` (FU3), the "cleanup glob deleted a reviewer report" incident (FU4), and the hooks the user did not choose (FU16). FU1, the `glab:planner` agent, was built by `flow-models-per-role` (`09d5664`, closed below).
 - [flow-cheaper-rounds/plan.md D29] The context hook — **the user's decision**, as amended during round 2: "We need a clear rule stating that the agent must check token usage, and we need a definitive hook that triggers whenever an agent finishes its turn or after I send a message. We have to choose an approach that is impossible to bypass." (Its first form, `PostToolUse` on `Agent` alone, was superseded.) Three hook events — `UserPromptSubmit`, `PostToolUse` with matcher `Agent`, `Stop` — all running one script, `plugins/glab/scripts/context-size.sh`, chosen by a mode argument. Not `PostToolBatch`; not `SubagentStop`, whose `additionalContext` goes to the subagent, not the parent. Supersedes D17.
 - [flow-cheaper-rounds/plan.md D30] The script takes `transcript_path` from the hook input on stdin and nothing from the environment. Supersedes D18; `[flow-cheaper-rounds/plan.md FU9]`'s question became moot.
 - [flow-cheaper-rounds/plan.md D31] The measure is the manager's: the last transcript entry that is an assistant entry, not a sidechain, whose usage sums to more than 0, rounded up to thousands. The figure is the last *completed* call's, and every line says so. After I1: current at `PostToolUse` on `Agent`, lagging at `Stop` (D61–D62).
@@ -987,7 +1167,7 @@ file is right.
 - [flow-planner/plan.md D6] The manager checks the size by `wc -c` alone (Rule 2 forbids reading the plan); the analyzer checks in-place amending on its re-check, as the one reader of the diff.
 - [flow-planner/plan.md D7] Steps 5–7 of `glab:plan-first` and the three implementation-only repo rules moved byte for byte, numbers kept, to `plan-first/implement.md`, so no caller breaks (`[flow-planner/evidence.md F2]`). It closed `[flow-cheaper-rounds/plan.md FU2]`.
 - [flow-planner/plan.md D8] Rejected homes for Steps 5–7: `glab:developer` (a session implementing without subagents loses them, and "steps 5 to 7" points at nothing) and a new `glab:implement` skill (`Skills (14)` → 15 in four files) (`[flow-planner/evidence.md B1]`, `B2`).
-- [flow-planner/plan.md D9] No `glab:planner` agent in that change — **the user's decision**, carried: the agent count changes once, in `flow-models-per-role` (`[flow-planner/evidence.md F3]`; `[flow-planner/plan.md FU1]`). Carried again by `[flow-master-plan/plan.md D36]`: the analyzer's two kinds wait for the same plan.
+- [flow-planner/plan.md D9] No `glab:planner` agent in that change — **the user's decision**, carried: the agent count changes once, in `flow-models-per-role` (`[flow-planner/evidence.md F3]`; `[flow-planner/plan.md FU1]`). Carried again by `[flow-master-plan/plan.md D36]`: the analyzer's two kinds wait for the same plan. Done there, in `glab` 0.12.0 (`09d5664`): the agent count went from five to seven at once (`[flow-models-per-role/plan.md D4]`, `D6`).
 - [flow-planner/plan.md D10] The developer's context rules are prose in `glab:developer` — **the user's decision**, carried; no hook is shown to shorten a tool's output (`[flow-planner/evidence.md F4]`).
 - [flow-planner/plan.md D11] No `scripts/gate.sh`: one inline line does it.
 - [flow-planner/plan.md D12] The first context step is `GLAB_COMPACT_AT` thousand when set, default 300k, then every 100k — **the user's decision**, carried. It amends `[flow-cheaper-rounds/plan.md D45]` and `D47` by the variable only (`[flow-planner/evidence.md F5]`).
@@ -998,7 +1178,7 @@ file is right.
 - [flow-planner/plan.md D17] On a window not larger than the first step plus 100k the manager tells the user once and names the variable; the number is the user's.
 - [flow-planner/plan.md D18] `glab` `0.9.0` → `0.10.0`, nothing removed, so no `!`; `memory-sync` untouched, `0.1.0`.
 - [flow-planner/plan.md D20] One commit with the plan folder, because *One fact* wants each fact's files together and the plan has no sub-plans. Done as one commit, `2912002`. Since `glab` 0.11.0 a slug with sub-plans commits once per sub-plan (`[flow-master-plan/plan.md D30]`).
-- [flow-planner/plan.md D21] `flow-models-per-role` stays a separate plan, after this one — **the user's decision**, carried (`[flow-planner/evidence.md F7]`; `[flow-cheaper-rounds/follow-ups.md FUc]`).
+- [flow-planner/plan.md D21] `flow-models-per-role` stays a separate plan, after this one — **the user's decision**, carried (`[flow-planner/evidence.md F7]`; `[flow-cheaper-rounds/follow-ups.md FUc]`). That plan ran after `flow-master-plan` and landed as `09d5664` and `517b7b6` (`glab` 0.12.0).
 - [flow-planner/plan.md D22] `AGENTS.md` *One fact* changed as its S8 says: the mapping-files entry names `evidence.md`, the context-hook entry the suffix, the first step and the warning, and three entries are new — the plan size budget, in-place amendments, `glab:plan-first`'s step numbers (`docs/specs/marketplace.md`).
 - [flow-planner/plan.md D38] `evidence.md` and `evidence.r<n>.md` wherever the payload names the file; readers, and the manager's Stage 1b copy and `cmp`, still accept `findings.md` in a folder from before 0.10.0. It amends `[flow-cheaper-rounds/plan.md D10]` and `D49` by the name only (`[flow-planner/evidence.md F9]`, `F11`).
 - [flow-planner/plan.md D19] One `glab:developer` for the change, since most steps shared `manager/SKILL.md` or `AGENTS.md` — scoping of that change, spent.
@@ -1016,8 +1196,8 @@ file is right.
 - [flow-master-plan/plan.md D32] **The user's decision:** the analyzer checks the intent at Stage 1b, Stage 3 and the final check — "analyzed … on every stage must validate and find gaps between original business plan and implementation"; the reviewer stays blind — "review agent must only check the code itself without any plan" — so no reviewer file and no *One fact* review entry changed (`[flow-master-plan/evidence.md F10]`, `B9`). `[feature-model-switch/plan.md D5]` and `[flow-cheaper-rounds/plan.md D51]` stand.
 - [flow-master-plan/plan.md D33] The final check is Stage 6b, after the slug's last commit and before the push; skipped only for a single full-tier plan, whose Stage 3 asked it.
 - [flow-master-plan/plan.md D34] An intent gap after the build is a defect of the plan: it goes to a planning agent, and a developer reports it as `PLAN WRONG`.
-- [flow-master-plan/plan.md D35] `glab:analyzer` gets the plan check and its verdicts `BUILDABLE` and `NOT BUILDABLE`, until then stated only by the manager (`[flow-master-plan/evidence.md F10]`); a master check or a final check has no `plan.md`, so its contract is `master.md` and `index.md` (`[flow-master-plan/evidence.md F17]`). It closes `[flow-cheaper-rounds/plan.md FU5]`.
-- [flow-master-plan/plan.md D36] No two analyzer kinds in that change: each check gains the intent question, and the split goes to `flow-models-per-role` with the planner agent (`[flow-master-plan/evidence.md B8]`, `[flow-planner/plan.md FU1]`).
+- [flow-master-plan/plan.md D35] `glab:analyzer` gets the plan check and its verdicts `BUILDABLE` and `NOT BUILDABLE`, until then stated only by the manager (`[flow-master-plan/evidence.md F10]`); a master check or a final check has no `plan.md`, so its contract is `master.md` and `index.md` (`[flow-master-plan/evidence.md F17]`). It closes `[flow-cheaper-rounds/plan.md FU5]`. **Amended by `[flow-models-per-role/plan.md D6]` since `glab` 0.12.0 (`09d5664`):** the plan check, the master check and the two verdicts moved to `glab:plan-analyzer`; `glab:analyzer`'s final check keeps the `master.md` and `index.md` contract.
+- [flow-master-plan/plan.md D36] No two analyzer kinds in that change: each check gains the intent question, and the split goes to `flow-models-per-role` with the planner agent (`[flow-master-plan/evidence.md B8]`, `[flow-planner/plan.md FU1]`). Done there (`[flow-models-per-role/plan.md D6]`, `09d5664`).
 - [flow-master-plan/plan.md D37] **The user's decision:** the flow should "work with claude app|cli builtin flow". Plan mode carries the master's approval only when the user asks, main session only (`[flow-master-plan/evidence.md F12]`), after Stage 1b with no agent running, no plan file outside the repo, `plansDirectory` untouched. L1–L7 are the user's and no precondition of Stage 2; until they run, the payload and `README.md` mark each plan-mode claim F12 holds inferred or UNVERIFIED as `UNVERIFIED` and name the live test that settles it — the manager's decision after plan check round 1. A `PreToolUse` hook on `ExitPlanMode` to record the approval was rejected (`[flow-master-plan/evidence.md B10]`).
 - [flow-master-plan/plan.md D39] `## Record` moves to `master.md`; a folder with no master keeps `plan.md`'s. It amends `[feature-docs-specs/plan.md D5]` and `D28` (marked above).
 - [flow-master-plan/plan.md D40] The stage listings gain "final check" (`[flow-master-plan/evidence.md F13]`): the manager's description, `glab:bootstrap` step 4 and the hook text.
@@ -1029,10 +1209,32 @@ file is right.
 - [flow-master-plan/plan.md D47] The change closed the two follow-ups `flow-planner`'s record left it, `[flow-planner/record.md review-waiver-implement]` (S1, S9) and `[flow-planner/record.md review-t19-comment]` (S10) (`[flow-master-plan/evidence.md F17]`); both under *Closed follow-ups*.
 - [flow-master-plan/result.md R1] Review fix round 1, the manager's decision on a blocking finding: no round amends an approved `master.md`; a changed request is a new master, the old kept as `master.v<n>.md`, its approval and hash not carried over, `master.sha256` removed when the planner is dispatched, and a new Stage 1b, approval and hash.
 - [flow-master-plan/plan.md effort] `- effort: high`, the user's words for that session after its compact — that session's own line, spent.
+- [flow-models-per-role/questions.md Q1] **The user's answer, 2026-11-11: "Default"** — to a Rule 3 ask (it costs money and changes what the product is): the approved table ships as glab's default for every installer, each agent's model set in its definition, the user's words for a task still overriding it, Rule 5 reworded, every installer getting these models and their cost. The option text is as the manager relayed it, not the user's verbatim option (`questions.md`). The plan rests on it in D2 and D7–D10.
+- [flow-models-per-role/plan.md D1] One plan, one commit, no sub-plans: the *One fact* entries the change rewrote (the model rule, the agent count, the analyzers' verdict lines, the intent check, the severity levels) each span files of every part, and the plan fit the 48 KB budget. Done as `09d5664`; the PR #7 review fix `517b7b6` landed with it on `origin/main` through PR #7 (merged 2026-11-12).
+- [flow-models-per-role/plan.md D2] The table ships as each agent's default, set by the frontmatter `model:` of its definition — the user's answer "Default" (Q1), not a planner choice. Supersedes `[feature-model-switch/plan.md D8]`.
+- [flow-models-per-role/plan.md D3] The values are the aliases `opus`, `sonnet`, `haiku`, never full IDs: aliases follow the recommended version per provider and a full name pins one (`E3`); the Agent tool's `model` parameter takes aliases only (`E1`, `E2`), so overrides and defaults speak one vocabulary.
+- [flow-models-per-role/plan.md D4] A `glab:planner` agent exists (`model: opus`) and `/glab:plan` dispatches it, as `/glab:analyze` dispatches its analyzer: until then no file named the planning agent's type, so it ran on whatever generic agent the manager picked, on the main conversation's model (`E7`); a default needs a definition to live in. Closes `[flow-planner/plan.md FU1]` and `[flow-cheaper-rounds/plan.md FU1]`.
+- [flow-models-per-role/plan.md D5] `glab:planner` has the explicit `tools: Read, Write, Edit, Grep, Glob, Bash, Skill, WebFetch, WebSearch` — every tool `glab:plan-first` needs and no `Agent`, so it cannot start nested subagents that would run with no model or effort set under Rules 0d and 5 — **the manager's decision on review finding R2.2**, replacing "no `tools` line, inherit every tool"; its body confines its writes to the plan folder its dispatch names, with the exceptions the dispatch can grant (R2.1).
+- [flow-models-per-role/plan.md D6] Two analyzer agents, not one with two modes: `glab:plan-analyzer` (`model: opus`) takes the plan check and the master check of Stage 1b; `glab:analyzer` (`model: sonnet`) keeps the conformance check, the final check and the record check. A frontmatter default is per file, and one file with a per-dispatch model would put the default back in the manager's memory (rejected `B2`); each file also loads less (`E10`). Amends `[flow-master-plan/plan.md D35]`; carries out `[flow-master-plan/plan.md D36]`.
+- [flow-models-per-role/plan.md D7] `glab:analyzer` keeps its name for the conformance kind, so the Stage 3, 6b and 8 citations and `/glab:analyze`'s name stay; only Stage 1b's citations move to `glab:plan-analyzer`.
+- [flow-models-per-role/plan.md D8] One `/glab:analyze` command, its argument still the slug, routes by the check the dispatch names first: a named plan or master check to `glab:plan-analyzer`, even with a `result.md` present (an amended plan keeps its earlier `result.md`; the PR #7 review comment, fixed in `517b7b6` and D8 updated in place), a named final or record check to `glab:analyzer`; with no check named, the folder settles it — a `result.md`, the conformance check (`glab:analyzer`), none, the plan check (`glab:plan-analyzer`); it asks only when a named check is none of these — **the manager's decision on review finding R2.4**: asking whenever `result.md` exists would stop every Stage 3 for the user, and a sub-plan slug has no slug-level `result.md`, so the folder alone cannot route its final check. Rejected: a new `/glab:plan-check` command (`B4`: `Skills (14)` → 15 for no gain).
+- [flow-models-per-role/plan.md D9] Rule 5 reworded: with no instruction, no `model` parameter, and the definition's model runs; the user's words override for any role they name, passed as the `model` parameter on every dispatch of that role; the manager never picks one; an agent with no definition (mapping, read-only, fan-out not one of the seven) gets no parameter unless the user names one for it — Q1's answer. Supersedes `[feature-model-switch/plan.md D2]`, amends `D1`.
+- [flow-models-per-role/plan.md D10] Rule 5's dispatch-per-model table applies to the model the agent runs on, its default included: a `glab:committer` dispatch is written for `haiku` and every Sonnet-default dispatch pastes the role's *Report* section — `[feature-model-switch/plan.md D20]`'s rule kept, now met by defaults.
+- [flow-models-per-role/plan.md D11] The handoff line names the model on every stage that dispatches an agent, not only develop and review: `model <alias>` after the stage, the table's alias when no parameter was passed, `model <alias> (user)` when the user's override was; `model default` goes, because every role now has one. Amends `[feature-model-switch/plan.md D11]`.
+- [flow-models-per-role/plan.md D12] An override for the Stage 8 record's agents, which have no `plan.md` to record it in, lives in the conversation only, as for a `/glab:review` with no plan. Closes `[feature-docs-specs/follow-ups.md 5]`.
+- [flow-models-per-role/plan.md D13] Rule 5 and `README.md` say that `CLAUDE_CODE_SUBAGENT_MODEL` no longer reaches the seven glab agents — a frontmatter `model` outranks it — and that `CLAUDE_CODE_SUBAGENT_MODEL_FORCE` still overrides both the definitions and the parameter, from v2.1.257 (`E1`): an installer who set the variable to save money would otherwise lose that without a word.
+- [flow-models-per-role/plan.md D14] No `effort:` in any frontmatter: Rule 0d passes `effort` on every dispatch at the session's level, and its substance did not change (S5 edited only its agent list and its no-`model` sentence); a subagent on a model other than the main conversation's does not take the session's level unless `effort` is passed (`E4`), one more reason the parameter is always passed. Keeps `[subagent-effort/plan.md D6]`.
+- [flow-models-per-role/plan.md D15] A new gate in `AGENTS.md` *Gates* prints every agent's `model:` line, because `plugin validate --strict` passes an unknown value such as `model: sonnett` and `plugin details` shows no model (`E6`). Binds `docs/specs/marketplace.md` too.
+- [flow-models-per-role/plan.md D16] `Agents (5)` became `Agents (7)` in `AGENTS.md` *Gates*, and `README.md`'s table lists the seven; the `README.md` line naming "five agents under `agents/`" stays: it lists what an old copied install put in `~/.claude/agents/`, which a new agent was never part of (`E8`). Binds `docs/specs/marketplace.md` too.
+- [flow-models-per-role/plan.md D17] `glab` `0.11.0` → `0.12.0`: new agents and a changed default, nothing removed, so no `!`; `memory-sync` untouched, `0.1.0`. Binds `docs/specs/marketplace.md` too.
+- [flow-models-per-role/plan.md D18] The new agent files restate no *One fact* value they can cite instead — the manager's decision: `glab:planner` cites `glab:plan-first` and restates none of its values (no step numbers, no `implement.md`, no `map-<area>.md`, no master `## Approval`), so `planner.md` joins no *One fact* entry; `glab:plan-analyzer` carries, copied from `glab:analyzer`, only what its check needs — the contract read, the plan check, the intent question's plan-check bullet, the plan-check re-check, the severity scale, the verdicts `BUILDABLE`, `NOT BUILDABLE`, `BLOCK: target unresolved` — and `AGENTS.md`'s entries for those facts gained its path.
+- [flow-models-per-role/plan.md D19] Mapping agents keep no model: they are not in the table, so D9's no-definition rule covers them (`FU2`).
+- [flow-models-per-role/plan.md D20] `glab:plan-analyzer`'s `tools` is `analyzer.md`'s, `Read, Grep, Glob, Bash`, without `Skill`, though the docs say a `tools` list without `Skill` cannot invoke skills (`E9`): all five agents then had that gap (`E13`), so closing it for one file widens scope; it is `FU1`. Review finding R2.3 raised it again for the new agent; **the manager kept this decision**, and `FU1` covers all six.
+- [flow-models-per-role/plan.md effort] `- effort: high (the user's words: "high (Recommended)"), for the session` — that session's own line, spent.
 ## Known limits and not verified
 
-- [feature-model-switch/plan.md I1] That the Agent tool on the manager's host takes `model` with the values `sonnet`, `opus`, `haiku`, `fable`, ranked above the definition's frontmatter — read from the tool definition given to one session; it depends on the Claude Code version and host. Its documentation citations (F1–F7, F16) were not re-fetched by the developer (`result.md` *Not done*).
-- [feature-model-switch/plan.md I4] That a plugin agent honours the per-dispatch `model` — inferred from the docs' list of fields a plugin agent ignores; no live dispatch on `haiku` has been seen running on `haiku`. Rule 5 says so in its own text; `/tasks` would show it.
+- [feature-model-switch/plan.md I1] That the Agent tool on the manager's host takes `model` with the values `sonnet`, `opus`, `haiku`, `fable`, ranked above the definition's frontmatter — read from the tool definition given to one session; it depends on the Claude Code version and host. Its documentation citations (F1–F7, F16) were not re-fetched by the developer (`result.md` *Not done*). Re-read by `flow-models-per-role`: the docs fetched 2026-11-11 give the same alias set and rank the parameter above the frontmatter (`[flow-models-per-role/plan.md E1]`); the tool's own accepted values are still read from one tool definition, UNVERIFIED (`[flow-models-per-role/plan.md E12]`).
+- [feature-model-switch/plan.md I4] That a plugin agent honours the per-dispatch `model` — inferred from the docs' list of fields a plugin agent ignores; no live dispatch on `haiku` has been seen running on `haiku`. Rule 5 says so in its own text; `/tasks` would show it. **Re-read by `flow-models-per-role` (`09d5664`):** that `model` is supported in a plugin agent is now documented, not only inferred from the ignore list (`plugins/components.md:324`, `[flow-models-per-role/plan.md E2]`); that a live dispatch honours it, frontmatter or parameter, is still not shown — `[flow-models-per-role/plan.md I1]`.
 - [subagent-effort/plan.md unverified] UNVERIFIED: that a plugin agent honours the Agent tool's `effort` parameter — no live dispatch has shown it, the same hedge Rule 5 makes for `model`; the tool schema of the planning session showed only that `effort` takes `low|medium|high|xhigh|max` and that an omitted one leaves the agent at its usual effort. Unlike Rule 5's hedge, Rule 0d's payload text does not say so (`[subagent-effort/plan.md D7]`). Also not checked: how a session started without subagent dispatch is put at the recorded effort (`[subagent-effort/plan.md F1]`). `result.md` restates the first item.
 - [subagent-effort/result.md blast-radius] Inferred, not tested: an older plan's `- model: … codex, effort <level> (…)` line is still readable prose, while the rule now records the effort in a `- effort:` line instead. Since `glab` 0.8.0 (`467b7c4`) no rule reads a Codex model line at all.
 - [remove-external-agents/plan.md inferred] Inferred, not shown: a user who names an external reviewer or developer after 0.8.0 meets Rule 5's "say so, and ask which of the four the user means" (`D11`); no session was run. The user's own auto-memory, outside this repository, still describes Codex as an outside reviewer and developer "via the skill", which no longer exists; it is the user's file and the change did not touch it.
@@ -1071,6 +1273,12 @@ file is right.
 - [flow-master-plan/evidence.md F16] Inferred from the command text, not run: that `$ARGUMENTS` keeps a `/`, so `/glab:analyze <slug>/<nn>-<name>` reaches the sub-plan's folder through `plan/$ARGUMENTS/` (`commands/analyze.md`, `develop.md`, `integrate.md`); the developer ran no command with a sub-plan slug (`[flow-master-plan/result.md Not done]`).
 - [flow-master-plan/evidence.md F11] Inferred from git's pathspec semantics, not run: that this repo's removal checks, `git status --short -uall -- plan/<slug>/` and `git diff --quiet origin/main -- plan/<slug>/`, take the sub-plan folders with them.
 - [flow-master-plan/plan.md Milestone] The Markdown has no runtime: the S1–S10 searches, `bash -n`, shellcheck, `PASS 24/24` and `plugin validate` show the text is there, not that a live session follows it — UNVERIFIED, as for every prose rule. The sub-plan cycle, the master hash and Stage 6b have never run; they first run in the next split plan (`[flow-master-plan/plan.md FU9]`). Each `→ 0` search of the plan prints `0` on an untouched tree too, so each is paired with a presence search (`[flow-master-plan/evidence.md F18]`).
+- [flow-models-per-role/plan.md I1] UNVERIFIED until the user runs it (it calls models, so it costs; a throwaway `CLAUDE_CONFIG_DIR` is not logged in, `[flow-cheaper-rounds/plan.md D41]`): in the user's own terminal, `claude --plugin-dir ./plugins/glab`, a `glab:committer` dispatch with "run `git status --short`, commit nothing" and no `model` parameter, and a `glab:reviewer` dispatch with `model: haiku` on an empty target; `/tasks` while each runs should name Haiku. Settles: that a live dispatch runs on the frontmatter `model` and that the parameter overrides it — documented (`E1`, `E2`), not shown. Not a precondition of Stage 5; `master.md` *Final check* item 3 and `result.md` *Not done* record it as not run.
+- [flow-models-per-role/plan.md E12] UNVERIFIED: that the Agent tool takes `model` ∈ `sonnet|opus|haiku|fable` and `effort` ∈ `low|medium|high|xhigh|max` — read by the planning agent from its own tool definition, which no command prints; the docs give the same alias set (`E1`). The host's `claude --version` was `2.1.310`, above every version floor Rule 5 and Rule 0d name (2.1.211, 2.1.242, 2.1.251, 2.1.257, 2.1.292); `2.1.310` again for this record.
+- [flow-models-per-role/plan.md E9] From the docs, not run live: an omitted `tools` inherits every tool available to subagents, and a `tools` list without `Skill` cannot invoke skills (`sub-agents.md:300`, `:629`); `Skill`, `WebFetch` and `WebSearch` are not among the tools subagents lose. The basis of `D5` and `D20`, and of `FU1`.
+- [flow-models-per-role/plan.md E6] Proven on a throwaway copy (Claude Code `2.1.310`): `plugin validate --strict` passes `model: sonnett`, and `plugin details` shows no model, so only the model gate catches a typo. Inferred, not verified: that `plugin details` lists agents in an unstable directory read order — the external analyzer's copy listed the two new files last, and the build's run and this record's run both printed `reviewer, integrator, developer, analyzer, committer, planner, plan-analyzer` (`[flow-models-per-role/result.md not-done]`); the gate accepts any order.
+- [flow-models-per-role/plan.md E4] From the docs: a subagent on a model other than the main conversation's does not take the session's effort level unless `effort` is passed; levels per model differ, and a model not listed — Haiku 4.5, the `haiku` alias on Bedrock — supports no effort (`model-config.md:620-628`, `:42-50`). Whether Rule 0d's `effort` does anything on a `glab:committer` on such a provider is `FU3`.
+- [flow-models-per-role/plan.md Tests] No shell script or test changed; the two suites ran unchanged as gates (`PASS 35/35`, `PASS 24/24`). Coverage as a list: S1–S9 by V1–V9 and the plugin gates; not covered by any case — that a live dispatch runs on the frontmatter model and that the parameter overrides it (I1, the user's), accepted because it calls models; that the prose of each wording adaptation is right is not provable by search (`[flow-models-per-role/result.md unplanned]`). Guards that cannot discriminate: V3 passes on a file that names `CLAUDE.md` for another reason.
 
 ## Open follow-ups
 
@@ -1087,14 +1295,12 @@ file is right.
 - [bug-reviewer-findings/result-slice2.md L99] `agents/reviewer.md`'s description (`:3`) still speaks of `AGENTS.md` only, beside the `CLAUDE.md` fallback in its body — open, cosmetic.
 - [feature-docs-specs/follow-ups.md 2] `agents/analyzer.md:56` and `agents/developer.md:98`: the record reads every file of `plan/<slug>/`, untracked ones included, so a scratch file holding host values could reach a committed spec (`glab:security`). Suggested: read `git ls-files -- plan/<slug>/` and name any untracked file in the report instead — open, for one small payload change of its own.
 - [feature-docs-specs/follow-ups.md 4] `skills/bootstrap/SKILL.md:125`: "what a finished change left open is there, not in `plan/`" is wrong in a repo that keeps its plans, which is `glab`'s default. Suggested: "is there; `plan/` may still hold the working files" — open.
-- [feature-docs-specs/follow-ups.md 5] `skills/manager/SKILL.md:127` against Stage 8's "not in `plan.md`": a model the user names for the record's developer has nowhere to be recorded. Suggested: one clause in Rule 5 — for Stage 8 the instruction lives in the conversation only, as for a `/glab:review` with no plan — open.
 - [feature-docs-specs/follow-ups.md 7] Commits rule: `fed95f9` holds two logical changes of the payload, the Stage 8 record and the re-pointed citations, committed as one under `0.5.0` — open, an advisory of review round 3/3; nothing to undo now, a reminder for the next payload change.
 - [feature-docs-specs/result-SM.md 3] Facts the specs state as of their record that move with their owners and that no gate ties to the specs (`[feature-docs-specs/plan.md D10]` accepts this): `PASS 35/35` and `PASS 49/49`, the allowlist and DeepSeek's end date, 2026-10-31, the `glab` version — open: each record has to re-read them; re-read by `feature-codex-agent`'s record: `PASS 71/71` at `9108ac7`, `glab` `0.6.0`, the allowlist and its end date unchanged; by `feature-external-developer`'s: `PASS 84/84` at `33a28df`, `glab` `0.7.0`, the allowlist unchanged; by `fix-external-agent-claims`'s: `PASS 86/86` at `3965622`, `glab` `0.7.1`, the allowlist unchanged; by `subagent-effort`'s: `PASS 35/35` and `PASS 86/86` at `abda43a`, `glab` `0.7.2`, the allowlist unchanged (the change touched neither the script nor its tests); by `remove-external-agents`'s: `PASS 35/35` at `467b7c4` (run for this record), `glab` `0.8.0`, and `PASS 86/86`, the allowlist and DeepSeek's end date gone with the script and its test, so what is left to re-read is the `memory-sync` count and the versions.
 - [subagent-effort/plan.md F1] `glab:manager` *When subagent dispatch is not available* says how a stage session is started on the recorded model but not at the recorded effort; whether `claude` takes an effort at start was not checked — open.
-- [subagent-effort/result.md finding-4] Review round 1's finding 4: `commands/commit.md`, `commands/analyze.md` and `commands/integrate.md` dispatch an agent and do not mention the effort; accepted as-is under `[subagent-effort/plan.md D4]` (commands change only where they list Agent tool parameters), not fixed — open.
+- [subagent-effort/result.md finding-4] Review round 1's finding 4: `commands/commit.md`, `commands/analyze.md` and `commands/integrate.md` dispatch an agent and do not mention the effort; accepted as-is under `[subagent-effort/plan.md D4]` (commands change only where they list Agent tool parameters), not fixed — open. Re-read at `517b7b6`: since `09d5664` the three say their agent is "dispatched as `glab:manager` Rules 0d and 5 say" (`[flow-models-per-role/result.md R2.10]`), a citation of Rule 0d, not the word effort; `flow-models-per-role`'s `## Record` does not close it — still open.
 - [subagent-effort/record.md round-2-ultra] Review round 2 advisory, carried from the manager's Stage 8 dispatch record (no review file is in the folder): `skills/manager/SKILL.md` Rule 0d (`:71` at `abda43a`) has the manager ask which level the user means when they name `ultra` for an Agent tool dispatch, but does not say how far that answer reaches — for that dispatch only, or for the session; Codex still takes `ultra` — open. Re-read at `467b7c4`: Rule 0d (`:71`) still does not say how far the answer reaches; Rule 0d's Codex sentence is gone with Rule 6, so "Codex still takes `ultra`" is history — still open.
 - [subagent-effort/record.md round-2-pipeline-default] Review round 2 advisory, from the same dispatch record: *The pipeline*'s handoff sentence (`skills/manager/SKILL.md:189` at `abda43a`) says the effort is "the level you passed" and does not name `effort default`, which Rule 0d (`:67`) has the handoff line carry when the Agent tool rejects or does not offer `effort` — open. Re-read at `467b7c4`: the sentence (`:173`) now ends "The effort is the level you passed." and still does not name `effort default` — still open.
-- [flow-cheaper-rounds/plan.md FU1] A dedicated `glab:planner` agent (out of scope by the brief) — open; carried since `glab` 0.10.0 as `[flow-planner/plan.md FU1]`, into `flow-models-per-role`.
 - [flow-cheaper-rounds/plan.md FU3] The user-level copies under `~/.claude` — the user ports them (out of scope by the brief) — open.
 - [flow-cheaper-rounds/plan.md FU4] The "cleanup glob deleted a reviewer report" incident (out of scope by the brief) — open.
 - [flow-cheaper-rounds/plan.md FU8] Snapshot limits: a nested repository is recorded as a gitlink with a warning and a large untracked directory that is not ignored is hashed in full (not tested); a repository with no commit yet gets no tree id (`git read-tree HEAD` fails), so its rounds run whole; a file force-added to the index but not committed that matches `.gitignore` is still missed — open.
@@ -1106,11 +1312,9 @@ file is right.
 - [flow-cheaper-rounds/plan.md FU16] The hooks the user did not choose — `PostToolBatch`, `SubagentStop` — recorded by D28 and D29, not planned — open.
 - [flow-cheaper-rounds/plan.md FU17] Whether the desktop app shows a `Stop` hook's `systemMessage` as the terminal does (I1 shows the terminal only) — UNVERIFIED, open.
 - [flow-cheaper-rounds/plan.md FU18] Which plugin's `Stop` hook ended `cancelled`, exit 1, in I1a, and whether an installed `memory-sync` sync is cut off whenever a `claude -p` run exits — UNVERIFIED, open; a question for the `memory-sync` plugin, not acted on here (`docs/specs/memory-sync.md`).
-- [flow-cheaper-rounds/follow-ups.md FUa] The *One fact* entries "the manual model rule" and "the session effort" in `AGENTS.md` both name the handoff-line format (`plugins/glab/skills/manager/SKILL.md` Rule 5 and *The pipeline*, `commands/develop.md`, `review.md`, `ship.md`). The line now ends `· context <n>k` and Rule 5's example reads `round 1/2`, but those commands do not show the line's full form, so nothing disagrees today, while the two entries do not list the context field. Decide whether the context field joins them — open.
+- [flow-cheaper-rounds/follow-ups.md FUa] The *One fact* entries "the manual model rule" and "the session effort" in `AGENTS.md` both name the handoff-line format (`plugins/glab/skills/manager/SKILL.md` Rule 5 and *The pipeline*, `commands/develop.md`, `review.md`, `ship.md`). The line now ends `· context <n>k` and Rule 5's example reads `round 1/2`, but those commands do not show the line's full form, so nothing disagrees today, while the two entries do not list the context field. Decide whether the context field joins them — open. Re-read at `517b7b6`: "the manual model rule" is now "the model per role", naming `model <alias>` on every agent stage's handoff line and four more commands (`docs/specs/marketplace.md`); neither it nor "the session effort" lists the context field — still open.
 - [flow-cheaper-rounds/follow-ups.md FUb] Payload text cites a plan file: `plugins/glab/scripts/context-size.sh`, `tests/context-size.test.sh` and `plugins/glab/skills/manager/SKILL.md` cite `[flow-cheaper-rounds/plan.md F23]` (and the script `[flow-cheaper-rounds review round 1]`). The plan folder is removed after the record and is never part of an installed plugin, so an installer cannot follow the citation; it stays readable only through `git show <sha>:…` (cf. `[feature-docs-specs/plan.md D8]`: payload cites the spec, never a `plan/` path). Decide whether payload cites the area spec instead — open (review round 1, advisory).
-- [flow-cheaper-rounds/follow-ups.md FUc] **The user's, 2026-10-20:** the next plan `flow-models-per-role` — a model per role (planner and plan check Opus; conformance and record check Sonnet; developer, reviewer, integrator Sonnet; committer Haiku) and two kinds of analyzer; it extends `glab:manager` Rule 5 beyond the developer and reviewer — open, not planned.
 - [flow-cheaper-rounds/follow-ups.md FUd] The manager's: a `PreToolUse` hook on `Agent` that refuses a dispatch missing `effort` or the `AGENTS.md` instruction (`[flow-cheaper-rounds/plan.md FU13]`), so Rule 0d and Rule 0c are enforced rather than remembered — open.
-- [flow-planner/plan.md FU1] A `glab:planner` agent and the analyzer's two kinds — into `flow-models-per-role` (`[flow-planner/plan.md D9]`, `D21`; carries `[flow-cheaper-rounds/plan.md FU1]`) — open. Re-read at `0cbf5b0`: `[flow-master-plan/plan.md D36]` keeps one analyzer with every kind of check and leaves the split to `flow-models-per-role` — still open.
 - [flow-planner/plan.md FU3] A size warning for a subagent's own context: needs proof that hooks fire inside a subagent, and with which `transcript_path` — open, UNVERIFIED.
 - [flow-planner/plan.md FU4] Whether a settings file's `env` block reaches a plugin hook, so `GLAB_COMPACT_AT` could be set there — open, UNVERIFIED.
 - [flow-planner/plan.md FU5] The manager's own gate runs could use the developer's log template (*Keep your context small*) — open.
@@ -1121,6 +1325,9 @@ file is right.
 - [flow-master-plan/follow-ups.md DEV1] `plugins/glab/skills/manager/SKILL.md` Stage 8 dispatch bullet reads "from the folder's files, sub-plan folders included and the audit file" with no comma after "included", unlike `developer.md`'s "sub-plan folders included,"; built as the plan wrote it — open, a one-character wording fix.
 - [flow-master-plan/follow-ups.md DEV2] `glab:manager` *Pick the tier* table: the row `Approval, after 1b` sits above the `1b` row, and `6b Final check` after `5 Review` and before `6–7 Commit, push`, as the plan placed them; whether the row order should follow the stage order — open.
 - [flow-master-plan/follow-ups.md DEV3] `AGENTS.md` *One fact* round-caps entry names the final check, but of the files it lists only `plugins/glab/skills/manager/SKILL.md` states the final check's cap; `agents/analyzer.md` *The final check* names round 2 but no cap, and the reviewer files stay untouched by decision (D32). The value, 2, agrees wherever it is stated; whether each listed file must state it — open, for a later plan.
+- [flow-models-per-role/plan.md FU1] A documented gap: every glab agent with a `tools` list but `glab:planner` — `glab:analyzer`, `glab:committer`, `glab:developer`, `glab:integrator`, `glab:reviewer` and the new `glab:plan-analyzer` (`D20`) — lacks `Skill` (`E13`; `command grep -H '^tools:' plugins/*/agents/*.md` at `517b7b6`, run for this record, prints `Skill` on `planner.md` only), and the docs say such an agent cannot invoke skills (`E9`), yet Rule 0c's dispatches tell them to load `glab:security` and `glab:comments` (`reviewer.md:15`: "if they are available"). Review finding R2.3 raised it again for `glab:plan-analyzer`, `glab:analyzer` and `glab:reviewer`; the manager kept D20 and left it here, one follow-up for a separate change (`[flow-models-per-role/result.md R2.3]`); `glab:planner` left the gap when R2.2 gave it a `tools` line with `Skill`. Fix: add `Skill` to each `tools`, or a `skills:` field (`E9`) — open.
+- [flow-models-per-role/plan.md FU2] Mapping agents and other definition-less agents run on the main conversation's model (`D19`); a mapping-agent definition with a table model is the user's call — open.
+- [flow-models-per-role/plan.md FU3] A `glab:committer` on `haiku` where the provider's Haiku takes no effort (`E4`): Rule 0d's `effort` then does nothing; not checked live — open.
 
 ## Closed follow-ups
 
@@ -1154,6 +1361,12 @@ file is right.
 - [flow-cheaper-rounds/plan.md FU5] `agents/analyzer.md` has no plan-check mode: `BUILDABLE` / `NOT BUILDABLE` appear only in `skills/manager/SKILL.md`, and its Steps 2–3 are written for an implementation — closed by `flow-master-plan` (`0cbf5b0`, `glab` 0.11.0; `[flow-master-plan/plan.md D35]`, S4): `agents/analyzer.md` has *The plan check — `glab:manager` Stage 1b*, skips Step 2 there, and lists `BUILDABLE` and `NOT BUILDABLE` among its verdicts.
 - [flow-planner/record.md review-waiver-implement] Review advisory, carried from the manager's Stage 8 dispatch (no review file is in the folder), for the later plan `flow-master-plan`: `glab:plan-first`'s waiver paragraph (`plugins/glab/skills/plan-first/SKILL.md:122` at `2912002`) says "Then implement, from `implement.md`", but `implement.md` (l. 3) says to start Steps 5–7 "only once the plan is verified (Step 4) and, at full tier, approved" — a condition a waived task, which has no plan, cannot meet — closed by `flow-master-plan` (`0cbf5b0`; `[flow-master-plan/plan.md D47]`, S1, S9): `implement.md` l. 3 now starts Steps 5–7 "once the plan is verified and approved (`glab:plan-first` Step 4), or once `plan/{slug}/waived.md` records a waiver (*User Override* in `SKILL.md`), which stands in for both", and the waiver paragraph says the waiver "stands in for the verified, approved plan it asks for".
 - [flow-planner/record.md review-t19-comment] Review advisory, from the same dispatch, for `flow-master-plan`: the T19 comment in `tests/context-size.test.sh` (l. 335 at `2912002`) reads "judged over every stop run above, T20's and T21's included", but T24's `stop` run now feeds `stopouts` too (review fix round 1, `[flow-planner/result.md R4]`), and T23's runs through `stop_case` — closed by `flow-master-plan` (`0cbf5b0`; `[flow-master-plan/plan.md D47]`, S10): the comment (l. 335) reads "judged over every stop run above: T18's, T20's, T21's and T23's through stop_case, and T24's own"; one line out, one in, `PASS 24/24`.
+- [flow-cheaper-rounds/plan.md FU1] A dedicated `glab:planner` agent (out of scope by the brief) — open; carried since `glab` 0.10.0 as `[flow-planner/plan.md FU1]`, into `flow-models-per-role`. **Closed by `flow-models-per-role` (`09d5664`, `glab` 0.12.0; `[flow-models-per-role/plan.md D4]`):** `plugins/glab/agents/planner.md` exists, `model: opus`, and `/glab:plan` dispatches it.
+- [flow-planner/plan.md FU1] A `glab:planner` agent and the analyzer's two kinds — into `flow-models-per-role` (`[flow-planner/plan.md D9]`, `D21`; carries `[flow-cheaper-rounds/plan.md FU1]`) — open. Re-read at `0cbf5b0`: `[flow-master-plan/plan.md D36]` keeps one analyzer with every kind of check and leaves the split to `flow-models-per-role` — still open. **Closed by `flow-models-per-role` (`09d5664`, `glab` 0.12.0; `[flow-models-per-role/plan.md D4]`, `D6`):** `glab:planner` and the two analyzer kinds, `glab:plan-analyzer` and `glab:analyzer`; `Agents (7)`.
+- [flow-cheaper-rounds/follow-ups.md FUc] **The user's, 2026-10-20:** the next plan `flow-models-per-role` — a model per role (planner and plan check Opus; conformance and record check Sonnet; developer, reviewer, integrator Sonnet; committer Haiku) and two kinds of analyzer; it extends `glab:manager` Rule 5 beyond the developer and reviewer — open, not planned. **Closed by `flow-models-per-role` (`09d5664`, `glab` 0.12.0):** the table ships as each agent's frontmatter `model` (`[flow-models-per-role/plan.md D2]`, the user's "Default", `[flow-models-per-role/questions.md Q1]`), the analyzer is two kinds (`D6`), and Rule 5 covers every role (`D9`); the model gate prints the seven lines.
+- [feature-docs-specs/follow-ups.md 5] `skills/manager/SKILL.md:127` against Stage 8's "not in `plan.md`": a model the user names for the record's developer has nowhere to be recorded. Suggested: one clause in Rule 5 — for Stage 8 the instruction lives in the conversation only, as for a `/glab:review` with no plan — open. **Closed by `flow-models-per-role` (`09d5664`, `glab` 0.12.0; `[flow-models-per-role/plan.md D12]`):** Rule 5's *Record it before the next dispatch* now reads "A `/glab:review` or `/glab:ship` with no plan behind it, and the Stage 8 record's agents, have nowhere to record it: the instruction lives in this conversation only".
+- [flow-models-per-role/plan.md FU4] `docs/specs/marketplace.md` and `workflow.md` restated `Agents (5)` and Rule 5 as of their records — closed by this record (`master.md` *Record*): both specs now state `Agents (7)` and the reworded Rule 5 as of `517b7b6`.
+- [flow-models-per-role/result.md FUa] `manager/SKILL.md` Rule 5, *Record it*, still gave `"use sonnet for the developer"` as its example `- model:` line, an override that changes nothing once the developer's default is `sonnet` (found while building, out of scope of S5 (f)) — closed in review round 1 by R2.7: the example is now `- model: glab:reviewer opus, … "use opus for the reviewer"`.
 ## Incidents
 
 - **#7 and #10 were reopened by the review's scope cut** (2026-10-16): one normal-tier review of the follow-up fixes returned `SHIP WITH SCOPE CUT`. The waiver routing was removed, since a waiver has no plan and no tier; the manager's spec-entry paragraph was removed, since it dispatched the developer outside any plan step and a re-dispatch overwrites `result.md`. The earlier sync review had already cut "— one at normal tier —" from `ship.md:32`, because `/glab:ship` takes only a path and cannot know a plan's tier.
@@ -1245,3 +1458,13 @@ file is right.
   - Incidents → the planning agent that died on an API 403, above under *Incidents*, carried from the manager's Stage 8 dispatch; no file in the folder records it.
   - [flow-master-plan/result.md B0] Result → every step (B0, S1–S10) done, nothing blocked; unplanned changes only re-wraps in `plugins/glab/skills/bootstrap/SKILL.md`, `README.md` and `AGENTS.md`, so each searched phrase sits on one line; no test added, `PASS 35/35` and `PASS 24/24`, S10 one comment line; `$ARGUMENTS` with a `/` → `[flow-master-plan/evidence.md F16]`. Fix round 1 (review round 1) → `R1` and `R2` (blocking) in *How it works now* and the decisions, `R3` (blocking) the L1–L7 entries, `R4`–`R6` (low): the final check's "(the plan, with no index)" in `analyzer.md` and Stage 6b, the analyzer's description, `README.md`'s Stage 1b and Stage 3 sentence; two S1 searches of the plan moved to `0` by R1 and R2.
   - [flow-master-plan/plan.md Record] Record → this record, in this file and `docs/specs/marketplace.md` (the *One fact* changes, the version rule per push, `glab` `0.11.0`); no audit file.
+- 2026-11-12 · flow-models-per-role · a model per role: each of the seven `glab` agents' definitions sets its role's model in its frontmatter — `glab:planner` and `glab:plan-analyzer` `opus`, `glab:analyzer`, `glab:developer`, `glab:reviewer` and `glab:integrator` `sonnet`, `glab:committer` `haiku` — shipped to every installer on the user's answer "Default"; Rule 5 reworded (the user's words override any role, no parameter otherwise, an agent with no definition none), `model <alias>` on every agent stage's handoff line, the dispatch table for the default; the new `glab:planner`, dispatched by `/glab:plan`; the analyzer split into `glab:plan-analyzer` (Stage 1b) and `glab:analyzer` (conformance, final and record checks), `/glab:analyze` routing by the check named, then by the folder; `glab` 0.12.0 · change 09d5664 517b7b6 · plan: `git ls-tree -r --name-only 517b7b6 -- plan/flow-models-per-role/` (one file: `git show 517b7b6:plan/flow-models-per-role/<file>`; the whole folder: `git archive 517b7b6 plan/flow-models-per-role/ | tar -x -C "$(mktemp -d "${TMPDIR:?}/plan.XXXXXX")"`). `517b7b6` is the last commit on `origin/main` that holds it (`git log -1 --format=%h origin/main -- plan/flow-models-per-role/`): the `docs(repo)` commit that carries this record removes it. The folder holds `master.md`, `plan.md` (normal tier, one page, its evidence the section *Evidence*), `questions.md` and `result.md`; no round copy, no `follow-ups.md` (the build's dispatch limited its writes in the folder to `result.md`), and no `master.sha256` — `master.md` has no `## Approval` section (`/usr/bin/grep -c '^## Approval' plan/flow-models-per-role/master.md` prints `0`), so the folder records neither the master's acceptance nor its hash.
+  - [flow-models-per-role/plan.md D1] Decisions → `D1`–`D20`, `effort` and `[flow-models-per-role/questions.md Q1]`, above under *Decisions that still bind*, each in its own line; the user's is Q1 ("Default"), on which D2 and D7–D10 rest; the manager's D5 (review finding R2.2), D8 (R2.4 and the PR #7 review comment), D18 and D20 (kept on R2.3); `effort` spent. Marked in place: `[feature-model-switch/plan.md D2]` and `D8` superseded (by D9 and D2); `[feature-model-switch/plan.md D1]` amended by D2 and D9, `D11` by D11, `D14` by S8, `D20` extended by D10; `[flow-master-plan/plan.md D35]` amended by D6; `[flow-planner/plan.md D9]`, `D21`, `[flow-master-plan/plan.md D36]` and `[flow-cheaper-rounds/plan.md D28]` noted as carried out.
+  - [flow-models-per-role/plan.md E1] Evidence → `E4`, `E6`, `E9`, `E12` under *Known limits and not verified*, `E1` and `E2` also in the re-read `[feature-model-switch/plan.md I1]` and `I4`; `E1`–`E3`, `E5`, `E7`, `E8`, `E10`, `E11`, `E13` were that change's readings, baselines and searches, and their conclusions are in the decisions they support (`D3`, `D4`, `D6`, `D13`, `D16`, `D20`), `E7` also in *Agents* above. *Boundary*, rejected: `B1` (the table passed per dispatch from Rule 5, no frontmatter — the default would live in the manager's memory) and `B5` (no planner agent, the generic agent dispatched with `model: opus`) → D2 and D4; `B2` → D6; `B3` (full model IDs) → D3; `B4` (a `/glab:plan-check` command) → D8.
+  - [flow-models-per-role/plan.md FU1] Follow-ups → `FU1` (the `Skill` gap of every agent with a `tools` list but `glab:planner`, `glab:plan-analyzer`, `glab:analyzer` and `glab:reviewer` among them, D20 and R2.3), `FU2`, `FU3` open; `FU4` closed by this record; `[flow-models-per-role/result.md FUa]` closed by R2.7; closed, as `master.md` *Record* names: `[flow-planner/plan.md FU1]`, `[flow-cheaper-rounds/plan.md FU1]` (D4, D6), `[flow-cheaper-rounds/follow-ups.md FUc]` (D2, D6, D9) and `[feature-docs-specs/follow-ups.md 5]` (D12); re-read, still open: `[flow-cheaper-rounds/follow-ups.md FUa]` and `[subagent-effort/result.md finding-4]`.
+  - [flow-models-per-role/plan.md I1] Live test → `I1`, the user's, not run, under *Known limits* (`master.md` *Final check* item 3: `UNVERIFIED` until run).
+  - Incidents → none: no file in the folder records one.
+  - [flow-models-per-role/result.md B0] Result → every step (B0, S1–S9, A1, A2) done, nothing blocked; A3 (back out: `git revert <commit>`, installed copies follow only past `0.12.0`) not run; I1 the user's. Unplanned changes (`[flow-models-per-role/result.md unplanned]`) → wording adaptations the steps' literal text forced, no file outside the plan's list: `plan-analyzer.md`'s copied *Step 4* headed *Step 2*, its master-check exceptions, its `BLOCK` for "a check that is not yours"; in `analyzer.md` *Re-checks* the plan-check `diff -u` removed with its file pairs; Rule 5 (f) "as the next bullet says" for "as (g) says", and D12's clause in the same sentence; Rule 5 (c)'s carry list with "each analyze round" and "through a `/glab:` command or directly"; dashes and full stops in Stage 2, Stage 5, `develop.md`, `review.md`, `ship.md` and `plan.md`. No test added; the two suites unchanged (`PASS 35/35`, `PASS 24/24`); coverage → `[flow-models-per-role/plan.md Tests]`. Blast radius (`[flow-models-per-role/result.md blast-radius]`) → every installer that updates to `0.12.0` runs and pays for the table's models; `CLAUDE_CODE_SUBAGENT_MODEL` no longer reaches the agents; `/glab:plan` dispatches an agent instead of planning in the invoking session; no script, hook, schema or stored format changed. *Not done* (`[flow-models-per-role/result.md not-done]`) → I1, `E12`, and the listing order (`E6`), under *Known limits*.
+  - [flow-models-per-role/result.md R1.1] Review round 1 (normal tier, the one round; text fixes only, `glab` stays `0.12.0`) → `R1.1` (`planner.md` "for every amendment"), `R1.2`, `R1.3`, `R2.5`, `R2.6` (wording of the two analyzers' report and re-check lines, `unverified` among the plan-analyzer's statuses), `R1.4` (a stage session's model, *The model rule*), `R1.5` (`plan-analyzer.md` on the mapping/evidence/round-copy *One fact* entry "(all but the version copies)", `docs/specs/marketplace.md`), `R2.1` and `R2.2` (`glab:planner`'s writes and `tools`, D5), `R2.3` not fixed (D20, `FU1`), `R2.4` (`/glab:analyze`'s routing, D8), `R2.7` (Rule 5's "chose them for cost" and the example line, `FUa` closed), `R2.8` (the dispatch table's default row), `R2.9` (`README.md` "From Claude Code v2.1.251"), `R2.10` (the Rules 0d and 5 clause in three commands and two *One fact* entries). V1's second check changed by R2.2 (`planner.md` now has a `tools:` line) and V9's meaning by R2.4; the gates after the fixes green as `AGENTS.md` states them. `AGENTS.md` at `09d5664` also lists `plugins/glab/commands/plan.md` in both entries R2.10 extended, which `result.md` R2.10 says it is in neither; no file in the folder records that addition.
+  - PR #7 review → a named plan or master check routes to `glab:plan-analyzer` before the folder test, because an amended plan keeps its earlier `result.md`; fixed in `517b7b6` (`plugins/glab/commands/analyze.md:6`) with D8 updated in place in `plan.md` — *Agents* above. PR #7 merged on 2026-11-12 as `09d5664` and `517b7b6` (`gh pr view 7`).
+  - [flow-models-per-role/master.md Record] Record → this record, in this file and `docs/specs/marketplace.md` (the gates' `Agents (7)` and the model gate, the *One fact* changes, `glab` `0.12.0`); no audit file.
