@@ -22,7 +22,9 @@ fact* entries, the marketplace description, *Testing without installing*)
 as of `2a1e919`, and its `flow-planner` lines (the version, the gates' test
 count, the *One fact* entries) as of `2912002`, and its `flow-master-plan`
 lines (the version, the version rule per push, the *One fact* entries, the
-`README.md` paragraphs) as of `0cbf5b0`; where this file and an owning file disagree, the
+`README.md` paragraphs) as of `0cbf5b0`, and its `flow-models-per-role`
+lines (the version, the agent count, the model gate, the *One fact*
+entries, the `README.md` table and paragraph) as of `517b7b6`; where this file and an owning file disagree, the
 owning file is right and this spec is out of date.
 
 ## How it works now
@@ -37,7 +39,11 @@ owning file is right and this spec is out of date.
   which `docs/specs/external-agents.md` keeps as a record.
 - **What each plugin holds** (`AGENTS.md` *Gates*, `README.md`): `glab` —
   six skills and eight commands, which the CLI counts together as
-  `Skills (14)`, five agents, four hook events — `SessionStart`,
+  `Skills (14)`, seven agents — `analyzer`, `committer`, `developer`,
+  `integrator`, `plan-analyzer`, `planner`, `reviewer`, each with its
+  frontmatter `model` (`Agents (7)` since `glab` 0.12.0, `09d5664`; five,
+  with no `planner` and no `plan-analyzer`, until then;
+  `docs/specs/workflow.md` *Agents*) — four hook events — `SessionStart`,
   `UserPromptSubmit`, `PostToolUse` (matcher `Agent`) and `Stop`, the last
   three running `plugins/glab/scripts/context-size.sh` (`Hooks (4)`, since
   `2a1e919`; one `SessionStart` hook until then; seven skills and
@@ -45,7 +51,12 @@ owning file is right and this spec is out of date.
   skill, `sync-memory`, no agent, hooks on `SessionStart`, `SessionEnd`,
   `PostToolUse` and `Stop`.
 - **Versions.** Each `plugin.json` carries an explicit `version` — `glab`
-  `0.11.0` (raised by `0cbf5b0`, `flow-master-plan`: a minor step, nothing
+  `0.12.0` (raised by `09d5664`, `flow-models-per-role`: a minor step, new
+  agents and a changed default, nothing removed, so no `!`,
+  `[flow-models-per-role/plan.md D17]`; `517b7b6`, its PR #7 review fix,
+  changed `plugins/glab/commands/analyze.md` and raised nothing, since both
+  commits reached `origin/main` together through PR #7 and the rule is per
+  push; `0.11.0` by `0cbf5b0`, `flow-master-plan`: a minor step, nothing
   removed, so no `!`, `[flow-master-plan/plan.md D44]`; `0.10.0` by
   `2912002`, `flow-planner`, as a minor step, `[flow-planner/plan.md D18]`;
   `0.9.0` by `2a1e919`,
@@ -55,7 +66,7 @@ owning file is right and this spec is out of date.
   `0.8.0` by `467b7c4`, `remove-external-agents`; `0.7.2` by
   `abda43a`, `0.7.1` by `3965622`,
   `0.7.0` by `33a28df`, `0.6.0` by `9108ac7`, `0.5.0` by `fed95f9` before
-  it), `memory-sync` `0.1.0`, at `0cbf5b0`. A change under
+  it), `memory-sync` `0.1.0`, at `517b7b6`. A change under
   `plugins/<name>/` raises that plugin's version in the same commit, because
   an installed copy is pinned to the version string and nothing else
   delivers a change (`AGENTS.md` *Rules*). Since `0cbf5b0` the rule reads
@@ -97,9 +108,35 @@ owning file is right and this spec is out of date.
   `ok` and a last line `PASS n/n`) and the plugin block (three `validate --strict`, the component
   counts of `plugin details`, the marketplace-to-manifest name check, the
   `user_config` search, the one pinned hedge phrase, `not yet confirmed`,
-  and the prefixed `name:` search). Each line's reason is written beside it
-  there; this spec does not restate the blocks. Green at `2912002`, run for
-  this record: five `rc=0` lines, `shellcheck` `rc=0`, the `memory-sync`
+  since `09d5664` the **model gate**, and the prefixed `name:` search). Each line's reason is written beside it
+  there; this spec does not restate the blocks. **The model gate**
+  (`[flow-models-per-role/plan.md D15]`), before the prefixed-`name:`
+  search: `command grep -H '^model: ' plugins/*/agents/*.md; echo "rc=$?"`,
+  green as exactly seven lines — `analyzer.md:model: sonnet`,
+  `committer.md:model: haiku`, `developer.md:model: sonnet`,
+  `integrator.md:model: sonnet`, `plan-analyzer.md:model: opus`,
+  `planner.md:model: opus`, `reviewer.md:model: sonnet`, each with the
+  `plugins/glab/agents/` prefix — then `rc=0`. Its reason: `plugin validate
+  --strict` passes an unknown model value such as `model: sonnett` and
+  `plugin details` shows no model, so nothing else catches a typo
+  (`[flow-models-per-role/plan.md E6]`, proven on a throwaway copy); seven
+  named lines, not a count, so a missing definition shows as a missing
+  line. Since `09d5664` the `glab` agents line is green as `Agents (7)`
+  naming the seven in any order, because the CLI lists them in directory
+  read order (`[flow-models-per-role/plan.md D16]`; that the order is
+  unstable is inferred, `docs/specs/workflow.md` *Known limits*,
+  `[flow-models-per-role/plan.md E6]`). Green at `517b7b6`, run for this
+  record (Claude Code `2.1.310`, a fresh `CLAUDE_CONFIG_DIR` under
+  `$TMPDIR`, removed after): five `rc=0` lines, `shellcheck` `rc=0`,
+  `PASS 35/35`, `PASS 24/24`, three `✔ Validation passed`, `glab`
+  the same `Skills (14)` as at `2912002`,
+  `Agents (7)  reviewer, integrator, developer, analyzer, committer, planner, plan-analyzer`,
+  `Hooks (4)  SessionStart, UserPromptSubmit, PostToolUse, Stop`,
+  `memory-sync` unchanged, the name check, the `user_config` counts `:0`
+  then `rc=1`, the `not yet confirmed` counts `1` `1` `1` then `rc=0`, the
+  model gate's seven lines then `rc=0`, and the prefixed-`name:` search with
+  no line and `rc=1`. Green at `2912002`, run for
+  that record: five `rc=0` lines, `shellcheck` `rc=0`, the `memory-sync`
   suite `PASS 35/35`, the context-size suite `PASS 24/24` (`PASS 21/21`
   from `2a1e919` until `2912002` added T22–T24), three
   `✔ Validation passed`, `glab`
@@ -374,6 +411,50 @@ owning file is right and this spec is out of date.
   `[flow-master-plan/result.md R6]`) and one paragraph on approval in plan
   mode, its UNVERIFIED pointing at the live tests L1–L7 in
   `docs/specs/workflow.md`; `.claude-plugin/marketplace.json` unchanged.
+- ***One fact* entries `flow-models-per-role` rewrote or extended**
+  (`AGENTS.md` *Rules*, as of `517b7b6`; its S8 and review round 1,
+  `[flow-models-per-role/plan.md D1]`, `D18`,
+  `[flow-models-per-role/result.md R1.5]`, `R2.10`). **Rewritten**: "the
+  manual model rule — the developer and reviewer only, and no `model`
+  parameter without the user's instruction" became "the model per role —
+  each agent's frontmatter `model` per the table, the user's words
+  overriding any role, no `model` parameter otherwise, and `model <alias>`
+  on every agent stage's handoff line", its files now `glab:manager` Rule 5
+  and its handoff-line format, the seven `plugins/glab/agents/*.md`,
+  `commands/develop.md`, `review.md`, `ship.md`, `analyze.md`,
+  `integrate.md`, `commit.md`, `plan.md`, `README.md` and the model gate in
+  *Gates* (until `09d5664`: the manager, `develop.md`, `review.md`,
+  `ship.md`); the intent check — "the analyzers at Stage 1b
+  (`glab:plan-analyzer`), Stage 3 and the final check (`glab:analyzer`),
+  never the reviewer"; the analyzers' verdict lines — "`BUILDABLE`,
+  `NOT BUILDABLE` (`glab:plan-analyzer`), `CONFORMS`, `DIVERGES: <n> steps`
+  (`glab:analyzer`), `BLOCK: target unresolved` (both)"; the in-place
+  amendments entry cites `plan-analyzer.md` *Re-checks* in place of
+  `analyzer.md`'s, which lost that clause. **Extended** with
+  `plugins/glab/agents/plan-analyzer.md`: the round caps, the severity
+  levels, the master plan and sub-plans, the intent check, the verdict
+  lines, and the mapping/evidence/round-copy entry "(all but the version
+  copies)" — it states `map-<area>.md`, `evidence.md` and `<name>.r<n>.md`
+  but not `master.v<n>.md` (R1.5). The session-effort entry gained
+  `commands/analyze.md`, `integrate.md`, `commit.md` and `plan.md` (R2.10;
+  `result.md` R2.10 says `plan.md` joined neither entry, while `AGENTS.md`
+  at `09d5664` lists it in both — no file in the folder records that
+  addition). `planner.md` joins no entry, since it restates no value it can
+  cite (`D18`). **Rewritten outside *One fact***: *Gates* — the model gate
+  and `Agents (7)` (*The gates*, above). **Unchanged**: *Layout*, *Tests*,
+  `Skills (14)`, the hook events, the test counts (`PASS 35/35`,
+  `PASS 24/24`) and `.claude-plugin/marketplace.json`. `README.md` lists
+  the seven agents in its table, says the plan check before the build is
+  `glab:plan-analyzer`'s and the build check and final check
+  `glab:analyzer`'s, and gained a paragraph: each agent runs on the model
+  its definition names, chosen for cost, so every installer pays these
+  models' prices; the manager passes another model for a role when told;
+  "From Claude Code v2.1.251, `CLAUDE_CODE_SUBAGENT_MODEL` no longer
+  reaches these agents", and `CLAUDE_CODE_SUBAGENT_MODEL_FORCE=1` with it
+  does, from v2.1.257 (`[flow-models-per-role/plan.md D13]`,
+  `[flow-models-per-role/result.md R2.9]`). Its line naming "five agents
+  under `agents/`" stays: it lists what an old copied install put in
+  `~/.claude/agents/` (`D16`).
 - **`docs/specs/` and `plan/`** (`AGENTS.md` *Layout* and *Rules*, the
   `plan/` rule; `README.md` *Working on this repo*), as of `09d2787`. `docs/specs/` holds
   one spec per area — this file (the marketplace, this repo's layout, gates
@@ -426,6 +507,7 @@ owning file is right and this spec is out of date.
 - The decisions of `flow-cheaper-rounds` that bind this area — `[flow-cheaper-rounds/plan.md D25]` (the *One fact* entries), `D26` and `D42` (`glab` `0.9.0`, a minor step, `memory-sync` untouched at `0.1.0`), `D27` (one commit, `2a1e919`), `D40` (the `AGENTS.md` changes: the shell gates, the hook-contract rule, the context-hook entry, the green line), `D55`, `D57` ("run all four, in order") and `D58` (the marketplace description) — are carried in `docs/specs/workflow.md`, the change's primary area, each as a line of its own, and bind here too.
 - The decisions of `flow-planner` that bind this area — `[flow-planner/plan.md D18]` (`glab` `0.10.0`, a minor step, `memory-sync` untouched at `0.1.0`), `D20` (one commit with the plan folder, `2912002`) and `D22` (the *One fact* changes) — are carried in `docs/specs/workflow.md`, the change's primary area, each as a line of its own, and bind here too.
 - The decisions of `flow-master-plan` that bind this area — `[flow-master-plan/plan.md D30]` (one commit per sub-plan, one push and one record per slug; the version rule per push, amending `[feature-plugin-marketplace/questions.md Q6]`), `D44` (`glab` `0.11.0`, a minor step, nothing removed, `memory-sync` untouched at `0.1.0`; one commit with the plan folder, `0cbf5b0`; the *One fact* changes of its S8) and `D27` (no sub-plan boundary through a fact the repo changes in one commit, `[flow-master-plan/evidence.md F15]`) — are carried in `docs/specs/workflow.md`, the change's primary area, each as a line of its own, and bind here too.
+- The decisions of `flow-models-per-role` that bind this area — `[flow-models-per-role/plan.md D1]` (one plan, one commit with the plan folder, `09d5664`, its PR #7 review fix `517b7b6` in the same merge), `D15` (the model gate in `AGENTS.md` *Gates*), `D16` (`Agents (7)` in *Gates* and the seven agents in `README.md`'s table; the copied-install line kept) and `D17` (`glab` `0.12.0`, a minor step, nothing removed, `memory-sync` untouched at `0.1.0`), with `D18` (which *One fact* entries the new agents join) — are carried in `docs/specs/workflow.md`, the change's primary area, each as a line of its own, and bind here too.
 
 ## Known limits and not verified
 
@@ -507,3 +589,5 @@ owning file is right and this spec is out of date.
   - [flow-planner/plan.md S8] Record → the entries above; the decisions, follow-ups and incident in `docs/specs/workflow.md`; none of its follow-ups concerns `AGENTS.md`.
 - 2026-10-22 · flow-master-plan · recorded in `docs/specs/workflow.md`, its primary area; here: `glab` 0.11.0, the version rule per push (`[feature-plugin-marketplace/questions.md Q6]` amended by D30), the three rewritten and five added *One fact* entries, the two `README.md` paragraphs; the gates unchanged at `PASS 35/35` and `PASS 24/24`, the component counts and `.claude-plugin/marketplace.json` unchanged · change 0cbf5b0 · plan: `git ls-tree -r --name-only 0cbf5b0 -- plan/flow-master-plan/` (one file: `git show 0cbf5b0:plan/flow-master-plan/<file>`). `0cbf5b0` is the last commit on `origin/main` that holds it (`git log -1 --format=%h origin/main -- plan/flow-master-plan/`): one `docs(repo)` commit after this record removes it.
   - [flow-master-plan/plan.md Record] Record → the entries above; the decisions, follow-ups and incident in `docs/specs/workflow.md`; of its follow-ups `[flow-master-plan/follow-ups.md DEV3]` (the round-caps entry and the final check's cap) concerns `AGENTS.md`, open in `docs/specs/workflow.md`.
+- 2026-11-12 · flow-models-per-role · recorded in `docs/specs/workflow.md`, its primary area; here: `glab` 0.12.0, seven agents (`Agents (7)` in any order), the new model gate with its reason, the rewritten and extended *One fact* entries, the `README.md` table and model paragraph; the gates otherwise unchanged at `PASS 35/35` and `PASS 24/24`, `Skills (14)`, the hook events and `.claude-plugin/marketplace.json` unchanged · change 09d5664 517b7b6 · plan: `git ls-tree -r --name-only 517b7b6 -- plan/flow-models-per-role/` (one file: `git show 517b7b6:plan/flow-models-per-role/<file>`). `517b7b6` is the last commit on `origin/main` that holds it (`git log -1 --format=%h origin/main -- plan/flow-models-per-role/`): the `docs(repo)` commit that carries this record removes it.
+  - [flow-models-per-role/master.md Record] Record → the entries above; the decisions, follow-ups and known limits in `docs/specs/workflow.md`; of its follow-ups `[flow-models-per-role/plan.md FU4]` (these two specs restating `Agents (5)` and Rule 5) concerned this file and is closed by this record; none is open against `AGENTS.md`.
