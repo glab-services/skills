@@ -7,7 +7,7 @@
 #   context-size.sh prompt   # UserPromptSubmit: adds one line to the model's context with every
 #                            # message the user sends
 #   context-size.sh agent    # PostToolUse, matcher Agent: adds the same line after every subagent
-#                            # dispatch, so glab:manager has a fresh number for its handoff line
+#                            # dispatch, so the session's manager has a fresh number for its handoff line
 #   context-size.sh stop     # Stop: shows the USER one line when the context has crossed the first
 #                            # step - 300k, or GLAB_COMPACT_AT thousand when set - or a further 100k
 #                            # after it - usually at the end of the turn after the crossing, see the
@@ -17,10 +17,10 @@
 #
 # GLAB_COMPACT_AT, in thousands, moves the first step: unset or empty, the first step is 300k and the
 # line has no suffix; a whole number from 1 to 999999 makes it that many thousand, the steps after it
-# stay 100k apart, and every line ends `; compact at <t>k)`, so glab:manager reads the step from the
+# stay 100k apart, and every line ends `; compact at <t>k)`, so the session's manager reads the step from the
 # line. The default is an absolute size, not a share of the window: 300k is the user's working limit,
 # the same on every model. Not a per-model table and not a fraction of the window, because the hook
-# is not told the window; on a smaller window the user sets the variable (glab:manager Rule 2). An
+# is not told the window; on a smaller window the user sets the variable (glab:session-rules Rule 2). An
 # invalid value warns instead of failing, because a typo must not silence the number: the run goes on
 # with the default. It is read after the transcript, so that each failure path keeps exactly one
 # stderr line - its failure - and the warning is never printed beside one.
@@ -28,7 +28,7 @@
 # Why three events and why `stop` speaks to the user: a hook fires every time, whatever the model
 # does, but it cannot make the model act - `additionalContext` is text the model may ignore. So the
 # one message that must not depend on the model (go and /compact) goes to the person who can run
-# /compact or /clear, and `glab:manager` Rule 2 ("Your own context") makes the model act on the
+# /compact or /clear, and `glab:session-rules` Rule 2 ("Your own context") makes the model act on the
 # number the other two modes give it. Neither /compact nor /clear can be run by the model.
 #
 # Contract, like memory-sync.sh's (AGENTS.md *Rules*): exit 0 on every path; on stdout either
@@ -70,7 +70,7 @@
 # error [flow-cheaper-rounds review round 1].
 #
 # `jq` is required. Without it the script cannot read the input or the transcript, so it prints
-# nothing (unlike manager-bootstrap.sh, which can fall back to plain text), and glab:manager counts
+# nothing (unlike manager-bootstrap.sh, which can fall back to plain text), and the session's manager counts
 # dispatches instead.
 set -uo pipefail
 # No -e: every path must reach `exit 0`, and a failed read is a message, not a crash.

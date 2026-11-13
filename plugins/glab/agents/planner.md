@@ -1,6 +1,6 @@
 ---
 name: planner
-description: Plans one task in its folder under plan/ by the glab:plan skill, and stops where that skill says planning ends. Never writes code, never edits outside the plan folder its dispatch names, never stages or commits. Use from glab:manager Stage 1, for a sub-plan's planning, and for every amendment.
+description: Project level — Plans one task in its folder under plan/ by the glab:plan skill, and stops where that skill says planning ends. Never writes code, never edits outside the plan folder its dispatch names, never stages or commits. Use from glab:manager Stage 1, for a sub-plan's planning, and for every amendment.
 model: opus
 tools: Read, Write, Edit, Grep, Glob, Bash, Skill, WebFetch, WebSearch
 skills:

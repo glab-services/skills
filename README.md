@@ -6,19 +6,20 @@ to S3.
 
 | Plugin | What it adds |
 |---|---|
-| `glab` | Skills `glab:bootstrap`, `glab:manager`, `glab:security`, `glab:comments`, `glab:audit` · agents `glab:planner`, `glab:plan-analyzer`, `glab:analyzer`, `glab:developer`, `glab:integrator`, `glab:reviewer`, `glab:committer` · stage skills `/glab:develop`, `/glab:analyze`, `/glab:integrate`, `/glab:review`, `/glab:commit`, `/glab:push`, `/glab:ship`, which `glab:manager` runs itself and you can type to step in · `/glab:plan <task>`, the planning procedure `glab:planner` follows, which you can type to plan in your own session · a `SessionStart` hook that injects the session bootstrap rules · a context hook on `UserPromptSubmit`, `PostToolUse` (`Agent`) and `Stop` that tells the session its context size and tells you when a turn crosses 300k or a further 100k |
+| `glab` | Skills `glab:bootstrap`, `glab:manager`, `glab:session-rules`, `glab:security`, `glab:comments`, `glab:audit` · agents `glab:planner`, `glab:plan-analyzer`, `glab:analyzer`, `glab:developer`, `glab:integrator`, `glab:reviewer`, `glab:committer` · stage skills `/glab:develop`, `/glab:analyze`, `/glab:integrate`, `/glab:review`, `/glab:commit`, `/glab:push`, `/glab:ship`, which `glab:manager` runs itself and you can type to step in · `/glab:plan <task>`, the planning procedure `glab:planner` follows, which you can type to plan in your own session · a `SessionStart` hook that injects the session bootstrap rules · a context hook on `UserPromptSubmit`, `PostToolUse` (`Agent`) and `Stop` that tells the session its context size and tells you when a turn crosses 300k or a further 100k · the product level (*Levels*): skills `glab:product-manager`, `glab:product-plan`, `glab:product-plan-analyze`, `glab:product-project-brief`, `glab:product-project-plan-analyze`, `glab:product-project-plan-verdict`, and `glab:product-project-plan-report`, which the project level runs · agents `glab:product-planner`, `glab:product-analyzer` |
 | `memory-sync` | Skill `memory-sync:sync-memory` · hooks on four events that run `memory-sync.sh` |
 
 In `glab` the skills and agents are one set: `glab:manager` runs each stage
 through its stage skill, which dispatches the agents, and dispatches
 `glab:planner` itself for the plan. Each agent preloads, through the `skills:`
 list in its definition, the `glab` skills its role uses — `glab:security` in
-all seven, `glab:plan` in the planner — and runs at the session's effort level,
+all nine, `glab:plan` in the planner and `glab:product-plan` in the product
+planner — and runs at the session's effort level,
 which the manager passes on every dispatch. The two plugins do not depend on
 each other; install either alone.
 
-Each `glab` agent runs on the model its definition names: the planner and
-the plan check on Opus; the analyzer, developer, reviewer and integrator on
+Each `glab` agent runs on the model its definition names: the planner, the
+plan check, the product planner and the product analyzer on Opus; the analyzer, developer, reviewer and integrator on
 Sonnet; the committer on Haiku. They were chosen for cost, and every
 installer pays these models' prices. Tell the manager to use another model
 for a role and it passes that one instead. From Claude Code v2.1.251,
@@ -67,11 +68,118 @@ until then pick the mode you were in. The plugin
 never changes `plansDirectory`, and the manager writes no plan file under
 `~/.claude/plans`.
 
+## Levels
+
+`glab` runs a session at one level. The project level is today's workflow:
+`glab:manager` plans, builds, reviews and ships one repo's changes. The
+product level sits above it: `glab:product-manager` turns a business plan
+into a product plan, product rules and one brief per project, and judges
+each project's plan before that project develops. Each level has its own
+manager, its own skills and its own agents.
+
+**Which level.** A line `glab-level: product` in a repo's `AGENTS.md` makes
+its sessions product sessions; `glab-level: project`, or no such line, keeps
+the project level, so every existing repo starts as before. Any other value
+runs as project, with a warning above the session-start text; `delivery` and
+`support` are reserved for levels not built yet. The `SessionStart` hook reads
+the first such line from the `AGENTS.md` of the folder the session starts in,
+or of the top of its git work tree when that folder has none.
+
+**What the session start loads.** The manager of the level —
+`glab:manager` or `glab:product-manager` — then `glab:session-rules`, the
+rules every level's manager runs under, and `glab:security`.
+
+**The shared store.** The levels exchange plain files in one shared folder,
+named by a line `glab-shared-store: <path to the shared folder>` in the
+repo's `AGENTS.md`, or else in `~/.claude/host.md`, where a machine's paths
+belong. Its layout:
+
+    <store>/docs/product-rules/index.md       one line per rule file
+    <store>/docs/product-rules/<name>.md      one topic, its size as glab:product-plan says
+    <store>/briefs/<project>/brief.md         the project's request
+    <store>/briefs/<project>/report.r<n>.md   the project's plan report
+    <store>/briefs/<project>/plan.r<n>/       the plan files the report hashed
+    <store>/briefs/<project>/verdict.r<n>.md  the product's verdict
+    <store>/releases/                         reserved for the delivery level
+
+**The loop.** A project session takes a brief as its request, plans it as
+usual, and after the approvals reports the plan — its digest, a sha256 over
+the plan files — to the store; the product session audits that copy against
+the brief and the product rules and writes `ACCEPTED` or `REJECTED` with a
+reason. `glab:develop` refuses to start while the latest verdict is not an
+`ACCEPTED` of exactly the plan and the brief as they are now, so an edited
+plan or brief is reported again; the project manager's own record lines
+after a report go to `after-verdict.md`, outside the hash. One script,
+`plugins/glab/scripts/plan-gate.sh`, writes the report and the verdict and
+checks them.
+
+**The rejection cap.** Two `REJECTED` verdicts on one project since the last
+`ACCEPTED` — over every brief that project has had — and the next verdict is
+the user's.
+
+**The boundary.** Each manager's *Your skills — this level only* list is the
+rule a session keeps to; a description's `Product level — ` or
+`Project level — ` prefix is a hint. Only the product agents, which have no
+`Skill` tool, are held to it by Claude Code itself.
+
+**Known limits.** The main session's boundary is text, which a session keeps
+to as far as it follows its skills. `by user` is an argument the calling
+session chooses, and both levels can write the store, so the cap holds as far
+as the sessions keep to the skill text.
+
+## Try the product loop
+
+Without installing anything and without a model, from the repo root in a
+shell where `TMPDIR` is set:
+
+    PRODUCT_LOOP_SHOW=1 bash tests/product-loop.test.sh plugins/glab/scripts/plan-gate.sh plugins/glab/scripts/manager-bootstrap.sh 2>"$TMPDIR/trace.txt"
+
+It plays a made-up product with two projects through the whole loop under
+`$TMPDIR` and prints one `ok` line per step; `$TMPDIR/trace.txt` holds the
+trace — each scene, the role that acts in it, every `plan-gate.sh` command,
+each refusal and the text of every brief, report, verdict and rule written.
+
+Live, after installing `glab` at the version in
+`plugins/glab/.claude-plugin/plugin.json`:
+
+1. Make a store folder. Give a product repo an `AGENTS.md` with
+   `glab-level: product` and `glab-shared-store: <path to the shared folder>`,
+   and a project repo an `AGENTS.md` with the same store line.
+2. Start the product session with the store among its directories:
+   `claude --add-dir <store>`. Give it a business plan; approve the product
+   plan it brings you; it writes the briefs and the rules to the store.
+3. Start a project session in the project repo, with the start prompt, as
+   `glab:product-manager` *Starting project sessions* says: the desktop
+   app's session tool, `claude --bg` from the project repo, or by hand. That
+   the prompt keeps a background session from pushing is UNVERIFIED until
+   LP4 has run.
+4. The project session plans, has you approve, reports and waits; the product
+   session audits the report and writes the verdict; on `ACCEPTED` the project
+   session develops.
+
+The live checks, each UNVERIFIED until run:
+
+- **LP1** — in the product repo, and in a subfolder of it, the session-start
+  text names `glab:product-manager`, and the session loads
+  `glab:session-rules` with it.
+- **LP2** — the product session uses only its manager's skills, also when
+  many plugins crowd the skill listing.
+- **LP3** — `${CLAUDE_PLUGIN_ROOT}` is replaced by the plugin's path in the
+  product skills' commands.
+- **LP4** — a project session starts and is reached on each host: the
+  desktop app's session tool; `claude --bg` from the product session's Bash
+  tool, reached by `SendMessage` and waited on with `notify_when_idle`; and by
+  hand. The start prompt keeps a background session from pushing.
+- **LP5** — the product agents preload their `skills:`.
+- **LP6** — with the store added by `--add-dir`, the product session writes a
+  brief through `glab:product-planner` and a verdict through `plan-gate.sh`
+  without a permission prompt for each write.
+
 ## Requirements
 
 Linux with bash. `jq` is optional: without it the `glab` `SessionStart` hook
-falls back to plain text, and the context hook says nothing — `glab:manager`
-then counts dispatches instead. `memory-sync` also needs GNU coreutils (`timeout`, `stat`,
+falls back to plain text, and the context hook says nothing — the session's
+manager then counts dispatches instead (`glab:session-rules` Rule 2). `memory-sync` also needs GNU coreutils (`timeout`, `stat`,
 `date`), util-linux `flock`, `rsync` and the AWS CLI. macOS is not supported.
 
 ## Install
@@ -230,7 +338,7 @@ share one lock. Uninstalling the plugin leaves those files in place.
 | `.claude-plugin/marketplace.json` | The marketplace: lists both plugins |
 | `plugins/` | The two plugins. Payload: written for the sessions of whoever installs them |
 | `host.example.md` | Template for the per-machine `~/.claude/host.md` |
-| `tests/` | Stub-based test for `memory-sync.sh` |
+| `tests/` | The scripts' tests — `memory-sync.sh` against a stub, the hooks, `plan-gate.sh` — and the product-loop walkthrough with its fixtures, `tests/fixtures/product-loop/` |
 | `plan/` | Working area: the files of changes in progress, removed once each change is recorded |
 | `docs/specs/` | One spec per area: how it works now, why, what is not verified, what is open |
 

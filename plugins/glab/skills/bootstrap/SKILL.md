@@ -1,6 +1,6 @@
 ---
 name: bootstrap
-description: The first thing to run in any session — establishes the working agreement, loads the glab:manager and glab:security skills, finds the repo's real gate commands, picks up any handoff left by a previous session, and states the tooling hazards that have already produced wrong answers. Use at session start, after a context compaction, when resuming parked work, or whenever you are unsure what the operating model for this session is.
+description: The first thing to run in any session — establishes the working agreement, loads the manager of the session's level, glab:session-rules and glab:security, finds the repo's real gate commands, picks up any handoff left by a previous session, and states the tooling hazards that have already produced wrong answers. Use at session start, after a context compaction, when resuming parked work, or whenever you are unsure what the operating model for this session is.
 ---
 
 # Bootstrap
@@ -14,17 +14,17 @@ a claim proven with a tool that silently returns nothing.
 
 ## 1. Read the working agreement, the host file and the constants
 
-The session-start text of the `glab` hook, points 1 and 4, says what to read and in which order, and what to do when a file is missing. A session that received no such text — the plugin's hooks off — reads it first from `${CLAUDE_PLUGIN_ROOT}/scripts/manager-bootstrap.sh`.
+The session-start text of the `glab` hook, points 1 and 4, says what to read and in which order, and what to do when a file is missing. A session that received no such text — the plugin's hooks off — reads it first from `${CLAUDE_PLUGIN_ROOT}/scripts/manager-bootstrap.sh`, and takes the text for the level its `AGENTS.md` line `glab-level:` names — the project level when there is none.
 
 Do not skim `AGENTS.md`. It is the contract every review is held to, and an agent that skipped it produces work the repo rejects — which you pay for in a correction round, not in saved time.
 
 The host file comes that early because steps 3 and 5 already run commands, and step 6 says why its temp-file rule matters. `docs/constants.md` holds what is already decided — only the user changes it, and a plan conforms to it and never re-asks it.
 
-## 2. Load `glab:manager` and `glab:security`
+## 2. Load the manager of your level, `glab:session-rules` and `glab:security`
 
-Both, always — the session-start text says what each governs, and they are not alternatives. `glab:manager` governs *how* work is done, not *whether*: its Rule 1 says what skips the pipeline, and what still holds when it does.
+All three, always — the session-start text names the manager of your level, `glab:manager` at the project level, `glab:product-manager` at the product level. That manager governs *how* work is done at its level, not *whether*: `glab:session-rules` Rule 1 says what skips the pipeline, and what still holds when it does.
 
-What reaches each agent is `glab:manager` Rule 0c's: each `glab` agent's definition preloads the skills its role uses, and a dispatch carries only the facts of its task.
+What reaches each agent is `glab:session-rules` Rule 0c's: each `glab` agent's definition preloads the skills its role uses, and a dispatch carries only the facts of its task.
 
 ## 3. Find the real gates, once
 
@@ -42,7 +42,7 @@ the gate silently.
 
 ## 4. Confirm the pipeline
 
-Name the stage you are at in `glab:manager` → *The pipeline*; *Pick the tier* says which stages run and how many rounds each gets. Dispatch independent agents in a single message (`glab:manager` → *Running agents in parallel*).
+Name the stage you are at in the pipeline of the manager of your level — `glab:manager` → *The pipeline* at the project level, `glab:product-manager` → *The product pipeline* at the product level. `glab:session-rules` *Round caps* says how many rounds a stage gets, and at the project level `glab:manager` *Pick the tier* says which stages run and `glab:manager` → *Running agents in parallel* how to fan out. Dispatch independent agents in a single message.
 
 ## 5. Pick up the handoff
 

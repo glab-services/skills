@@ -1,6 +1,6 @@
 ---
 name: plan
-description: The analyze-then-plan procedure — size, analyze, decide and plan a task before any code is written — that glab:planner follows, and that a user runs by typing /glab:plan <task>. Any other request to build, fix, refactor, integrate or investigate something goes to glab:planner, not to this procedure (glab:manager Stage 1). Writes findings, decisions, and a plan to plan/{slug}/ and stops there: the build is glab:developer's, through /glab:develop, and once the change is pushed it is recorded in the area spec under docs/specs/. Skip only for trivial changes (glab:manager Rule 1).
+description: Project level — The analyze-then-plan procedure — size, analyze, decide and plan a task before any code is written — that glab:planner follows, and that a user runs by typing /glab:plan <task>. Any other request to build, fix, refactor, integrate or investigate something goes to glab:planner, not to this procedure (glab:manager Stage 1). Writes findings, decisions, and a plan to plan/{slug}/ and stops there: the build is glab:developer's, through /glab:develop, and once the change is pushed it is recorded in the area spec under docs/specs/. Skip only for trivial changes (glab:session-rules Rule 1).
 argument-hint: "[what to build or fix]"
 ---
 
@@ -16,7 +16,7 @@ size → analyze → decide → plan → verify
 
 ## Step 0 — Size the Task
 
-- **Trivial** (skip this workflow): under `glab:manager` Rule 1's line. Say so and stop.
+- **Trivial** (skip this workflow): under `glab:session-rules` Rule 1's line. Say so and stop.
 - **Non-trivial** (follow the workflow): anything that touches logic, spans multiple files, changes behavior, introduces new concepts, or requires understanding existing code first.
 
 When in doubt, treat it as non-trivial. Non-trivial work is **normal** or **full** tier — `glab:manager` → *Pick the tier* says which. Normal tier writes `master.md` and one page, `plan.md`, with evidence and decisions as sections of it. Map files the manager's mapping agents wrote, `map-<area>.md`, sit beside it (Step 1). Full tier writes the separate files below.
@@ -27,6 +27,7 @@ Write findings to `plan/{slug}/evidence.md` at full tier and as the evidence sec
 
 - Scope: what exists, what's missing, dependencies, risks.
 - The spec of each area the change touches, read first — `docs/specs/<area>.md`, or where the repo's `AGENTS.md` puts specs. Its decisions still bind, its known limits still hold, and its open follow-ups may already describe this task.
+- When the task is a brief, the product-rule files the brief names bind like `docs/constants.md`: read each from the store, and the plan conforms to them.
 - Exact file paths and line numbers for the code under change.
 - Separate proven from inferred, as `glab:security` Rule 6 defines them. Never present inferred runtime behavior as proven.
 - Candidate implementation boundaries, and at least one rejected approach with a short reason.
@@ -62,7 +63,7 @@ A file the change only depends on — imported, configured, read — is listed b
 Sort every gap Step 1 left open. Each is one of three things:
 
 - **A fact** — an existing method's runtime semantics; whether an intended call can express the required behavior correctly; rollback, delete, or cleanup semantics; versioning, object-lock, or state-transition behavior; ownership/lifecycle on streamed, file, or network paths. Prove it with a command — grep the callers, run it (`glab:security` Rule 6). A behavior-critical point you cannot prove stays **Inferred**, and the step that proves it goes before the step that depends on it. Do not assume, and do not ask the user what the code can answer.
-- **A choice** — decide it, and write one line under `## Decisions` in `plan.md`: the choice and why. The manager reviews those lines and may overrule one, recording the overrule as a new line. `glab:manager` Rule 3 is the rule.
+- **A choice** — decide it, and write one line under `## Decisions` in `plan.md`: the choice and why. The manager reviews those lines and may overrule one, recording the overrule as a new line. `glab:session-rules` Rule 3 is the rule.
 - **The user's** — destructive, costs money, exposes real data, or changes what the product is. Write it to `plan/{slug}/questions.md` with its context and your recommended answer, and stop until it is answered. At most one per plan is the target.
 
 **If you cannot find it, say so.** When you search for a method, function, binary, or code path and cannot locate it, do not conclude it does not exist, guess its location, or silently skip it. Show the search that would have found it; if the plan depends on it, report that as a blocker.
@@ -83,13 +84,14 @@ Write to `plan/{slug}/plan.md`. Must include:
 
 Do not prescribe a concrete implementation shape until the boundary is proven by findings and recorded decisions. The plan must be complete enough that another agent could execute it without follow-ups.
 
-**Size and shape — every later agent reads the plan again**, round after round, so every line is paid for many times. Keep `master.md`, `plan.md`, `index.md` and `evidence.md` at or under **48 KB** each (`wc -c`). A decision is one line: the choice and its reason, in at most two sentences; its evidence stays in `evidence.md` and is cited by id, never restated. Write a fact once, where it belongs, and cite it elsewhere. A plan that will not fit is usually two plans: split it (below). When it cannot be split, say why under `## Decisions` as `- size: <n> KB — <why it is one plan>`, and the manager decides (`glab:manager` Rule 3).
+**Size and shape — every later agent reads the plan again**, round after round, so every line is paid for many times. Keep `master.md`, `plan.md`, `index.md` and `evidence.md` at or under **48 KB** each (`wc -c`). A decision is one line: the choice and its reason, in at most two sentences; its evidence stays in `evidence.md` and is cited by id, never restated. Write a fact once, where it belongs, and cite it elsewhere. A plan that will not fit is usually two plans: split it (below). When it cannot be split, say why under `## Decisions` as `- size: <n> KB — <why it is one plan>`, and the manager decides (`glab:session-rules` Rule 3).
 
 ### The master plan, and sub-plans when the work splits
 
 Every plan folder starts with `plan/{slug}/master.md` — what the user asked for, constant once accepted; the plans say how. It holds:
 
 - `## Request` — the user's words that define the task, verbatim and dated, later words added the same way until approval. Never paraphrase them: every intent check reads them.
+  When the task is a brief, `## Request` holds the brief verbatim, dated, under its brief line `- brief: briefs/<project>/brief.md sha256 <hash>`, the hash being `sha256sum` of the brief as it was read. The brief is the request's words, and its `## Acceptance` reaches the goals like any other request.
 - `## Goals` — `G1`, `G2`, …: one line each, what must be true for the user when done, citing its words, saying no more and no less.
 - `## Out of scope` — what the user excluded, in their words, or `none`.
 - `## Final check` — the test that shows the whole request done, end to end.
@@ -100,7 +102,7 @@ Every plan folder starts with `plan/{slug}/master.md` — what the user asked fo
 
 The split goes into `plan/{slug}/index.md`, one line per sub-plan — `<nn>-<name> · goals G1, G3 · depends <nn>-<name>, … | none · tier <normal | full>` — and a `## Decisions` section for choices about the split. Every goal is on at least one line.
 
-**Planning in cycles.** The first planning agent writes `master.md` and, when the work splits, `index.md` — no sub-plan yet. Each sub-plan is then planned by its own agent from `master.md`, its own `index.md` line and the map files it needs — `plan/{slug}/map-<area>.md`, at the slug's level — never from another sub-plan, once what it depends on is committed, so it cites the tree it will be built on. A sub-plan that needs another goal or another sub-plan's files says so and does not reach into them: the split is the manager's.
+**Planning in cycles.** The first planning agent writes `master.md` and, when the work splits, `index.md` — no sub-plan yet. Each sub-plan is then planned by its own agent from `master.md`, its own `index.md` line and the map files it needs — `plan/{slug}/map-<area>.md`, at the slug's level — never from another sub-plan, once what it depends on is committed, so it cites the tree it will be built on. When the task is a brief, every sub-plan is planned before any is built — from the tree the slug starts on and its own `index.md` line, never another sub-plan's folder, because one report to product covers the master and every sub-plan (`glab:manager` Stage 1c). A sub-plan that needs another goal or another sub-plan's files says so and does not reach into them: the split is the manager's.
 
 ## Step 4 — Verify the Plan
 
@@ -113,7 +115,7 @@ Before the plan goes to the plan check, confirm what follows; the check and the 
 - rollback/delete/state semantics are proven where relevant;
 - ownership/lifecycle risks are reviewed on resource-sensitive paths.
 
-**Amending after a plan check.** Under `glab:manager` an amendment after `NOT BUILDABLE` is written by a new planning agent from the files on disk and the round's findings in its dispatch (`glab:manager` Stage 1b). Change what the findings name and what that forces, and **replace the text you change, in place**: the step, the finding or the decision line is rewritten under its own id, a changed choice with its new reason. Never append an amendment section, a "superseded" line or a round marker beside the old text — the `<name>.r<n>.md` copies the manager kept are the history; leave them as they are. A line the manager added to overrule a decision stays as the manager wrote it. No round amends a `master.md` that has an `## Approval` line. When the user changes the request and your dispatch grants it, copy the old master to `master.v<n>.md` — a version copy, never `.r<n>` — and write a new `master.md` with no `## Approval` line; its hash, its approval and its plan check are the manager's (`glab:manager` *The master plan and sub-plans*). Step 1 is not run again, except for a gap a finding opens.
+**Amending after a plan check.** Under `glab:manager` an amendment after `NOT BUILDABLE`, or after a REJECTED verdict, is written by a new planning agent from the files on disk and the round's findings in its dispatch (`glab:manager` Stage 1b) — after a verdict, its reason is the round's findings (`glab:manager` Stage 1c). Change what the findings name and what that forces, and **replace the text you change, in place**: the step, the finding or the decision line is rewritten under its own id, a changed choice with its new reason. Never append an amendment section, a "superseded" line or a round marker beside the old text — the `<name>.r<n>.md` copies the manager kept are the history; leave them as they are. A line the manager added to overrule a decision stays as the manager wrote it. No round amends a `master.md` that has an `## Approval` line. When the user changes the request and your dispatch grants it, copy the old master to `master.v<n>.md` — a version copy, never `.r<n>` — and write a new `master.md` with no `## Approval` line; its hash, its approval and its plan check are the manager's (`glab:manager` *The master plan and sub-plans*). Step 1 is not run again, except for a gap a finding opens.
 
 ## After Step 4
 

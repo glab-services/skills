@@ -1,10 +1,10 @@
 ---
 name: ship
-description: Review the working tree with the glab:reviewer agent, then commit with the glab:committer agent if it passes
+description: Project level — Review the working tree with the glab:reviewer agent, then commit with the glab:committer agent if it passes
 argument-hint: "[path to narrow the review, empty for the whole working tree]"
 ---
 
-Ship the current changes: review, gate, commit — three steps, in order, no shortcuts. The session that runs it — `glab:manager`, or a person who typed `/glab:ship` — dispatches both agents as `glab:manager` Rules 0d and 5 say, and holds the gate between them.
+Ship the current changes: review, gate, commit — three steps, in order, no shortcuts. The session that runs it — `glab:manager`, or a person who typed `/glab:ship` — dispatches both agents as `glab:session-rules` Rules 0d and 5 say, and holds the gate between them.
 
 ## 1. Review
 
@@ -22,9 +22,9 @@ Match the verdict **whole**, never by prefix — `SHIP WITH SCOPE CUT` starts wi
 - `SHIP WITH SCOPE CUT: <what to drop>` → go to step 3 with the named part removed from the scope, and tell the user what was dropped. Never commit the named part.
 - `BLOCK: <n> issues`, `BLOCK: 1 issue` or `BLOCK: target unresolved` → stop here. Show the findings and ask the user what to fix. Do not commit. Do not start fixing anything unless the user says so.
 - `DO NOT PUBLISH: <why>` → stop. Do not commit, and do not offer a fix round; the reviewer is saying the design is wrong.
-- No clear verdict, or the reviewer errored → first the report check of `glab:manager` Rule 5. Still no clear verdict → treat it as BLOCK and say which it was.
+- No clear verdict, or the reviewer errored → first the report check of `glab:session-rules` Rule 5. Still no clear verdict → treat it as BLOCK and say which it was.
 
-When the user asks for a fix, it is made as `glab:manager` Stage 5 sends findings back — or, with no plan behind the change, as a **glab:developer** fix round dispatched directly, whose contract is the review findings, quoted verbatim in the dispatch (`glab:developer` *A fix round*). Either way the amended tree returns to step 1: a new reviewer, given what Stage 5 gives a round after the first, within *Pick the tier*'s round caps. A commit only ever follows a `SHIP` verdict on the exact tree being committed — a fix that was never reviewed is the case this skill exists to catch.
+When the user asks for a fix, it is made as `glab:manager` Stage 5 sends findings back — or, with no plan behind the change, as a **glab:developer** fix round dispatched directly, whose contract is the review findings, quoted verbatim in the dispatch (`glab:developer` *A fix round*). Either way the amended tree returns to step 1: a new reviewer, given what Stage 5 gives a round after the first, within `glab:session-rules` *Round caps*. A commit only ever follows a `SHIP` verdict on the exact tree being committed — a fix that was never reviewed is the case this skill exists to catch.
 
 ## 3. Commit
 
