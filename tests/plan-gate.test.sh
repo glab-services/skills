@@ -7,8 +7,12 @@ set -uo pipefail
 # Absolute, because every run below starts from the work directory.
 SCRIPT=$(cd "$(dirname "$1")" && pwd)/$(basename "$1")
 W=$(mktemp -d "${TMPDIR:?set TMPDIR to the temp directory your host file names}/plan-gate-test.XXXXXX") || exit 1
-# T33 and T37 each start two runs in the background and wait for both; the trap kills only those, by
-# the PIDs recorded, should the test end first, then removes the work directory.
+# T33, T37 and T48 each start two runs in the background and wait for both, and T45 a parent that
+# keeps a zombie; BG holds those PIDs while they may run. In T47 a stub starts a second run in the
+# background and records its PID in $C/pid2, which joins BG only once the first run is back: a test
+# killed while the first run waits in that stub, up to 10 s, does not kill the second, which ends on
+# its own once its date stub stops waiting, 10 s at most. The trap kills only the PIDs in BG, should
+# the test end first, then removes the work directory.
 BG=''
 trap 'for p in $BG; do kill "$p" 2>/dev/null; done; rm -rf "$W"' EXIT
 cd "$W" || exit 1
@@ -504,9 +508,10 @@ got=$(cd "$S/$B" 2>/dev/null && find . | LC_ALL=C sort | tr '\n' ' ')
 [ "$got" = '. ./brief.md ./plan.r1 ./plan.r1/master.md ./plan.r1/plan.md ./report.r1.md ' ] || bad "the project folder holds [$got]"
 done_case T37 "two reports at once: one is written, the other refused, and the copy hashes to the report"
 
-# T38 to T42 interrupt one run at a set point. A stub first on PATH sends the signal to the run, by the
-# PID that $W/launch wrote before it became that run, so a case signals only the run it started, and
-# the run is in the foreground: no case waits for a background job.
+# T38 to T43, T49 and T50 interrupt one run at a set point. A stub first on PATH sends the signal to the
+# run, by the PID that $W/launch wrote before it became that run, so a case signals only the run it
+# started, and the run is in the foreground: no case waits for a background job. T46, T47 and T51
+# use the same launcher and stubs to place a second run, or a failing ln, at a set point.
 cat >"$W/launch" <<'EOF'
 echo $$ >"$1"
 shift
@@ -525,24 +530,47 @@ launched() {
 	RC=$?
 	ERR=$(cat "$W/err")
 }
+# The takeover of a stale claim needs /proc (plan-gate.sh, whoami): PROC is set where /proc is this
+# test's pid namespace's, as the script requires. Elsewhere T38 and T43 expect the refusal instead,
+# and T45 to T48 say "skipped: no /proc".
+PROC=''
+if { read -r s </proc/self/stat; } 2>/dev/null && [ "${s%% *}" = "$$" ]; then PROC=1; fi
+# owner <pid> <start>: the claim line of a run on this host with that pid and start time, made here
+# from uname, the boot id and the pid namespace, independently of the script.
+owner() { printf '%s %s %s %s %s\n' "$(uname -n)" "$(cat /proc/sys/kernel/random/boot_id)" "$(readlink /proc/self/ns/pid)" "$1" "$2"; }
+# started <pid>: the process's start time, field 22 of /proc/<pid>/stat.
+started() { awk '{ sub(/.*\) /, ""); print $20 }' "/proc/$1/stat"; }
+# dead_pid: the pid of a process that has exited and been reaped.
+# shellcheck disable=SC2016 # $$ is the child's own pid
+dead_pid() { bash -c 'echo $$'; }
 
 # T38
 loop_case t38 notes-api
 ran report "$P" "$S"
-# A date that kills the run with SIGKILL: verdict calls it while it holds the claim on r1, and no trap
-# runs on SIGKILL, so the claim is left as a killed run leaves it.
+# A date that kills the run with SIGKILL: verdict calls it while it holds the claim on r1 and writes
+# its temporary file, and no trap runs on SIGKILL, so the claim and the file are left as a killed run
+# leaves them.
 # shellcheck disable=SC2016 # expanded when the stub runs
 stub date 'kill -KILL "$(cat "$STUB_C/pid")"'
 launched verdict "$S" notes-api ACCEPTED product-manager "$C/ok"
 [ "$RC" -eq 137 ] || bad "the killed run exited $RC, not 137: [$ERR]"
-claim=$S/$B/.plan-gate.claim.verdict.r1
-[ -f "$claim" ] || bad "the killed run left no claim"
-refused "another run is writing verdict r1; when no run is writing, remove $claim by hand" verdict "$S" notes-api ACCEPTED product-manager "$C/ok"
-rm -f "$claim"
-ran verdict "$S" notes-api ACCEPTED product-manager "$C/ok"
-left=$(find "$S" -name '.plan-gate.*')
-[ -z "$left" ] || bad "left in the store: $left"
-done_case T38 "a claim left by a run killed with SIGKILL: the refusal names it; removed by hand, the next verdict is written and nothing is left"
+claim=$S/$B/.plan-gate.claim.verdict.r1 tmp=$S/$B/.plan-gate.tmp.verdict.r1
+[ -f "$claim" ] && [ -f "$tmp" ] || bad "the killed run left no claim and temporary file"
+if [ -n "$PROC" ]; then
+	# shellcheck disable=SC2046 # the line's five words
+	set -- $(cat "$claim")
+	[ $# -eq 5 ] && [ "$4" = "$(cat "$C/pid")" ] || bad "the claim [$*] does not name the killed run's pid"
+	ran verdict "$S" notes-api ACCEPTED product-manager "$C/ok"
+	[ "$OUT" = "$S/$B/verdict.r1.md" ] || bad "the run that took the claim over printed [$OUT]"
+	left=$(find "$S" -name '.plan-gate.*')
+	[ -z "$left" ] || bad "left in the store: $left"
+	done_case T38 "a claim and temporary file left by a run killed with SIGKILL are taken over: the next verdict is written and nothing is left"
+else
+	refused "another run is writing verdict r1; when no run is writing, remove $claim and $tmp by hand" verdict "$S" notes-api ACCEPTED product-manager "$C/ok"
+	rm -f "$claim" "$tmp"
+	ran verdict "$S" notes-api ACCEPTED product-manager "$C/ok"
+	done_case T38 "a claim and temporary file left by a run killed with SIGKILL (no /proc: refused, naming both; removed by hand, the next verdict is written)"
+fi
 
 # T39
 loop_case t39 notes-api
@@ -601,6 +629,311 @@ launched verdict "$S" notes-api ACCEPTED product-manager "$C/ok"
 left=$(find "$S" -name '.plan-gate.*')
 [ -z "$left" ] || bad "left in the store: $left"
 done_case T42 "a SIGINT while the verdict's temporary file is made or written leaves nothing in the store"
+
+# T43
+loop_case t43 notes-api
+# A date that kills a report run with SIGKILL: report calls it with plan.r1/ filled, holding the
+# claim on r1 and writing its temporary file.
+# shellcheck disable=SC2016 # expanded when the stub runs
+stub date 'kill -KILL "$(cat "$STUB_C/pid")"'
+launched report "$P" "$S"
+[ "$RC" -eq 137 ] || bad "the killed run exited $RC, not 137: [$ERR]"
+claim=$S/$B/.plan-gate.claim.report.r1 tmp=$S/$B/.plan-gate.tmp.report.r1
+[ -f "$claim" ] && [ -f "$tmp" ] && [ -d "$S/$B/plan.r1" ] || bad "the killed run left no claim, temporary file and plan.r1/"
+if [ -n "$PROC" ]; then
+	# The takeover removes the claim and the temporary file; plan.r1/ is still refused under the claim
+	# and kept, for a person to look at (plan-gate.sh, cmd_report).
+	gate report "$P" "$S"
+	[ "$RC" -eq 1 ] && [ -z "$OUT" ] && [ "$ERR" = 'REFUSED: plan.r1/ is there without report r1; look at it and remove it by hand' ] ||
+		bad "after the takeover: rc=$RC [$OUT] [$ERR]"
+	[ ! -e "$claim" ] && [ ! -e "$tmp" ] || bad "the claim or the temporary file is still there"
+	[ -d "$S/$B/plan.r1" ] || bad "plan.r1/ was removed"
+	rm -rf "${S:?}/$B/plan.r1"
+	ran report "$P" "$S"
+	[ "$OUT" = "$S/$B/report.r1.md" ] || bad "the next report printed [$OUT]"
+	left=$(find "$S" -name '.plan-gate.*')
+	[ -z "$left" ] || bad "left in the store: $left"
+	done_case T43 "a report run killed with SIGKILL: its claim and temporary file are taken over, plan.r1/ is refused and kept; removed by hand, the next report is written"
+else
+	refused "another run is writing report r1; when no run is writing, remove $claim and $tmp by hand" report "$P" "$S"
+	rm -rf "$claim" "$tmp" "${S:?}/$B/plan.r1"
+	done_case T43 "a report run killed with SIGKILL (no /proc: refused, naming the claim and the temporary file)"
+fi
+
+# T44
+loop_case t44 notes-api
+ran report "$P" "$S"
+claim=$S/$B/.plan-gate.claim.verdict.r1 tmp=$S/$B/.plan-gate.tmp.verdict.r1
+boot=$(cat /proc/sys/kernel/random/boot_id 2>/dev/null)
+# Claims no run can prove stale, each refused and kept: an empty one, as glab 0.14.0 wrote them; one
+# from another host; one from another pid namespace; and the line of a run that is alive, this
+# test's own bash; and one from another boot. Cases 2, 3 and 5 name a dead pid and differ from this
+# host's line in that one field only, so that field alone refuses them. The refusal names the
+# temporary file too, unless the claim's run is alive.
+for k in 1 2 3 4 5; do
+	rm -f "$claim" "$tmp"
+	case $k in
+	1) : >"$claim" && want="remove $claim by hand" ;;
+	2)
+		[ -n "$PROC" ] || continue
+		printf 'plan-gate-test-elsewhere %s %s %s 1\n' "$boot" "$(readlink /proc/self/ns/pid)" "$(dead_pid)" >"$claim" && : >"$tmp" && want="remove $claim and $tmp by hand"
+		;;
+	3)
+		[ -n "$PROC" ] || continue
+		printf '%s %s pid:[1] %s 1\n' "$(uname -n)" "$boot" "$(dead_pid)" >"$claim" && : >"$tmp" && want="remove $claim and $tmp by hand"
+		;;
+	4)
+		[ -n "$PROC" ] || continue
+		owner "$$" "$(started "$$")" >"$claim" && : >"$tmp" && want="remove $claim by hand"
+		;;
+	5)
+		[ -n "$PROC" ] || continue
+		printf '%s 00000000-0000-0000-0000-000000000000 %s %s 1\n' "$(uname -n)" "$(readlink /proc/self/ns/pid)" "$(dead_pid)" >"$claim" && : >"$tmp" && want="remove $claim and $tmp by hand"
+		;;
+	esac
+	refused "another run is writing verdict r1; when no run is writing, $want" verdict "$S" notes-api ACCEPTED product-manager "$C/ok"
+done
+rm -f "$claim" "$tmp"
+ran verdict "$S" notes-api ACCEPTED product-manager "$C/ok"
+done_case T44 "a claim no run can prove stale is refused and kept - empty, from another host, from another pid namespace, alive, or from another boot - naming the temporary file too unless its run is alive"
+
+# T45
+loop_case t45 notes-api
+if [ -n "$PROC" ]; then
+	ran report "$P" "$S"
+	# The line of a run whose pid is now this test's bash, which started at another time: the pid
+	# was reused.
+	owner "$$" 1 >"$S/$B/.plan-gate.claim.verdict.r1"
+	ran verdict "$S" notes-api REJECTED product-manager "$C/no"
+	[ -f "$S/$B/verdict.r1.md" ] || bad "no verdict r1 after the takeover of a reused pid's claim"
+	printf 'amended\n' >>"$P/plan.md"
+	ran report "$P" "$S"
+	# A zombie: sleep 0 exits under a parent that became sleep 5, which never reaps it.
+	# shellcheck disable=SC2016 # $! and $1 are the child shell's
+	bash -c 'sleep 0 & echo $! >"$1"; exec sleep 5' _ "$C/z" &
+	BG=$!
+	z=''
+	for _ in $(seq 50); do
+		z=$(cat "$C/z" 2>/dev/null)
+		if [ -n "$z" ] && [ "$(awk '{ sub(/.*\) /, ""); print $1 }' "/proc/$z/stat" 2>/dev/null)" = Z ]; then break; fi
+		sleep 0.1
+	done
+	owner "$z" "$(started "$z")" >"$S/$B/.plan-gate.claim.verdict.r2"
+	ran verdict "$S" notes-api ACCEPTED product-manager "$C/ok"
+	[ -f "$S/$B/verdict.r2.md" ] || bad "no verdict r2 after the takeover of a zombie's claim"
+	kill "$BG" 2>/dev/null
+	wait "$BG" 2>/dev/null
+	BG=''
+	left=$(find "$S" -name '.plan-gate.*')
+	[ -z "$left" ] || bad "left in the store: $left"
+	done_case T45 "a claim whose pid was reused, or whose run is a zombie, is taken over"
+else
+	done_case T45 "a claim whose pid was reused, or whose run is a zombie, is taken over (skipped: no /proc)"
+fi
+
+# T46
+loop_case t46 notes-api
+if [ -n "$PROC" ]; then
+	ran report "$P" "$S"
+	claim=$S/$B/.plan-gate.claim.verdict.r1 lock=$S/$B/.plan-gate.takeover.verdict.r1
+	owner "$(dead_pid)" 1 >"$claim"
+	# An rm that, the first time it is called while the takeover lock is there - the takeover
+	# removing the stale claim - runs a second verdict without the stubs and waits for it.
+	# shellcheck disable=SC2016 # expanded when the stub runs
+	stub rm '[ ! -e "$STUB_C/store/briefs/notes-api/.plan-gate.takeover.verdict.r1" ] || ! (set -C && : >"$STUB_C/fired") 2>/dev/null || { PATH=${PATH#"$STUB_C/bin:"} bash "$STUB_SCRIPT" verdict "$STUB_C/store" notes-api REJECTED product-manager "$STUB_C/no" >"$STUB_C/o2" 2>"$STUB_C/e2"; echo $? >"$STUB_C/r2"; }'
+	launched verdict "$S" notes-api ACCEPTED product-manager "$C/ok"
+	[ "$RC" -eq 0 ] && [ "$OUT" = "$S/$B/verdict.r1.md" ] || bad "the run that took the claim over: rc=$RC [$OUT] [$ERR]"
+	[ "$(cat "$C/r2" 2>/dev/null)" = 1 ] || bad "the second run exited [$(cat "$C/r2" 2>/dev/null)], not 1"
+	[ "$(cat "$C/e2" 2>/dev/null)" = "REFUSED: another run is writing verdict r1; when no run is writing, remove $lock by hand" ] ||
+		bad "the second run said [$(cat "$C/e2" 2>/dev/null)]"
+	[ -z "$(cat "$C/o2" 2>/dev/null)" ] || bad "the second run printed [$(cat "$C/o2")]"
+	grep -qx 'verdict: ACCEPTED' "$S/$B/verdict.r1.md" 2>/dev/null || bad "verdict.r1.md is not the first run's ACCEPTED"
+	left=$(find "$S" -name '.plan-gate.*')
+	[ -z "$left" ] || bad "left in the store: $left"
+	done_case T46 "a run that finds a stale claim while another run holds the takeover lock is refused, naming the lock"
+else
+	done_case T46 "a run that finds a stale claim while another run holds the takeover lock is refused (skipped: no /proc)"
+fi
+
+# T47
+loop_case t47 notes-api
+if [ -n "$PROC" ]; then
+	ran report "$P" "$S"
+	claim=$S/$B/.plan-gate.claim.verdict.r1
+	owner "$(dead_pid)" 1 >"$claim"
+	# A head that, the first time it reads the claim, reads it, then lets a second verdict take the
+	# claim over, and only then hands this run the stale line: the second run, started in the
+	# background with a date that waits for $C/go, holds its own claim and has released the lock
+	# when this run goes on to the lock. Its PID is in $C/pid2, its exit code in $C/r2.
+	mkdir -p "$C/bin" "$C/binA"
+	{
+		printf '#!/usr/bin/env bash\nreal=%q\n' "$(command -v head)"
+		cat <<-'EOF'
+			claim=$STUB_C/store/briefs/notes-api/.plan-gate.claim.verdict.r1
+			lock=$STUB_C/store/briefs/notes-api/.plan-gate.takeover.verdict.r1
+			if [ "${!#}" = "$claim" ] && (set -C && : >"$STUB_C/fired") 2>/dev/null; then
+				x=$("$real" "$@")
+				(
+					PATH=$STUB_C/binA:${PATH#"$STUB_C/bin:"} bash "$STUB_C/../launch" "$STUB_C/pid2" "$STUB_SCRIPT" verdict "$STUB_C/store" notes-api ACCEPTED product-manager "$STUB_C/ok" >"$STUB_C/o2" 2>"$STUB_C/e2"
+					echo $? >"$STUB_C/r2"
+				) </dev/null >/dev/null 2>&1 &
+				for _ in $(seq 100); do
+					y=$("$real" -n 1 -- "$claim" 2>/dev/null)
+					if [ -n "$y" ] && [ "$y" != "$x" ] && [ ! -e "$lock" ]; then break; fi
+					sleep 0.1
+				done
+				printf '%s\n' "$x"
+				exit 0
+			fi
+			exec "$real" "$@"
+		EOF
+	} >"$C/bin/head"
+	{
+		printf '#!/usr/bin/env bash\nreal=%q\n' "$(command -v date)"
+		cat <<-'EOF'
+			for _ in $(seq 100); do [ ! -e "$STUB_C/go" ] || break; sleep 0.1; done
+			exec "$real" "$@"
+		EOF
+	} >"$C/binA/date"
+	chmod +x "$C/bin/head" "$C/binA/date"
+	launched verdict "$S" notes-api REJECTED product-manager "$C/no"
+	BG=$(cat "$C/pid2" 2>/dev/null)
+	[ "$RC" -eq 1 ] && [ -z "$OUT" ] && [ "$ERR" = "REFUSED: another run is writing verdict r1; when no run is writing, remove $claim by hand" ] ||
+		bad "the run that found the claim stale first: rc=$RC [$OUT] [$ERR]"
+	: >"$C/go"
+	for _ in $(seq 100); do
+		[ ! -e "$C/r2" ] || break
+		sleep 0.1
+	done
+	# BG is cleared only once the second run is over: when $C/r2 never came it may still run, and is
+	# killed by its PID first.
+	if [ ! -e "$C/r2" ]; then kill "$BG" 2>/dev/null; fi
+	BG=''
+	[ "$(cat "$C/r2" 2>/dev/null)" = 0 ] || bad "the run that took the claim over exited [$(cat "$C/r2" 2>/dev/null)]: [$(cat "$C/e2" 2>/dev/null)]"
+	grep -qx 'verdict: ACCEPTED' "$S/$B/verdict.r1.md" 2>/dev/null || bad "verdict.r1.md is not the second run's ACCEPTED"
+	left=$(find "$S" -name '.plan-gate.*')
+	[ -z "$left" ] || bad "left in the store: $left"
+	done_case T47 "a run that found a claim stale before another run took it over finds the new claim under the lock and is refused; the other run writes the verdict"
+else
+	done_case T47 "a run that found a claim stale before another run took it over is refused (skipped: no /proc)"
+fi
+
+# T48
+loop_case t48 notes-api
+if [ -n "$PROC" ]; then
+	ran report "$P" "$S"
+	claim=$S/$B/.plan-gate.claim.verdict.r1 lock=$S/$B/.plan-gate.takeover.verdict.r1
+	owner "$(dead_pid)" 1 >"$claim"
+	# A head that waits a second before it reads the claim: two runs started at once both find it
+	# stale before either takes the lock.
+	# shellcheck disable=SC2016 # expanded when the stub runs
+	stub head '[ "${!#}" != "$STUB_C/store/briefs/notes-api/.plan-gate.claim.verdict.r1" ] || sleep 1'
+	PATH=$C/bin:$PATH STUB_C=$C bash "$SCRIPT" verdict "$S" notes-api REJECTED product-manager "$C/no" >"$C/o1" 2>"$C/e1" &
+	p1=$!
+	BG=$p1
+	PATH=$C/bin:$PATH STUB_C=$C bash "$SCRIPT" verdict "$S" notes-api ACCEPTED product-manager "$C/ok" >"$C/o2" 2>"$C/e2" &
+	p2=$!
+	BG="$p1 $p2"
+	wait "$p1"
+	r1=$?
+	wait "$p2"
+	r2=$?
+	BG=''
+	case "$r1 $r2" in
+	'0 1') won=REJECTED lost=2 ;;
+	'1 0') won=ACCEPTED lost=1 ;;
+	*) won='' lost='' && bad "the two runs exited $r1 and $r2, not one 0 and one 1: [$(cat "$C/e1" "$C/e2")]" ;;
+	esac
+	if [ -n "$won" ]; then
+		case $(cat "$C/e$lost") in
+		"REFUSED: another run is writing verdict r1; when no run is writing, remove $lock by hand") ;;
+		"REFUSED: another run is writing verdict r1; when no run is writing, remove $claim by hand") ;;
+		*) bad "the losing run said [$(cat "$C/e$lost")]" ;;
+		esac
+		[ -z "$(cat "$C/o$lost")" ] || bad "the losing run printed [$(cat "$C/o$lost")]"
+		grep -qx "verdict: $won" "$S/$B/verdict.r1.md" || bad "verdict.r1.md is not the winning run's $won"
+	fi
+	left=$(find "$S" -name '.plan-gate.*')
+	[ -z "$left" ] || bad "left in the store: $left"
+	done_case T48 "two runs at once on one stale claim: one takes it over and writes the verdict, the other is refused"
+else
+	done_case T48 "two runs at once on one stale claim (skipped: no /proc)"
+fi
+
+# T49
+for sig in TERM HUP INT; do
+	loop_case "t49-$sig" notes-api
+	# An ln that links, then sends the signal to the run and waits a second before it exits: the
+	# signal arrives while ln runs, with report.r1.md linked.
+	mkdir -p "$C/bin"
+	{
+		printf '#!/usr/bin/env bash\n%q "$@"\nrc=$?\n' "$(command -v ln)"
+		# shellcheck disable=SC2016 # expanded when the stub runs
+		printf 'kill -%s "$(cat "$STUB_C/pid")"\nsleep 1\nexit $rc\n' "$sig"
+	} >"$C/bin/ln" && chmod +x "$C/bin/ln"
+	launched report "$P" "$S"
+	case $sig in TERM) want=143 ;; HUP) want=129 ;; INT) want=130 ;; esac
+	[ "$RC" -eq "$want" ] || bad "$sig: the run exited $RC, not $want: [$ERR]"
+	gate digest "$P"
+	d=$OUT
+	grep -qx "plan-sha256: $d" "$S/$B/report.r1.md" 2>/dev/null || bad "$sig: report.r1.md is not there with the plan's digest"
+	gate digest "$S/$B/plan.r1"
+	[ "$RC" -eq 0 ] && [ "$OUT" = "$d" ] || bad "$sig: plan.r1/ hashes to [$OUT] rc=$RC [$ERR], not the report's [$d]"
+	left=$(find "$S" -name '.plan-gate.*')
+	[ -z "$left" ] || bad "$sig: left in the store: $left"
+	ran verdict "$S" notes-api ACCEPTED product-manager "$C/ok"
+done
+done_case T49 "a TERM, HUP or INT while ln runs is held: report.r1.md and plan.r1/ stay, the run ends by the signal, and verdict decides the report"
+
+# T50
+loop_case t50 notes-api
+# An ln that links and is then killed before it exits, as a Ctrl-C to the whole process group can
+# end it: ln fails, with report.r1.md linked.
+mkdir -p "$C/bin"
+{
+	printf '#!/usr/bin/env bash\n%q "$@"\n' "$(command -v ln)"
+	# shellcheck disable=SC2016 # expanded when the stub runs
+	printf 'kill -KILL $$\n'
+} >"$C/bin/ln" && chmod +x "$C/bin/ln"
+launched report "$P" "$S"
+[ "$RC" -eq 0 ] && [ "$OUT" = "$S/$B/report.r1.md" ] && [ -z "$ERR" ] || bad "the run: rc=$RC [$OUT] [$ERR]"
+gate digest "$P"
+d=$OUT
+gate digest "$S/$B/plan.r1"
+[ "$RC" -eq 0 ] && [ "$OUT" = "$d" ] || bad "plan.r1/ hashes to [$OUT] rc=$RC [$ERR], not the report's [$d]"
+left=$(find "$S" -name '.plan-gate.*')
+[ -z "$left" ] || bad "left in the store: $left"
+ran verdict "$S" notes-api ACCEPTED product-manager "$C/ok"
+done_case T50 "an ln killed after it linked report.r1.md: the report is published and plan.r1/ kept"
+
+# T51
+loop_case t51 notes-api
+# An ln that fails as GNU ln does on a filesystem without hard links, for the final name in
+# $C/final, and links nothing: its message, exit 1 (the message measured with GNU ln on this host's
+# EPERM). Every other link is the real ln's.
+mkdir -p "$C/bin"
+{
+	printf '#!/usr/bin/env bash\nreal=%q\n' "$(command -v ln)"
+	cat <<-'EOF'
+		case $3 in */"$(cat "$STUB_C/final")") echo "ln: failed to create hard link '$3' => '$2': Operation not permitted" >&2 && exit 1 ;; esac
+		exec "$real" "$@"
+	EOF
+} >"$C/bin/ln" && chmod +x "$C/bin/ln"
+# nolink <file> <kind>: the line plan-gate.sh prints when <file> cannot be linked.
+nolink() { printf "plan-gate.sh: writing %s failed: ln: failed to create hard link '%s' => '%s': Operation not permitted; plan-gate.sh publishes with a hard link, so the store must be on a filesystem that has them - the header of plan-gate.sh names them" "$S/$B/$1" "$S/$B/$1" "$S/$B/.plan-gate.tmp.$2"; }
+echo report.r1.md >"$C/final"
+launched report "$P" "$S"
+[ "$RC" -eq 2 ] && [ -z "$OUT" ] && [ "$ERR" = "$(nolink report.r1.md report.r1)" ] || bad "report: rc=$RC [$OUT] [$ERR]"
+got=$(cd "$S/$B" && find . | LC_ALL=C sort | tr '\n' ' ')
+[ "$got" = '. ./brief.md ' ] || bad "after the report the project folder holds [$got]"
+ran report "$P" "$S"
+echo verdict.r1.md >"$C/final"
+launched verdict "$S" notes-api ACCEPTED product-manager "$C/ok"
+[ "$RC" -eq 2 ] && [ -z "$OUT" ] && [ "$ERR" = "$(nolink verdict.r1.md verdict.r1)" ] || bad "verdict: rc=$RC [$OUT] [$ERR]"
+[ ! -e "$S/$B/verdict.r1.md" ] || bad "a verdict was written"
+left=$(find "$S" -name '.plan-gate.*')
+[ -z "$left" ] || bad "left in the store: $left"
+done_case T51 "on a store without hard links, report and verdict exit 2 naming the requirement, and leave nothing"
 
 # T22 last: judged over every store the cases above wrote
 left=$(find "$W" -name '.plan-gate.*')
