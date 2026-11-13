@@ -16,8 +16,11 @@ loop — `glab:session-rules`, the level boundary, the level line and the
 session-start text by level, project Stage 1c and the develop gate — is in
 `docs/specs/workflow.md`; the version, the gates and the scripts' contracts
 are in `docs/specs/marketplace.md`. Stated as of `ce1a933` (`glab`
-`0.14.0`), the record of `flow-product-level`; where this file and an
-owning file disagree, the owning file is right.
+`0.14.0`), the record of `flow-product-level`, and its `plan-gate.sh`
+lines (the store's filesystems, the claims, the takeover, the held
+signals, the publish, the tests, the known limits and follow-ups) as of
+`2724086` (`glab` `0.14.1`), the record of `flow-gate-hardening`; where
+this file and an owning file disagree, the owning file is right.
 
 ## How it works now
 
@@ -86,7 +89,12 @@ owning file disagree, the owning file is right.
   (`[flow-product-level/plan.md FU-P3]`).
 - **`plan-gate.sh`: the digest, the report, the verdict and the check**
   (since `ce1a933`; `plugins/glab/scripts/plan-gate.sh`, its header comment
-  the owner; `tests/plan-gate.test.sh` T1–T42). One script, so both levels
+  the owner, which since `2724086` (`glab` 0.14.1) also names where a store
+  may live: a filesystem with hard links, an exclusive create
+  (`O_CREAT|O_EXCL`) and unix permission bits — ext4, the one the tests ran
+  on, and by their documentation xfs, btrfs, zfs, tmpfs, APFS and HFS+; not
+  FAT, vfat or exFAT (no hard links, and `chmod` fails there); a network,
+  FUSE or synced folder UNVERIFIED; `tests/plan-gate.test.sh` T1–T51). One script, so both levels
   compute the same bytes and the formats have one owner and one test. Modes
   `digest <plan dir>`, `report <plan dir> <store> [<note file>]`, `verdict
   <store> <project> ACCEPTED|REJECTED product-manager|user <reason file>`,
@@ -120,8 +128,9 @@ owning file disagree, the owning file is right.
   `result.md` *Final check record*): a symlink anywhere in a plan folder is
   refused by `digest`, `report` and `check`, and one in a copy folder by
   `verdict` (A1); each claim — a report's number, a verdict's — is an
-  exclusive create done by bash itself, `(set -C && : >claim)`, an
-  `O_EXCL` open, the file `.plan-gate.claim.<report|verdict>.r<n>` in
+  exclusive create done by bash itself with noclobber, an `O_EXCL` open
+  (until 0.14.1 in a subshell, `(set -C && : >claim)`; since then in the
+  run's own bash, below), the file `.plan-gate.claim.<report|verdict>.r<n>` in
   `briefs/<project>/`, and only the winner creates `plan.r<n>/` and the
   final file (A2, part 2; *Incidents*); the report's tests for `report.r<n>.md` and `plan.r<n>/` run again under
   the claim (fix round 1 part 2; review round 2 finding 3); each report and verdict is written to
@@ -132,8 +141,49 @@ owning file disagree, the owning file is right.
   a copy whose file list differs from what the digest lists (finding 4); a
   project name with a newline exits 2 (A6); a claim's refusal names the
   claim file and says to remove it by hand when no run is writing
-  (finding 1). The trap removes the copy, the temp file and the claim on
-  every signal it sees.
+  (finding 1). The trap removes the copy, the temp file, the claim and,
+  since 0.14.1, the takeover lock on every exit it sees.
+  **Since `glab` 0.14.1** (`2724086`, `flow-gate-hardening`; the header and
+  the comments of `hold_signals`, `whoami`, `owner_gone`, `create_line`,
+  `claim`, `take_over` and `publish_file` the owners, which supersede the
+  text of `steps-1-script.md` after review round 1,
+  `[flow-gate-hardening/plan.md review-fixes]`): each claim holds one line,
+  `<host> <boot id> <pid namespace> <pid> <start>` (`whoami`, read from
+  `/proc`, Linux only; empty where `/proc` is missing or another pid
+  namespace's), written by `create_line` inside the claim's own `O_EXCL`
+  create, in the run's own bash — a `( )` subshell resets the traps
+  (`[flow-gate-hardening/review-1.md finding-1]`) — under `umask 022`, so a
+  run of the other level's account can read it. A run that finds a claim
+  hands it to `take_over`: `owner_gone` calls the claim's run gone only when
+  host, boot id and pid namespace match this run's and `kill -0` says `No
+  such process`, or `/proc/<pid>/stat` shows another start time (the pid
+  reused) or state `Z`/`X`; anything else — an empty line (a claim written
+  by 0.14.0), another host, boot or pid namespace, a process this account
+  may not inspect — is "cannot tell" and keeps the refusal. A gone run's
+  claim is taken over under the lock `.plan-gate.takeover.<kind>.r<n>`,
+  made as a claim is, under which the claim is read again (`head -n 1`) and
+  removed, with the temporary file the dead run left, only if it still
+  holds the stale line; the run then makes its own claim. The refusals: a
+  claim whose run is alive keeps 0.14.0's text byte for byte, `<refusal>;
+  when no run is writing, remove <claim> by hand`; one that cannot be
+  proven stale names the temporary file too when there is one, `remove
+  <claim> and <tmp> by hand`; a held lock gives `<refusal>; when no run is
+  writing, remove <lock> by hand`. A dead report run's `plan.r<n>/` stays:
+  the refusal under the claim, `plan.r<n>/ is there without report r<n>;
+  look at it and remove it by hand`, keeps it for a person (T43). TERM,
+  HUP and INT are held — noted by a trap, not ignored, and re-sent when
+  released, so the run still ends by them — across each create in `claim`
+  and `take_over` and the assignment after it, and in `publish_file` from
+  before `ln` until `TMP_DIR` is cleared. After a failed `ln`, a final name
+  that is the temporary file itself (`-ef`) means `ln` linked and was then
+  killed, and the file counts as published (T50); any other failure but a
+  name already there exits 2 with `plan-gate.sh: writing <path> failed:
+  <ln's message>; plan-gate.sh publishes with a hard link, so the store must
+  be on a filesystem that has them - the header of plan-gate.sh names them`
+  — no fallback, and the message not parsed (T51). Exit codes, stdout, the
+  store layout and the walkthrough trace are unchanged: the trace
+  byte-identical to `f6fcb14`'s script, 434 lines
+  (`[flow-gate-hardening/plan.md final-check]`).
 - **Starting project sessions** (since `ce1a933`; `glab:product-manager`
   *Starting project sessions* and *Waiting for reports*, the owner of the
   start prompt, the hosts and their caveats; `README.md` points there,
@@ -153,8 +203,11 @@ owning file disagree, the owning file is right.
 - **The walkthrough and the three tests** (since `ce1a933`;
   `tests/product-loop.test.sh` with `tests/fixtures/product-loop/`,
   `README.md` *Try the product loop*). `tests/plan-gate.test.sh` (the
-  script, `PASS 42/42`: T1–T29 as planned, T30–T37 from review round 1,
-  T38–T42 from round 2), `tests/manager-bootstrap.test.sh` (the hook,
+  script, `PASS 51/51`: T1–T29 as planned, T30–T37 from review round 1,
+  T38–T42 from round 2, and since 0.14.1 T38 rewritten — the refusal after
+  a SIGKILL it asserted became the takeover, the refusal living on in T44
+  and in T38's branch for a host without `/proc` — and T43–T51 added by
+  `flow-gate-hardening`), `tests/manager-bootstrap.test.sh` (the hook,
   `PASS 13/13`) and `tests/product-loop.test.sh` (the walkthrough, L1–L17,
   `PASS 17/17`), one per contract. The walkthrough plays a made-up product
   with two projects through the loop under `$TMPDIR` from fixtures — what
@@ -188,6 +241,31 @@ owning file disagree, the owning file is right.
 - [flow-product-level/review-1.md decisions] The manager's round-1 decisions that stand: A1 (refuse every symlink), A2 (publish with `ln`, claim with an exclusive create — after part 1's `PLAN WRONG`, bash `set -C`, not `mkdir`), A3 (`chmod -R a+rX` on the copy), A4 with B9 (the `after-verdict.md` redirect stated once, in Stage 1c), A5 (each manager's list names its own manager), A6 (a project name's characters checked by `case`), the waiver case (a waiver from a brief still needs the product's verdict), B1–B10 and B12 by pointer under "say it once", advisory 1 and 2 applied, advisory 3 (the `jq` tabs) rejected because the tabs are the plan's own text; `glab` stays `0.14.0`, `master.md` untouched.
 - [flow-product-level/review-2.md decisions] The manager's round-2 decisions: the five `plan-gate.sh` findings applied as each Fix says, finding 3 by taking the claim before the test, each with a test that fails on the script before (T38–T42); the B8 leftover kept once, in `glab:product-manager`; no third review round, no finding being `critical` or `high`.
 - [flow-product-level/plan.md spent] `- effort: high (the user's words: "high (Recommended)"), for the session`; tier full (the brief, report and verdict files are a wire format between sessions, and `check` decides when development starts); one plan, not sub-plans, its steps split into five files for size only; version `0.14.0` once (`docs/specs/marketplace.md`) — scoping of that change, spent.
+- [flow-gate-hardening/master.md Request] **The user, 2026-11-14: "let's work on these gates"** (relayed by the manager, `master.md` *Request*) — read by the manager as the four open follow-ups of `plan-gate.sh`, `FR1-1`, `FR1-2`, `FR2-1`, `FR2-2`, and its *Known limits*, every existing contract kept (G1–G6); all four closed (*Closed follow-ups*, below).
+- [flow-gate-hardening/master.md Approval] **The user, 2026-11-14: "Yes, develop"** — the plan approved for development, base `f6fcb14`.
+- [flow-gate-hardening/plan.md claim-line] Each claim holds one line, `<host> <boot id> <pid namespace> <pid> <start>` (`whoami`), written inside the claim's own `O_EXCL` create; read from `/proc`, Linux only, and empty where `/proc` is missing or another pid namespace's, so those claims are refused as before.
+- [flow-gate-hardening/plan.md owner-gone] A claim's run is gone only when host, boot id and pid namespace match this run's and `kill -0` says `No such process`, or `/proc/<pid>/stat` shows another start time (pid reused) or state `Z`/`X`; anything else is "cannot tell" and keeps the refusal; `kill -0` alone was rejected.
+- [flow-gate-hardening/plan.md takeover] The takeover is exclusive by the lock `.plan-gate.takeover.<kind>.r<n>`, made as a claim is, under which the claim is read again and removed only if it still holds the stale line: T46 proves the lock, T47 the re-read, T48 the plain race.
+- [flow-gate-hardening/plan.md lock-left] A SIGKILL inside the takeover, a few commands, leaves the lock, and every later takeover of that number is refused naming it — accepted, against a whole run's window before; a lock for the lock only moves the window.
+- [flow-gate-hardening/plan.md refusals] A claim whose run is alive keeps 0.14.0's refusal byte for byte (T33, T37, T40); one that cannot be proven stale keeps it and names the temporary file too when there is one (FR2-2); a held lock gives `<refusal>; when no run is writing, remove <lock> by hand`.
+- [flow-gate-hardening/plan.md copy-left] A takeover leaves a dead report run's `plan.r<n>/` in place; the existing refusal under the claim keeps it for a person, as "detect and surface" decided (T43).
+- [flow-gate-hardening/plan.md contract] A refusal still writes nothing but the takeover before it, which removes only a dead run's claim and temporary file; said in the header and in `AGENTS.md` *Rules* (`docs/specs/marketplace.md`); exit codes and stdout unchanged.
+- [flow-gate-hardening/plan.md t38] T38 keeps its id and is rewritten: the refusal after a SIGKILL it asserted is the behaviour FR1-2 replaces; that refusal lives on in T44 and in T38's branch for a host without `/proc`.
+- [flow-gate-hardening/plan.md hold] TERM, HUP and INT are held — noted by a trap, not ignored — from before `ln` until `TMP_DIR` is cleared, then re-sent so the run still ends by them.
+- [flow-gate-hardening/plan.md hold-claim] The same hold spans each create in `claim` and `take_over` and the assignment after it, closing the window between the create and `CLAIM=$1`; proven on instrumented builds, with and without the hold, and no permanent case, since that needs an instrumented copy of the script. **Amended by `[flow-gate-hardening/review-1.md finding-1]`:** the creates run in the run's own bash (`create_line`), since a `( )` subshell resets the traps (*`plan-gate.sh`*, above).
+- [flow-gate-hardening/plan.md ef] After `ln` fails, a final name that is the temporary file itself (`-ef`) means `ln` linked and was then killed, as a Ctrl-C to the process group does: the file is published (T50).
+- [flow-gate-hardening/plan.md no-hardlinks] FR1-1 by a clear exit-2 message, no fallback: no fallback can be proven on the build host, FAT fails `chmod` first, and `mv` would leave exclusivity to the claim alone (T51).
+- [flow-gate-hardening/plan.md no-parse] The message is printed for any `ln` failure but a name already there, not matched against errno texts: one EPERM reads `Permission denied` from uutils and `Operation not permitted` from GNU.
+- [flow-gate-hardening/plan.md readers] `check` and `verdict` are unchanged: `ln` publishes a finished file, so no reader can see half of one.
+- [flow-gate-hardening/plan.md exit-2] Missing hard links are a failed write, exit 2, and the message keeps the start `plan-gate.sh: writing <path> failed`; not a `REFUSED:` line, which is for a state of the store.
+- [flow-gate-hardening/plan.md filesystems] The supported filesystems are named in the script header and, at the record, in this file's owner pointer (*`plan-gate.sh`*, above); `README.md` and `host.example.md` gain nothing (say it once; `[flow-gate-hardening/follow-ups.md FG-2]`, open).
+- [flow-gate-hardening/plan.md head] `take_over` reads the claim with `head -n 1`, a claim being one line; it is also where T47 holds a run between its first read and the lock.
+- [flow-gate-hardening/plan.md umask] Claims and locks are made under `umask 022`, so a run of the other level's account can read the line.
+- [flow-gate-hardening/plan.md limits] What stays open is listed under *Known limits*, below.
+- [flow-gate-hardening/plan.md review-fixes] Review round 1 (`review-1.md`) found three lows, fixed by a new developer: the creates moved into the run's own bash, the comment tags written `[<slug>/<file> <id>]`, T44 given a case per refused field; the shipped script and test therefore differ from `steps-1-script.md` and `steps-2-test.md` — sha256 `f545c4ddc9b4da2a025b469b1efa1d2d8f0483863284d88c6d3cddcd9610fa90` (`plan-gate.sh`) and `72bf26da108baa6e69445fee64ac26e08a75e5ed706310601f9424bd537f881e` (`tests/plan-gate.test.sh`), both as at `2724086`. Review round 2: SHIP.
+- [flow-gate-hardening/plan.md a6-a7-run] The manager ran A6 on the built tree, ten runs, each `PASS 51/51`. M1 (no lock) fails T46 on every run and T48 in 2 of 5, the race in T48 going either way without the lock; accepted, T46 being the deterministic bar.
+- [flow-gate-hardening/plan.md final-check] The final check returned CONFORMS. Re-run on the shipped script, A4 printed `FAIL T38 FAIL T43 FAIL T44 FAIL T45 FAIL T46 FAIL T47 FAIL T48 FAIL T49 FAIL T50 FAIL T51 FAIL T22 FAIL 11/51` against `f6fcb14`'s script, and A8 `trace byte-identical`, `434`. A5 and A7 apply to the pre-fix build only; the shipped window is proven by the developer's stand-ins (`result.md` *Review round 1 fixes*) and review round 2.
+- [flow-gate-hardening/plan.md spent] `- effort: high (the user's words: "high (Recommended)"), for the session`; tier full; one plan, no sub-plans, its code in steps files for size only (`one-plan`, `size`); `AGENTS.md` *Gates* unchanged (`gates`) and version `0.14.1` once (`version`), both in `docs/specs/marketplace.md` — scoping of that change, spent.
 
 ## Known limits and not verified
 
@@ -197,20 +275,20 @@ owning file disagree, the owning file is right.
 - [flow-product-level/evidence.md LP4] UNVERIFIED: starting and reaching project sessions per host — that a session's Bash tool can run `claude --bg`; that `SendMessage` and `notify_when_idle` reach a background session it started; that the start prompt's git sentence keeps a background session from committing and pushing (F19); that `claude --resume <full session id> --bg` continues a stopped one; that the desktop tool, which "cannot deliver into a session an orchestrator dispatched", reaches a session it started. Read from `claude --help` on 2.1.310 and the tool texts (`E20`), never run. The user's own start always works.
 - [flow-product-level/evidence.md LP5] UNVERIFIED live: the product agents preload their `skills:` — documented (`F11`); the same claim as `[flow-commands-to-skills/plan.md U4]`.
 - [flow-product-level/evidence.md LP6] UNVERIFIED: the product session, its store added with `--add-dir <store>` or `/add-dir`, writes a brief through `glab:product-planner` and a verdict through `plan-gate.sh` without a prompt per write (R2-4); and whether a subagent's Write outside the session's directories is prompted rather than refused. LP1–LP6 are `[flow-product-level/plan.md FU-P4]`, open, and `README.md` *Try the product loop* lists them.
-- [flow-product-level/result.md bash-3.2] UNVERIFIED: that bash 3.2 (macOS) opens a noclobber `>` with `O_EXCL` as bash 5.3.9 does on the build host (`strace` there showed `O_WRONLY|O_CREAT|O_EXCL`), for the claims and `claimed_tmp`, and that its trap runs on TERM and INT at the same points. No macOS host was available (fix rounds 1 part 2 and 2).
-- [flow-product-level/result.md o-excl-network] UNVERIFIED: that `O_EXCL` is exclusive for a store on a network filesystem; only a local filesystem was tested. With `[flow-product-level/follow-ups.md FR1-1]` (hard links), what filesystems a store may live on is named nowhere.
-- [flow-product-level/review-2.md finding-2] Known limit, proven: a TERM that lands while `ln` itself runs still removes `plan.r<n>/` of a report that is linked, because bash runs the trap as soon as `ln` exits — with an `ln` stub that links then waits 2 s, `report run rc=143` and the folder `brief.md report.r1.md`. Review round 2's fix narrowed the window from `rm`'s run time to `ln`'s; it is open as `[flow-product-level/follow-ups.md FR2-1]` (*Open follow-ups*).
-- [flow-product-level/result.md claim-window] UNVERIFIED: that a signal between the claim's subshell and `CLAIM=$1` leaves the claim — the review's reasoning, stated in the script comment; no stub can stop bash between two builtins. Not covered by any case either: the re-tests under the claim (they need a run to lose the CPU until another has published and released), and the exit-2 branches of `publish_file`, `claim`, `claimed_tmp`, `mkdir` and `chmod -R`, which need a failing filesystem.
+- [flow-product-level/result.md bash-3.2] UNVERIFIED: that bash 3.2 (macOS) opens a noclobber `>` with `O_EXCL` as bash 5.3.9 does on the build host (`strace` there showed `O_WRONLY|O_CREAT|O_EXCL`), for the claims and `claimed_tmp`, and that its trap runs on TERM and INT at the same points. No macOS host was available (fix rounds 1 part 2 and 2). Since 0.14.1 also UNVERIFIED there: `trap -` with a re-sent signal (`release_signals`) and `${e//$'\n'/ }` (`publish_file`) (`[flow-gate-hardening/plan.md limits]`).
+- [flow-product-level/result.md o-excl-network] UNVERIFIED: that `O_EXCL` is exclusive for a store on a network filesystem; only a local filesystem was tested. Since 0.14.1 the header of `plan-gate.sh` names where a store may live (*`plan-gate.sh`*, above), a network, FUSE or synced folder UNVERIFIED there too — whether `O_EXCL` and a link are exclusive across hosts (`[flow-gate-hardening/plan.md filesystems]`).
+- [flow-product-level/review-2.md finding-2] Known limit until 0.14.1, proven then: a TERM that lands while `ln` itself runs still removed `plan.r<n>/` of a report that is linked, because bash runs the trap as soon as `ln` exits — with an `ln` stub that links then waits 2 s, `report run rc=143` and the folder `brief.md report.r1.md`. Review round 2's fix narrowed the window from `rm`'s run time to `ln`'s → closed by `2724086` (`glab` 0.14.1): TERM, HUP and INT are held from before `ln` until `TMP_DIR` is cleared, T49 (`[flow-product-level/follow-ups.md FR2-1]`, *Closed follow-ups*).
+- [flow-product-level/result.md claim-window] UNVERIFIED until 0.14.1: that a signal between the claim's subshell and `CLAIM=$1` leaves the claim — the review's reasoning, stated in the script comment; no stub can stop bash between two builtins → closed by `2724086`: each create in `claim` and `take_over` and the assignment after it run under held signals, in the run's own bash (`[flow-gate-hardening/plan.md hold-claim]`, `[flow-gate-hardening/review-1.md finding-1]`); shown on instrumented builds — A5 on the pre-fix build, the developer's before-and-after stand-ins on the shipped one (`result.md` *Review round 1 fixes*) — and by no permanent case, which would need an instrumented copy. Still covered by no case: the re-tests under the claim (they need a run to lose the CPU until another has published and released), and the exit-2 branches of `publish_file`, `claim`, `claimed_tmp`, `mkdir` and `chmod -R`, which need a failing filesystem.
+- [flow-gate-hardening/plan.md limits] Known limits of the takeover, as of `2724086`: it is Linux-only — elsewhere, or where `/proc` is missing or another pid namespace's, a claim stays refused until a person removes it; a claim is empty for the instant between its create and its write, and one killed there stays refused; a SIGKILL inside `take_over` leaves the lock, and every later takeover of that number is refused naming it (`[flow-gate-hardening/plan.md lock-left]`); a claim from before a reboot stays refused, since the boot id differs and `owner_gone` cannot tell (safe: a person removes it); a signal held when the run exits refused or failed is dropped, the exit keeping its status.
+- [flow-gate-hardening/plan.md Tests] UNVERIFIED, covered by no case: network, FUSE and synced stores; bash 3.2 (above); a host without `/proc` (`whoami`, and the `PROC`-unset branches of T38 and T43); a store on another account (one account on the build host); `take_over`'s `io` branches and a create that fails with no file there (a failing filesystem); a lock left by a SIGKILL inside `take_over`; the `X` state (a dead task, gone before a test can read it). M1 (the takeover without its lock) against the shipped lock code is UNVERIFIED: A7's mutants were run on the pre-fix build only (`[flow-gate-hardening/plan.md final-check]`).
 - [flow-product-level/result.md final-check] The final check gave `DIVERGES: 1`, a missing record, which the manager supplied as `result.md` *Final check record*: X3 prints `253 ok` and 8 FAIL lines, not `261 ok`, every failing post checking text a review decision superseded — A1 one byte-compare, A2 two byte-compares and its partner run (`FAIL 13/42` against the superseded script), P4 (B7), P7 (B4), J2 (A4, B9), R5 two (B5). The master's *Final check* item 3 holds with these eight recorded exceptions; the plan files were not edited.
 - [flow-product-level/result.md X4] X4 as `plan.md` writes it prints `xargs: command: No such file or directory`, since `command` is a shell builtin `xargs` cannot run, and `git diff --name-only main` lists no untracked new file; the developer ran an equivalent over the 49 changed and new files, which printed only `host.example.md`'s author's temp-dir lines, as on `main`.
 - [flow-product-level/plan.md Tests] The Markdown has no runtime: P1–P9, J1–J12 and R1–R6 are shown by their posts and the gates only, the text there, not a live session following it — UNVERIFIED, as for every prose rule. The scripts are covered as listed in `plan.md` *Tests* and `result.md`'s fix rounds; LP1–LP6 by no case, accepted because each needs a live, logged-in session.
 
 ## Open follow-ups
 
-- [flow-product-level/follow-ups.md FR1-1] Hard links on the shared store: since review round 1 (A2) `plan-gate.sh` publishes each report and verdict with `ln`, so a store on a filesystem without hard links (some network or FAT-family mounts) fails every write with exit 2, `plan-gate.sh: writing <path> failed`, where `mv` worked before. UNVERIFIED on any such mount; nothing in this repo names which filesystems a store may live on — open (out of scope: the decision chose `ln`).
-- [flow-product-level/follow-ups.md FR1-2] A claim left by a killed run: a run killed by SIGKILL or a host crash leaves `.plan-gate.claim.<report|verdict>.r<n>` in `briefs/<project>/`, and every later run for that number is refused until someone removes it by hand (proven with a planted claim, `rc=1`). Review round 2 (finding 1) made the refusal name the claim file and say to remove it by hand when no run is writing (T38) — still open: nothing tells a stale claim from a live one, so a person decides.
-- [flow-product-level/follow-ups.md FR2-1] A signal while `ln` runs: a TERM inside `ln`'s own lifetime still removes `plan.r<n>/` of a report that is linked (*Known limits*) — open; closing it needs the signals held off across the `ln`, for example `trap '' TERM HUP INT` around it, which the review did not ask for.
-- [flow-product-level/follow-ups.md FR2-2] A temporary file left by SIGKILL: `.plan-gate.tmp.<report|verdict>.r<n>` stays beside its claim, and the claim's refusal names only the claim; the next run that takes the claim removes it (T38) — open (the finding asked for the trap to reach the file, which it now does on every signal it sees).
+- [flow-gate-hardening/follow-ups.md FG-1] (low, review round 2, inferred) When the exclusive open of a claim succeeds but the write fails (for example ENOSPC), the run leaves a claim file with an empty line, refuses with exit 1 and asks the user to remove its own file, where the contract (`AGENTS.md` *Rules*) expects exit 2 for a failed write. The same held before 0.14.1 (the round-1 subshell); the comment of `create_line` in `plugins/glab/scripts/plan-gate.sh` states it — open.
+- [flow-gate-hardening/follow-ups.md FG-2] (low, review round 1 advisory) The store's filesystem requirement (hard links; not FAT; network and synced stores UNVERIFIED) is stated only in the `plan-gate.sh` header and, since this record, in this file's owner pointer; `README.md` *The shared store* and `host.example.md` tell users to make a store folder without it. Whether the README should point at it is open (`[flow-gate-hardening/plan.md filesystems]`).
 - [flow-product-level/plan.md FU-P2] A hard boundary for the main session: `Skill(...)` permission rules per level, or a hook that refuses another level's skill; feasible by the documented `Skill(name)` syntax (`F15`), needs a live test first — open.
 - [flow-product-level/plan.md FU-P3] The Notion view of the store ("plain folder but I'm planing to connect here notion page"), read-only, never the gate; it changes `glab:product-manager` *The shared store* and `plan-gate.sh` only — open.
 - [flow-product-level/plan.md FU-P4] The live tests LP1–LP6, run by the user after install (*Known limits*) — open.
@@ -221,6 +299,10 @@ owning file disagree, the owning file is right.
 ## Closed follow-ups
 
 - [flow-product-level/plan.md FU-P1] The rules every level's manager acts on, out of `glab:manager` — raised in planning because the product manager may not read `glab:manager` (I12) — closed in the same change (`ce1a933`, `glab` 0.14.0; J2): Rules 0, 0b, 0c, 0d, 1, 2, 3 and 5, *Round caps* and *The handoff line* live in `glab:session-rules`, which both managers load (`docs/specs/workflow.md`, *`glab:session-rules`*).
+- [flow-product-level/follow-ups.md FR1-1] Hard links on the shared store: since review round 1 (A2) `plan-gate.sh` publishes each report and verdict with `ln`, so a store on a filesystem without hard links (some network or FAT-family mounts) fails every write with exit 2, `plan-gate.sh: writing <path> failed`, where `mv` worked before. UNVERIFIED on any such mount; nothing in this repo named which filesystems a store may live on (out of scope then: the decision chose `ln`) → closed by `2724086` (`glab` 0.14.1, `flow-gate-hardening`), `[flow-gate-hardening/plan.md no-hardlinks]`: no fallback; the exit-2 message names the requirement and points at the header, which names the filesystems (*`plan-gate.sh`*, above); simulated by an `ln` stub that prints GNU's real EPERM line, T51.
+- [flow-product-level/follow-ups.md FR1-2] A claim left by a killed run: a run killed by SIGKILL or a host crash leaves `.plan-gate.claim.<report|verdict>.r<n>` in `briefs/<project>/`, and every later run for that number is refused until someone removes it by hand (proven with a planted claim, `rc=1`). Review round 2 (finding 1) made the refusal name the claim file and say to remove it by hand when no run is writing (T38); nothing told a stale claim from a live one, so a person decided → closed by `2724086`, `[flow-gate-hardening/plan.md takeover]`: a claim names its run, and a later run on the same host takes over the claim of a run that provably no longer runs, exclusively under a lock, the claim read again under it; T38 (rewritten, `[flow-gate-hardening/plan.md t38]`) and T43–T48. A claim from another host, boot or pid namespace, or one whose run cannot be proven gone, keeps the refusal (*Known limits*).
+- [flow-product-level/follow-ups.md FR2-1] A signal while `ln` runs: a TERM inside `ln`'s own lifetime still removed `plan.r<n>/` of a report that is linked (*Known limits*); closing it needed the signals held off across the `ln`, which the review did not ask for → closed by `2724086`, `[flow-gate-hardening/plan.md hold]`: TERM, HUP and INT are held from before `ln` until `TMP_DIR` is cleared and re-sent after, T49 (a slow-`ln` stub, the signal arriving inside `ln`); an `ln` that linked and was then killed counts as published (`[flow-gate-hardening/plan.md ef]`), T50.
+- [flow-product-level/follow-ups.md FR2-2] A temporary file left by SIGKILL: `.plan-gate.tmp.<report|verdict>.r<n>` stays beside its claim, and the claim's refusal named only the claim; the next run that takes the claim removes it (T38) (the finding asked for the trap to reach the file, which it does on every signal it sees) → closed by `2724086`, `[flow-gate-hardening/plan.md refusals]`: the run that takes over a stale claim removes that file, and a refusal of a claim that cannot be proven stale names it too; T38, T43 and T44.
 
 ## Incidents
 
@@ -239,3 +321,11 @@ owning file disagree, the owning file is right.
   - [flow-product-level/result.md Stages] Result → all 32 steps (B1–B3, A1–A5, P1–P9, J1–J12, R1–R6) done, nothing blocked; unplanned changes J2.5's `;`, J2's blank lines, R4's local rewrap, R6's plain store line, P2–P7's `argument-hint:`, and in the fix rounds `verdict`'s symlink refusal, the re-test under the claim, T33's and T37's loser lines and two shellcheck fixes; *Final check record* → *Known limits*; *Not done* → the trace kept out of the plan folder (X2), the `git add -N` slip → `docs/specs/workflow.md` *Incidents*; the fix rounds' UNVERIFIED → *Known limits*.
   - Incidents → the uutils `mkdir` and the move to `set -C`, above under *Incidents*; the `git add -N` slip and the two `NOT BUILDABLE` plan check rounds, incidents of the workflow's run, in `docs/specs/workflow.md` *Incidents*.
   - [flow-product-level/master.md Record] Record → this record, in this file, new, its primary area, in `docs/specs/workflow.md` for the project edges and in `docs/specs/marketplace.md`; no audit file.
+- 2026-11-14 · flow-gate-hardening · `plan-gate.sh`'s four open follow-ups closed: a claim names its run and a later run on the same host takes over the claim of a run that provably no longer runs, exclusively under the lock `.plan-gate.takeover.<kind>.r<n>`, removing the temporary file the dead run left (FR1-2, FR2-2); TERM, HUP and INT held around each create and the publish (FR2-1, the claim window); the `-ef` check after a failed `ln`; a store without hard links an exit-2 message, no fallback, and the supported filesystems in the header (FR1-1); T38 rewritten, T43–T51 added, `PASS 51/51`; `glab` 0.14.1 · change 2724086 (PR #13, merged with rebase; the branch commit `bdee40a`, the same tree) · plan: `git ls-tree -r --name-only 2724086 -- plan/flow-gate-hardening/` (one file: `git show 2724086:plan/flow-gate-hardening/<file>`; the whole folder: `git archive 2724086 plan/flow-gate-hardening/ | tar -x -C "$(mktemp -d "${TMPDIR:?}/plan.XXXXXX")"`). `2724086` is the last commit on `origin/main` that holds it (`git log -1 --format=%h origin/main -- plan/flow-gate-hardening/`): the folder is removed in the same PR as this record. It holds 10 files: `master.md` with `master.sha256`, `plan.md`, `evidence.md`, the steps files `steps-1-script.md`, `steps-2-test.md`, `steps-3-posts.md`, `review-1.md`, `result.md`, `follow-ups.md`. The record takes its items from the current files, and for `plan-gate.sh` and its test from `review-1.md`, `result.md` *Review round 1 fixes* and `plan.md` `review-fixes`, which supersede the steps' text.
+  - [flow-gate-hardening/plan.md Decisions] Decisions → the request ("let's work on these gates"), the approval ("Yes, develop"), `claim-line`, `owner-gone`, `takeover`, `lock-left`, `refusals`, `copy-left`, `contract`, `t38`, `hold`, `hold-claim`, `ef`, `no-hardlinks`, `no-parse`, `readers`, `exit-2`, `filesystems`, `head`, `umask`, `limits`, `review-fixes`, `a6-a7-run`, `final-check`, and `effort`, `one-plan`, `size`, `gates` and `version` as `spent`, above under *Decisions that still bind*. The version, the gates' count and stubs, and the contract's new wording → `docs/specs/marketplace.md`.
+  - [flow-gate-hardening/evidence.md] Evidence → E1–E13 were that change's readings, throwaway builds and baselines; their conclusions are in the decisions, and *Rejected boundaries* (`kill -0` alone; `flock`; a takeover by `mv`; a fallback to `mv`; a fallback by `O_EXCL` on the final name with an end marker; parsing `ln`'s message; a permanent case for the claim window) in `owner-gone`, `takeover`, `lock-left`, `no-hardlinks`, `no-parse` and `hold-claim`.
+  - [flow-gate-hardening/follow-ups.md FG-1] Follow-ups → `FG-1` and `FG-2` open, above; `[flow-product-level/follow-ups.md FR1-1]`, `FR1-2`, `FR2-1` and `FR2-2` closed, above.
+  - [flow-gate-hardening/review-1.md] Review round 1 (three lows and two advisories) → all three fixed (`[flow-gate-hardening/plan.md review-fixes]`), the `owner_gone` advisory as one comment sentence, the filesystem advisory → `FG-2`; review round 2: SHIP, its one low → `FG-1`; no third round.
+  - [flow-gate-hardening/result.md Stages] Result → B1 and S1–S4 done, nothing blocked, no unplanned change; A6 "NOT RUN" superseded by `a6-a7-run`; its UNVERIFIED → *Known limits*.
+  - Incidents → none recorded by this change.
+  - [flow-gate-hardening/master.md Record] Record → this record, in this file, its primary area, and in `docs/specs/marketplace.md`; no audit file.

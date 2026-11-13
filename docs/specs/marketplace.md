@@ -33,7 +33,9 @@ paragraph, the marketplace description) as of `6f8b948`, and its
 the script gates and the three new tests, the model and skills gates' lines,
 the hook contracts of `manager-bootstrap.sh` and `plan-gate.sh`, the host
 file's store line, the *One fact* entries, the `README.md` sections, the
-`glab` description in its `plugin.json`) as of `ce1a933`; where this file and an owning file disagree, the
+`glab` description in its `plugin.json`) as of `ce1a933`, and its
+`flow-gate-hardening` lines (the version, the `plan-gate.sh` contract, the
+stubs and count of `tests/plan-gate.test.sh`) as of `2724086`; where this file and an owning file disagree, the
 owning file is right and this spec is out of date.
 
 ## How it works now
@@ -76,7 +78,12 @@ owning file is right and this spec is out of date.
   skill, `sync-memory`, no agent, hooks on `SessionStart`, `SessionEnd`,
   `PostToolUse` and `Stop`.
 - **Versions.** Each `plugin.json` carries an explicit `version` — `glab`
-  `0.14.0` (raised once by `ce1a933`, `flow-product-level`, the change's
+  `0.14.1` (raised once by `2724086`, `flow-gate-hardening`, the change's
+  one commit — `bdee40a` on its branch, the same tree, merged with rebase
+  through PR #13; its review fix round kept it; a patch step, the four
+  `plan-gate.sh` follow-ups closed; exit codes, stdout and the store layout kept, the contract gaining the takeover clause,
+  `fix(skills): harden plan-gate claims, takeover and publish (glab 0.14.1)`,
+  `[flow-gate-hardening/plan.md version]`); `0.14.0` (raised once by `ce1a933`, `flow-product-level`, the change's
   one commit — `e4b8157` on its branch, the same tree, merged with rebase
   through PR #11; its two review fix rounds kept it; a minor step, nothing
   removed, so no `!`, `feat(skills): add the product manager level and wire it to the project level (glab 0.14.0)`,
@@ -105,7 +112,7 @@ owning file is right and this spec is out of date.
   `0.8.0` by `467b7c4`, `remove-external-agents`; `0.7.2` by
   `abda43a`, `0.7.1` by `3965622`,
   `0.7.0` by `33a28df`, `0.6.0` by `9108ac7`, `0.5.0` by `fed95f9` before
-  it), `memory-sync` `0.1.0`, at `ce1a933`. A change under
+  it), `memory-sync` `0.1.0`, at `2724086`. A change under
   `plugins/<name>/` raises that plugin's version in the same commit, because
   an installed copy is pinned to the version string and nothing else
   delivers a change (`AGENTS.md` *Rules*). Since `0cbf5b0` the rule reads
@@ -150,10 +157,12 @@ owning file is right and this spec is out of date.
   (`docs/specs/product.md`, *The walkthrough and the three tests*); each
   follows `AGENTS.md` *Tests* — a stub first on `PATH` (`mkdir`, `date`,
   `rm` and `mktemp` stubs in `tests/plan-gate.test.sh`, which delay a run
-  or signal it), a `PATH` without `jq` (`tests/manager-bootstrap.test.sh`
+  or signal it, and since `2724086` `ln` and `head` stubs, which delay,
+  signal or fail a run's `ln` or hold its read of a claim), a `PATH` without `jq` (`tests/manager-bootstrap.test.sh`
   B5) or without `sha256sum` (T21), background runs killed only by their
-  recorded PIDs (T33, T37) and signals sent only to the PID a launcher
-  recorded (T38–T42); coverage as a list, in `plan.md` *Tests* and
+  recorded PIDs (T33, T37, and since `2724086` T45, T47, T48) and signals
+  sent only to the PID a launcher recorded (T38–T43, T49, T50; T46, T47 and
+  T51 use the same launcher); coverage as a list, in `plan.md` *Tests* and
   `result.md`. The walkthrough's fixtures are under
   `tests/fixtures/product-loop/`, named in *Layout*. In the plugin block
   the `glab` lines are green as `Skills (21)` and `Agents (9)` naming them
@@ -162,12 +171,25 @@ owning file is right and this spec is out of date.
   and the skills gate as eighteen, with `product-analyzer.md:glab:security`,
   `product-analyzer.md:glab:audit`, `product-planner.md:glab:product-plan`
   and `product-planner.md:glab:security`, each with its
-  `plugins/glab/agents/` prefix. **Green at `ce1a933`, the script block run
-  for this record** (`TMPDIR` set, the seven commands as `AGENTS.md`
-  prints them): nine `rc=0` lines, `shellcheck` `rc=0`, `PASS 35/35`,
-  `PASS 24/24`, `PASS 42/42`, `PASS 13/13`, `PASS 17/17`, no line but `ok`
-  before each. **The plugin block was not run for this record**: the
-  record's dispatch allowed no `claude` command. Its green is the
+  `plugins/glab/agents/` prefix. **Green at `2724086`** (`glab` 0.14.1,
+  `flow-gate-hardening`; neither block run for its record, a docs edit
+  whose dispatch allowed no `claude` command): the developer's run after
+  review round 1's fixes on the tree that became `2724086`
+  (`[flow-gate-hardening/result.md]` *Review round 1 fixes*, *Gates*; the
+  sha256 of `plan-gate.sh` and its test at `2724086` are those of
+  `[flow-gate-hardening/plan.md review-fixes]`) — the script block nine
+  `rc=0` lines, `shellcheck` `rc=0`, `PASS 35/35`, `PASS 24/24`,
+  `PASS 51/51`, `PASS 13/13`, `PASS 17/17`, no line but `ok` before each,
+  and the plugin block with the lines below — and the manager's ten runs of
+  `tests/plan-gate.test.sh`, each `PASS 51/51`, on the build before the
+  review fixes (`[flow-gate-hardening/plan.md a6-a7-run]`), and three in a
+  row after them on the shipped files; that these hold on `2724086` is
+  inferred from its identical tree, not run. **At `ce1a933`, the script
+  block run for that record** (`TMPDIR` set, the seven commands as
+  `AGENTS.md` prints them): nine `rc=0` lines, `shellcheck` `rc=0`,
+  `PASS 35/35`, `PASS 24/24`, `PASS 42/42`, `PASS 13/13`, `PASS 17/17`, no
+  line but `ok` before each. **The plugin block was not run for that
+  record**: its dispatch allowed no `claude` command. Its green is the
   manager's run after review round 2 on the branch's tree before the commit
   (`[flow-product-level/result.md]` *Fix round — review round 2*,
   *Gates*): three `✔ Validation passed`, the `Skills (21)` line above,
@@ -313,7 +335,10 @@ owning file is right and this spec is out of date.
   there is none) and `plan-gate.sh`'s, a script no hook runs whose contract
   holds the same way (the modes `digest`, `report`, `verdict` and `check`;
   exit 0 done, 1 refused, 2 usage or a failed write; every refusal one
-  `REFUSED:` line on stderr, and no write) — the *One fact,
+  `REFUSED:` line on stderr, and no write but the takeover before it of a
+  claim, and its temporary file, whose run provably no longer runs — since
+  `2724086`, `[flow-gate-hardening/plan.md contract]`; "and no write" until
+  then) — the *One fact,
   one value* list, comments and incidents kept, tests that clean up by PID,
   the version rule (per push since `0cbf5b0`, *Versions* above),
   Conventional Commits.
@@ -743,6 +768,9 @@ owning file is right and this spec is out of date.
 - [flow-product-level/plan.md contracts] `manager-bootstrap.sh`'s hook contract and `plan-gate.sh`'s contract stand in `AGENTS.md` *Rules* beside the other two hook contracts, and change only with a plan.
 - [flow-product-level/plan.md one-fact] The *One fact* entries move with the rules into `glab:session-rules` and gain the product level's facts (R4); where a fact was stated in a file its entry did not list, the review fix took a pointer, and an entry only where the fact must be read in place (review round 1 B1–B5).
 - [flow-product-level/plan.md store-line] The store's path is a fact of one machine: `host.example.md` carries the `glab-shared-store:` line as a template, and a repo's `AGENTS.md` line wins (C2, R6); no machine path is committed (X4).
+- [flow-gate-hardening/plan.md version] `glab` goes 0.14.0 → 0.14.1, once, in `plugins/glab/.claude-plugin/plugin.json`, in the change's one commit (`2724086`, `bdee40a` on the branch), merged with rebase through PR #13; its review fix round kept `0.14.1`; `memory-sync` untouched at `0.1.0`.
+- [flow-gate-hardening/plan.md contract] `plan-gate.sh`'s contract in `AGENTS.md` *Rules* gains one clause: a refusal writes nothing "but the takeover before it of a claim, and its temporary file, whose run provably no longer runs" — the change's one `AGENTS.md` edit (*The repo's own rules*, above); exit codes and stdout unchanged.
+- [flow-gate-hardening/plan.md gates] `AGENTS.md` *Gates* unchanged: it names no case count, and its nine files and seven commands stay; the plan-gate test's green moves to `PASS 51/51`. Its other decisions, with the user's words ("let's work on these gates", "Yes, develop"), are carried in `docs/specs/product.md`, the change's primary area, each as a line of its own.
 
 ## Known limits and not verified
 
@@ -837,3 +865,5 @@ owning file is right and this spec is out of date.
   - [flow-commands-to-skills/plan.md Record] Record → the entries above; the decisions, follow-ups, known limits and incidents in `docs/specs/workflow.md`; of its follow-ups none is open against `AGENTS.md`, and `[flow-master-plan/follow-ups.md DEV3]` (the round-caps entry) is closed there by the entry's new file list.
 - 2026-11-13 · flow-product-level · recorded in `docs/specs/product.md`, its primary area, new with this record, and its project edges in `docs/specs/workflow.md`; here: `glab` 0.14.0 and the `plugin.json` description, `Skills (21)` and `Agents (9)` with the product level and `glab:session-rules`, `plan-gate.sh` and `tests/fixtures/product-loop/` in *Layout*, the script gates over nine files with three new tests (`PASS 42/42`, `PASS 13/13`, `PASS 17/17`, run for this record beside `PASS 35/35` and `PASS 24/24`), the model gate's nine lines and the skills gate's eighteen, the hook contracts of `manager-bootstrap.sh` and `plan-gate.sh`, the store line in `host.example.md`, the rewritten and added *One fact* entries, `product.md` in the `plan/` rule, the `README.md` row, *Levels* and *Try the product loop*; `.claude-plugin/marketplace.json` and the hook events unchanged · change ce1a933 · plan: `git ls-tree -r --name-only ce1a933 -- plan/flow-product-level/` (one file: `git show ce1a933:plan/flow-product-level/<file>`). `ce1a933` is the last commit on `origin/main` that holds it (`git log -1 --format=%h origin/main -- plan/flow-product-level/`; PR #11, merged with rebase): the folder is removed in the record commit.
   - [flow-product-level/master.md Record] Record → the entries above; the decisions, follow-ups, known limits and incidents in `docs/specs/product.md`, and the project edges' in `docs/specs/workflow.md`; of its follow-ups none is open against `AGENTS.md` or the gates — `FR1-1` (hard links) and the UNVERIFIED network filesystem concern the store, open in `docs/specs/product.md`; the `mkdir` hazard → *Incidents* here and there.
+- 2026-11-14 · flow-gate-hardening · recorded in `docs/specs/product.md`, its primary area; here: `glab` 0.14.1, `plan-gate.sh`'s contract with the takeover clause as `AGENTS.md` *Rules* states it, the `ln` and `head` stubs and the new background and launcher cases of `tests/plan-gate.test.sh`, its green at `PASS 51/51` (not run for this record; the developer's and the manager's runs on the same files); the component counts, the hook events, `AGENTS.md` *Gates*, `README.md`, `host.example.md` and `.claude-plugin/marketplace.json` unchanged · change 2724086 · plan: `git ls-tree -r --name-only 2724086 -- plan/flow-gate-hardening/` (one file: `git show 2724086:plan/flow-gate-hardening/<file>`). `2724086` is the last commit on `origin/main` that holds it (`git log -1 --format=%h origin/main -- plan/flow-gate-hardening/`; PR #13, merged with rebase from `bdee40a`): the folder is removed in the same PR as this record.
+  - [flow-gate-hardening/master.md Record] Record → the entries above; the decisions, follow-ups and known limits in `docs/specs/product.md`; of its follow-ups `[flow-gate-hardening/follow-ups.md FG-1]` (a failed claim write exits 1, not the contract's 2) concerns the contract in `AGENTS.md` *Rules* and `FG-2` (the store's filesystems in `README.md`) the store, both open in `docs/specs/product.md`; no incident.
