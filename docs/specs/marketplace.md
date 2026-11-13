@@ -28,7 +28,12 @@ entries, the `README.md` table and paragraph) as of `517b7b6`, and its
 `flow-commands-to-skills` lines (the version, the layout, the component
 counts, the skills gate, the green list's hook suffix, the *One fact*
 preamble and entries, the commit-scope list, the `README.md` row and
-paragraph, the marketplace description) as of `6f8b948`; where this file and an owning file disagree, the
+paragraph, the marketplace description) as of `6f8b948`, and its
+`flow-product-level` lines (the version, the layout, the component counts,
+the script gates and the three new tests, the model and skills gates' lines,
+the hook contracts of `manager-bootstrap.sh` and `plan-gate.sh`, the host
+file's store line, the *One fact* entries, the `README.md` sections, the
+`glab` description in its `plugin.json`) as of `ce1a933`; where this file and an owning file disagree, the
 owning file is right and this spec is out of date.
 
 ## How it works now
@@ -42,6 +47,16 @@ owning file is right and this spec is out of date.
   `glab` 0.8.0 (`467b7c4`, 2026-10-20) `glab` also held the external agents,
   which `docs/specs/external-agents.md` keeps as a record.
 - **What each plugin holds** (`AGENTS.md` *Gates*, `README.md`): `glab` —
+  since `glab` 0.14.0 (`ce1a933`, `flow-product-level`) two levels, the
+  user's "one plugin for all" (`docs/specs/product.md`, *Two levels in one
+  plugin*):
+  `Skills (21)  analyze, audit, bootstrap, comments, commit, develop, integrate, manager, plan, product-manager, product-plan, product-plan-analyze, product-project-brief, product-project-plan-analyze, product-project-plan-report, product-project-plan-verdict, push, review, security, session-rules, ship`
+  — the thirteen below, the seven `product-*` skills and
+  `glab:session-rules` — and `Agents (9)`, the seven below with
+  `product-planner` and `product-analyzer`; the hook events unchanged; and
+  a third script, `plugins/glab/scripts/plan-gate.sh`, which no hook runs
+  (`glab:develop` and the product skills run it by
+  `${CLAUDE_PLUGIN_ROOT}`). Until then:
   thirteen skills and no commands since `glab` 0.13.0 (`6f8b948`),
   `Skills (13)  analyze, audit, bootstrap, comments, commit, develop, integrate, manager, plan, push, review, security, ship`:
   the seven stage skills that were commands, `glab:plan` (the merged
@@ -61,7 +76,15 @@ owning file is right and this spec is out of date.
   skill, `sync-memory`, no agent, hooks on `SessionStart`, `SessionEnd`,
   `PostToolUse` and `Stop`.
 - **Versions.** Each `plugin.json` carries an explicit `version` — `glab`
-  `0.13.0` (raised once by `6f8b948`, `flow-commands-to-skills`, the
+  `0.14.0` (raised once by `ce1a933`, `flow-product-level`, the change's
+  one commit — `e4b8157` on its branch, the same tree, merged with rebase
+  through PR #11; its two review fix rounds kept it; a minor step, nothing
+  removed, so no `!`, `feat(skills): add the product manager level and wire it to the project level (glab 0.14.0)`,
+  `[flow-product-level/plan.md version]`; the same commit rewrote the `description` of
+  `plugins/glab/.claude-plugin/plugin.json` to name the product level and
+  the project level, while `.claude-plugin/marketplace.json` is unchanged;
+  `README.md` points at `plugin.json` for the version instead of writing it,
+  review round 1 advisory 2); `0.13.0` by `6f8b948`, `flow-commands-to-skills`, the
   change's one commit; its review fix round kept it, the rule being per
   push, `[flow-commands-to-skills/review-1.md]`; a minor step, as the plan
   decided — "`glab` goes 0.12.0 → 0.13.0, once, in this change's one
@@ -82,7 +105,7 @@ owning file is right and this spec is out of date.
   `0.8.0` by `467b7c4`, `remove-external-agents`; `0.7.2` by
   `abda43a`, `0.7.1` by `3965622`,
   `0.7.0` by `33a28df`, `0.6.0` by `9108ac7`, `0.5.0` by `fed95f9` before
-  it), `memory-sync` `0.1.0`, at `6f8b948`. A change under
+  it), `memory-sync` `0.1.0`, at `ce1a933`. A change under
   `plugins/<name>/` raises that plugin's version in the same commit, because
   an installed copy is pinned to the version string and nothing else
   delivers a change (`AGENTS.md` *Rules*). Since `0cbf5b0` the rule reads
@@ -112,7 +135,49 @@ owning file is right and this spec is out of date.
   this repo has `CLAUDE_CONFIG_DIR` set to a new, empty directory under the
   host's temp directory, because the CLI writes into its config directory
   even for `plugin validate`.
-- **The gates** are the two blocks of `AGENTS.md` *Gates*, as of
+- **The gates** are the two blocks of `AGENTS.md` *Gates*. **Since `glab`
+  0.14.0** (`ce1a933`; `[flow-product-level/plan.md]` R3, X1) the script
+  block takes nine files — `plugins/glab/scripts/plan-gate.sh`,
+  `tests/plan-gate.test.sh`, `tests/manager-bootstrap.test.sh` and
+  `tests/product-loop.test.sh` beside the five below — through `bash -n`
+  joined to `test -x` and through `shellcheck`, and "run all seven, in
+  order" adds three test lines:
+  `bash tests/plan-gate.test.sh plugins/glab/scripts/plan-gate.sh`,
+  `bash tests/manager-bootstrap.test.sh plugins/glab/scripts/manager-bootstrap.sh`,
+  `bash tests/product-loop.test.sh plugins/glab/scripts/plan-gate.sh plugins/glab/scripts/manager-bootstrap.sh`;
+  green is nine `rc=0` lines, `rc=0` with no findings, and each test's
+  every line `ok` and last line `PASS n/n`. One test per contract
+  (`docs/specs/product.md`, *The walkthrough and the three tests*); each
+  follows `AGENTS.md` *Tests* — a stub first on `PATH` (`mkdir`, `date`,
+  `rm` and `mktemp` stubs in `tests/plan-gate.test.sh`, which delay a run
+  or signal it), a `PATH` without `jq` (`tests/manager-bootstrap.test.sh`
+  B5) or without `sha256sum` (T21), background runs killed only by their
+  recorded PIDs (T33, T37) and signals sent only to the PID a launcher
+  recorded (T38–T42); coverage as a list, in `plan.md` *Tests* and
+  `result.md`. The walkthrough's fixtures are under
+  `tests/fixtures/product-loop/`, named in *Layout*. In the plugin block
+  the `glab` lines are green as `Skills (21)` and `Agents (9)` naming them
+  (*What each plugin holds*), the model gate as nine lines — with
+  `product-analyzer.md:model: opus` and `product-planner.md:model: opus` —
+  and the skills gate as eighteen, with `product-analyzer.md:glab:security`,
+  `product-analyzer.md:glab:audit`, `product-planner.md:glab:product-plan`
+  and `product-planner.md:glab:security`, each with its
+  `plugins/glab/agents/` prefix. **Green at `ce1a933`, the script block run
+  for this record** (`TMPDIR` set, the seven commands as `AGENTS.md`
+  prints them): nine `rc=0` lines, `shellcheck` `rc=0`, `PASS 35/35`,
+  `PASS 24/24`, `PASS 42/42`, `PASS 13/13`, `PASS 17/17`, no line but `ok`
+  before each. **The plugin block was not run for this record**: the
+  record's dispatch allowed no `claude` command. Its green is the
+  manager's run after review round 2 on the branch's tree before the commit
+  (`[flow-product-level/result.md]` *Fix round — review round 2*,
+  *Gates*): three `✔ Validation passed`, the `Skills (21)` line above,
+  `Agents (9)  reviewer, product-planner, integrator, developer, analyzer, product-analyzer, committer, planner, plan-analyzer`
+  (the build's order), both `Hooks (4)` lines with the `harness-only`
+  suffix, `glab = glab` and `memory-sync = memory-sync`, `:0` `:0` then
+  `rc=1`, `1` `1` `1` then `rc=0`, the nine model lines then `rc=0`, the
+  eighteen skills lines with no `MISSING`, and no line then `rc=1`; that it
+  holds on `ce1a933` is inferred from the same tree, not run. Until
+  `ce1a933`, as of
   `2a1e919`: the script block (`bash -n` joined to `test -x` for the five
   scripts — `memory-sync.sh`, `manager-bootstrap.sh`, `context-size.sh`,
   `tests/memory-sync.test.sh`, `tests/context-size.test.sh` — `shellcheck`
@@ -225,7 +290,13 @@ owning file is right and this spec is out of date.
   `~/.claude/host.md`, which each person creates by hand for their machine:
   the temp directory, tool paths, the CLI's path for `CLAUDE_BIN`.
   `glab:bootstrap` step 1 reads it; `memory-sync` does not. Nothing in the
-  plugins names one machine's facts.
+  plugins names one machine's facts. Since `ce1a933` its section *glab
+  shared store* holds the line `glab-shared-store: <path to the shared
+  folder>`, a plain line, not an indented block, since the managers read
+  the first line that begins `glab-shared-store:` (R6;
+  `[flow-product-level/result.md]` *Unplanned changes*); a repo's own
+  `AGENTS.md` line wins over it (`docs/specs/product.md`, *The shared
+  store*).
 - **The repo's own rules** are `AGENTS.md`: the gates, the scoped test
   exception for shell scripts (a stub on `PATH`, coverage as a list), no
   secrets (`<bucket>`, `<prefix>`, `<profile, or delete this key>`), never
@@ -234,7 +305,15 @@ owning file is right and this spec is out of date.
   nothing on stdout, messages on stderr) and, since `2a1e919`,
   `context-size.sh`'s (mode names, exit 0 on every path, on stdout one JSON
   object or nothing, messages on stderr, and in mode `stop` no key but
-  `systemMessage`: it never blocks or continues a turn) — the *One fact,
+  `systemMessage`: it never blocks or continues a turn) and, since
+  `ce1a933`, `manager-bootstrap.sh`'s (exit 0 on every path, on stdout one
+  JSON object whose only key is `hookSpecificOutput`, or the plain text
+  when `jq` fails, messages on stderr, the level from the first
+  `glab-level:` line of the repo's `AGENTS.md`, the project level when
+  there is none) and `plan-gate.sh`'s, a script no hook runs whose contract
+  holds the same way (the modes `digest`, `report`, `verdict` and `check`;
+  exit 0 done, 1 refused, 2 usage or a failed write; every refusal one
+  `REFUSED:` line on stderr, and no write) — the *One fact,
   one value* list, comments and incidents kept, tests that clean up by PID,
   the version rule (per push since `0cbf5b0`, *Versions* above),
   Conventional Commits.
@@ -547,11 +626,62 @@ owning file is right and this spec is out of date.
   workflow: skills, agents, the session bootstrap hook and the context
   hook" — "commands" dropped, nothing else (P7; outside `plugins/`, so no
   version of its own).
+- ***One fact* and the rest of `AGENTS.md` after `flow-product-level`**
+  (`AGENTS.md`, as of `ce1a933`; `[flow-product-level/plan.md]` R2–R6,
+  review round 1 B1–B5 and fix round 1's "*One fact* matches the tree",
+  check round 2's R2-5). **Rewritten**, the rule's file moving from
+  `glab:manager` to `glab:session-rules` with the rules it names: the round
+  caps (now `glab:session-rules` *Round caps*, the table of *Pick the tier*
+  and the reviewer's round-2 rule, with P1b at the product level), the four
+  ask-conditions (`glab:session-rules` Rule 3 and `glab:plan` Step 2), the
+  model per role (Rule 5 and *The handoff line*, the nine agents), the
+  skills each agent preloads (`glab:security` in all nine,
+  `glab:product-plan` in the product planner), the severity names (with
+  `agents/product-analyzer.md`), every round a new agent (Rules 2 and 5),
+  the round copies (with `plan-gate.sh`, which leaves them out of the
+  digest, Stage 1c and `glab:product-plan-analyze`), the handoff file
+  (Rule 2), the context hook, the session effort (Rules 0d and 5 and *The
+  handoff line*), the plan size budget (with the product level's
+  `product-plan.md` and `glab:product-plan`), and the analyzers' verdict
+  lines (with `glab:product-analyzer`'s four and the five product files that
+  state them, `product-manager` by review round 1 B3). **Added**: the level
+  line `glab-level:`, the shared store line `glab-shared-store:`, the store
+  layout, the plan digest with the report and verdict lines and their
+  refusals, the brief line, the rejection cap, the rule file budget — 8192
+  bytes — the rules of every level, and the level boundary; the full lists
+  are in `AGENTS.md`, and this spec does not restate them. Where review
+  round 1 found a fact stated in a file its entry did not list, the fix
+  chose a pointer under "say it once" and added the file only where the
+  fact must be read where it stands (B1, B2, B5 by pointer, B3 by an entry).
+  **Outside *One fact***: *Layout* names `scripts/plan-gate.sh` and
+  `tests/fixtures/product-loop/`, the walkthrough's sample product;
+  *Gates* gained the three tests, nine `rc=0` lines, "run all seven",
+  `Skills (21)`, `Agents (9)`, nine model lines and eighteen skills lines
+  (*The gates*, above); *Rules* gained the hook contract of
+  `manager-bootstrap.sh` and the contract of `plan-gate.sh`, a script no hook
+  runs (*The repo's own rules*, above); the `plan/` rule's list of area
+  specs gained `product.md` (the product level and the product ⇄ project
+  loop), first written by this record (*`docs/specs/` and `plan/`*,
+  below). **`README.md`**: the `glab` row names `glab:session-rules`, the
+  product skills and agents; new sections *Levels* (which level, what the
+  session start loads, the shared store and its layout, the loop, the
+  `by user` known limit) and *Try the product loop* (the walkthrough with
+  `PRODUCT_LOOP_SHOW=1`, its trace to `"$TMPDIR/trace.txt"` — review round 1
+  B12 — the live steps, which point at `glab:product-manager` *Starting
+  project sessions* rather than restating the start prompt — B5 — and
+  LP1–LP6, each UNVERIFIED until run); the version is "the version in
+  `plugins/glab/.claude-plugin/plugin.json`", not written by hand (advisory
+  2); the `tests/` row names the scripts' tests and the fixtures.
+  **`host.example.md`**: the section *glab shared store* (*The host file*,
+  above).
 - **`docs/specs/` and `plan/`** (`AGENTS.md` *Layout* and *Rules*, the
   `plan/` rule; `README.md` *Working on this repo*), as of `09d2787`. `docs/specs/` holds
   one spec per area — this file (the marketplace, this repo's layout, gates
   and rules), `workflow.md`, `memory-sync.md`, `external-agents.md` (a
-  record only since `glab` 0.8.0, `467b7c4`, its area removed) — with
+  record only since `glab` 0.8.0, `467b7c4`, its area removed), and, named
+  in the `plan/` rule since `ce1a933`, `product.md` (the product level and
+  the product ⇄ project loop), first written by the `flow-product-level`
+  record — with
   how the area works now, the decisions that still bind, what is not
   verified, every follow-up open or closed, each tagged
   `[<slug>/<file> <id>]`, and its incidents. A spec states a fact as of its
@@ -606,6 +736,13 @@ owning file is right and this spec is out of date.
 - [flow-commands-to-skills/plan.md commit-scope] `commands` leaves the `AGENTS.md` commit-scope list; past `fix(commands)` commits stay.
 - [flow-commands-to-skills/plan.md wording] Wording outside the stage skills changes where it names the component (`F8`); generic "command" — `hooks.json`'s `"type": "command"`, the `?? .claude/commands/` examples in `reviewer.md` and `committer.md`, the copy install's migration steps in `README.md` — and every stage skill's `/glab:<name>` stay (`F9`).
 - [flow-commands-to-skills/plan.md one-commit] One commit with the plan folder, `6f8b948`, merged through PR #9; its other decisions — the stage skills, `glab:plan`, the preload lists, Rule 0c, the user's Q1, "Yes, merge them", "Plan in my session" — are carried in `docs/specs/workflow.md`, the change's primary area, each as a line of its own, and bind here too.
+- [flow-product-level/master.md Request] The user's words on one plugin for every level, quoted in `docs/specs/product.md` *Decisions that still bind* — the product level ships inside `glab`; the marketplace still lists two plugins, and `.claude-plugin/marketplace.json` is unchanged.
+- [flow-product-level/plan.md version] `glab` goes 0.13.0 → 0.14.0, once, in the commit that changes `plugins/glab/` (`ce1a933`); the two review fix rounds kept `0.14.0`; `memory-sync` untouched at `0.1.0`.
+- [flow-product-level/plan.md one-commit] One plan, one commit with the plan folder, `ce1a933` (`e4b8157` on the branch), merged with rebase through PR #11 on the user's go, "yes merge" (the user, in chat, 2026-11-13); its other decisions — the user's approval ("we need to develop, go with your recommendations"), "Opus for both", "Keep names (Recommended)", "okay two is good", "product manager and or also me", "Files in a shared folder" and "plain folder" — are carried in `docs/specs/product.md`, the change's primary area, each as a line of its own, and bind here too.
+- [flow-product-level/plan.md gates] Three new test files, one per contract, each a line of the script gates and of `shellcheck`; `Skills (21)`, `Agents (9)`, the nine model lines and the eighteen skills lines in *Gates*' green list (R3).
+- [flow-product-level/plan.md contracts] `manager-bootstrap.sh`'s hook contract and `plan-gate.sh`'s contract stand in `AGENTS.md` *Rules* beside the other two hook contracts, and change only with a plan.
+- [flow-product-level/plan.md one-fact] The *One fact* entries move with the rules into `glab:session-rules` and gain the product level's facts (R4); where a fact was stated in a file its entry did not list, the review fix took a pointer, and an entry only where the fact must be read in place (review round 1 B1–B5).
+- [flow-product-level/plan.md store-line] The store's path is a fact of one machine: `host.example.md` carries the `glab-shared-store:` line as a template, and a repo's `AGENTS.md` line wins (C2, R6); no machine path is committed (X4).
 
 ## Known limits and not verified
 
@@ -618,6 +755,10 @@ owning file is right and this spec is out of date.
 - The `glab` hook events and their commands are counted by `plugin details` and checked for `user_config` by the gates, but **no gate shows what a hook does when it runs**: the context hook's test passed `19/19` on a script that could never speak in a live session, because every fixture held a transcript entry that is not yet written when `Stop` runs (`docs/specs/workflow.md`, *Incidents*, `[flow-cheaper-rounds/plan.md IN1]`). Only a model run by the user (integration I1) shows the live behaviour; `plugin details` also labels every hook "harness-only — no model context cost", which is not true of one that returns `additionalContext` (`[flow-cheaper-rounds/plan.md FU12]`, open in `docs/specs/workflow.md`).
 
 - Validation and `plugin details` do not see an agent's `skills:` list (`[flow-commands-to-skills/plan.md F13]`, proven on a throwaway copy): `✔ Validation passed` with `glab:no-such-skill` in the list, and the same on-invoke sizes as without the lists. The skills gate checks only that each entry names a skill of its own plugin; that a live dispatch preloads it, and that an installed copy updated to `0.13.0` drops the commands and `glab:plan-first` with no duplicate listing, are UNVERIFIED (`[flow-commands-to-skills/plan.md U4]`, `U3`, in `docs/specs/workflow.md` *Known limits*). The `name: <name>` line the gate requires is how Claude Code names a plugin skill, not its directory (`AGENTS.md` *Gates*).
+
+- The plugin block of the gates was not run on `ce1a933` for the `flow-product-level` record: its dispatch allowed no `claude` command, so its green is the manager's run on the branch's tree before the commit (`[flow-product-level/result.md]` *Fix round — review round 2*, *Gates*), the same tree as `ce1a933` (`e4b8157^{tree}` equals `ce1a933^{tree}`); the script block was run for the record (*The gates*).
+- The new tests show the scripts, not a session: `tests/manager-bootstrap.test.sh` runs the hook script with a made-up `AGENTS.md` and `tests/product-loop.test.sh` plays every agent from fixtures; that the hook picks the product text in a live session, and every other runtime claim of the product level, is LP1–LP6, UNVERIFIED (`docs/specs/product.md` *Known limits*).
+- `[flow-product-level/plan.md]` X4 cannot run as written: `docs/specs/product.md` *Known limits*, `[flow-product-level/result.md X4]`.
 
 ## Open follow-ups
 
@@ -653,6 +794,7 @@ owning file is right and this spec is out of date.
 - **`;` instead of `&&` hid a syntax error.** The first gate line printed `rc=0` for a script that failed `bash -n`, because the `rc` was `test -x`'s; it is now `bash -n "$s" && test -x "$s"` (`AGENTS.md` *Gates*).
 - **A removal path that is not exact removes all of `plan/`** (`feature-docs-specs`, review rounds 1 and 2, measured in throwaway repos): with an empty slug, `git rm -r -n -- "plan/$slug/"` listed every file under `plan/`, `rc=0`, and so did `plan/../` and `plan/./`. The `plan/` rule removes a folder by its exact path, after checking it is tracked, clean and identical on `origin/main`; the forms that are never valid are not yet named (`[feature-docs-specs/follow-ups.md 6]`).
 - **The installed plugins load beside `--plugin-dir` in the user's own config** (`flow-cheaper-rounds`, integration I1a, 2026-10-20; `[flow-cheaper-rounds/plan.md IN2]`, told in full in `docs/specs/workflow.md` *Incidents*): the earlier proof that `--plugin-dir ./plugins/glab` loads `glab` alone was under an empty `CLAUDE_CONFIG_DIR`; in the user's own config a second `Stop` hook ran and ended `cancelled`, exit 1. Which plugin's it was is UNVERIFIED. An agent still tests only under a new empty `CLAUDE_CONFIG_DIR` (*Testing without installing*).
+- **`mkdir` was not exclusive on the build host** (`flow-product-level`, review fix round 1; told in full in `docs/specs/product.md` *Incidents*): the host's `/usr/bin/mkdir`, uutils coreutils 0.10.0, let two racing calls on one name both succeed; `plan-gate.sh` therefore takes every claim with bash's own `set -C` (`O_EXCL`) create. A host tool hazard beside the ugrep one above: a command's atomicity is the host's.
 
 ## Records
 
@@ -693,3 +835,5 @@ owning file is right and this spec is out of date.
   - [flow-models-per-role/master.md Record] Record → the entries above; the decisions, follow-ups and known limits in `docs/specs/workflow.md`; of its follow-ups `[flow-models-per-role/plan.md FU4]` (these two specs restating `Agents (5)` and Rule 5) concerned this file and is closed by this record; none is open against `AGENTS.md`.
 - 2026-11-13 · flow-commands-to-skills · recorded in `docs/specs/workflow.md`, its primary area; here: `glab` 0.13.0, `Skills (13)` with no commands (`commands/` and `skills/plan-first/` removed, the seven stage skills and `glab:plan` in their place), each agent's `skills:` list and the new skills gate with its reason, the `harness-only` suffix in the green list, the *One fact* preamble ("say it once") and the shrunk, removed and added entries, *Layout* and the commit-scope list without `commands`, the `README.md` row and paragraph and its `:164` exception, the `glab` description in `.claude-plugin/marketplace.json`; the gates otherwise unchanged at `PASS 35/35` and `PASS 24/24`, `Agents (7)` and the hook events unchanged · change 6f8b948 · plan: `git ls-tree -r --name-only 6f8b948 -- plan/flow-commands-to-skills/` (one file: `git show 6f8b948:plan/flow-commands-to-skills/<file>`). `6f8b948` is the last commit on `origin/main` that holds it (`git log -1 --format=%h origin/main -- plan/flow-commands-to-skills/`): the folder is removed in the record commit.
   - [flow-commands-to-skills/plan.md Record] Record → the entries above; the decisions, follow-ups, known limits and incidents in `docs/specs/workflow.md`; of its follow-ups none is open against `AGENTS.md`, and `[flow-master-plan/follow-ups.md DEV3]` (the round-caps entry) is closed there by the entry's new file list.
+- 2026-11-13 · flow-product-level · recorded in `docs/specs/product.md`, its primary area, new with this record, and its project edges in `docs/specs/workflow.md`; here: `glab` 0.14.0 and the `plugin.json` description, `Skills (21)` and `Agents (9)` with the product level and `glab:session-rules`, `plan-gate.sh` and `tests/fixtures/product-loop/` in *Layout*, the script gates over nine files with three new tests (`PASS 42/42`, `PASS 13/13`, `PASS 17/17`, run for this record beside `PASS 35/35` and `PASS 24/24`), the model gate's nine lines and the skills gate's eighteen, the hook contracts of `manager-bootstrap.sh` and `plan-gate.sh`, the store line in `host.example.md`, the rewritten and added *One fact* entries, `product.md` in the `plan/` rule, the `README.md` row, *Levels* and *Try the product loop*; `.claude-plugin/marketplace.json` and the hook events unchanged · change ce1a933 · plan: `git ls-tree -r --name-only ce1a933 -- plan/flow-product-level/` (one file: `git show ce1a933:plan/flow-product-level/<file>`). `ce1a933` is the last commit on `origin/main` that holds it (`git log -1 --format=%h origin/main -- plan/flow-product-level/`; PR #11, merged with rebase): the folder is removed in the record commit.
+  - [flow-product-level/master.md Record] Record → the entries above; the decisions, follow-ups, known limits and incidents in `docs/specs/product.md`, and the project edges' in `docs/specs/workflow.md`; of its follow-ups none is open against `AGENTS.md` or the gates — `FR1-1` (hard links) and the UNVERIFIED network filesystem concern the store, open in `docs/specs/product.md`; the `mkdir` hazard → *Incidents* here and there.
