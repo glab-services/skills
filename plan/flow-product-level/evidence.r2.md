@@ -1,0 +1,117 @@
+# Evidence — flow-product-level
+
+Planned 2026-11-13 on `main` at `f3cfe85` (`glab` 0.13.0), Claude Code CLI
+`2.1.310`, and amended after plan check round 1 the same day with CLI
+`2.1.321`; every `claude` command under a new empty `CLAUDE_CONFIG_DIR` in
+`$TMPDIR=/data/tmp/claude`. Proven means a command was run here and its output
+is quoted; inferred means read from a document or from the code, not run;
+UNVERIFIED means neither, with the reason (`glab:security` Rule 6).
+
+## Scope
+
+The change touches, by path:
+
+- `plugins/glab/scripts/manager-bootstrap.sh` (the `SessionStart` hook text; contract change, E6);
+- new `plugins/glab/scripts/plan-gate.sh` (the hash gate and the store file writers, E8);
+- new skills `plugins/glab/skills/{product-manager,product-plan,product-plan-analyze,product-project-brief,product-project-plan-report,product-project-plan-analyze,product-project-plan-verdict}/SKILL.md`;
+- new agents `plugins/glab/agents/{product-planner,product-analyzer}.md`;
+- new skill `plugins/glab/skills/session-rules/SKILL.md`, holding the rules J2 moves out of `plugins/glab/skills/manager/SKILL.md` (Rules 0, 0b, 0c, 0d, 1, 2, 3, 5, the round caps, the handoff line);
+- `plugins/glab/skills/{manager,plan,develop,bootstrap}/SKILL.md` (the project edges and the level wiring);
+- `plugins/glab/skills/{commit,push}/SKILL.md` (the stage of either level's manager; the commit-on-`main` rule moves into `glab:commit`), and the pointers to a moved rule in `plugins/glab/skills/{analyze,integrate,review,ship,plan,develop,audit}/SKILL.md` and the comments of `plugins/glab/scripts/context-size.sh` (J12);
+- the `description:` line of every project-level skill and agent (the level each names, N2); the ones that serve every level keep theirs;
+- `plugins/glab/.claude-plugin/plugin.json` (0.14.0);
+- new `tests/{plan-gate,manager-bootstrap,product-loop}.test.sh` and `tests/fixtures/product-loop/`;
+- `AGENTS.md` (*Layout*, *Gates*, *Rules*), `README.md`, `host.example.md`.
+
+Depended on, not read in full: `plugins/glab/hooks/hooks.json` (calls the hook
+with no argument, `timeout 5`, unchanged), `.claude-plugin/marketplace.json`
+(names unchanged), `plugins/glab/agents/*.md` bodies (only `description:`
+changes), `docs/specs/workflow.md` and `docs/specs/marketplace.md` (read by
+section: *How it works now* head, the `skills:` preload and invocation
+decisions, *Known limits* U3/U4/I1; their decisions bind, below).
+Untouched: `plugins/memory-sync/`, the code of
+`plugins/glab/scripts/context-size.sh` (only its comments change),
+`tests/memory-sync.test.sh`, `tests/context-size.test.sh`, `docs/specs/`
+(the record's, Stage 8).
+
+Binding decisions read from the specs: no stage or preloaded skill sets
+`disable-model-invocation` or `user-invocable` (`[flow-commands-to-skills/plan.md invocation]`,
+`docs/specs/workflow.md:1497`); a frontmatter `name:` is bare and equals the
+skill's directory (`AGENTS.md` *Gates*, the skills gate); a sibling file in a
+skill folder changes neither validation nor the counts
+(`[flow-planner/evidence.md F2]`); that a live dispatch preloads a `skills:`
+entry is UNVERIFIED (`[flow-commands-to-skills/plan.md U4]`).
+
+## N1 — names
+
+- **E1 (docs, inferred).** https://code.claude.com/docs/en/plugins/components.md, *Skills*: a plugin skill's command name is "`/<plugin>:<directory>`", and a frontmatter `name` "replaces the last segment and the plugin prefix stays". https://code.claude.com/docs/en/skills says the same for plugin skills. Neither page describes a nested folder adding a segment to a plugin skill; the `apps/web:deploy` form there is for a project `.claude/skills/` directory below the start directory whose name clashes, not for plugins. https://code.claude.com/docs/en/plugins-reference, *Standard layout*: Skills "One `<name>/SKILL.md` per skill"; the `skills` manifest key lists "Directories to scan for skills, each a directory of `<name>/SKILL.md` folders".
+- **E2 (proven).** A throwaway copy of `plugins/` with `skills/product/plan/SKILL.md` (`name: probe-nested`) and `skills/product-brief/SKILL.md` (`name: product-brief`): `✔ Validation passed`; `Skills (14)  analyze, audit, bootstrap, comments, commit, develop, integrate, manager, plan, product-brief, push, review, security, ship` — the two-level folder is not loaded at all. With `"skills": ["./skills/product/"]` added to `plugin.json`: `Skills (15)  … manager, plan, plan, product-brief, …` — loaded, listed under its directory name and with no `product` segment. A colon namespace for skills does not exist; **hyphenated level prefixes it is**: `glab:product-plan`.
+- **E3 (docs inferred, CLI proven).** components.md, *Organize agents in subfolders*: `agents/review/security.md` "loads as `my-plugin:review:security`". On `2.1.310` the same copy with `agents/product/probe-planner.md` printed `Agents (7)` — `plugin details` did not list it — and the model and skills gates in `AGENTS.md` glob `plugins/*/agents/*.md`, so they would not see it either. Agents stay flat, with the same hyphenated prefix.
+- **E4 (docs).** components.md, *Commands*: "`commands/db/migrate.md` is `/my-plugin:db:migrate`". Commands were removed in 0.13.0 (skills only); not used.
+- **E5 (docs).** plugins-reference, `name`: a plugin name has no `:`. `AGENTS.md` *Gates*, last command: a `name:` containing `:` is a gate failure.
+
+## N2 — the level boundary
+
+- **E6 (proven by reading the code).** `plugins/glab/scripts/manager-bootstrap.sh` builds one fixed text `CTX` in a heredoc (lines 11–25), prints `{"hookSpecificOutput":{"hookEventName":"SessionStart","additionalContext":…}}` through `jq -n`, falls back to `printf '%s\n' "$CTX"` when `jq` fails (lines 27–29), and exits 0 (line 31). It writes nothing to stderr today (`jq … 2>/dev/null`). Its header says Claude Code caps `additionalContext` at 10,000 characters. Its callers: `plugins/glab/hooks/hooks.json:6` (`SessionStart`, no argument, `timeout 5`) and `glab:bootstrap` step 1, which reads the script's text when hooks are off. Hook processes receive `CLAUDE_PROJECT_DIR` (plugins-reference, *Where each variable resolves*: hook commands export "`CLAUDE_PLUGIN_ROOT`, `CLAUDE_PLUGIN_DATA`, `CLAUDE_PROJECT_DIR`").
+- **E7 (proven).** A level line parsed with `sed -n 's/^glab-level:[[:space:]]*\([a-z][a-z-]*\)[[:space:]]*$/\1/p' | head -n 1` gave `[product] -> [product]`, `[project] -> [project]`, `[delivery] -> [delivery]`, and an empty value `-> [project]` with the default applied.
+- **E8 (proven).** Prototype digest in a temp tree: `find . -type f \( -name master.md -o -name index.md -o -name plan.md -o -name 'steps-*.md' -o -name questions.md \) | LC_ALL=C sort`, `sha256sum` per file, `sha256sum` of those lines. It listed `./01-a/plan.md ./master.md ./plan.md ./questions.md ./steps-1.md` and skipped `plan.r1.md`, `master.v1.md`, `evidence.md`; a copy of the listed files gave the same digest (`6b7d39…c5fc97` both); editing `evidence.md` left it unchanged; editing `plan.md` changed it (`3756e3…3e3202`).
+- **E9 (proven, CLI help).** `claude --help` on `2.1.310`: "`--bg, --background` Start the session in the background and return immediately". UNVERIFIED: that a session's Bash tool can start one, in which directory it runs, and what it costs — live test LP4.
+- **E10 (docs).** plugins-reference, *Environment variables*: the variables "aren't present in the environment of commands Claude runs through the Bash tool"; in skill and agent content Claude Code "substitutes the path inline". `glab:bootstrap` step 1 already relies on `${CLAUDE_PLUGIN_ROOT}` in skill text. UNVERIFIED live for the new skills — LP3.
+- **E11 (docs).** components.md, *Frontmatter fields in plugin agents*: supported include `model`, `tools`, `skills`; a plugin agent cannot add hooks. An agent without the `Skill` tool cannot load another skill itself, so its `skills:` list is all it has — the one hard part of the boundary. The main session's boundary is text only: every skill of every level is listed in every session (E2's listing). UNVERIFIED that a live session keeps to it — LP2.
+- **E12 (proven).** `jq`, `shellcheck`, `sha256sum` and `shasum` are on this host (`/usr/bin/*`); GNU bash 5.3.9. macOS has `shasum` and no `sha256sum` (inferred), hence the fallback in `plan-gate.sh`.
+
+## Call sites
+
+- **`manager-bootstrap.sh` output** (changed): read by Claude Code at `SessionStart` (E6) and by `glab:bootstrap` step 1 as plain text. Both rely on: one JSON object or the plain text on stdout, exit 0, under 10,000 characters. The new text keeps all three and adds a level; `glab:bootstrap` step 1's fallback — read the script's text — now finds two texts and must pick by the level line (step J7).
+- **`glab:bootstrap` step 2** (changed): its one caller is the hook text, point 2 (`plugins/glab/scripts/manager-bootstrap.sh:16`), changed in the same step group.
+- **The moved rules** (J2): their callers are the 23 pointers `grep -rnoE 'glab:manager.? Rules? [0-9a-d, and]+' plugins README.md AGENTS.md` finds outside `glab:manager`, and `glab:bootstrap` step 2's bare *its Rule 1*, on `f3cfe85` — `skills/{analyze,integrate,review,ship,commit}/SKILL.md` (Rules 0d and 5), `skills/ship/SKILL.md` (Rule 5), `skills/{plan,develop,audit}/SKILL.md` (Rule 3), `skills/plan/SKILL.md` (Rule 1, twice), `skills/bootstrap/SKILL.md` (Rule 0c), `scripts/manager-bootstrap.sh` (Rules 0b, 0c, 0d, 1), `scripts/context-size.sh` (Rule 2, comments), `AGENTS.md` (three *One fact* entries); the agents cite none. Each relies on the rule's text and number, both kept; J12, A3 and R4 move every pointer. The bare `Rule <n>` references left inside `glab:manager` keep their meaning through J2's line *a Rule <n> cited here, but Rule 4, is that skill's*.
+- **`glab:commit` and `glab:push`** (changed: their first paragraph): callers `glab:manager` Stages 6, 7 and 8, now `glab:product-manager` stage P6 too, and a user typing them. They rely on what the skill dispatches or runs, which does not change.
+- **`glab:develop` preconditions** (changed: one bullet added): callers `glab:manager` Stage 2 and a user typing `/glab:develop`. Both rely on "no dispatch until every precondition holds"; the new bullet applies only when `master.md` carries a `- brief:` line, so every existing plan starts as before.
+- **`glab:plan` Step 1 and Step 3 `## Request`** (changed: brief input): callers `glab:planner` (preloads it) and `/glab:plan` typed by a user; readers of `## Request` are `glab:plan-analyzer` (`agents/plan-analyzer.md:37`) and `glab:analyzer` (`agents/analyzer.md:65`), which treat it as the user's words. A brief quoted there with its path and hash is read the same way; their files do not change.
+- **`plan-gate.sh`** (new): called only from the text of `glab:product-project-plan-report`, `glab:product-project-plan-verdict`, `glab:develop`, and the tests. Precondition of each call: the plan folder and the store exist; the skills resolve the store first (C2).
+- **Skill `description:` lines** (changed): read by Claude Code for listing and auto-invocation only; no file parses them. The `name:` lines do not change, so the skills gate and every `glab:<name>` reference hold.
+
+## Rejected boundaries
+
+- **A colon namespace** (`glab:product:plan`): not produced for skills (E2); agent subfolders give one in the docs but not in `plugin details`, and the gates would miss them (E3).
+- **One plugin per level**: the user decided one plugin for all (notes, 2026-11-13).
+- **Notion as the gate**: agreed against; files are the gate, Notion later as a view.
+- **The level from an environment variable** (`GLAB_LEVEL`): the level belongs to the repo a session runs in, not to the shell that starts it; a product manager starting a project session would have to set it right every time.
+- **Enforcing the boundary with permission rules** (`Skill(...)` deny rules in each repo's settings): writes persistent configuration into users' repos; follow-up FU-P2.
+- **Leaving the every-level rules in `glab:manager` and having the product manager read them there** (round 1's choice): the product session would read the project level's manager, which the boundary forbids (I12); moved instead, J2.
+- **Keeping bookkeeping out of the hash by line pattern** (`- effort:`, `- model:`, `- round 3:`): a Rule 3 decision or a question's answer has no fixed form, so a pattern either misses them or lets a changed decision through (R1); a file outside the digest has neither problem.
+- **Running `check` only before the first Stage 2 dispatch** (R1, the other option named): a `PLAN WRONG` amendment after it would reach the developer unreported.
+- **A description prefix as the boundary** (round 1's text): the skill listing drops descriptions to fit its budget, least-used first (F14), so the explicit list per manager binds.
+- **The hash in skill text as a pipeline** instead of a script: both sides must compute it byte-identically, and a script has a test; the text would be copied into three skills.
+
+## The amendment after plan check round 1, proven on throwaway builds
+
+Every build below is a `git archive f3cfe85` export under `$TMPDIR`, with this
+folder copied to `plan/flow-product-level/`, removed afterwards. The steps
+were applied by a simulator: each script, test and fixture written from its
+`~~~ file=` text in `steps-1-scripts.md` and `steps-1b-scripts.md`; each new
+skill and agent created with the frontmatter its step gives (`name:`, the
+`description:` prefix, `model:`, `tools:`, `skills:`); each description
+prefix of J1, J10 and J11 put on the real line; the version and description
+of R1 set with `jq`; each `N` phrase removed and each `P` phrase appended.
+It proves that the posts tell a finished tree from one with a step skipped,
+and that the scripts and the gates are green; that the prose around each
+phrase is right is the plan check's and the review's.
+
+- **E13 (proven) — the posts.** 214 posts in the five steps files (10, 7, 46, 76, 75). Unchanged tree: 2 `ok`, 212 not — the 2 are guards that hold before the change by design, A3's `test -x` of the hook that is already executable and J2's `## Rule 4 — what this session owns` kept in `glab:manager`. Full build: `full build: 214 ok, 0 not ok of 214`. X3's count is therefore `214 ok`, and its loop leaves out the round copies `steps-*.r1.md`, which its round-1 form would have counted twice.
+- **E14 (proven) — R1, the record lines and the gate.** On the full build, with `plan-gate.sh` from A1: after `ACCEPTED`, `check` printed `ACCEPTED r1 9ac9716b…`, rc 0; with a `- model:`, a `- round 3:` and an `- effort:` line in `after-verdict.md` and a round copy `plan.r1.md`, the same, rc 0; with the same `- model:` line written into `plan.md` instead, `REFUSED: the plan changed since verdict r1 accepted it; report again`, rc 1; with a step edited (`90 days` → `365 days`), the same refusal, rc 1. T18, T23, L12 and L13 assert the same cases.
+- **E15 (proven) — R2, the digest's file set.** T2 passes with `steps-1.r1.md`, `plan.r1.md`, `plan.r10.md`, a sub-plan's `plan.r2.md`, `master.v1.md`, a `plan.r1/` folder holding `plan.md` and `master.md`, `evidence.md`, `map-x.md`, `result.md`, `integration.md` and `after-verdict.md` beside the plan; a mutant of `plan-gate.sh` without `! -name '*.r[0-9]*.md'` fails T2 only (`T2 1/29`), and one without the `plan.r*` prune fails T2 only. A1's third post fails on either mutant.
+- **E16 (proven) — the scripts and tests as the steps give them.** `bash -n` and `shellcheck` 0.11.0 clean on `plan-gate.sh`, `manager-bootstrap.sh` and the three tests; `bash tests/plan-gate.test.sh` → `PASS 29/29`, `bash tests/manager-bootstrap.test.sh` → `PASS 13/13`, `bash tests/product-loop.test.sh` → `PASS 16/16`, every case line `ok`. Each test fails when its contract does (mutants of the script under test, each run against the unchanged test): the round-copy exclusion → T2; the count never reset by `ACCEPTED` → T25, T26; the cap stopping only `REJECTED`, as in round 1 → T15, T16; a lexical highest `r<n>` → T25; an older brief's verdict accepted → T19; fields parsed below the header → T27; the hook without its git fallback → B13; round 1's level regex → B12; no stderr copy of the warning → B4. A mutant that keeps the CR in `AGENTS.md` passes B7, because the value's trailing blanks, CR among them, are trimmed anyway: the `tr -d '\r'` is kept as the stated contract, not as the only guard. The new hook's project text differs from `f3cfe85`'s only in the level line, point 2 (three skills, `glab:session-rules` added) and the pointers of point 3 and the last line (`diff` of the two `additionalContext` values). The walkthrough's trace, `PRODUCT_LOOP_SHOW=1 … 2>trace`, is 397 lines: each scene with its role, every `plan-gate.sh` command with `<store>` for the store's path, each refusal, and the text of every report, verdict, rule and brief written (I11).
+- **E17 (proven) — skip-one.** For each of the 32 steps A1–A5, P1–P9, J1–J12, R1–R6, a build with every step but that one: every skipped step's posts red but for the two guards of E13 (`A3 own-red 2/3`, `J2 own-red 24/25`, every other step `n/n`), and no other step's post red (`other-red []` for all 32). The script steps stay independent because each run post tests the built file against its partner's text cut from the steps file by `B`, not against the built partner.
+- **E18 (proven) — the gates.** Baseline on the unchanged export, as `AGENTS.md` states them today: five `rc=0`, shellcheck `rc=0`, `PASS 35/35`, `PASS 24/24`, `Skills (13)`, `Agents (7)` (`check-repo.md` §1, re-run here with the same lines). On the full build, the changed first block of R3: nine `rc=0` lines, shellcheck `rc=0`, then `PASS 35/35`, `PASS 24/24`, `PASS 29/29`, `PASS 13/13`, `PASS 16/16`, no `FAIL` line. The plugin gates, CLI `2.1.310` under a new empty `CLAUDE_CONFIG_DIR`: three `✔ Validation passed`; `Skills (21)  analyze, audit, bootstrap, comments, commit, develop, integrate, manager, plan, product-manager, product-plan, product-plan-analyze, product-project-brief, product-project-plan-analyze, product-project-plan-report, product-project-plan-verdict, push, review, security, session-rules, ship`; `Agents (9)  reviewer, product-planner, integrator, developer, analyzer, product-analyzer, committer, planner, plan-analyzer`; both `Hooks (4)` lines unchanged with their `(harness-only — no model context cost)` suffix; `Skills (1)  sync-memory`, `Agents (0)`; `glab = glab`, `memory-sync = memory-sync`; `:0`, `:0`, `rc=1`; counts `1`, `1`, `1`, `rc=0`; the model gate's nine lines, `product-analyzer.md:model: opus` and `product-planner.md:model: opus` among them, `rc=0`; the skills gate's eighteen lines, none `MISSING`; the name gate nothing, `rc=1`. These are R3's green lines exactly.
+- **E19 (docs, quoted by plan check round 1, `check-facts.md`) — the Claude Code behaviour the amendment rests on.** Hook stderr: "Claude never sees stderr from a hook that exits 0" (F5). `CLAUDE_PROJECT_DIR` is "the project root where the session started" (F4). `claude --bg` "Checks workspace trust for the directory before it starts", the error list has "`Workspace not trusted.`", a background session moves into "an isolated git worktree under `.claude/worktrees/`" before editing, and a permission prompt waits until the user attaches; `claude --resume <id> --bg "<msg>"` "either continues that session under the same ID, or starts a copy under a new ID"; no `claude send` exists (F8, F9). Writes outside the working and additional directories need approval (F8). The skill listing "drops some descriptions to fit the listing's character budget", least-invoked first (F14). `${CLAUDE_PLUGIN_ROOT}` is substituted in a plugin skill's Markdown (F7). An agent without `Skill` in `tools` preloads only its `skills:` (F11). The pages are cited there by URL; this amendment did not fetch them again.
+
+## Not verified (live, after install)
+
+- **LP1** — the hook picks the product text in a repo whose `AGENTS.md` says `glab-level: product`, also when the session starts in a subfolder (F4).
+- **LP2** — a product session keeps to its manager's list, also with a crowded skill listing that drops descriptions (F14).
+- **LP3** — `${CLAUDE_PLUGIN_ROOT}` is substituted in the new skills' text: documented (F7), confirmed live here.
+- **LP4** — starting and reaching project sessions, per host: the desktop app's session tools start one in the project repo and send it a message; `cd <repo> && claude --bg --add-dir <store> "…"` run from a product session's Bash tool starts one, with its caveats (trust, the worktree, a permission prompt for a write into the store), and `claude --resume <id> --bg "<message>"` resumes it; the user's own start always works. UNVERIFIED: that a session's Bash tool can run `claude --bg`, and that the desktop tools reach a session the product session did not start.
+- **LP5** — the product agents preload their `skills:`: documented (F11), confirmed live here.
+
+Each is in `README.md`'s try-it guide (step R5) and carried to the record.

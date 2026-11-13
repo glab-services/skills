@@ -1,7 +1,7 @@
 {
   "name": "glab",
-  "version": "0.13.0",
-  "description": "The glab workflow: plan, develop, analyze, integrate, review, commit, push and record through dedicated agents, with evidence and comment discipline",
+  "version": "0.14.0",
+  "description": "The glab workflow: a product level that plans a business plan into project briefs and judges each project's plan, and a project level that plans, develops, analyzes, integrates, reviews, commits, pushes and records through dedicated agents, with evidence and comment discipline",
   "author": {
     "name": "glab-services"
   },

@@ -1,10 +1,10 @@
 ---
 name: integrate
-description: Run the change against a running system with the glab:integrator agent — dependencies, service, E2E suite
+description: Project level — Run the change against a running system with the glab:integrator agent — dependencies, service, E2E suite
 argument-hint: "[plan slug]"
 ---
 
-The entry point of `glab:manager` Stage 4. The session that runs it — `glab:manager`, or a person who typed `/glab:integrate` — dispatches the **glab:integrator** agent on `plan/$ARGUMENTS/`, as `glab:manager` Rules 0d and 5 say. No slug: `glab:manager` *The pipeline*.
+The entry point of `glab:manager` Stage 4. The session that runs it — `glab:manager`, or a person who typed `/glab:integrate` — dispatches the **glab:integrator** agent on `plan/$ARGUMENTS/`, as `glab:session-rules` Rules 0d and 5 say. No slug: `glab:manager` *The pipeline*.
 
 It asks one question: **does the change work against a real running system?** Not whether it matches the plan, and not whether the code is good. The agent runs the suite and any service it needs; the session that dispatched it runs neither.
 

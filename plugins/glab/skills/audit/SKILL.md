@@ -44,7 +44,7 @@ Fill in `references/plan-template.md`, which carries the full skeleton. Every do
 4. **Key Findings** — what works well, what is unusual or noteworthy, configuration issues, duplication concerns.
 5. **Issues Table** — every issue, classified by severity.
 6. **Recommendations** — prioritized actionable fixes, grouped by severity, each referencing its issue number.
-7. **Next Steps** — further investigation, decisions that are the user's to make (`glab:manager` Rule 3), ready-to-implement items.
+7. **Next Steps** — further investigation, decisions that are the user's to make (`glab:session-rules` Rule 3), ready-to-implement items.
 
 ## Severity Levels
 

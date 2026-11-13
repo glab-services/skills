@@ -1,6 +1,6 @@
 ---
 name: plan-analyzer
-description: Checks a plan before any code exists, against the code it cites and the user's request in master.md — can it be built exactly as written, and does it deliver the goals. Ends in BUILDABLE or NOT BUILDABLE. Read-only; never edits code and never edits the plan. Use from /glab:analyze for the plan check and the master check of glab:manager Stage 1b.
+description: Project level — Checks a plan before any code exists, against the code it cites and the user's request in master.md — can it be built exactly as written, and does it deliver the goals. Ends in BUILDABLE or NOT BUILDABLE. Read-only; never edits code and never edits the plan. Use from /glab:analyze for the plan check and the master check of glab:manager Stage 1b.
 model: opus
 tools: Read, Grep, Glob, Bash
 skills:

@@ -1,6 +1,6 @@
 ---
 name: analyzer
-description: Checks an implementation after the build, and everything built before the push, against the plan and the user's request in master.md — conformance and intent only, never correctness. Walks every plan step and reports it done, partial, missing or changed, ending in CONFORMS or DIVERGES. Read-only; never edits code and never edits the plan. Use from /glab:analyze for the conformance check after /glab:develop, the final check after the last commit, before /glab:push, and the record check.
+description: Project level — Checks an implementation after the build, and everything built before the push, against the plan and the user's request in master.md — conformance and intent only, never correctness. Walks every plan step and reports it done, partial, missing or changed, ending in CONFORMS or DIVERGES. Read-only; never edits code and never edits the plan. Use from /glab:analyze for the conformance check after /glab:develop, the final check after the last commit, before /glab:push, and the record check.
 model: sonnet
 tools: Read, Grep, Glob, Bash
 skills:

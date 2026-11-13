@@ -29,3 +29,11 @@ path contains the CLI version, so it changes with every update — look it up
 each time rather than keeping an old one. The plugin gates of the
 `glab-services/skills` repository read it from `CLAUDE_BIN`: export that
 variable as this path before running them.
+
+## glab shared store
+
+glab-shared-store: <path to the shared folder>
+
+The folder where the product level and its projects exchange briefs, reports
+and verdicts. Its path is a fact of one machine, so it sits here; a repo whose
+`AGENTS.md` has its own `glab-shared-store:` line uses that one instead.

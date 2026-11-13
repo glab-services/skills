@@ -1,10 +1,10 @@
 ---
 name: analyze
-description: Check a plan or an implementation with the glab:plan-analyzer or glab:analyzer agent — conformance and intent, not correctness
+description: Project level — Check a plan or an implementation with the glab:plan-analyzer or glab:analyzer agent — conformance and intent, not correctness
 argument-hint: "[plan slug]"
 ---
 
-The entry point of the plan check (`glab:manager` Stage 1b), the conformance check (Stage 3), the final check (Stage 6b) and the record check (Stage 8). The session that runs it — `glab:manager`, or a person who typed `/glab:analyze` — dispatches on `plan/$ARGUMENTS/` the agents the stage that runs the check names — how many, and split how, is that stage's — as `glab:manager` Rules 0d and 5 say.
+The entry point of the plan check (`glab:manager` Stage 1b), the conformance check (Stage 3), the final check (Stage 6b) and the record check (Stage 8). The session that runs it — `glab:manager`, or a person who typed `/glab:analyze` — dispatches on `plan/$ARGUMENTS/` the agents the stage that runs the check names — how many, and split how, is that stage's — as `glab:session-rules` Rules 0d and 5 say.
 
 `$ARGUMENTS` is only the slug, or a sub-plan `<slug>/<nn>-<name>`. No slug: `glab:manager` *The pipeline*.
 
