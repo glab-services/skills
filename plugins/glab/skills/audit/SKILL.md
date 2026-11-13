@@ -1,6 +1,6 @@
 ---
 name: audit
-description: Produce a structured audit findings document in plan/ after examining a service, module, or subsystem — with architecture summary, working flow, a severity-classified issues table, and prioritized recommendations. Use after completing a service audit, codebase examination, architecture review, or deep-dive analysis. Triggers on "audit this service", "examine this project", "learn this codebase", "review this module". For analysis that leads directly into implementation, use glab:plan-first instead.
+description: Produce a structured audit findings document in plan/ after examining a service, module, or subsystem — with architecture summary, working flow, a severity-classified issues table, and prioritized recommendations. Use after completing a service audit, codebase examination, architecture review, or deep-dive analysis. Triggers on "audit this service", "examine this project", "learn this codebase", "review this module". For analysis that leads into a change, use glab:plan instead.
 ---
 
 # Audit
@@ -18,7 +18,7 @@ Use for a substantive examination whose deliverable is the report itself:
 
 Skip for trivial one-line checks ("what does this file do?", "is this variable used?").
 
-If the analysis is the first step toward changing the code, use [glab:plan-first](../plan-first/SKILL.md) instead — that workflow carries analysis through questions, plan, implementation, and tests.
+If the analysis is the first step toward changing the code, use [glab:plan](../plan/SKILL.md) instead — that workflow carries analysis through questions to an approved plan, which `/glab:develop` then builds.
 
 ## File Naming
 
@@ -59,12 +59,12 @@ Fill in `references/plan-template.md`, which carries the full skeleton. Every do
 
 - Every code reference includes a file path and line number: `src/handler/object.go:234`.
 - Issues must be specific and actionable — no vague observations.
-- Separate what you **proved** from the code and what you **inferred**. Never present inferred runtime behavior as proven.
+- Separate proven from inferred, as `glab:security` Rule 6 defines them. Never present inferred runtime behavior as proven.
 - Keep the document self-contained: a reader months later should get the full picture without re-examining the code.
 
 ## After Writing
 
 1. Confirm the file is saved under `plan/` (create the directory if needed).
 2. Tell the user the path and a one-line summary of what it contains.
-3. Ask whether they want to act on any finding now — if so, that work goes through [glab:plan-first](../plan-first/SKILL.md).
+3. Ask whether they want to act on any finding now — if so, that work goes through [glab:plan](../plan/SKILL.md).
 4. When a change acts on the file, its plan's `## Record` — `master.md`'s, where there is one — names it, and that change's record (`glab:manager` Stage 8) carries what is still open into the area spec and `glab:analyzer` checks it was carried. The record never removes the file; whether it is removed afterwards is the repo's own `AGENTS.md` decision.

@@ -6,12 +6,14 @@ to S3.
 
 | Plugin | What it adds |
 |---|---|
-| `glab` | Skills `glab:bootstrap`, `glab:manager`, `glab:security`, `glab:comments`, `glab:plan-first`, `glab:audit` · agents `glab:planner`, `glab:plan-analyzer`, `glab:analyzer`, `glab:developer`, `glab:integrator`, `glab:reviewer`, `glab:committer` · commands `/glab:plan`, `/glab:develop`, `/glab:analyze`, `/glab:integrate`, `/glab:review`, `/glab:commit`, `/glab:push`, `/glab:ship` · a `SessionStart` hook that injects the session bootstrap rules · a context hook on `UserPromptSubmit`, `PostToolUse` (`Agent`) and `Stop` that tells the session its context size and tells you when a turn crosses 300k or a further 100k |
+| `glab` | Skills `glab:bootstrap`, `glab:manager`, `glab:security`, `glab:comments`, `glab:audit` · agents `glab:planner`, `glab:plan-analyzer`, `glab:analyzer`, `glab:developer`, `glab:integrator`, `glab:reviewer`, `glab:committer` · stage skills `/glab:develop`, `/glab:analyze`, `/glab:integrate`, `/glab:review`, `/glab:commit`, `/glab:push`, `/glab:ship`, which `glab:manager` runs itself and you can type to step in · `/glab:plan <task>`, the planning procedure `glab:planner` follows, which you can type to plan in your own session · a `SessionStart` hook that injects the session bootstrap rules · a context hook on `UserPromptSubmit`, `PostToolUse` (`Agent`) and `Stop` that tells the session its context size and tells you when a turn crosses 300k or a further 100k |
 | `memory-sync` | Skill `memory-sync:sync-memory` · hooks on four events that run `memory-sync.sh` |
 
-In `glab` the skills, agents and commands are one set: `glab:manager`
-dispatches the agents through the commands, and every agent carries
-`glab:security` and `glab:comments`, and runs at the session's effort level,
+In `glab` the skills and agents are one set: `glab:manager` runs each stage
+through its stage skill, which dispatches the agents, and dispatches
+`glab:planner` itself for the plan. Each agent preloads, through the `skills:`
+list in its definition, the `glab` skills its role uses — `glab:security` in
+all seven, `glab:plan` in the planner — and runs at the session's effort level,
 which the manager passes on every dispatch. The two plugins do not depend on
 each other; install either alone.
 

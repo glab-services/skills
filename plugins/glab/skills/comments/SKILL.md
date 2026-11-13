@@ -106,7 +106,7 @@ These encode deferred decisions, known gaps, and planned work. They were placed 
 
 ## When rewriting a file
 
-1. `grep -n "TODO\|FIXME\|HACK\|NOTE\|XXX" <file>` on the original.
+1. `command grep -n -E 'TODO|FIXME|HACK|NOTE|XXX' <file>` on the original — `command` bypasses a shell function named `grep` (`glab:bootstrap` step 6).
 2. Carry every match into the new version, at the place it still applies.
 3. If a marker's location no longer makes sense, ask where it should go.
 

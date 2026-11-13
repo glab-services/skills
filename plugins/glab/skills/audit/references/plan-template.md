@@ -48,8 +48,8 @@ Copy this template and fill in each section. Delete unused subsections.
 
 ### Proven vs Inferred
 
-- **Proven**: <behavior confirmed by reading the code or running it>
-- **Inferred**: <behavior assumed but not verified — flag anything load-bearing>
+- **Proven** (`glab:security` Rule 6): <behavior shown by a command you ran, and the command>
+- **Inferred**: <behavior reasoned from the code, the types or a name — flag anything load-bearing>
 
 ## Issues Table
 

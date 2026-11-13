@@ -23,6 +23,8 @@ If you could not run it, write the claim in this exact form instead:
 
 `UNVERIFIED` is not a failure. Reporting it as verified is.
 
+A reference to a named open test — `UNVERIFIED: L5` — is that form when the paragraph citing it states the why once.
+
 ## Rule 2: paste real output, not a description of it
 
 Show the command and what it actually printed. Trim to the relevant lines; never paraphrase a result into prose. Summarising output you saw is fine. Summarising output you did not see is fabrication, and it is indistinguishable from the real thing to the person reading you — which is exactly why it destroys trust in everything else you reported.
@@ -46,7 +48,7 @@ A command you composed yourself proves nothing about CI. Running `go test ./some
 
 ## Rule 4: green means green
 
-No failures. No skipped suite you meant to cover. No ignored race or warning. No `-count=1` hiding a test that only fails on the second run.
+No failures. No skipped suite you meant to cover. No ignored race or warning. A cached result is not a run: `-count=1` defeats Go's test cache, and a test that fails only on its second run shows only under `-count=2`.
 
 A test that was already red is only "pre-existing" once you have **proved** it: check out the merge base, run it there, paste that too. An unproven "pre-existing failure" is a guess, and it is the most common way a real regression gets waved through.
 
@@ -56,7 +58,7 @@ No `--fix`, `--write`, `-w`, or a target that wraps one.
 
 Auto-fixers rewrite the whole tree rather than your diff, so their damage is inseparable from your change. They routinely emit code that does not compile — a call added without its import, an import left stranded when its last use goes — and they are frequently not idempotent, so one pass is not a fixed point.
 
-Check whether the repo's lint target carries a fix flag before running it. Fix findings by hand and understand each one. That is the entire point of the gate.
+Check whether the repo's lint target carries a fix flag before running it; if it does, run the underlying tool without that flag. Fix findings by hand and understand each one. That is the entire point of the gate.
 
 ## Rule 6: separate proven from inferred, always
 
@@ -79,7 +81,7 @@ If you cannot enumerate the callers, say so and stop. A change whose blast radiu
 
 An unrequested improvement bundled into a requested fix is unreviewed change riding on reviewed change. It is how regressions enter through the one commit everybody trusted.
 
-Spotted something worth doing? Write it down as a follow-up and leave it. That includes: a better file layout, a richer API than asked for, a rename, an import regroup, a formatting sweep, a bug you noticed in passing.
+Spotted something worth doing? Write it down as a follow-up and leave it. That includes: a better file layout, a richer API than asked for, a rename, an import regroup, a formatting sweep, blank lines left where deleted code was, a bug you noticed in passing. A plan that forbids a registry also forbids the registry's vocabulary.
 
 ---
 
@@ -148,6 +150,8 @@ Untracked files, dropped volumes, remote branch history and reset working trees 
 Not into logs, error messages, commit messages, test fixtures, exception traces, or any URL you print. Assume anything printed is retained and indexed somewhere you cannot reach.
 
 A remote URL can carry credentials in its userinfo. Name the remote instead of printing it.
+
+Do not print config values at all; test them instead. A brief that left this out is how one credential leaked a third time: an agent enumerating config for an unrelated reason redacted by key name and printed a DSN's embedded password. A DSN carries a password in the middle of a value, not only after an `@` — two different redaction attempts leaked one.
 
 ---
 

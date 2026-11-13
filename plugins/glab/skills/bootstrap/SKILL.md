@@ -12,74 +12,25 @@ a claim proven with a tool that silently returns nothing.
 
 ---
 
-## 1. Read the working agreement and the constants
+## 1. Read the working agreement, the host file and the constants
 
-Read **`AGENTS.md` at the repo root** before anything else — before answering,
-before searching, before dispatching.
+The session-start text of the `glab` hook, points 1 and 4, says what to read and in which order, and what to do when a file is missing. A session that received no such text — the plugin's hooks off — reads it first from `${CLAUDE_PLUGIN_ROOT}/scripts/manager-bootstrap.sh`.
 
-No `AGENTS.md`? Read `CLAUDE.md` instead, and **say plainly that the repo has no
-working agreement**. Then the conventions you enforce are the ones you can read
-off the existing code, not ones you invented.
+Do not skim `AGENTS.md`. It is the contract every review is held to, and an agent that skipped it produces work the repo rejects — which you pay for in a correction round, not in saved time.
 
-Do not skim it. It is the contract every review is held to, and an agent that
-skipped it produces work the repo rejects — which you pay for in a correction
-round, not in saved time.
-
-**Then read `~/.claude/host.md`, before the first command** — steps 3 and 5
-already run some. It belongs to the machine: where temp files go, which path is
-the system `grep`. No `host.md` → say the machine has no host file, then use
-`$TMPDIR` if it is set and the session's scratchpad directory otherwise — and
-keep temp files few and small, because that fallback may itself sit on a small
-`/tmp`. Step 6 says why this matters.
-
-Then read **`docs/constants.md`** — the decided facts every session on this
-product builds on: who owns which surface, names, contracts, choices already
-made. Only the user changes it. A plan conforms to it and never re-asks it. No
-such file? Say so once and carry on; do not write one.
+The host file comes that early because steps 3 and 5 already run commands, and step 6 says why its temp-file rule matters. `docs/constants.md` holds what is already decided — only the user changes it, and a plan conforms to it and never re-asks it.
 
 ## 2. Load `glab:manager` and `glab:security`
 
-Both. Always. They are not alternatives.
+Both, always — the session-start text says what each governs, and they are not alternatives. `glab:manager` governs *how* work is done, not *whether*: its Rule 1 says what skips the pipeline, and what still holds when it does.
 
-- **`glab:manager`** — the operating model. You manage; you do not implement. Work
-  moves through the pipeline in step 4, each stage dispatched to its own agent.
-  Engineering choices are yours to make and record; its Rule 3 names the four
-  ask-conditions that go to the user, and the skill names its other escalations
-  where they arise.
-- **`glab:security`** — evidence and durability. Every claim about your own work is
-  backed by a command whose real output you paste, or written
-  `UNVERIFIED: <claim> — <why>`.
-
-**Every agent you dispatch reads `AGENTS.md` first and carries both `glab:security`
-and `glab:comments` — say all of it, in every dispatch message**, even when the agent
-definition already requires it. `glab:comments` is the one that gets dropped, and its
-loss is invisible: a `TODO` deleted in passing leaves nothing in the diff saying
-it was ever there.
-
-Every dispatch also passes the Agent tool's `effort` parameter at the session's
-level — `glab:manager` Rule 0d says where the level comes from and how it is
-recorded.
-
-Two more are the manager's call per dispatch rather than automatic — **`glab:audit`**
-for an agent producing findings rather than a change, and **`glab:plan-first`** for a
-planning agent's document structure. `glab:manager` Rule 0c has the full contract,
-including the seam where `glab:plan-first` and `glab:manager` disagree about whether a
-planner implements.
-
-`glab:manager` governs *how* work is done, not *whether*. Questions get answered
-directly. Trivial changes — roughly five lines, no architectural impact — get
-made directly. `glab:security` has **no** such exemption: a one-line change still
-gets its claim verified, and a gate is never reported green on an agent's word.
+What reaches each agent is `glab:manager` Rule 0c's: each `glab` agent's definition preloads the skills its role uses, and a dispatch carries only the facts of its task.
 
 ## 3. Find the real gates, once
 
 Before dispatching anything, find the repo's own targets — `Makefile`,
-`package.json` scripts, `justfile`, the CI config — and **write them down in one
+`package.json` scripts, `justfile`, the CI config — as `glab:security` Rule 3 says, and **write them down in one
 line you reuse all session**.
-
-A command you composed yourself proves nothing about CI. `go test ./somepkg`
-when the repo's target is `go test ./... -race` is not the same check, and the
-difference is exactly where the race lives.
 
 **Read what a target actually does before trusting its name.** In one backend,
 `make ci` and `make ci-all` run `tidy` + `download` — no build, no test, no lint.
@@ -91,39 +42,7 @@ the gate silently.
 
 ## 4. Confirm the pipeline
 
-```
-plan ⇄ analyze  →  develop ⇄ analyze  →  integrate  →  review ⇄  →  commit  →  final check  →  push  →  record
-```
-
-That is the **full** pipeline, for the changes `glab:manager` → *Pick the tier*
-makes full tier; a full-tier plan with no sub-plans
-skips the final check, which its conformance check asked.
-Normal work runs a one-page plan, a plan check, a review and the final
-check, with no conformance stage unless it splits into sub-plans; trivial
-work is done directly. Each check stage runs
-at most two rounds, a third only on a critical or high finding;
-`glab:manager` → *Pick the tier* has the table and the round caps.
-
-- **`plan ⇄ analyze`** — the plan is analyzed *before any code exists*: can this
-  be built exactly as written? See `glab:manager` Stage 1b.
-- **`develop ⇄ analyze`** — conformance: did we build what the plan said?
-  Full tier, and every sub-plan at every tier.
-- **`integrate`** — against a real running system, local only, never a live
-  endpoint. Skip only when the change cannot be exercised at runtime, and say
-  you are skipping it and why.
-- **`review ⇄`** — an external auditor gets the target and nothing else. Not the
-  slug, not the plan, not what it was supposed to do.
-- **`commit`**, **`final check`**, then **`push`** — one commit per sub-plan;
-  the final check compares everything committed with the user's request in
-  `master.md` (`glab:manager` Stage 6b); push waits for the user's explicit
-  go-ahead, every time.
-- **`record`** — after the push, what stays true goes into the area spec, in a
-  docs commit of its own (`glab:manager` Stage 8); the plan folder stays unless
-  the repo's `AGENTS.md` says otherwise.
-
-**Dispatch independent agents in a single message so they run concurrently.**
-Analyze and review fan out freely by surface or dimension; develop splits only
-across disjoint file boundaries. See `glab:manager` → *Running agents in parallel*.
+Name the stage you are at in `glab:manager` → *The pipeline*; *Pick the tier* says which stages run and how many rounds each gets. Dispatch independent agents in a single message (`glab:manager` → *Running agents in parallel*).
 
 ## 5. Pick up the handoff
 
@@ -149,11 +68,9 @@ thinking the enforcement path was inert.
 Each of these produced a confidently wrong answer in a real session. They are
 listed because none of them announces itself — every one returns success.
 
-**Temp files go where the host file you read in step 1 says.** Facts true of one
-machine — where temp files go, which path is the system `grep` — live there,
-not in this skill. Say its temp-file rule in every dispatch message so
-subagents follow it too, use unique filenames, and clean up what you create.
-Why this is a hazard at all: on one host `/tmp` was a tmpfs under a per-user quota shared
+**Temp files go where the session-start text, point 4, says.** Facts true of one
+machine — where temp files go, which path is the system `grep` — live in the
+host file, not in this skill. Why this is a hazard at all: on one host `/tmp` was a tmpfs under a per-user quota shared
 by every agent, and filling it killed the session from the inside. Growing the
 tmpfs did not help: the limit was that quota, not the size of the filesystem.
 The template the host file is made from, `host.example.md` at the root of the `glab-services/skills` marketplace repository, records that case
@@ -188,8 +105,8 @@ a plan document as fact. It had five.
 
 **A cached test result is not evidence.** `make gotest` reported green with
 `(cached)` after a database major-version change — it had reused a result from
-the old server. Re-run with `-count=1` after any dependency or infrastructure
-change.
+the old server. What the cache hides, and what `-count` does about it, is
+`glab:security` Rule 4.
 
 **A capped linter's per-file counts are not reproducible.** With a
 `max-same-issues` cap, which files absorb a capped linter's findings varies
@@ -204,14 +121,6 @@ than a true zero.
 
 **A tool that is not installed exits 127 and prints no findings.** Zero findings
 from a command that never ran is not a clean scan. Check the exit code.
-
-**Secrets never enter output — and say so in every dispatch, not only the ones
-you expect to touch config.** Not logs, not error messages, not commit messages,
-not a URL you print. A brief that omits this is how the same credential leaks a
-third time: an agent enumerating config for an unrelated reason redacted by key
-name and printed a DSN's embedded password. A DSN carries a password in the middle of a
-value, not only after an `@` — two different redaction attempts leaked one.
-Do not print config values at all; test them instead.
 
 ---
 
