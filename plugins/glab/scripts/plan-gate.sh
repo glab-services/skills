@@ -17,15 +17,25 @@
 #
 # Exit 0 done; 1 refused; 2 usage - an unknown mode, wrong arguments, a folder or file that does not
 # exist - or a write that failed. A refusal is one stderr line that begins "REFUSED: ", and it writes
-# nothing. stdout: digest prints the digest, report and verdict the path they wrote, check the line
-# "ACCEPTED r<n> <digest>". Before it writes anything, a report run claims its number and a verdict
-# run the number of the report it decides (see claim below): of two runs at once only one gets the
-# claim, and only that one creates plan.r<n>/ and the final file; the other is refused and touches
-# nothing. A report or verdict file is written to a temporary name in the folder it lands in and
-# then hard-linked to its final name, which never overwrites, so a reader never sees half a file.
-# The copy folder plan.r<n>/ is filled before its report is linked: a reader finds a copy through
-# its report. Everything written is made readable by every account, since the other level's
-# session may run as another user.
+# nothing - but for a takeover before it (take_over below), which removes only the claim, and the
+# temporary file, of a run that provably no longer runs. stdout: digest prints the digest, report
+# and verdict the path they wrote, check the line "ACCEPTED r<n> <digest>". Before it writes
+# anything, a report run claims its number and a verdict run the number of the report it decides
+# (see claim below): of two runs at once only one gets the claim, and only that one creates
+# plan.r<n>/ and the final file; the other is refused and touches nothing. A report or verdict file
+# is written to a temporary name in the folder it lands in and then hard-linked to its final name,
+# which never overwrites, so a reader never sees half a file. The copy folder plan.r<n>/ is filled
+# before its report is linked: a reader finds a copy through its report. Everything written is made
+# readable by every account, since the other level's session may run as another user.
+#
+# Where a store may live: on a filesystem with hard links, an exclusive create (O_CREAT|O_EXCL) and
+# unix permission bits - ext4, the one the tests ran on, and by their documentation the other usual
+# local ones, xfs, btrfs, zfs, tmpfs, APFS and HFS+. Not FAT, vfat or exFAT: no hard links, and
+# chmod fails there. On a filesystem without hard links every report and verdict fails with exit 2,
+# its message naming this requirement (publish_file); there is no fallback. A network, FUSE or
+# synced folder is UNVERIFIED: whether O_EXCL and a link are exclusive there, across hosts, was
+# never tested. A run killed by SIGKILL leaves its claim; on Linux a later run on the same host takes
+# it over once that run provably no longer runs (take_over), elsewhere a person removes it.
 #
 # A symlink anywhere in a plan folder, or in a copy folder, is refused: find does not follow links,
 # so a linked file or folder would sit beside the plan without moving its digest.
@@ -64,48 +74,204 @@ fi
 hash_of() { sha <"$1" | cut -c1-64; }
 
 # What this run made and has not yet published: the trap removes it - the copy folder of a report
-# that was not linked, and a temporary file - and then the claim this run holds, always. Three
-# scalars and no array: an empty array under `set -u` is an error in the bash 3.2 that macOS ships.
-# The claim goes last: until the copy folder is gone, no other run can take the number and find it.
-TMP_DIR='' TMP_FILE='' CLAIM=''
+# that was not linked, and a temporary file - and then the claim this run holds, and last the
+# takeover lock it holds (take_over), always. Four scalars and no array: an empty array under
+# `set -u` is an error in the bash 3.2 that macOS ships. The claim goes after the copy folder: until
+# the copy folder is gone, no other run can take the number and find it.
+TMP_DIR='' TMP_FILE='' CLAIM='' LOCK=''
 cleanup() {
 	[ -z "$TMP_DIR" ] || rm -rf -- "$TMP_DIR"
 	[ -z "$TMP_FILE" ] || rm -f -- "$TMP_FILE"
 	[ -z "$CLAIM" ] || rm -f -- "$CLAIM"
+	[ -z "$LOCK" ] || rm -f -- "$LOCK"
 }
 trap cleanup EXIT
 
-# claim <file> <refusal>: makes this run the one writer of a number, or refuses with <refusal> when
-# another run holds it. The claim is the empty file <file>, created by bash itself with noclobber
-# (set -C), which opens a name that is not there with O_CREAT|O_EXCL: of two runs at once only one
-# creates it. Not mkdir, and not a test for the name followed by a write: whether mkdir fails on a
-# name that exists depends on the coreutils, and the open is bash's own. Measured on a host whose
-# mkdir is uutils coreutils 0.10.0: two mkdir calls racing on one name both exited 0 in 11 of 40
-# tries (GNU mkdir 0 of 40, these set -C opens 0 of 40); with the copy folder claimed by mkdir, two
-# reports at once, each delayed 1 s before its mkdir, both wrote into one folder in 10 of 20 runs -
-# either both failed, or the loser's trap removed the winner's copy after its report was linked.
-# A claim names a file in briefs/<project>/, never one in a plan or copy folder, so no digest reads
-# it; it starts ".plan-gate." like the temporary files, and the trap removes it on every exit the
-# trap sees - done, refused, failed, or ended by TERM, HUP or INT. A run killed by SIGKILL, or by a
-# signal that lands between the claim's subshell and CLAIM=$1, runs no trap and leaves its claim:
-# every later run for that number is then refused here until someone removes the file, so the
-# refusal names it, and says to remove it only when no run is writing - a live run's claim looks the
-# same. Because a claim is removed, a run that read the store before another run published that
-# number can claim it afterwards: the caller tests again under the claim.
-claim() {
-	if ! (set -C && : >"$1") 2>/dev/null; then
-		if [ -e "$1" ]; then refuse "$2; when no run is writing, remove $1 by hand"; fi
-		io "writing $1"
+# hold_signals, then release_signals: between the two a TERM, HUP or INT does not end the run at
+# once. It is held - its trap only notes it - and release_signals restores the default and sends it
+# to this bash again, so the EXIT trap runs then, reading variables that are true by that time. One
+# held signal is kept, the last. Bash runs a trap as soon as the foreground command exits, so with
+# the EXIT trap alone a TERM that arrived while ln ran removed plan.r<n>/ of a report ln had just
+# linked [flow-product-level/review-2.md finding-2] [flow-product-level/follow-ups.md FR2-1]:
+# publish_file holds the signals from before ln until TMP_DIR is cleared. claim and take_over hold
+# them from before each create until the variable that tells the trap about the new file is set, so
+# a signal that lands between the two - after the create, before CLAIM=$1 or LOCK=$lock - no longer
+# leaves a claim or a lock behind. That holds because the create runs in this bash (create_line): a
+# ( ) subshell resets the traps, so an INT to the whole process group - Ctrl-C - ended a create's
+# subshell after its open and the file was left [flow-gate-hardening/review-1.md finding-1]. A run
+# that exits while it holds a signal - refused, or a write failed - ends with that exit's status,
+# the signal dropped.
+HELD=''
+hold_signals() {
+	HELD=''
+	trap 'HELD=TERM' TERM
+	trap 'HELD=HUP' HUP
+	trap 'HELD=INT' INT
+}
+release_signals() {
+	trap - TERM HUP INT
+	if [ -n "$HELD" ]; then kill -s "$HELD" "$$"; fi
+}
+
+# proc_stat <line of /proc/<pid>/stat>: sets P_STATE and P_START, the process's state and its start
+# time in clock ticks since boot - fields 3 and 22, counted after the last ") ", since the command
+# name in field 2 may hold spaces and parentheses.
+proc_stat() {
+	local IFS=' '
+	set -f
+	# shellcheck disable=SC2086 # split into fields on purpose; globbing is off
+	set -- ${1##*) }
+	set +f
+	P_STATE=${1:-} P_START=${20:-}
+}
+# whoami: sets ME, the line this run writes into each claim it makes, "<host> <boot id> <pid
+# namespace> <pid> <start>" - the host's name (uname -n), the kernel's boot id, this process's pid
+# namespace, this bash's pid and its start time (proc_stat). Together they name one process for as
+# long as the host runs: a pid is reused only by a process that starts later. Linux only, read from
+# /proc; ME is empty where there is no /proc, or where /proc is another pid namespace's - it gives
+# this bash a pid that is not $$ - and then no later run can prove this run's claims stale. Read in
+# the main shell, never in $( ): only there is /proc/self this bash.
+ME=''
+whoami() {
+	local stat boot host ns
+	ME=''
+	{ read -r stat </proc/self/stat && read -r boot </proc/sys/kernel/random/boot_id; } 2>/dev/null || return 0
+	[ "${stat%% *}" = "$$" ] || return 0
+	host=$(uname -n 2>/dev/null) && ns=$(readlink /proc/self/ns/pid 2>/dev/null) || return 0
+	proc_stat "$stat"
+	case "$host:$boot:$ns:$P_START" in *[[:space:]]* | :* | *::* | *:) return 0 ;; esac
+	case $P_START in *[!0-9]*) return 0 ;; esac
+	ME="$host $boot $ns $$ $P_START"
+}
+# owner_gone <claim line>: whether the run that wrote the line still runs. 0: provably not - no
+# process has its pid (kill -0 says "No such process"), or the process with that pid started at
+# another time, the pid reused, or is a zombie, which runs no trap again. 1: provably yes. 2: this run
+# cannot tell - an empty line (a claim written before glab 0.14.1, or by a run killed between the
+# claim's create and its write, or by one whose ME was empty), another host, boot or pid namespace,
+# or a process this account may not inspect (kill -0 says "Operation not permitted" when /proc hides
+# it). Only 0 lets take_over remove a claim, so every doubt keeps the refusal. Only the bash is
+# checked: a child of that run, an ln in flight, can outlive a SIGKILL sent to the bash alone, which
+# is harmless - the new run refuses on the plan.r<n>/ that child may leave, and ln never overwrites.
+owner_gone() {
+	local stat
+	[ -n "$ME" ] || return 2
+	set -f
+	# shellcheck disable=SC2086 # split into fields on purpose; globbing is off
+	set -- $1
+	set +f
+	[ $# -eq 5 ] && [ "$1 $2 $3" = "${ME% * *}" ] || return 2
+	case $4$5 in *[!0-9]*) return 2 ;; esac
+	if { read -r stat <"/proc/$4/stat"; } 2>/dev/null; then
+		proc_stat "$stat"
+		case $P_START in '' | *[!0-9]*) return 2 ;; esac
+		case $P_STATE in Z | X) return 0 ;; esac
+		if [ "$P_START" = "$5" ]; then return 1; fi
+		return 0
 	fi
-	CLAIM=$1
+	case $(kill -0 "$4" 2>&1) in *'No such process'*) return 0 ;; esac
+	return 2
+}
+# create_line <file>: creates <file> holding the line ME, with bash's own O_CREAT|O_EXCL open
+# (noclobber, set -C) under umask 022; 1 when the name is there or the write fails, bash's message
+# dropped, so that the caller's refusal stays the one line on stderr. In this bash, not a ( )
+# subshell, so that the signals held around it stay held (hold_signals). It turns noclobber off and
+# puts back MASK, the umask this run started with, on either result: nothing else in this script
+# sets either. MASK is read once here, before any signal is held, since $( ) is a subshell too.
+MASK=$(umask)
+create_line() {
+	local rc=0
+	umask 022
+	set -C
+	{ printf '%s\n' "$ME" >"$1"; } 2>/dev/null || rc=1
+	set +C
+	umask "$MASK"
+	return "$rc"
+}
+
+# claim <file> <refusal>: makes this run the one writer of a number, or refuses with <refusal> when
+# another run holds it. The claim is the file <file> holding the line ME, created by bash itself with
+# noclobber (set -C), which opens a name that is not there with O_CREAT|O_EXCL: of two runs at once
+# only one creates it. Not mkdir, and not a test for the name followed by a write: whether mkdir
+# fails on a name that exists depends on the coreutils, and the open is bash's own. Measured on a
+# host whose mkdir is uutils coreutils 0.10.0: two mkdir calls racing on one name both exited 0 in
+# 11 of 40 tries (GNU mkdir 0 of 40, these set -C opens 0 of 40); with the copy folder claimed by
+# mkdir, two reports at once, each delayed 1 s before its mkdir, both wrote into one folder in 10 of
+# 20 runs - either both failed, or the loser's trap removed the winner's copy after its report was
+# linked. A claim names a file in briefs/<project>/, never one in a plan or copy folder, so no digest
+# reads it; it starts ".plan-gate." like the temporary files, and the trap removes it on every exit
+# the trap sees - done, refused, failed, or ended by TERM, HUP or INT, also one that lands between
+# the create and CLAIM=$1, which is held (hold_signals). It is made under umask 022, so that a run of
+# the other level's account can read the line. A run killed by SIGKILL runs no trap and leaves its
+# claim: a later run finds it and hands it to take_over, which takes it over when that run provably
+# no longer runs and otherwise refuses, naming the file - a live run's claim and one that cannot be
+# proven stale look the same to a person. Because a claim is removed, a run that read the store
+# before another run published that number can claim it afterwards: the caller tests again under
+# the claim.
+claim() {
+	whoami
+	hold_signals
+	if create_line "$1"; then
+		CLAIM=$1
+		release_signals
+		return 0
+	fi
+	release_signals
+	[ -e "$1" ] || io "writing $1"
+	take_over "$1" "$2"
+}
+# take_over <claim> <refusal>: the claim <claim> is there and is not this run's. Takes it over when
+# the run that made it provably no longer runs (owner_gone), removing first the temporary file that
+# run left (claimed_tmp's name) [flow-product-level/follow-ups.md FR2-2]; else refuses with
+# <refusal>, naming the claim, and the temporary file too when there is one and the claim's run is
+# not proven alive. The takeover is
+# itself exclusive: it holds the lock .plan-gate.takeover.<kind and number>, created as a claim is,
+# and under the lock reads the claim again and removes it only when it still holds the line found
+# stale. Of two runs that both found it stale, one makes the lock and the other is refused; a run
+# that found it stale before another run took it over finds that run's line under the lock, and is
+# refused. Nothing but its holder or a takeover removes a claim, and a takeover needs the lock, so
+# the line read under the lock stays the claim's until this run removes it; a line names one process,
+# so a new claim never repeats a stale one. The claim is read with head, one line - a claim is one.
+# A run killed by SIGKILL while it holds the lock, a few commands long, leaves the lock: every later
+# takeover of that number is refused, naming it, until someone removes it.
+take_over() {
+	local line again kind=${1##*/.plan-gate.claim.}
+	local tmp=${1%/*}/.plan-gate.tmp.$kind lock=${1%/*}/.plan-gate.takeover.$kind
+	line=$(head -n 1 -- "$1" 2>/dev/null)
+	owner_gone "$line"
+	case $? in
+	0) ;;
+	1) refuse "$2; when no run is writing, remove $1 by hand" ;;
+	*)
+		if [ -e "$tmp" ]; then refuse "$2; when no run is writing, remove $1 and $tmp by hand"; fi
+		refuse "$2; when no run is writing, remove $1 by hand"
+		;;
+	esac
+	hold_signals
+	if ! create_line "$lock"; then
+		release_signals
+		if [ -e "$lock" ]; then refuse "$2; when no run is writing, remove $lock by hand"; fi
+		io "writing $lock"
+	fi
+	LOCK=$lock
+	again=$(head -n 1 -- "$1" 2>/dev/null)
+	if [ "$again" = "$line" ]; then rm -f -- "$tmp" "$1" || io "writing $1"; fi
+	if create_line "$1"; then CLAIM=$1; fi
+	rm -f -- "$lock" || io "writing $lock"
+	LOCK=''
+	release_signals
+	if [ -z "$CLAIM" ]; then
+		[ -e "$1" ] || io "writing $1"
+		refuse "$2; when no run is writing, remove $1 by hand"
+	fi
 }
 # claimed_tmp: sets TMP_FILE to the temporary file of the claim this run holds, .plan-gate.tmp.<the
 # claim's kind and number>, and makes it, empty, in place of any file a killed run left under that
 # name. The name is fixed and set before the file is made, so the trap removes the file whatever
 # moment a signal lands: with mktemp in a command substitution, a SIGINT to bash while mktemp ran
 # left a .plan-gate.XXXXXX file, the trap running after the substitution and before the assignment.
-# Only the claim's holder uses the name. rm first, because the file a killed run left may be a link
-# to a name it published; the create is bash's own O_EXCL open, as in claim.
+# Only the claim's holder uses the name, and take_over, which removes the file of a stale claim under
+# its lock before it holds the claim itself. rm first, because the file a killed run left may be a
+# link to a name it published; the create is bash's own O_EXCL open, as in claim.
 claimed_tmp() {
 	TMP_FILE=${CLAIM%/*}/.plan-gate.tmp.${CLAIM##*/.plan-gate.claim.}
 	if ! { rm -f -- "$TMP_FILE" && (set -C && : >"$TMP_FILE") 2>/dev/null; }; then io 'making a temporary file'; fi
@@ -203,17 +369,30 @@ read_verdict() {
 # level's user too - the umask can leave it readable by this account alone, and the store is shared.
 # Called under the claim, so no other run of this script writes that name; ln never overwrites all
 # the same: when the name is already there, something else wrote it, and this run is refused with
-# <refusal>; the trap removes the temporary file, and this run's copy folder with it.
+# <refusal>; the trap removes the temporary file, and this run's copy folder with it. When ln fails
+# but the final name is the temporary file itself (-ef), ln made the link and was then killed - a
+# Ctrl-C reaches the whole process group, ln too - and the file is published. Any other failure of
+# ln ends the run with exit 2 and ln's own message, and names the requirement: a filesystem without
+# hard links fails here on every write (the header). The message is not parsed to tell that case
+# from another: for the same EPERM, GNU ln says "Operation not permitted" and uutils ln 0.10.0
+# "Permission denied". There is no fallback to a write that can be seen half done, or to mv, which
+# overwrites. TERM, HUP and INT are held from before ln until TMP_DIR is cleared (hold_signals).
 publish_file() {
+	local e
 	chmod 644 "$TMP_FILE" || io "writing $1"
-	if ! ln -- "$TMP_FILE" "$1" 2>/dev/null; then
+	hold_signals
+	if ! e=$(ln -- "$TMP_FILE" "$1" 2>&1) && ! [ "$TMP_FILE" -ef "$1" ]; then
+		release_signals
 		if [ -e "$1" ]; then refuse "$2"; fi
-		io "writing $1"
+		e=${e//$'\n'/ }
+		echo "plan-gate.sh: writing $1 failed: ${e:-ln printed nothing}; plan-gate.sh publishes with a hard link, so the store must be on a filesystem that has them - the header of plan-gate.sh names them" >&2
+		exit 2
 	fi
 	# The file is published: from here the copy folder is the report's, and the trap must not remove
 	# it. Cleared before the rm, not after: a TERM while rm ran let the trap remove plan.r<n>/ of a
 	# report already linked, and every later verdict and report on the project was refused.
 	TMP_DIR=''
+	release_signals
 	rm -f -- "$TMP_FILE"
 	TMP_FILE=''
 }

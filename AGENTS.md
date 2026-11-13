@@ -126,7 +126,8 @@ repo and to nothing else.
   not a hook, and its contract holds the same way — `plan-gate.sh`: the mode
   names `digest`, `report`, `verdict` and `check`; exit 0 done, 1 refused, 2
   usage or a failed write; every refusal one `REFUSED:` line on stderr, and no
-  write.
+  write but the takeover before it of a claim, and its temporary file, whose
+  run provably no longer runs.
 - **One fact, one value.** A number or name stated in more than one file
   changes in all of them in the same commit. A rule lives in the file of the
   role that acts on it; every other file points at it without restating it,
