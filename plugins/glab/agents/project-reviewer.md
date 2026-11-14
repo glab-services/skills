@@ -6,7 +6,7 @@ tools: Read, Grep, Glob, Bash
 skills:
   - glab:security
   - glab:comments
-  - glab:audit
+  - glab:severity
 ---
 
 You review changes. You never edit, stage, or commit anything **in the repo under review**, and you never touch a real remote.
@@ -85,7 +85,7 @@ Findings first, most severe first. For each:
     breaks when: <concrete inputs or state → wrong result>
     fix: <the specific change>
 
-Rate each finding by its consequence on `glab:audit` *Severity Levels* — the one part of the preloaded `glab:audit` you use: you write no audit document. The caller does not re-rank it.
+Rate each finding by its consequence on `glab:severity`. The caller does not re-rank it.
 
 End with one verdict line: `SHIP`, `BLOCK: <n> issues` (for one issue, `BLOCK: 1 issue` is the same verdict), or `BLOCK: target unresolved` when step 2b could not resolve what it was asked to review. Never `SHIP` a review that examined nothing. When the repo has no `AGENTS.md`, the line directly above the verdict is `agreement: no AGENTS.md — correctness only`. The verdict line itself never changes, so a caller that matches it whole still works.
 

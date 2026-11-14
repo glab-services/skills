@@ -17,8 +17,9 @@ and this file disagree about how to work *in this repo*, this file wins.
   verified, what is open (*Rules*, the `plan/` rule).
 - `tests/` (the scripts' tests, and `tests/fixtures/product-loop/`, the
   walkthrough's sample product), `plan/` (the working area of changes in
-  progress), `docs/`, `host.example.md`, `README.md` and this file belong to
-  the repo and to neither plugin.
+  progress), `docs/`, `host.example.md`, `README.md`, `.gitignore` (it holds
+  `plan/handoff/`, the managers' per-session handoff files) and this file
+  belong to the repo and to neither plugin.
 
 ## Gates
 
@@ -73,14 +74,14 @@ the end. `CLAUDE_CONFIG_DIR` is never exported empty.
 Green is:
 
 - three `✔ Validation passed` lines;
-- for `glab`: `Skills (21)` naming `audit`, `bootstrap`, `comments`, `commit`, `product-manager`, `product-plan`, `product-plan-analyze`, `product-project-brief`, `product-project-plan-analyze`, `product-project-plan-verdict`, `project-analyze`, `project-develop`, `project-integrate`, `project-manager`, `project-plan`, `project-plan-report`, `project-review`, `project-ship`, `push`, `security` and `session-rules`, `Agents (9)` naming `committer`, `product-analyzer`, `product-planner`, `project-analyzer`, `project-developer`, `project-integrator`, `project-plan-analyzer`, `project-planner` and `project-reviewer` in any order (the CLI lists them in directory read order, which is not stable), and `Hooks (4)  SessionStart, UserPromptSubmit, PostToolUse, Stop`;
+- for `glab`: `Skills (22)` naming `audit`, `bootstrap`, `comments`, `commit`, `product-manager`, `product-plan`, `product-plan-analyze`, `product-project-brief`, `product-project-plan-analyze`, `product-project-plan-verdict`, `project-analyze`, `project-develop`, `project-integrate`, `project-manager`, `project-plan`, `project-plan-report`, `project-review`, `project-ship`, `push`, `security`, `session-rules` and `severity`, `Agents (9)` naming `committer`, `product-analyzer`, `product-planner`, `project-analyzer`, `project-developer`, `project-integrator`, `project-plan-analyzer`, `project-planner` and `project-reviewer` in any order (the CLI lists them in directory read order, which is not stable), and `Hooks (4)  SessionStart, UserPromptSubmit, PostToolUse, Stop`;
 - for `memory-sync`: `Skills (1)  sync-memory`, `Agents (0)`, and `Hooks (4)  SessionStart, SessionEnd, PostToolUse, Stop`;
 - each of those two `Hooks` lines followed, on the same line, by `  (harness-only — no model context cost)`: the CLI prints that suffix, and it is expected;
 - `glab = glab` and `memory-sync = memory-sync`. Validation does not compare a marketplace entry with the plugin it points at; it passes with a wrong name and with a directory that does not exist;
 - `:0` after each `hooks.json`, then `rc=1`. `grep -c` exits 1 when it counts nothing, and nothing is the green result here. A `${user_config.…}` in a hook command passes validation and fails when the hook runs;
 - a count of `1` or more after each of the three files, then `rc=0`. Read the counts, not the `rc`: `grep -c` exits 0 as soon as one file matches. The phrase is the hedge on `CLAUDE_CODE_SESSIONEND_HOOKS_TIMEOUT_MS` — documented as the override for the `SessionEnd` budget, not yet shown to cover a hook that a plugin provides — and no other gate notices when the script comment, the skill or the README starts stating it as fact;
 - exactly these nine lines, then `rc=0`: `plugins/glab/agents/project-analyzer.md:model: sonnet`, `plugins/glab/agents/committer.md:model: haiku`, `plugins/glab/agents/project-developer.md:model: sonnet`, `plugins/glab/agents/project-integrator.md:model: sonnet`, `plugins/glab/agents/project-plan-analyzer.md:model: opus`, `plugins/glab/agents/project-planner.md:model: opus`, `plugins/glab/agents/product-analyzer.md:model: opus`, `plugins/glab/agents/product-planner.md:model: opus`, `plugins/glab/agents/project-reviewer.md:model: sonnet`. `plugin validate --strict` passes an unknown model value and `plugin details` shows none, so nothing else catches a typo;
-- from the skills gate, exactly these eighteen lines, none ending `MISSING`: `plugins/glab/agents/project-analyzer.md:glab:security`, `plugins/glab/agents/project-analyzer.md:glab:audit`, `plugins/glab/agents/committer.md:glab:security`, `plugins/glab/agents/project-developer.md:glab:security`, `plugins/glab/agents/project-developer.md:glab:comments`, `plugins/glab/agents/project-integrator.md:glab:security`, `plugins/glab/agents/project-integrator.md:glab:comments`, `plugins/glab/agents/project-plan-analyzer.md:glab:security`, `plugins/glab/agents/project-plan-analyzer.md:glab:audit`, `plugins/glab/agents/project-planner.md:glab:project-plan`, `plugins/glab/agents/project-planner.md:glab:security`, `plugins/glab/agents/product-analyzer.md:glab:security`, `plugins/glab/agents/product-analyzer.md:glab:audit`, `plugins/glab/agents/product-planner.md:glab:product-plan`, `plugins/glab/agents/product-planner.md:glab:security`, `plugins/glab/agents/project-reviewer.md:glab:security`, `plugins/glab/agents/project-reviewer.md:glab:comments`, `plugins/glab/agents/project-reviewer.md:glab:audit`. A line ends `MISSING` when its entry names no `skills/<name>/SKILL.md` in that plugin, when that file's frontmatter has no line `name: <name>` — Claude Code names a plugin skill by that line, not by its directory — or when it carries another plugin's prefix. `plugin validate --strict` passes an agent's `skills:` entry that names no skill and `plugin details` does not show the lists, so nothing else catches a typo;
+- from the skills gate, exactly these eighteen lines, none ending `MISSING`: `plugins/glab/agents/project-analyzer.md:glab:security`, `plugins/glab/agents/project-analyzer.md:glab:severity`, `plugins/glab/agents/committer.md:glab:security`, `plugins/glab/agents/project-developer.md:glab:security`, `plugins/glab/agents/project-developer.md:glab:comments`, `plugins/glab/agents/project-integrator.md:glab:security`, `plugins/glab/agents/project-integrator.md:glab:comments`, `plugins/glab/agents/project-plan-analyzer.md:glab:security`, `plugins/glab/agents/project-plan-analyzer.md:glab:severity`, `plugins/glab/agents/project-planner.md:glab:project-plan`, `plugins/glab/agents/project-planner.md:glab:security`, `plugins/glab/agents/product-analyzer.md:glab:security`, `plugins/glab/agents/product-analyzer.md:glab:severity`, `plugins/glab/agents/product-planner.md:glab:product-plan`, `plugins/glab/agents/product-planner.md:glab:security`, `plugins/glab/agents/project-reviewer.md:glab:security`, `plugins/glab/agents/project-reviewer.md:glab:comments`, `plugins/glab/agents/project-reviewer.md:glab:severity`. A line ends `MISSING` when its entry names no `skills/<name>/SKILL.md` in that plugin, when that file's frontmatter has no line `name: <name>` — Claude Code names a plugin skill by that line, not by its directory — or when it carries another plugin's prefix. `plugin validate --strict` passes an agent's `skills:` entry that names no skill and `plugin details` does not show the lists, so nothing else catches a typo;
 - no line, then `rc=1`, from the last command. A frontmatter `name:` that carries the plugin prefix passes validation and `plugin details`, and nothing else catches it.
 
 The Markdown files have no gate. A change to one is verified by running the
@@ -122,10 +123,13 @@ repo and to nothing else.
   `manager-bootstrap.sh`: exit 0 on every path, on stdout one JSON object
   whose only key is `hookSpecificOutput`, or the plain text when `jq` fails,
   messages on stderr, and the level read from the first `glab-level:` line of
-  the repo's `AGENTS.md` — the project level when there is none. One script is
-  not a hook, and its contract holds the same way — `plan-gate.sh`: the mode
-  names `digest`, `report`, `verdict` and `check`; exit 0 done, 1 refused, 2
-  usage or a failed write; every refusal one `REFUSED:` line on stderr, and no
+  the repo's `AGENTS.md` — the project level when there is none; it reads
+  `session_id` from stdin with `jq`, never from a terminal, and names
+  `plan/handoff/<id>.md` only for an id matching
+  `^[A-Za-z0-9][A-Za-z0-9_-]{0,127}$`, the `no session id` line otherwise.
+  One script is not a hook, and its contract holds the same way —
+  `plan-gate.sh`: the mode names `digest`, `report`, `verdict` and `check`;
+  exit 0 done, 1 refused, 2 usage or a failed write; every refusal one `REFUSED:` line on stderr, and no
   write but the takeover before it of a claim, and its temporary file, whose
   run provably no longer runs.
 - **One fact, one value.** A number or name stated in more than one file
@@ -178,7 +182,8 @@ repo and to nothing else.
   (`plugins/glab/agents/project-reviewer.md`, `plugins/glab/skills/project-manager/SKILL.md`,
   `plugins/glab/skills/project-ship/SKILL.md`); the severity levels — `critical`,
   `high`, `medium`, `low` — their meanings in
-  `plugins/glab/skills/audit/SKILL.md` only, their four names in the
+  `plugins/glab/skills/severity/SKILL.md` only, which
+  `plugins/glab/skills/audit/SKILL.md` points at, their four names in the
   *Report* of `plugins/glab/agents/project-reviewer.md`,
   `plugins/glab/agents/project-analyzer.md`, `plugins/glab/agents/project-plan-analyzer.md`
   and `plugins/glab/agents/product-analyzer.md`;
@@ -198,9 +203,13 @@ repo and to nothing else.
   the round copies `plugins/glab/scripts/plan-gate.sh`, which leaves them out
   of the digest, `plugins/glab/skills/project-manager/SKILL.md` Stage 1c and
   `plugins/glab/skills/product-plan-analyze/SKILL.md`);
-  the handoff file `plan/SESSION-HANDOFF.md`
-  (`plugins/glab/skills/bootstrap/SKILL.md` step 5,
-  `plugins/glab/skills/session-rules/SKILL.md` Rule 2); the `glab` context
+  the handoff file `plan/handoff/<session id>.md` — at most 4096 bytes, its
+  `- status:` first line, and the standing approval that removes a completed one
+  (`plugins/glab/skills/session-rules/SKILL.md` Rule 2,
+  `plugins/glab/skills/bootstrap/SKILL.md` step 5, the pointers in
+  `plugins/glab/skills/security/SKILL.md` and Rule 3,
+  `plugins/glab/scripts/manager-bootstrap.sh`,
+  `tests/manager-bootstrap.test.sh`); the `glab` context
   hook — the modes `prompt`, `agent` and `stop` on `UserPromptSubmit`,
   `PostToolUse` with matcher `Agent` and `Stop`, the line
   `glab: context <n>k (last completed call)`,
@@ -355,8 +364,9 @@ repo and to nothing else.
   `git show <sha>:plan/<slug>/<file>`, the list
   `git ls-tree -r --name-only <sha> -- plan/<slug>/`, the whole folder
   `git archive <sha> plan/<slug>/ | tar -x -C "$(mktemp -d "${TMPDIR:?}/plan.XXXXXX")"`.
-  No untracked file under `plan/` is removed; `plan/SESSION-HANDOFF.md` is
-  never committed.
+  No untracked file under `plan/` is removed, except a completed handoff file
+  under `glab:session-rules` Rule 2's standing approval;
+  `plan/handoff/` is never committed.
 - **A change under `plugins/<name>/` raises that plugin's `version`** in
   `plugins/<name>/.claude-plugin/plugin.json`, in the same commit. When one
   push carries several commits of one change — one per sub-plan — the first

@@ -5,7 +5,7 @@ model: opus
 tools: Read, Grep, Glob, Bash
 skills:
   - glab:security
-  - glab:audit
+  - glab:severity
 ---
 
 You answer exactly one question: **can this plan be built exactly as written?** With a master you also ask whether it delivers what the user asked for (*The intent question*).
@@ -106,7 +106,7 @@ Do not re-walk what the delta leaves alone; it passed the round before. `diff` e
     gap:       <only when not buildable>
     severity:  <only when not buildable: critical | high | medium | low>
 
-Rate each gap by what it costs if the plan is built as it stands, on `glab:audit` *Severity Levels* — the one part of the preloaded `glab:audit` you use: you write no audit document.
+Rate each gap by what it costs if the plan is built as it stands, on `glab:severity`.
 
 Then any plan precondition that no longer holds.
 

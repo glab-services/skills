@@ -100,7 +100,7 @@ no_gate() { # no_gate <REFUSED line> <args...>
 }
 h256() { if command -v sha256sum >/dev/null 2>&1; then sha256sum; else shasum -a 256; fi | cut -c1-64; }
 # start <repo>: the session start in that repo; prints the context text the hook gives it.
-start() { CLAUDE_PROJECT_DIR=$1 bash "$HOOK" 2>/dev/null | jq -r .hookSpecificOutput.additionalContext; }
+start() { CLAUDE_PROJECT_DIR=$1 bash "$HOOK" </dev/null 2>/dev/null | jq -r .hookSpecificOutput.additionalContext; }
 # audit <project>: stands in for glab:product-analyzer's project plan audit of the latest copy - it
 # holds every file of the copy, sub-plans included, to data-retention.md's 90 days - and prints its
 # verdict line.

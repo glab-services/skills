@@ -122,3 +122,55 @@ step 5:                  every line "<skill> [<string>] missing"   (15 lines; no
 ```
 
 The same strings in today's `manager/SKILL.md` (`/usr/bin/grep -c`): `^## Stage ` 11, `sha256sum` 1, `Plan acceptance checklist` 1, `NOT BUILDABLE` 3, `DIVERGES` 5, `-analyze-r` 1, `PLAN WRONG` 4, `INTEGRATED` 2, `after-verdict.md` 2, `docs/specs` 2, `SHIP` 1. `schema or data migration` occurs once in the manager and 0 times in `plan/SKILL.md`. Those are the texts 03 moves. No step-5 string is in today's source of the skill it is searched in, so none passes after 01-rename alone: `project-plan`'s string is 0 in `plan/SKILL.md`; `project-analyze` is searched for `-analyze-r` (0 in `analyze/SKILL.md`), not `DIVERGES` (1 there, round 2 N1); `after-verdict.md` 0 in `product-project-plan-report`, `PLAN WRONG` and `BLOCKED` 0 in `develop`, `INTEGRATED` 0 in `integrate`, `SHIP` 0 in `review`; `project-plan-accept`, `project-plan-analyze` and `project-record` have no source file today. Descriptions: 30 files, and 30 lines match `^description: .\{40,\}`. `bootstrap/SKILL.md` has `## 5. Pick up the handoff` and `## 6. Know the hazards before you trust a result`, which `manager-bootstrap.sh:79` and `AGENTS.md:202` cite by number.
+
+## E9 — `SessionStart` input carries `session_id` (master v2, 2026-11-14)
+
+Source: the Claude Code hooks reference, https://code.claude.com/docs/en/hooks, fetched 2026-11-14 (WebFetch, read in two parts). Paraphrased, one quote:
+
+- *Common input fields*: every hook event receives `session_id` ("Current session identifier"), `transcript_path`, `cwd` and `hook_event_name` as JSON; for command hooks "this JSON arrives via stdin".
+- *SessionStart*: in addition to the common fields it receives `source` — `startup`, `resume`, `clear` (after `/clear`), `compact` (after auto or manual compaction) or `fork` (a new session forked from an existing one) — and optionally `model`, `agent_type`, `session_title`. Its example input holds `"session_id": "abc123"` and `"hook_event_name": "SessionStart"`.
+- It also gives `SessionStart` hooks `CLAUDE_ENV_FILE`; no environment variable carries the session id.
+
+This proves: a `SessionStart` command hook reads `session_id` from stdin, on every `source`, `compact` included.
+
+UNVERIFIED: that `session_id` is unchanged after `/compact` (source `compact`) or on `resume` — neither part of the page says whether it stays or changes; `fork` is described as a new session, so its id is presumably new, also not stated. D25's own-summary rule covers an id that changes.
+
+## E10 — Every naming of the handoff file, and the repo around it (master v2, at `1bbf4bc`)
+
+```
+$ /usr/bin/grep -rn 'SESSION-HANDOFF' plugins README.md AGENTS.md tests docs host.example.md
+plugins/glab/skills/bootstrap/SKILL.md:52      step 5's first bullet
+plugins/glab/skills/session-rules/SKILL.md:79  Rule 2, "The handoff file"
+AGENTS.md:201                                  One fact: "the handoff file `plan/SESSION-HANDOFF.md`"
+AGENTS.md:358                                  plan/ rule: "No untracked file under `plan/` is removed; `plan/SESSION-HANDOFF.md` is never committed."
+docs/specs/marketplace.md:477, :728           current-state lines (the One fact list, the plan/ rule)
+docs/specs/workflow.md:776                     current-state line (the handoff file)
+docs/specs/workflow.md:1439, :1506, :1842, :1865; docs/specs/external-agents.md:2112, :2113, :2170   dated follow-up, decision and incident lines
+```
+(the grep's paths and line numbers; each line's text shortened to what it is). `README.md`, `tests/` and `host.example.md`: no match; `/usr/bin/grep -n -i handoff README.md host.example.md` prints nothing. Other payload lines say "the handoff file" without a path and point at Rule 2: `project-manager/SKILL.md:193`, `product-manager/SKILL.md:70, :88`, `session-rules/SKILL.md:77`.
+
+```
+$ test -e .gitignore; echo $?                      -> 1   (the repo has no .gitignore)
+$ git check-ignore -q plan/handoff/x.md; echo $?   -> 1   (plan/handoff/ is not ignored)
+$ test -e plan/SESSION-HANDOFF.md; echo $?         -> 1   (the shared file is gone from this tree)
+$ wc -c plan/handoff/1028ab57-733a-4f6f-a77a-e2fb1d2fb2c6.md   -> 2968
+$ wc -c plugins/glab/skills/session-rules/SKILL.md plugins/glab/skills/bootstrap/SKILL.md   -> 22530, 8266
+```
+
+- `manager-bootstrap.sh` reads no stdin today: `/usr/bin/grep -n -E 'stdin|read' plugins/glab/scripts/manager-bootstrap.sh` matches only a comment (`:29`) and the text (`:67`).
+- The precedent for reading hook input: `context-size.sh:90` — `tp=$(jq -r '.transcript_path // empty | strings' 2>/dev/null) || fail 'hook input is not JSON'`.
+- `tests/manager-bootstrap.test.sh`'s `hook()` runs `CLAUDE_PROJECT_DIR=$1 bash "$SCRIPT" 2>"$W/err"`, with stdin inherited; its cases are B1–B13. `tests/product-loop.test.sh:103` — `start() { CLAUDE_PROJECT_DIR=$1 bash "$HOOK" 2>/dev/null | jq -r .hookSpecificOutput.additionalContext; }` — inherits stdin too.
+- The rules a removal of an untracked file meets: `security/SKILL.md:146`, "Untracked files, dropped volumes, remote branch history and reset working trees are not recoverable. For those, stop and ask"; `session-rules/SKILL.md:99`, "confirmation before every destructive action and before every push holds at every tier". `wc -c plugins/glab/skills/security/SKILL.md` → 13243, loaded at both session starts.
+- The Record's spec searches on `1bbf4bc`, from `docs/specs/`: `'SESSION-HANDOFF.md` (`glab:bootstrap` step 5'` in `marketplace.md` → 1; `'removed; `plan/SESSION-HANDOFF.md` is'` in `marketplace.md` → 1; `'SESSION-HANDOFF.md` unless the repo keeps it elsewhere'` in `workflow.md` → 2 (`:776` and the dated `:1506`); `'plan/handoff/'` → `marketplace.md:0`, `workflow.md:0`.
+- *Final check* step 8's fourteen `c` posts and its `rule2` and `rule3` posts, run as written on `1bbf4bc`: every line prints `0`.
+
+## E11 — `session_id` across `/compact` and a resume (live, the manager, 2026-11-14)
+
+- **The setup:** a temporary `SessionStart` hook in this repo's `.claude/settings.local.json`, run in one Claude Desktop probe session. Its command was `jq -c '{session_id, source, transcript_path, at: (now | todate)}' >> <temp dir>/sessionstart-1028ab57.log`. The hook was removed afterwards.
+- **The steps:** the session started. The user typed `/compact` in it. The manager archived and unarchived the session, which stops its process, then sent it a message, which resumed it.
+- **The log** (`jq -c '{session_id, source, at}'`):
+  `{"session_id":"fe8a4216-22ae-47b6-a985-95fe2cefcac5","source":"startup","at":"2026-11-14T14:20:09Z"}`
+  `{"session_id":"fe8a4216-22ae-47b6-a985-95fe2cefcac5","source":"compact","at":"2026-11-14T14:23:34Z"}`
+  `{"session_id":"fe8a4216-22ae-47b6-a985-95fe2cefcac5","source":"resume","at":"2026-11-14T14:24:13Z"}`
+- **Proven:** the hook input carries `session_id`, and it is unchanged after `/compact` and after a resume, in Claude Desktop.
+- **Not checked:** a CLI `claude --resume`, and `--fork-session`. The fork case is still inferred to give a new id.

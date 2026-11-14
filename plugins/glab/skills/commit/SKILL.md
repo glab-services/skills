@@ -8,4 +8,6 @@ The entry point of the commit stage of the manager of your level — `glab:proje
 
 Its staging rules, deny-list and message rules are in its own definition; do not restate or override them in the dispatch. If it refuses to stage something, that is the correct outcome — relay the reason, do not work around it.
 
+**Write the dispatch for `haiku`**, the committer's model: every instruction explicit, none left to inference, the work as numbered steps that are references, never content — `1 commit the paths <list>; 2 report as your file says`. The steps point at what it reads and never carry it; you do not read the plan to write them (`glab:session-rules` Rule 2). Its own *Report* section is its template, never pasted into the dispatch.
+
 Report back: commit hash, subject line, and the file list from `git show --stat`.

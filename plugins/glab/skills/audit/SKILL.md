@@ -42,18 +42,13 @@ Fill in `references/plan-template.md`, which carries the full skeleton. Every do
 2. **Architecture Summary** — purpose, tech stack, and place in the larger system. ASCII diagram if the architecture warrants one.
 3. **Working Flow** — the main execution path(s) as numbered phases, with key function calls, goroutines, and data flow.
 4. **Key Findings** — what works well, what is unusual or noteworthy, configuration issues, duplication concerns.
-5. **Issues Table** — every issue, classified by severity.
+5. **Issues Table** — every issue, classified on `glab:severity`.
 6. **Recommendations** — prioritized actionable fixes, grouped by severity, each referencing its issue number.
 7. **Next Steps** — further investigation, decisions that are the user's to make (`glab:session-rules` Rule 3), ready-to-implement items.
 
 ## Severity Levels
 
-| Level | Meaning |
-|-------|---------|
-| **Critical** | Data loss risk, crash risk, security issue, unbounded memory growth |
-| **High** | Correctness bug, significant performance issue, missing essential functionality |
-| **Medium** | Code quality, maintainability, minor bugs |
-| **Low** | Style, naming, documentation, non-critical config |
+The four levels and their meanings are `glab:severity`'s.
 
 ## Format Rules
 
