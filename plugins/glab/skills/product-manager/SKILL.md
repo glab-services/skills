@@ -17,7 +17,7 @@ The list `glab:session-rules` *The level boundary* binds to. Invoke nothing that
 
 - **This skill:** `glab:product-manager`, which `glab:bootstrap` step 2 loads.
 - **The product skills:** `glab:product-plan` (the procedure `glab:product-planner` preloads), `glab:product-plan-analyze`, `glab:product-project-brief`, `glab:product-project-plan-analyze`, `glab:product-project-plan-verdict`.
-- **The skills of every level:** `glab:session-rules`, `glab:bootstrap`, `glab:security`, `glab:comments`, `glab:audit`, `glab:commit`, `glab:push`.
+- **The skills of every level:** `glab:session-rules`, `glab:bootstrap`, `glab:security`, `glab:comments`, `glab:audit`, `glab:severity`, `glab:commit`, `glab:push`.
 - **The agents:** `glab:product-planner`, `glab:product-analyzer`, `glab:committer`.
 
 ## The shared store

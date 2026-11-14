@@ -2,7 +2,7 @@
 # Exercises manager-bootstrap.sh, the SessionStart hook, against repos written here under $TMPDIR.
 # Every run must keep the hook contract - exit 0, stdout one JSON object whose only key is
 # hookSpecificOutput (or the plain text when jq is missing) - and each case checks which level's
-# text it printed.
+# text it printed, and, from its stdin, whether it named the session's handoff file.
 set -uo pipefail
 [ -f "${1:-}" ] || { echo "usage: $(basename "$0") <path to manager-bootstrap.sh>" >&2; exit 2; }
 # Absolute, because the runs below start from other directories.
@@ -37,6 +37,10 @@ WARN_DELIVERY='glab: level "delivery" is not built in this version of glab; this
 PROJECT_MGR='`glab:project-manager` — the operating model of the project level'
 # shellcheck disable=SC2016
 PRODUCT_MGR='`glab:product-manager` — the operating model of the product level'
+# The handoff line's two forms: the path the id names, and the fixed words of the no-id line.
+# shellcheck disable=SC2016
+ID_PATH='`plan/handoff/abc-123.md`'
+NO_ID='no session id'
 
 # repo <name> [AGENTS.md text]: a repo folder, with that AGENTS.md when a text is given.
 repo() {
@@ -44,10 +48,15 @@ repo() {
 	if [ $# -gt 1 ]; then printf '%s\n' "$2" >"$W/$1/AGENTS.md"; fi
 	echo "$W/$1"
 }
-# hook <repo>: runs the hook with CLAUDE_PROJECT_DIR set to the repo; sets OUT, ERR, RC and TEXT, the
-# additionalContext. Asserts the contract on every run.
+# hook <repo> [stdin]: runs the hook with CLAUDE_PROJECT_DIR set to the repo and that text as its
+# hook input - none, /dev/null, when it is not given, so no run inherits the test's own stdin; sets
+# OUT, ERR, RC and TEXT, the additionalContext. Asserts the contract on every run.
 hook() {
-	OUT=$(CLAUDE_PROJECT_DIR=$1 bash "$SCRIPT" 2>"$W/err")
+	if [ $# -gt 1 ]; then
+		OUT=$(printf '%s' "$2" | CLAUDE_PROJECT_DIR=$1 bash "$SCRIPT" 2>"$W/err")
+	else
+		OUT=$(CLAUDE_PROJECT_DIR=$1 bash "$SCRIPT" </dev/null 2>"$W/err")
+	fi
 	RC=$?
 	ERR=$(cat "$W/err")
 	contract
@@ -109,16 +118,19 @@ for t in bash cat cut git grep sed tr; do
 	p=$(command -v "$t") && ln -s "$p" "$W/bin/$t"
 done
 r=$(repo b5 'glab-level: product')
-OUT=$(CLAUDE_PROJECT_DIR=$r PATH=$W/bin bash "$SCRIPT" 2>"$W/err")
+# The input carries an id; without jq it cannot be read, so the plain text has the no-id line, as
+# B2's run without input does.
+OUT=$(printf '%s' '{"session_id":"abc-123"}' | CLAUDE_PROJECT_DIR=$r PATH=$W/bin bash "$SCRIPT" 2>"$W/err")
 RC=$?
 [ "$RC" -eq 0 ] || bad "rc=$RC"
 [ "$OUT" = "$B2_TEXT" ] || bad "stdout is not the plain product text"
 [ -z "$(PATH=$W/bin command -v jq)" ] || bad "jq is still on the test PATH"
-done_case B5 "a PATH without jq: the plain text, exit 0"
+case $OUT in *"$NO_ID"*) ;; *) bad "the plain text lacks the no-id line" ;; esac
+done_case B5 "a PATH without jq: the plain text with the no-id line, exit 0"
 
 # B6
 r=$(repo b6 'glab-level: product')
-OUT=$(cd "$r" && env -u CLAUDE_PROJECT_DIR bash "$SCRIPT" 2>"$W/err")
+OUT=$(cd "$r" && env -u CLAUDE_PROJECT_DIR bash "$SCRIPT" </dev/null 2>"$W/err")
 RC=$?
 ERR=$(cat "$W/err")
 contract
@@ -181,6 +193,61 @@ if command -v git >/dev/null 2>&1 && git -C "$r" init -q 2>/dev/null; then
 else
 	done_case B13 "a session started in a subfolder of its repo: the level read at the repo's top (skipped: no git)"
 fi
+
+# B14
+for a in '' 'glab-level: product'; do
+	if [ -n "$a" ]; then r=$(repo "b14-$RANDOM" "$a"); else r=$(repo "b14-none"); fi
+	hook "$r" '{"session_id":"abc-123","source":"startup"}'
+	has "$ID_PATH"
+	hasnt "$NO_ID"
+	no_err
+done
+done_case B14 "a session id: both levels' texts name plan/handoff/<id>.md"
+
+# B15
+hook "$(repo b15)"
+has "$NO_ID"
+hasnt 'plan/handoff/abc'
+[ "$TEXT" = "$B1_TEXT" ] || bad "the text differs from B1's"
+done_case B15 "no hook input: the no-id line"
+
+# B16: each input that must not give a path - not JSON, no session_id, a number, an empty id, a
+# path, a dot first, a newline inside, 129 characters, two JSON values.
+long=$(printf 'a%.0s' $(seq 129))
+for in in 'not json' '{}' '{"session_id":123}' '{"session_id":""}' '{"session_id":"../x"}' \
+	'{"session_id":".x"}' '{"session_id":"a\nb"}' "{\"session_id\":\"$long\"}" '{"session_id":"a"}{"session_id":"b"}'; do
+	hook "$(repo "b16-$RANDOM")" "$in"
+	has "$NO_ID"
+	hasnt 'plan/handoff/.'
+	hasnt 'plan/handoff/a'
+	no_err
+done
+done_case B16 "an input with no usable id: the no-id line, no path, exit 0"
+
+# B17
+hook "$(repo b17-none)" '{"session_id":"abc-123","source":"compact"}'
+r=$(repo b17-start)
+[ "$TEXT" = "$(cd "$W" && printf '%s' '{"session_id":"abc-123","source":"startup"}' | CLAUDE_PROJECT_DIR=$r bash "$SCRIPT" 2>/dev/null | jq -r .hookSpecificOutput.additionalContext)" ] ||
+	bad "the text after /compact differs from the startup text"
+has "$ID_PATH"
+done_case B17 "source compact: the same text, and path, as at startup"
+
+# B18: a closed stdin, under timeout so a hang fails the case (rc 124) instead of the run.
+r=$(repo b18)
+OUT=$(CLAUDE_PROJECT_DIR=$r timeout 10 bash "$SCRIPT" <&- 2>"$W/err")
+RC=$?
+ERR=$(cat "$W/err")
+contract
+has "$NO_ID"
+no_err
+done_case B18 "a closed stdin: exit 0, the no-id line, no hang"
+
+# B19: an id whose only fault is a trailing newline, which $(...) alone would strip.
+hook "$(repo b19)" '{"session_id":"abc-123\n"}'
+has "$NO_ID"
+hasnt 'plan/handoff/abc'
+no_err
+done_case B19 "an id with a trailing newline: the no-id line, no path"
 
 if [ "$fail" -eq 0 ]; then
 	echo "PASS $pass/$n"

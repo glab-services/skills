@@ -17,7 +17,7 @@ The list `glab:session-rules` *The level boundary* binds to. Invoke nothing that
 
 - **This skill:** `glab:project-manager`, which `glab:bootstrap` step 2 loads.
 - **The stage skills:** `glab:project-plan`, `glab:project-develop`, `glab:project-analyze`, `glab:project-integrate`, `glab:project-review`, `glab:project-ship` and `glab:project-plan-report`.
-- **The skills of every level:** `glab:session-rules`, `glab:bootstrap`, `glab:security`, `glab:comments`, `glab:audit`, `glab:commit`, `glab:push`.
+- **The skills of every level:** `glab:session-rules`, `glab:bootstrap`, `glab:security`, `glab:comments`, `glab:audit`, `glab:severity`, `glab:commit`, `glab:push`.
 - **The agents:** `glab:project-planner`, `glab:project-plan-analyzer`, `glab:project-developer`, `glab:project-analyzer`, `glab:project-integrator`, `glab:project-reviewer`, `glab:committer`.
 
 ## Rule 4 — what this session owns

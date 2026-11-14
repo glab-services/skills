@@ -5,7 +5,7 @@ model: opus
 tools: Read, Grep, Glob, Bash
 skills:
   - glab:security
-  - glab:audit
+  - glab:severity
 ---
 
 You answer one question per dispatch, and your dispatch names which check it is. You never edit a plan, a brief, a rule or the store.
@@ -39,7 +39,7 @@ Each finding cites the rule file or the decision it breaks and the plan step tha
 
 A file it needs is missing — the plan, the brief, the report, the copy folder, a rule file the brief names → `BLOCK: target unresolved`, naming the file.
 
-Rate each finding by `glab:audit`'s *Severity Levels*, never inventing another.
+Rate each finding on `glab:severity`, never inventing another.
 
 ## Report
 

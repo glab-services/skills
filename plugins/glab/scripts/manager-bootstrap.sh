@@ -19,7 +19,7 @@
 #
 # The contract: always exits 0 — a bootstrap that can fail a session start is worse than none; on
 # stdout one JSON object whose only key is hookSpecificOutput, or the plain text when jq fails;
-# messages only on stderr. The warning goes to stderr as well as into the text, for debugging only:
+# messages only on stderr. It reads stdin once, for the session id, only when stdin is not a terminal. The warning goes to stderr as well as into the text, for debugging only:
 # Claude Code shows no stderr of a hook that exits 0 to the session.
 
 dir=${CLAUDE_PROJECT_DIR:-$PWD}
@@ -40,6 +40,38 @@ case $line in
 	esac
 	;;
 esac
+
+# The session id names the session's own handoff file, plan/handoff/<id>.md (glab:session-rules
+# Rule 2). Claude Code gives a command hook its input as JSON on stdin, with `session_id` on every
+# SessionStart source - startup, resume, clear, compact - and the id stays the same across /compact
+# and a resume (measured live in Claude Desktop, 2026-11-14: unchanged across startup, /compact
+# and resume). Only an id of letters, digits, `_` and `-`, beginning with a
+# letter or digit and at most 128 long, is used, so no input can name a path outside plan/handoff/.
+# A terminal on stdin is never read: a person running this by hand would wait on it. No input,
+# input that is not JSON, no `session_id`, an id that fails the match, or no jq give the no-id line,
+# whose fixed words `no session id` tell the manager to name the file itself.
+# A closed stdin is replaced by /dev/null first (a copy to fd 3 fails on it; `0<&0` would not): the
+# $(...) pipe would take fd 0, and jq would wait on its own pipe.
+# The `.` after jq's output keeps an id's own trailing newline, which $(...) would
+# strip, so `abc` plus a newline fails the match below; only jq's own newline is removed.
+{ true 3<&0; } 2>/dev/null || exec </dev/null  # `true`, not `:`: a special builtin's redirection error exits a POSIX-mode shell
+id=''
+if [ ! -t 0 ]; then
+	if id=$(jq -r '.session_id // empty | strings' 2>/dev/null && printf .); then
+		id=${id%.}
+		id=${id%$'\n'}
+	else
+		id=''
+	fi
+fi
+[[ $id =~ ^[A-Za-z0-9][A-Za-z0-9_-]{0,127}$ ]] || id=''
+# The backticks are the text's own Markdown, not a command.
+# shellcheck disable=SC2016
+if [ -n "$id" ]; then
+	HANDOFF=$(printf 'Your handoff file is `plan/handoff/%s.md`, named by the id of this session. What it holds, and when it is removed: `glab:session-rules` Rule 2.' "$id")
+else
+	HANDOFF='Your handoff file: no session id reached this hook, so name it `plan/handoff/<UTC yyyymmddThhmmss>Z.md` and say so once. What it holds, and when it is removed: `glab:session-rules` Rule 2.'
+fi
 
 if [ "$level" = product ]; then
 	HEAD=$(cat <<'CTX_EOF'
@@ -86,7 +118,9 @@ CTX="$HEAD
 
 $BEFORE
 $MANAGER
-$AFTER"
+$AFTER
+
+$HANDOFF"
 if [ -n "$warn" ]; then
 	CTX="$warn
 

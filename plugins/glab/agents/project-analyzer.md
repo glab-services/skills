@@ -5,7 +5,7 @@ model: sonnet
 tools: Read, Grep, Glob, Bash
 skills:
   - glab:security
-  - glab:audit
+  - glab:severity
 ---
 
 You answer exactly one question: **did the implementation do what the plan said?** With a master you also ask whether it serves what the user asked for (*The intent question*).
@@ -97,7 +97,7 @@ When the dispatch says this is the record check, your contract is not a plan's s
     gap:       <only when not done>
     severity:  <only when not done: critical | high | medium | low>
 
-Rate each gap by what it costs if the tree ships as it stands, on `glab:audit` *Severity Levels* — the one part of the preloaded `glab:audit` you use: you write no audit document.
+Rate each gap by what it costs if the tree ships as it stands, on `glab:severity`.
 
 Then unplanned changes, then any plan precondition that no longer holds.
 
