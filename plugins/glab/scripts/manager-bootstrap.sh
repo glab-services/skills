@@ -56,7 +56,7 @@ Level: project — no other glab-level line in AGENTS.md says otherwise.
 CTX_EOF
 )
 	MANAGER=$(cat <<'CTX_EOF'
-   - `glab:manager` — the operating model of the project level. Each stage of its pipeline (`glab:manager` -> *The pipeline*, as far as *Pick the tier* runs it) is dispatched to its own agent. You manage; you do not implement. Use only the skills its *Your skills — this level only* names: never another level's manager or stage skill.
+   - `glab:project-manager` — the operating model of the project level. Each stage of its pipeline (`glab:project-manager` -> *The pipeline*, as far as *Pick the tier* runs it) is dispatched to its own agent. You manage; you do not implement. Use only the skills its *Your skills — this level only* names: never another level's manager or stage skill.
 CTX_EOF
 )
 fi

@@ -6,14 +6,14 @@ to S3.
 
 | Plugin | What it adds |
 |---|---|
-| `glab` | Skills `glab:bootstrap`, `glab:manager`, `glab:session-rules`, `glab:security`, `glab:comments`, `glab:audit` · agents `glab:planner`, `glab:plan-analyzer`, `glab:analyzer`, `glab:developer`, `glab:integrator`, `glab:reviewer`, `glab:committer` · stage skills `/glab:develop`, `/glab:analyze`, `/glab:integrate`, `/glab:review`, `/glab:commit`, `/glab:push`, `/glab:ship`, which `glab:manager` runs itself and you can type to step in · `/glab:plan <task>`, the planning procedure `glab:planner` follows, which you can type to plan in your own session · a `SessionStart` hook that injects the session bootstrap rules · a context hook on `UserPromptSubmit`, `PostToolUse` (`Agent`) and `Stop` that tells the session its context size and tells you when a turn crosses 300k or a further 100k · the product level (*Levels*): skills `glab:product-manager`, `glab:product-plan`, `glab:product-plan-analyze`, `glab:product-project-brief`, `glab:product-project-plan-analyze`, `glab:product-project-plan-verdict`, and `glab:product-project-plan-report`, which the project level runs · agents `glab:product-planner`, `glab:product-analyzer` |
+| `glab` | Skills `glab:bootstrap`, `glab:project-manager`, `glab:session-rules`, `glab:security`, `glab:comments`, `glab:audit` · agents `glab:project-planner`, `glab:project-plan-analyzer`, `glab:project-analyzer`, `glab:project-developer`, `glab:project-integrator`, `glab:project-reviewer`, `glab:committer` · stage skills `/glab:project-develop`, `/glab:project-analyze`, `/glab:project-integrate`, `/glab:project-review`, `/glab:commit`, `/glab:push`, `/glab:project-ship`, `/glab:project-plan-report`, which `glab:project-manager` runs itself and you can type to step in · `/glab:project-plan <task>`, the planning procedure `glab:project-planner` follows, which you can type to plan in your own session · a `SessionStart` hook that injects the session bootstrap rules · a context hook on `UserPromptSubmit`, `PostToolUse` (`Agent`) and `Stop` that tells the session its context size and tells you when a turn crosses 300k or a further 100k · the product level (*Levels*): skills `glab:product-manager`, `glab:product-plan`, `glab:product-plan-analyze`, `glab:product-project-brief`, `glab:product-project-plan-analyze`, `glab:product-project-plan-verdict` · agents `glab:product-planner`, `glab:product-analyzer` |
 | `memory-sync` | Skill `memory-sync:sync-memory` · hooks on four events that run `memory-sync.sh` |
 
-In `glab` the skills and agents are one set: `glab:manager` runs each stage
+In `glab` the skills and agents are one set: `glab:project-manager` runs each stage
 through its stage skill, which dispatches the agents, and dispatches
-`glab:planner` itself for the plan. Each agent preloads, through the `skills:`
+`glab:project-planner` itself for the plan. Each agent preloads, through the `skills:`
 list in its definition, the `glab` skills its role uses — `glab:security` in
-all nine, `glab:plan` in the planner and `glab:product-plan` in the product
+all nine, `glab:project-plan` in the planner and `glab:product-plan` in the product
 planner — and runs at the session's effort level,
 which the manager passes on every dispatch. The two plugins do not depend on
 each other; install either alone.
@@ -31,9 +31,9 @@ you named alike.
 Each change's working files live in `plan/<slug>/`: `master.md` —
 your request in your words, its goals and the final check, constant once
 accepted — and one `plan.md`, or sub-plans `<nn>-<name>/` that each run
-their own cycle. `glab:plan-analyzer` checks the plan against `master.md`
-before the build (Stage 1b), `glab:analyzer` the build after it (Stage 3),
-the reviewer sees only the code, and `glab:analyzer`'s final check before
+their own cycle. `glab:project-plan-analyzer` checks the plan against `master.md`
+before the build (Stage 1b), `glab:project-analyzer` the build after it (Stage 3),
+the reviewer sees only the code, and `glab:project-analyzer`'s final check before
 the push compares the master with everything built.
 Once the change has been pushed, the workflow records what
 stays true — how the area works, the decisions that still bind, what is open
@@ -71,7 +71,7 @@ never changes `plansDirectory`, and the manager writes no plan file under
 ## Levels
 
 `glab` runs a session at one level. The project level is today's workflow:
-`glab:manager` plans, builds, reviews and ships one repo's changes. The
+`glab:project-manager` plans, builds, reviews and ships one repo's changes. The
 product level sits above it: `glab:product-manager` turns a business plan
 into a product plan, product rules and one brief per project, and judges
 each project's plan before that project develops. Each level has its own
@@ -86,7 +86,7 @@ the first such line from the `AGENTS.md` of the folder the session starts in,
 or of the top of its git work tree when that folder has none.
 
 **What the session start loads.** The manager of the level —
-`glab:manager` or `glab:product-manager` — then `glab:session-rules`, the
+`glab:project-manager` or `glab:product-manager` — then `glab:session-rules`, the
 rules every level's manager runs under, and `glab:security`.
 
 **The shared store.** The levels exchange plain files in one shared folder,
@@ -106,7 +106,7 @@ belong. Its layout:
 usual, and after the approvals reports the plan — its digest, a sha256 over
 the plan files — to the store; the product session audits that copy against
 the brief and the product rules and writes `ACCEPTED` or `REJECTED` with a
-reason. `glab:develop` refuses to start while the latest verdict is not an
+reason. `glab:project-develop` refuses to start while the latest verdict is not an
 `ACCEPTED` of exactly the plan and the brief as they are now, so an edited
 plan or brief is reported again; the project manager's own record lines
 after a report go to `after-verdict.md`, outside the hash. One script,
@@ -248,6 +248,39 @@ Every person still needs the access and the credential described above. In a
 repository's settings the marketplace entry applies only once that person has
 trusted the folder.
 
+## Renamed in 0.15.0
+
+`glab` 0.15.0 moves the project level's skills and agents to `glab:project-*`.
+An old name, typed after `/glab:` or dispatched, finds nothing. Each old name
+and what it became:
+
+| was `glab:` | now |
+|---|---|
+| `manager` | `glab:project-manager` |
+| `plan` | `glab:project-plan` |
+| `develop` | `glab:project-develop` |
+| `analyze` | `glab:project-analyze` |
+| `integrate` | `glab:project-integrate` |
+| `review` | `glab:project-review` |
+| `ship` | `glab:project-ship` |
+| `product-project-plan-report` | `glab:project-plan-report` |
+| `planner` | `glab:project-planner` |
+| `plan-analyzer` | `glab:project-plan-analyzer` |
+| `analyzer` | `glab:project-analyzer` |
+| `developer` | `glab:project-developer` |
+| `integrator` | `glab:project-integrator` |
+| `reviewer` | `glab:project-reviewer` |
+
+The skills of every level, `glab:committer` and the product level keep their
+names. A plan folder begun before 0.15.0 may hold `- model: glab:<old agent> …`
+lines under `## Decisions` (`glab:session-rules` Rule 5): they name agents that
+no longer exist, so rewrite each to its new name before the folder's next
+dispatch — in `plan.md` itself while the plan has not been reported to the
+product level. Once it has, the hashed files are frozen
+(`glab:project-manager` Stage 1c): leave `plan.md` as it is and write the
+renamed line into `after-verdict.md`, where Stage 1c puts every record line
+after a report.
+
 ## Coming from the copy install
 
 Before the plugins, this setup was copied into `~/.claude` by hand. On a
@@ -269,11 +302,10 @@ running keeps what it loaded until it is restarted.
    the next section.
 2. In `~/.claude`, delete what was copied:
    - the two scripts, `memory-sync.sh` and `manager-bootstrap.sh`;
-   - seven skill directories under `skills/`: `skills/bootstrap/`,
-     `skills/manager/`, `skills/security/`, `skills/comments/`,
-     `skills/plan-first/`, `skills/audit/`, `skills/sync-memory/`;
-   - five agents under `agents/`: `agents/developer.md`, `agents/analyzer.md`,
-     `agents/integrator.md`, `agents/reviewer.md`, `agents/committer.md`;
+   - seven skill directories under `skills/`: `bootstrap`, `manager`,
+     `security`, `comments`, `plan-first`, `audit`, `sync-memory`;
+   - five agents under `agents/`: `developer.md`, `analyzer.md`,
+     `integrator.md`, `reviewer.md`, `committer.md`;
    - eight commands under `commands/`: `commands/plan.md`,
      `commands/develop.md`, `commands/analyze.md`, `commands/integrate.md`,
      `commands/review.md`, `commands/commit.md`, `commands/push.md`,

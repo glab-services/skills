@@ -4,7 +4,7 @@ description: Push the current branch after showing exactly which commits will go
 argument-hint: "[remote, default origin]"
 ---
 
-Push the current branch. The entry point of the push stage of the manager of your level — `glab:manager` Stage 7 and the record's push (Stage 8) at the project level, `glab:product-manager` stage P6 at the product level.
+Push the current branch. The entry point of the push stage of the manager of your level — `glab:project-manager` Stage 7 and the record's push (Stage 8) at the project level, `glab:product-manager` stage P6 at the product level.
 
 The session that runs it — that manager, or a person who typed `/glab:push` — does this itself. There is no push agent on purpose: a push leaves the machine, so the session stays in the loop rather than relaying an agent's report about something already sent.
 

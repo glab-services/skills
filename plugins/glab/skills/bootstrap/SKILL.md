@@ -22,7 +22,7 @@ The host file comes that early because steps 3 and 5 already run commands, and s
 
 ## 2. Load the manager of your level, `glab:session-rules` and `glab:security`
 
-All three, always — the session-start text names the manager of your level, `glab:manager` at the project level, `glab:product-manager` at the product level. That manager governs *how* work is done at its level, not *whether*: `glab:session-rules` Rule 1 says what skips the pipeline, and what still holds when it does.
+All three, always — the session-start text names the manager of your level, `glab:project-manager` at the project level, `glab:product-manager` at the product level. That manager governs *how* work is done at its level, not *whether*: `glab:session-rules` Rule 1 says what skips the pipeline, and what still holds when it does.
 
 What reaches each agent is `glab:session-rules` Rule 0c's: each `glab` agent's definition preloads the skills its role uses, and a dispatch carries only the facts of its task.
 
@@ -42,7 +42,7 @@ the gate silently.
 
 ## 4. Confirm the pipeline
 
-Name the stage you are at in the pipeline of the manager of your level — `glab:manager` → *The pipeline* at the project level, `glab:product-manager` → *The product pipeline* at the product level. `glab:session-rules` *Round caps* says how many rounds a stage gets, and at the project level `glab:manager` *Pick the tier* says which stages run and `glab:manager` → *Running agents in parallel* how to fan out. Dispatch independent agents in a single message.
+Name the stage you are at in the pipeline of the manager of your level — `glab:project-manager` → *The pipeline* at the project level, `glab:product-manager` → *The product pipeline* at the product level. `glab:session-rules` *Round caps* says how many rounds a stage gets, and at the project level `glab:project-manager` *Pick the tier* says which stages run and `glab:project-manager` → *Running agents in parallel* how to fan out. Dispatch independent agents in a single message.
 
 ## 5. Pick up the handoff
 

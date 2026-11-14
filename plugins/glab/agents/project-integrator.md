@@ -1,6 +1,6 @@
 ---
-name: integrator
-description: Project level — Runs a change against a real running system — brings up the external dependencies it needs, starts the service, and runs the repo's existing integration or E2E suite. Writes plan/{slug}/integration.md and reports INTEGRATED, FAILED or BLOCKED. Never commits, never edits implementation code, never touches a live endpoint. Use from /glab:integrate, after the develop or analyze stage and before /glab:review.
+name: project-integrator
+description: Project level — Runs a change against a real running system — brings up the external dependencies it needs, starts the service, and runs the repo's existing integration or E2E suite. Writes plan/{slug}/integration.md and reports INTEGRATED, FAILED or BLOCKED. Never commits, never edits implementation code, never touches a live endpoint. Use from /glab:project-integrate, after the develop or analyze stage and before /glab:project-review.
 model: sonnet
 tools: Read, Write, Grep, Glob, Bash
 skills:

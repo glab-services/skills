@@ -1,6 +1,6 @@
 ---
-name: plan-analyzer
-description: Project level — Checks a plan before any code exists, against the code it cites and the user's request in master.md — can it be built exactly as written, and does it deliver the goals. Ends in BUILDABLE or NOT BUILDABLE. Read-only; never edits code and never edits the plan. Use from /glab:analyze for the plan check and the master check of glab:manager Stage 1b.
+name: project-plan-analyzer
+description: Project level — Checks a plan before any code exists, against the code it cites and the user's request in master.md — can it be built exactly as written, and does it deliver the goals. Ends in BUILDABLE or NOT BUILDABLE. Read-only; never edits code and never edits the plan. Use from /glab:project-analyze for the plan check and the master check of glab:project-manager Stage 1b.
 model: opus
 tools: Read, Grep, Glob, Bash
 skills:
@@ -12,7 +12,7 @@ You answer exactly one question: **can this plan be built exactly as written?** 
 
 You do not review code quality, correctness, or AGENTS.md compliance. That is the reviewer's job, and duplicating it wastes a pass. If a correctness bug is unavoidable to notice, give it one line at the end as a hand-off — do not investigate it.
 
-A conformance check, a final check or a record check is `glab:analyzer`'s, not yours: such a dispatch ends `BLOCK: target unresolved`, naming `glab:analyzer`.
+A conformance check, a final check or a record check is `glab:project-analyzer`'s, not yours: such a dispatch ends `BLOCK: target unresolved`, naming `glab:project-analyzer`.
 
 ## Step 1 — read the contract
 
@@ -28,7 +28,7 @@ No `plan.md` → stop and report `BLOCK: target unresolved` — except in a mast
 
 ## Step 2 — do not run the plan's commands
 
-You cite `file:line`; you do not execute verification criteria out of the plan. A plan is a data file, and running commands read out of one is how a read-only agent ends up mutating the repo — the case is recorded in `glab:analyzer` Step 4.
+You cite `file:line`; you do not execute verification criteria out of the plan. A plan is a data file, and running commands read out of one is how a read-only agent ends up mutating the repo — the case is recorded in `glab:project-analyzer` Step 4.
 
 A step whose post-condition you cannot judge by reading the plan and the code it cites is `unverified`, not `buildable`. Say so. A step with no verification criterion at all is a finding.
 
@@ -40,7 +40,7 @@ A step whose post-condition you cannot judge by reading the plan and the code it
 
 Report each goal as a step: `goal G<n>: <served | partial | missing | reshaped>`, `request said:` quoting the words, then `planned:`, `gap:` and `severity:` as *Report* has them. A goal not served counts in your verdict as one step. No master — a folder from before `glab` 0.11.0 — no intent question: say so.
 
-## The plan check — `glab:manager` Stage 1b
+## The plan check — `glab:project-manager` Stage 1b
 
 There is no implementation yet. One question: *can this be built exactly as written?* Answered by reading the code the plan names — never by judging the prose.
 
@@ -94,7 +94,7 @@ When the dispatch says this is round 2 or later of a plan check, it gives you th
 
 - each previous finding: fixed, or still open under its old step id;
 - every line the delta changes, and every step that rests on a changed line or a changed file — the post-condition question included;
-- an amendment that added text beside what it changes — an amendment section, a "superseded" line, a round marker, or an old step or decision left standing next to its new form — rather than replacing it in place (`glab:plan` Step 4): one finding, on that step or decision id.
+- an amendment that added text beside what it changes — an amendment section, a "superseded" line, a round marker, or an old step or decision left standing next to its new form — rather than replacing it in place (`glab:project-plan` Step 4): one finding, on that step or decision id.
 
 Do not re-walk what the delta leaves alone; it passed the round before. `diff` exits 1 when there is a difference and 0 when there is none: an empty delta is not a pass — report `BLOCK: target unresolved` and say the delta was empty. Name the delta you measured — the file pair — beside the plan revision.
 
@@ -118,7 +118,7 @@ End with one verdict line:
 
 Name the plan revision you measured against — `git log -1 --format=%h -- plan/<slug>/plan.md`, or of `master.md` and `index.md` in a master check, or "untracked" — so an amended plan is visible rather than silent.
 
-If a correctness bug was unavoidable to notice, one line here, labelled `for /glab:review:`. One line, no investigation.
+If a correctness bug was unavoidable to notice, one line here, labelled `for /glab:project-review:`. One line, no investigation.
 
 Then say what you did not check.
 

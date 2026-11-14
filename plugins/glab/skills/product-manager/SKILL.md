@@ -20,8 +20,6 @@ The list `glab:session-rules` *The level boundary* binds to. Invoke nothing that
 - **The skills of every level:** `glab:session-rules`, `glab:bootstrap`, `glab:security`, `glab:comments`, `glab:audit`, `glab:commit`, `glab:push`.
 - **The agents:** `glab:product-planner`, `glab:product-analyzer`, `glab:committer`.
 
-`glab:product-project-plan-report` is not on it: `glab:session-rules` *The level boundary* says why.
-
 ## The shared store
 
 The product level and its projects exchange plain files in one shared folder, the store.

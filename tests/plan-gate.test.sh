@@ -302,7 +302,7 @@ fi
 loop_case t23 notes-api
 round ACCEPTED product-manager "$C/ok"
 cp "$P/plan.md" "$P/plan.r1.md"
-printf -- '- model: glab:developer opus, for this task — the user'"'"'s instruction: "use opus"\n- round 3: analyze — high S1\n' >"$P/after-verdict.md"
+printf -- '- model: glab:project-developer opus, for this task — the user'"'"'s instruction: "use opus"\n- round 3: analyze — high S1\n' >"$P/after-verdict.md"
 ran check "$P" "$S"
 case $OUT in 'ACCEPTED r1 '*) ;; *) bad "check after bookkeeping printed [$OUT]" ;; esac
 done_case T23 "after ACCEPTED, after-verdict.md lines and a round copy leave check passing"
