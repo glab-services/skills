@@ -73,14 +73,14 @@ the end. `CLAUDE_CONFIG_DIR` is never exported empty.
 Green is:
 
 - three `✔ Validation passed` lines;
-- for `glab`: `Skills (21)` naming `analyze`, `audit`, `bootstrap`, `comments`, `commit`, `develop`, `integrate`, `manager`, `plan`, `product-manager`, `product-plan`, `product-plan-analyze`, `product-project-brief`, `product-project-plan-analyze`, `product-project-plan-report`, `product-project-plan-verdict`, `push`, `review`, `security`, `session-rules` and `ship`, `Agents (9)` naming `analyzer`, `committer`, `developer`, `integrator`, `plan-analyzer`, `planner`, `product-analyzer`, `product-planner` and `reviewer` in any order (the CLI lists them in directory read order, which is not stable), and `Hooks (4)  SessionStart, UserPromptSubmit, PostToolUse, Stop`;
+- for `glab`: `Skills (21)` naming `audit`, `bootstrap`, `comments`, `commit`, `product-manager`, `product-plan`, `product-plan-analyze`, `product-project-brief`, `product-project-plan-analyze`, `product-project-plan-verdict`, `project-analyze`, `project-develop`, `project-integrate`, `project-manager`, `project-plan`, `project-plan-report`, `project-review`, `project-ship`, `push`, `security` and `session-rules`, `Agents (9)` naming `committer`, `product-analyzer`, `product-planner`, `project-analyzer`, `project-developer`, `project-integrator`, `project-plan-analyzer`, `project-planner` and `project-reviewer` in any order (the CLI lists them in directory read order, which is not stable), and `Hooks (4)  SessionStart, UserPromptSubmit, PostToolUse, Stop`;
 - for `memory-sync`: `Skills (1)  sync-memory`, `Agents (0)`, and `Hooks (4)  SessionStart, SessionEnd, PostToolUse, Stop`;
 - each of those two `Hooks` lines followed, on the same line, by `  (harness-only — no model context cost)`: the CLI prints that suffix, and it is expected;
 - `glab = glab` and `memory-sync = memory-sync`. Validation does not compare a marketplace entry with the plugin it points at; it passes with a wrong name and with a directory that does not exist;
 - `:0` after each `hooks.json`, then `rc=1`. `grep -c` exits 1 when it counts nothing, and nothing is the green result here. A `${user_config.…}` in a hook command passes validation and fails when the hook runs;
 - a count of `1` or more after each of the three files, then `rc=0`. Read the counts, not the `rc`: `grep -c` exits 0 as soon as one file matches. The phrase is the hedge on `CLAUDE_CODE_SESSIONEND_HOOKS_TIMEOUT_MS` — documented as the override for the `SessionEnd` budget, not yet shown to cover a hook that a plugin provides — and no other gate notices when the script comment, the skill or the README starts stating it as fact;
-- exactly these nine lines, then `rc=0`: `plugins/glab/agents/analyzer.md:model: sonnet`, `plugins/glab/agents/committer.md:model: haiku`, `plugins/glab/agents/developer.md:model: sonnet`, `plugins/glab/agents/integrator.md:model: sonnet`, `plugins/glab/agents/plan-analyzer.md:model: opus`, `plugins/glab/agents/planner.md:model: opus`, `plugins/glab/agents/product-analyzer.md:model: opus`, `plugins/glab/agents/product-planner.md:model: opus`, `plugins/glab/agents/reviewer.md:model: sonnet`. `plugin validate --strict` passes an unknown model value and `plugin details` shows none, so nothing else catches a typo;
-- from the skills gate, exactly these eighteen lines, none ending `MISSING`: `plugins/glab/agents/analyzer.md:glab:security`, `plugins/glab/agents/analyzer.md:glab:audit`, `plugins/glab/agents/committer.md:glab:security`, `plugins/glab/agents/developer.md:glab:security`, `plugins/glab/agents/developer.md:glab:comments`, `plugins/glab/agents/integrator.md:glab:security`, `plugins/glab/agents/integrator.md:glab:comments`, `plugins/glab/agents/plan-analyzer.md:glab:security`, `plugins/glab/agents/plan-analyzer.md:glab:audit`, `plugins/glab/agents/planner.md:glab:plan`, `plugins/glab/agents/planner.md:glab:security`, `plugins/glab/agents/product-analyzer.md:glab:security`, `plugins/glab/agents/product-analyzer.md:glab:audit`, `plugins/glab/agents/product-planner.md:glab:product-plan`, `plugins/glab/agents/product-planner.md:glab:security`, `plugins/glab/agents/reviewer.md:glab:security`, `plugins/glab/agents/reviewer.md:glab:comments`, `plugins/glab/agents/reviewer.md:glab:audit`. A line ends `MISSING` when its entry names no `skills/<name>/SKILL.md` in that plugin, when that file's frontmatter has no line `name: <name>` — Claude Code names a plugin skill by that line, not by its directory — or when it carries another plugin's prefix. `plugin validate --strict` passes an agent's `skills:` entry that names no skill and `plugin details` does not show the lists, so nothing else catches a typo;
+- exactly these nine lines, then `rc=0`: `plugins/glab/agents/project-analyzer.md:model: sonnet`, `plugins/glab/agents/committer.md:model: haiku`, `plugins/glab/agents/project-developer.md:model: sonnet`, `plugins/glab/agents/project-integrator.md:model: sonnet`, `plugins/glab/agents/project-plan-analyzer.md:model: opus`, `plugins/glab/agents/project-planner.md:model: opus`, `plugins/glab/agents/product-analyzer.md:model: opus`, `plugins/glab/agents/product-planner.md:model: opus`, `plugins/glab/agents/project-reviewer.md:model: sonnet`. `plugin validate --strict` passes an unknown model value and `plugin details` shows none, so nothing else catches a typo;
+- from the skills gate, exactly these eighteen lines, none ending `MISSING`: `plugins/glab/agents/project-analyzer.md:glab:security`, `plugins/glab/agents/project-analyzer.md:glab:audit`, `plugins/glab/agents/committer.md:glab:security`, `plugins/glab/agents/project-developer.md:glab:security`, `plugins/glab/agents/project-developer.md:glab:comments`, `plugins/glab/agents/project-integrator.md:glab:security`, `plugins/glab/agents/project-integrator.md:glab:comments`, `plugins/glab/agents/project-plan-analyzer.md:glab:security`, `plugins/glab/agents/project-plan-analyzer.md:glab:audit`, `plugins/glab/agents/project-planner.md:glab:project-plan`, `plugins/glab/agents/project-planner.md:glab:security`, `plugins/glab/agents/product-analyzer.md:glab:security`, `plugins/glab/agents/product-analyzer.md:glab:audit`, `plugins/glab/agents/product-planner.md:glab:product-plan`, `plugins/glab/agents/product-planner.md:glab:security`, `plugins/glab/agents/project-reviewer.md:glab:security`, `plugins/glab/agents/project-reviewer.md:glab:comments`, `plugins/glab/agents/project-reviewer.md:glab:audit`. A line ends `MISSING` when its entry names no `skills/<name>/SKILL.md` in that plugin, when that file's frontmatter has no line `name: <name>` — Claude Code names a plugin skill by that line, not by its directory — or when it carries another plugin's prefix. `plugin validate --strict` passes an agent's `skills:` entry that names no skill and `plugin details` does not show the lists, so nothing else catches a typo;
 - no line, then `rc=1`, from the last command. A frontmatter `name:` that carries the plugin prefix passes validation and `plugin details`, and nothing else catches it.
 
 The Markdown files have no gate. A change to one is verified by running the
@@ -139,12 +139,12 @@ repo and to nothing else.
   first as a `## Decisions` line, or in the handoff line and this
   conversation when there is no plan, none past 3
   (`plugins/glab/skills/session-rules/SKILL.md` *Round caps*, the table of
-  `plugins/glab/skills/manager/SKILL.md` *Pick the tier*, and the
-  reviewer's round-2 rule in `plugins/glab/agents/reviewer.md`
+  `plugins/glab/skills/project-manager/SKILL.md` *Pick the tier*, and the
+  reviewer's round-2 rule in `plugins/glab/agents/project-reviewer.md`
   *Re-reviews*); the four ask-conditions of `glab:session-rules` Rule 3 —
   destructive, costs money, exposes real data, changes
   what the product is (`plugins/glab/skills/session-rules/SKILL.md`,
-  `plugins/glab/skills/plan/SKILL.md` Step 2); the missing-`AGENTS.md`
+  `plugins/glab/skills/project-plan/SKILL.md` Step 2); the missing-`AGENTS.md`
   fallback (every agent, and the session-start text in
   `plugins/glab/scripts/manager-bootstrap.sh`); the hook events
   (`plugins/memory-sync/hooks/hooks.json`, `README.md`,
@@ -169,34 +169,34 @@ repo and to nothing else.
   `plugins/glab/skills/session-rules/SKILL.md`, the nine
   `plugins/glab/agents/*.md`, `README.md`, and the model gate in this file's
   *Gates*); the skills each agent preloads — its frontmatter `skills:` list,
-  `glab:security` in all nine, `glab:plan` in the planner and
+  `glab:security` in all nine, `glab:project-plan` in the planner and
   `glab:product-plan` in the product planner, and no
   preloaded skill setting `disable-model-invocation`, which stops its
   preload (the nine `plugins/glab/agents/*.md`,
   `README.md`, and the skills gate in this file's *Gates*);
   the reviewer's verdict lines
-  (`plugins/glab/agents/reviewer.md`, `plugins/glab/skills/manager/SKILL.md`,
-  `plugins/glab/skills/ship/SKILL.md`); the severity levels — `critical`,
+  (`plugins/glab/agents/project-reviewer.md`, `plugins/glab/skills/project-manager/SKILL.md`,
+  `plugins/glab/skills/project-ship/SKILL.md`); the severity levels — `critical`,
   `high`, `medium`, `low` — their meanings in
   `plugins/glab/skills/audit/SKILL.md` only, their four names in the
-  *Report* of `plugins/glab/agents/reviewer.md`,
-  `plugins/glab/agents/analyzer.md`, `plugins/glab/agents/plan-analyzer.md`
+  *Report* of `plugins/glab/agents/project-reviewer.md`,
+  `plugins/glab/agents/project-analyzer.md`, `plugins/glab/agents/project-plan-analyzer.md`
   and `plugins/glab/agents/product-analyzer.md`;
   every round a new agent, Rule 5's
   report check the one resume (`plugins/glab/skills/session-rules/SKILL.md`
-  Rules 2 and 5, `plugins/glab/skills/manager/SKILL.md`,
-  `plugins/glab/skills/plan/SKILL.md`,
-  `plugins/glab/skills/ship/SKILL.md`, `plugins/glab/agents/reviewer.md`,
-  `plugins/glab/agents/developer.md`); the
+  Rules 2 and 5, `plugins/glab/skills/project-manager/SKILL.md`,
+  `plugins/glab/skills/project-plan/SKILL.md`,
+  `plugins/glab/skills/project-ship/SKILL.md`, `plugins/glab/agents/project-reviewer.md`,
+  `plugins/glab/agents/project-developer.md`); the
   mapping files `map-<area>.md`, the evidence file `evidence.md` — a
   subagent's Write of `findings.md` is refused — the round copies
   `<name>.r<n>.md` and the version copies `master.v<n>.md`
-  (`plugins/glab/skills/manager/SKILL.md`,
-  `plugins/glab/skills/plan/SKILL.md`,
-  `plugins/glab/agents/analyzer.md`, `plugins/glab/agents/plan-analyzer.md`
-  (all but the version copies), `plugins/glab/agents/developer.md`, and for
+  (`plugins/glab/skills/project-manager/SKILL.md`,
+  `plugins/glab/skills/project-plan/SKILL.md`,
+  `plugins/glab/agents/project-analyzer.md`, `plugins/glab/agents/project-plan-analyzer.md`
+  (all but the version copies), `plugins/glab/agents/project-developer.md`, and for
   the round copies `plugins/glab/scripts/plan-gate.sh`, which leaves them out
-  of the digest, `plugins/glab/skills/manager/SKILL.md` Stage 1c and
+  of the digest, `plugins/glab/skills/project-manager/SKILL.md` Stage 1c and
   `plugins/glab/skills/product-plan-analyze/SKILL.md`);
   the handoff file `plan/SESSION-HANDOFF.md`
   (`plugins/glab/skills/bootstrap/SKILL.md` step 5,
@@ -212,14 +212,14 @@ repo and to nothing else.
   `plugins/glab/skills/session-rules/SKILL.md`, `README.md`); what a review
   round after the first is given — a new reviewer, the target, the previous
   round's findings verbatim and the range of the fix, never the plan, the
-  slug or the intent (`plugins/glab/skills/manager/SKILL.md` Stage 5, and
-  what the reviewer does with them in `plugins/glab/agents/reviewer.md`);
+  slug or the intent (`plugins/glab/skills/project-manager/SKILL.md` Stage 5, and
+  what the reviewer does with them in `plugins/glab/agents/project-reviewer.md`);
   the plan lifecycle — specs in
   `docs/specs/` unless `AGENTS.md` names another place, the record after the
   push, and that the record never removes the plan folder
-  (`plugins/glab/skills/plan/SKILL.md`,
-  `plugins/glab/skills/manager/SKILL.md`,
-  `plugins/glab/agents/developer.md`, `plugins/glab/agents/analyzer.md`,
+  (`plugins/glab/skills/project-plan/SKILL.md`,
+  `plugins/glab/skills/project-manager/SKILL.md`,
+  `plugins/glab/agents/project-developer.md`, `plugins/glab/agents/project-analyzer.md`,
   `plugins/glab/skills/bootstrap/SKILL.md`,
   `plugins/glab/skills/audit/SKILL.md`, `README.md`, and this file's
   `plan/` rule);
@@ -234,16 +234,16 @@ repo and to nothing else.
   size budget —
   48 KB each for `master.md`, `plan.md`, `index.md` and `evidence.md`, and the
   product level's `product-plan.md`, and the `- size:` line
-  (`plugins/glab/skills/plan/SKILL.md` Step 3,
+  (`plugins/glab/skills/project-plan/SKILL.md` Step 3,
   `plugins/glab/skills/product-plan/SKILL.md`,
-  `plugins/glab/skills/manager/SKILL.md` acceptance checklist item 6);
+  `plugins/glab/skills/project-manager/SKILL.md` acceptance checklist item 6);
   amendments replace the text they change, in place
-  (`plugins/glab/skills/plan/SKILL.md` Step 4,
-  `plugins/glab/agents/plan-analyzer.md` *Re-checks*); `glab:plan`'s step
+  (`plugins/glab/skills/project-plan/SKILL.md` Step 4,
+  `plugins/glab/agents/project-plan-analyzer.md` *Re-checks*); `glab:project-plan`'s step
   numbers — 0 to 4
-  (`plugins/glab/skills/plan/SKILL.md`,
-  `plugins/glab/skills/manager/SKILL.md`, `plugins/glab/agents/planner.md`,
-  `plugins/glab/agents/plan-analyzer.md`);
+  (`plugins/glab/skills/project-plan/SKILL.md`,
+  `plugins/glab/skills/project-manager/SKILL.md`, `plugins/glab/agents/project-planner.md`,
+  `plugins/glab/agents/project-plan-analyzer.md`);
   the master plan and sub-plans — `master.md` with its six sections,
   constant after `## Approval` and hashed in `master.sha256`, a changed
   request a new master with the old kept as `master.v<n>.md` and its
@@ -251,23 +251,23 @@ repo and to nothing else.
   `<nn>-<name>/`, the user's approval of every full-tier `plan.md`, a
   single plan's or a sub-plan's, one commit per sub-plan, one final check, push and record per
   slug, and `## Record` in the master
-  (`plugins/glab/skills/plan/SKILL.md`,
-  `plugins/glab/skills/manager/SKILL.md`, `plugins/glab/agents/analyzer.md`,
-  `plugins/glab/agents/plan-analyzer.md`,
-  `plugins/glab/agents/developer.md`,
-  `plugins/glab/skills/analyze/SKILL.md`, `plugins/glab/skills/develop/SKILL.md`,
+  (`plugins/glab/skills/project-plan/SKILL.md`,
+  `plugins/glab/skills/project-manager/SKILL.md`, `plugins/glab/agents/project-analyzer.md`,
+  `plugins/glab/agents/project-plan-analyzer.md`,
+  `plugins/glab/agents/project-developer.md`,
+  `plugins/glab/skills/project-analyze/SKILL.md`, `plugins/glab/skills/project-develop/SKILL.md`,
   `plugins/glab/skills/audit/SKILL.md`, `README.md`);
-  the intent check — the analyzers at Stage 1b (`glab:plan-analyzer`), Stage
-  3 and the final check (`glab:analyzer`), never the reviewer
-  (`plugins/glab/agents/analyzer.md`, `plugins/glab/agents/plan-analyzer.md`,
-  `plugins/glab/skills/manager/SKILL.md`, `README.md`);
+  the intent check — the analyzers at Stage 1b (`glab:project-plan-analyzer`), Stage
+  3 and the final check (`glab:project-analyzer`), never the reviewer
+  (`plugins/glab/agents/project-analyzer.md`, `plugins/glab/agents/project-plan-analyzer.md`,
+  `plugins/glab/skills/project-manager/SKILL.md`, `README.md`);
   the analyzers' verdict lines — `BUILDABLE`, `NOT BUILDABLE`
-  (`glab:plan-analyzer`), `CONFORMS`, `DIVERGES: <n> steps` (`glab:analyzer`),
+  (`glab:project-plan-analyzer`), `CONFORMS`, `DIVERGES: <n> steps` (`glab:project-analyzer`),
   `BLOCK: target unresolved` (all three), and `glab:product-analyzer`'s
   `SOUND`, `NOT SOUND: <n> findings`, `NO CONFLICT` and `CONFLICTS: <n>`
-  (`plugins/glab/agents/analyzer.md`, `plugins/glab/agents/plan-analyzer.md`,
-  `plugins/glab/skills/manager/SKILL.md`,
-  `plugins/glab/skills/analyze/SKILL.md`, `plugins/glab/skills/plan/SKILL.md`,
+  (`plugins/glab/agents/project-analyzer.md`, `plugins/glab/agents/project-plan-analyzer.md`,
+  `plugins/glab/skills/project-manager/SKILL.md`,
+  `plugins/glab/skills/project-analyze/SKILL.md`, `plugins/glab/skills/project-plan/SKILL.md`,
   `plugins/glab/agents/product-analyzer.md`,
   `plugins/glab/skills/product-manager/SKILL.md`,
   `plugins/glab/skills/product-plan-analyze/SKILL.md`,
@@ -276,7 +276,7 @@ repo and to nothing else.
   plan mode — only
   when the user asks, no plan file outside the repo, `plansDirectory` never
   changed, its claims UNVERIFIED until L1–L7
-  (`plugins/glab/skills/manager/SKILL.md`, `README.md`); the level line
+  (`plugins/glab/skills/project-manager/SKILL.md`, `README.md`); the level line
   `glab-level:` — the first line of a repo's `AGENTS.md` that begins
   `glab-level:`; `product` and `project` built, no line the project level, any
   other value the project level with the warning, `delivery` and `support`
@@ -285,9 +285,9 @@ repo and to nothing else.
   `plugins/glab/skills/bootstrap/SKILL.md`, `README.md`); the shared store
   line `glab-shared-store:` — the repo's `AGENTS.md` first, then the host file
   (`plugins/glab/skills/product-manager/SKILL.md`,
-  `plugins/glab/skills/manager/SKILL.md` Stage 1,
-  `plugins/glab/skills/develop/SKILL.md`,
-  `plugins/glab/skills/product-project-plan-report/SKILL.md`, `README.md`,
+  `plugins/glab/skills/project-manager/SKILL.md` Stage 1,
+  `plugins/glab/skills/project-develop/SKILL.md`,
+  `plugins/glab/skills/project-plan-report/SKILL.md`, `README.md`,
   `host.example.md`); the store layout — `docs/product-rules/` with
   `index.md`, `briefs/<project>/brief.md`, `report.r<n>.md`, `plan.r<n>/`,
   `verdict.r<n>.md`, `releases/` reserved
@@ -298,11 +298,11 @@ repo and to nothing else.
   `after-verdict.md`) and its order — and the report and verdict lines, their
   parse rules and refusals (`plugins/glab/scripts/plan-gate.sh`,
   `tests/plan-gate.test.sh`, `tests/product-loop.test.sh`,
-  `plugins/glab/skills/manager/SKILL.md` Stage 1c,
+  `plugins/glab/skills/project-manager/SKILL.md` Stage 1c,
   `plugins/glab/skills/session-rules/SKILL.md`,
-  `plugins/glab/skills/develop/SKILL.md` and `README.md` *Levels*); the brief
+  `plugins/glab/skills/project-develop/SKILL.md` and `README.md` *Levels*); the brief
   line — `- brief: briefs/<project>/brief.md sha256 <hash>`
-  (`plugins/glab/skills/plan/SKILL.md`, `plugins/glab/skills/manager/SKILL.md`
+  (`plugins/glab/skills/project-plan/SKILL.md`, `plugins/glab/skills/project-manager/SKILL.md`
   checklist item 8, `plugins/glab/scripts/plan-gate.sh`,
   `tests/fixtures/product-loop/project-plan/master.md`); the rejection cap —
   two `REJECTED` verdicts on one project since its last `ACCEPTED`, over every
@@ -316,7 +316,7 @@ repo and to nothing else.
   0d, 1, 2, 3 and 5, *Round caps*, *The handoff line* and *The level boundary*
   in `glab:session-rules`, which each level's manager loads and cites by
   number (`plugins/glab/skills/session-rules/SKILL.md`,
-  `plugins/glab/skills/manager/SKILL.md`,
+  `plugins/glab/skills/project-manager/SKILL.md`,
   `plugins/glab/skills/product-manager/SKILL.md`,
   `plugins/glab/scripts/manager-bootstrap.sh`,
   `plugins/glab/skills/bootstrap/SKILL.md`, `README.md`); the level boundary —
@@ -324,7 +324,7 @@ repo and to nothing else.
   description's level prefix `Product level — ` or `Project level — ` a hint,
   no prefix on what serves every level
   (`plugins/glab/skills/session-rules/SKILL.md`,
-  `plugins/glab/skills/manager/SKILL.md`,
+  `plugins/glab/skills/project-manager/SKILL.md`,
   `plugins/glab/skills/product-manager/SKILL.md`,
   `plugins/glab/scripts/manager-bootstrap.sh`, the `description:` of every
   `plugins/glab/skills/*/SKILL.md` and `plugins/glab/agents/*.md`,
@@ -335,7 +335,7 @@ repo and to nothing else.
   never by name or pattern.
 - **`plan/` is the working area; `docs/specs/` is what stays.** A change's
   `plan/<slug>/` is committed with the change. After its push, the record
-  (`glab:manager` Stage 8) updates the spec of each area it touched —
+  (`glab:project-manager` Stage 8) updates the spec of each area it touched —
   `marketplace.md` (the marketplace, this repo's layout, gates and rules),
   `workflow.md` (the `glab` workflow), `product.md` (the product level and the
   product ⇄ project loop), `memory-sync.md`,
@@ -364,7 +364,7 @@ repo and to nothing else.
   copy is pinned to the version string: without a new one nobody receives the
   change, and nothing says so.
 - **Payload text names a plugin component by its prefixed name** —
-  `glab:manager`, `glab:developer`, `/glab:plan`. The frontmatter `name:` of a
+  `glab:project-manager`, `glab:project-developer`, `/glab:project-plan`. The frontmatter `name:` of a
   skill or agent stays bare: Claude Code adds the prefix, and an agent name
   containing `:` does not load. A role named in running prose — "the
   analyzer", "the reviewer" — is not an identifier and stays as it is.

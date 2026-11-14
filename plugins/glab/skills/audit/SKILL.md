@@ -1,6 +1,6 @@
 ---
 name: audit
-description: Produce a structured audit findings document in plan/ after examining a service, module, or subsystem — with architecture summary, working flow, a severity-classified issues table, and prioritized recommendations. Use after completing a service audit, codebase examination, architecture review, or deep-dive analysis. Triggers on "audit this service", "examine this project", "learn this codebase", "review this module". For analysis that leads into a change, use glab:plan instead.
+description: Produce a structured audit findings document in plan/ after examining a service, module, or subsystem — with architecture summary, working flow, a severity-classified issues table, and prioritized recommendations. Use after completing a service audit, codebase examination, architecture review, or deep-dive analysis. Triggers on "audit this service", "examine this project", "learn this codebase", "review this module". For analysis that leads into a change, use glab:project-plan instead.
 ---
 
 # Audit
@@ -18,7 +18,7 @@ Use for a substantive examination whose deliverable is the report itself:
 
 Skip for trivial one-line checks ("what does this file do?", "is this variable used?").
 
-If the analysis is the first step toward changing the code, use [glab:plan](../plan/SKILL.md) instead — that workflow carries analysis through questions to an approved plan, which `/glab:develop` then builds.
+If the analysis is the first step toward changing the code, use [glab:project-plan](../project-plan/SKILL.md) instead — that workflow carries analysis through questions to an approved plan, which `/glab:project-develop` then builds.
 
 ## File Naming
 
@@ -66,5 +66,5 @@ Fill in `references/plan-template.md`, which carries the full skeleton. Every do
 
 1. Confirm the file is saved under `plan/` (create the directory if needed).
 2. Tell the user the path and a one-line summary of what it contains.
-3. Ask whether they want to act on any finding now — if so, that work goes through [glab:plan](../plan/SKILL.md).
-4. When a change acts on the file, its plan's `## Record` — `master.md`'s, where there is one — names it, and that change's record (`glab:manager` Stage 8) carries what is still open into the area spec and `glab:analyzer` checks it was carried. The record never removes the file; whether it is removed afterwards is the repo's own `AGENTS.md` decision.
+3. Ask whether they want to act on any finding now — if so, that work goes through [glab:project-plan](../project-plan/SKILL.md).
+4. When a change acts on the file, its plan's `## Record` — `master.md`'s, where there is one — names it, and that change's record (`glab:project-manager` Stage 8) carries what is still open into the area spec and `glab:project-analyzer` checks it was carried. The record never removes the file; whether it is removed afterwards is the repo's own `AGENTS.md` decision.

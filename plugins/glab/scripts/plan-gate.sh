@@ -2,8 +2,8 @@
 # plan-gate.sh - the hash gate between the product level and the project level of glab, and the one
 # writer of the files the two levels exchange in the shared store, under <store>/briefs/<project>/:
 # report.r<n>.md and its copy folder plan.r<n>/ (the project manager, through
-# glab:product-project-plan-report) and verdict.r<n>.md (the product manager, through
-# glab:product-project-plan-verdict). glab:develop runs `check` before any developer is dispatched.
+# glab:project-plan-report) and verdict.r<n>.md (the product manager, through
+# glab:product-project-plan-verdict). glab:project-develop runs `check` before any developer is dispatched.
 #
 # Why a script and not skill text: both levels must compute the same digest byte for byte, and the
 # report and verdict formats need one owner and one test (tests/plan-gate.test.sh).

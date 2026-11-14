@@ -34,7 +34,7 @@ PRODUCT_LINE='Level: product — glab-level: product in AGENTS.md.'
 WARN_DELIVERY='glab: level "delivery" is not built in this version of glab; this session runs at the project level'
 # The manager each text loads. The backticks are the text's own Markdown, not a command.
 # shellcheck disable=SC2016
-PROJECT_MGR='`glab:manager` — the operating model of the project level'
+PROJECT_MGR='`glab:project-manager` — the operating model of the project level'
 # shellcheck disable=SC2016
 PRODUCT_MGR='`glab:product-manager` — the operating model of the product level'
 

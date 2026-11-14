@@ -112,7 +112,7 @@ audit() {
 	done
 	if grep -rq '365 days' "$STORE/briefs/$1/plan.r$k"; then echo 'CONFLICTS: 1'; else echo 'NO CONFLICT'; fi
 }
-# project_plan <repo> <project>: glab:planner's plan from the brief, its brief line holding the hash
+# project_plan <repo> <project>: glab:project-planner's plan from the brief, its brief line holding the hash
 # of the brief as it read it.
 project_plan() {
 	mkdir -p "$1/$SLUG"
@@ -122,21 +122,21 @@ project_plan() {
 
 # The manager each text names. The backticks are the text's own Markdown, not a command.
 # shellcheck disable=SC2016
-PRODUCT_MGR='`glab:product-manager` — the operating model of the product level' PROJECT_MGR='`glab:manager` — the operating model of the project level' ANY_PROJECT_MGR='`glab:manager` — the operating model'
+PRODUCT_MGR='`glab:product-manager` — the operating model of the product level' PROJECT_MGR='`glab:project-manager` — the operating model of the project level' ANY_PROJECT_MGR='`glab:project-manager` — the operating model'
 
 HERE=$PRODUCT
 scene L1 'the glab SessionStart hook, in the product repo' 'AGENTS.md says glab-level: product, so the session loads the product manager.'
 t=$(start "$PRODUCT")
 say "    $(printf '%s\n' "$t" | head -n 1)"
 case $t in *"$PRODUCT_MGR"*) ;; *) bad "the product session is not told to load glab:product-manager" ;; esac
-case $t in *"$ANY_PROJECT_MGR"*) bad "the product session is told to load glab:manager" ;; esac
+case $t in *"$ANY_PROJECT_MGR"*) bad "the product session is told to load glab:project-manager" ;; esac
 done_case L1 "a product repo's session start names glab:product-manager"
 
-scene L2 'the glab SessionStart hook, in the project repo' 'No glab-level line: the project level, today'"'"'s glab:manager.'
+scene L2 'the glab SessionStart hook, in the project repo' 'No glab-level line: the project level, today'"'"'s glab:project-manager.'
 t=$(start "$PROJECT")
 say "    $(printf '%s\n' "$t" | head -n 1)"
-case $t in *"$PROJECT_MGR"*) ;; *) bad "the project session is not told to load glab:manager" ;; esac
-done_case L2 "a project repo's session start names glab:manager"
+case $t in *"$PROJECT_MGR"*) ;; *) bad "the project session is not told to load glab:project-manager" ;; esac
+done_case L2 "a project repo's session start names glab:project-manager"
 
 scene L3 'glab:product-planner, then the user, then glab:product-planner' 'The business plan becomes a product plan; the user approves it; the rules it drafted go to the store.'
 mkdir -p "$PRODUCT/plan/notes-app" "$STORE/docs/product-rules"
@@ -163,7 +163,7 @@ done < <(grep -o 'docs/product-rules/[a-z0-9-]*\.md' "$STORE/$BR/brief.md")
 done_case L4 "the brief names rule files that exist"
 
 HERE=$PROJECT
-scene L5 'glab:planner in the project session, told "take the brief at <store>/briefs/notes-api/brief.md"' 'The plan quotes the brief with its hash; glab:develop'"'"'s check refuses before any report.'
+scene L5 'glab:project-planner in the project session, told "take the brief at <store>/briefs/notes-api/brief.md"' 'The plan quotes the brief with its hash; glab:project-develop'"'"'s check refuses before any report.'
 project_plan "$PROJECT" notes-api
 say "--- wrote $SLUG/master.md and plan.md in the project repo"
 [ -z "$SHOW" ] || sed 's/^/    | /' "$PROJECT/$SLUG/master.md" "$PROJECT/$SLUG/plan.md" >&2
@@ -171,7 +171,7 @@ grep -qE '^- brief: briefs/notes-api/brief\.md sha256 [0-9a-f]{64}$' "$PROJECT/$
 no_gate 'no verdict for this brief' check "$SLUG" "$STORE"
 done_case L5 "the project plan carries the brief line, and check refuses before any report"
 
-scene L6 'the project manager, Stage 1c, through glab:product-project-plan-report' 'After the approvals the plan is reported to product; the session then waits.'
+scene L6 'the project manager, Stage 1c, through glab:project-plan-report' 'After the approvals the plan is reported to product; the session then waits.'
 ok_gate report "$SLUG" "$STORE"
 ok_gate digest "$STORE/$BR/plan.r1"
 grep -qx "plan-sha256: $OUT" "$STORE/$BR/report.r1.md" || bad "the copies' digest is not the report's"
@@ -193,11 +193,11 @@ fi
 done_case L8 "the audit finds CONFLICTS: 1, and verdict r1 is REJECTED with its reason"
 
 HERE=$PROJECT
-scene L9 'glab:develop in the project session' 'Development may not start on a REJECTED plan.'
+scene L9 'glab:project-develop in the project session' 'Development may not start on a REJECTED plan.'
 no_gate 'the latest verdict r1 is REJECTED' check "$SLUG" "$STORE"
 done_case L9 "check refuses after REJECTED"
 
-scene L10 'a new glab:planner amends; the project manager reports r2; the product audits and accepts' 'The round copy is kept; the step now keeps logs 90 days.'
+scene L10 'a new glab:project-planner amends; the project manager reports r2; the product audits and accepts' 'The round copy is kept; the step now keeps logs 90 days.'
 cp "$PROJECT/$SLUG/plan.md" "$PROJECT/$SLUG/plan.r1.md"
 sed 's/365 days/90 days/' "$PROJECT/$SLUG/plan.r1.md" >"$PROJECT/$SLUG/plan.md"
 say "    the amendment: $(grep 'days' "$PROJECT/$SLUG/plan.md")"
@@ -211,13 +211,13 @@ grep -qx 'verdict: ACCEPTED' "$STORE/$BR/verdict.r2.md" || bad "verdict r2 is no
 done_case L10 "the amended plan, report r2, verdict r2 ACCEPTED"
 
 HERE=$PROJECT
-scene L11 'glab:develop in the project session' 'The accepted plan matches its verdict: development may start.'
+scene L11 'glab:project-develop in the project session' 'The accepted plan matches its verdict: development may start.'
 ok_gate check "$SLUG" "$STORE"
 case $OUT in 'ACCEPTED r2 '*) ;; *) bad "check printed [$OUT]" ;; esac
 done_case L11 "check passes: development may start"
 
 scene L12 'the project manager, recording after the verdict' 'A model line and a round-3 line go to after-verdict.md, outside the hash.'
-printf -- '- model: glab:developer opus, for this task — the user'"'"'s instruction: "use opus for the developer"\n- round 3: analyze — high S1 the job does not run\n' >"$PROJECT/$SLUG/after-verdict.md"
+printf -- '- model: glab:project-developer opus, for this task — the user'"'"'s instruction: "use opus for the developer"\n- round 3: analyze — high S1 the job does not run\n' >"$PROJECT/$SLUG/after-verdict.md"
 ok_gate check "$SLUG" "$STORE"
 done_case L12 "bookkeeping in after-verdict.md: check still passes"
 
@@ -270,7 +270,7 @@ done_case L15 "a second project: two REJECTED, then product-manager refused eith
 
 HERE=$PROJECT
 SLUG=plan/notes-api-v2
-scene L16 'glab:planner in the notes-api session, the changed brief planned again as two sub-plans' 'The master and every sub-plan are planned, checked and approved before one report covers them all; each sub-plan'"'"'s glab:develop checks that one verdict, and a sub-plan added later is a changed plan.'
+scene L16 'glab:project-planner in the notes-api session, the changed brief planned again as two sub-plans' 'The master and every sub-plan are planned, checked and approved before one report covers them all; each sub-plan'"'"'s glab:project-develop checks that one verdict, and a sub-plan added later is a changed plan.'
 project_plan "$PROJECT" notes-api
 rm "$PROJECT/$SLUG/plan.md"
 printf '# Index — notes-api-v2\n\n- 01-log · goals G2 · depends none · tier full\n- 02-routes · goals G1 · depends 01-log · tier full\n' >"$PROJECT/$SLUG/index.md"
@@ -289,11 +289,11 @@ say "    audit: $a"
 [ "$a" = 'NO CONFLICT' ] || bad "the audit of r4 gave [$a]"
 ok_gate verdict "$STORE" notes-api ACCEPTED product-manager "$FX/reasons/r2-accepted.md"
 HERE=$PROJECT
-say "    01-log's glab:develop:"
+say "    01-log's glab:project-develop:"
 ok_gate check "$SLUG" "$STORE"
 case $OUT in 'ACCEPTED r4 '*) ;; *) bad "check for 01-log printed [$OUT]" ;; esac
 printf 'S1 done\n' >"$PROJECT/$SLUG/01-log/result.md"
-say "    01-log built and committed; 02-routes's glab:develop:"
+say "    01-log built and committed; 02-routes's glab:project-develop:"
 ok_gate check "$SLUG" "$STORE"
 case $OUT in 'ACCEPTED r4 '*) ;; *) bad "check for 02-routes printed [$OUT]" ;; esac
 mkdir -p "$PROJECT/$SLUG/03-health"

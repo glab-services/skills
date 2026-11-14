@@ -1,5 +1,5 @@
 ---
-name: reviewer
+name: project-reviewer
 description: Project level — Reviews changes against AGENTS.md and for correctness. Reads AGENTS.md first, then reports findings as file:line with the rule broken and the fix. Read-only — never edits, stages or commits. Use after writing or changing code, and before committing.
 model: sonnet
 tools: Read, Grep, Glob, Bash
