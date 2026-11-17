@@ -10,4 +10,6 @@ Its staging rules, deny-list and message rules are in its own definition; do not
 
 **Write the dispatch for `haiku`**, the committer's model: every instruction explicit, none left to inference, the work as numbered steps that are references, never content — `1 commit the paths <list>; 2 report as your file says`. The steps point at what it reads and never carry it; you do not read the plan to write them (`glab:session-rules` Rule 2). Its own *Report* section is its template, never pasted into the dispatch.
 
-Report back: commit hash, subject line, and the file list from `git show --stat`.
+**Never in parallel** with another commit or a push: one staging while another commits makes a commit nobody described. While something else writes, name the exact paths to stage and those to leave.
+
+Report back: commit hash, subject line, and the file list from `git show --stat`. Verify that list matches what you expected.

@@ -24,7 +24,7 @@ Match the verdict **whole**, never by prefix — `SHIP WITH SCOPE CUT` starts wi
 - `DO NOT PUBLISH: <why>` → stop. Do not commit, and do not offer a fix round; the reviewer is saying the design is wrong.
 - No clear verdict, or the reviewer errored → first the report check of `glab:session-rules` Rule 5. Still no clear verdict → treat it as BLOCK and say which it was.
 
-When the user asks for a fix, it is made as `glab:project-manager` Stage 5 sends findings back — or, with no plan behind the change, as a **glab:project-developer** fix round dispatched directly, whose contract is the review findings, quoted verbatim in the dispatch (`glab:project-developer` *A fix round*). Either way the amended tree returns to step 1: a new reviewer, given what Stage 5 gives a round after the first, within `glab:session-rules` *Round caps*. A commit only ever follows a `SHIP` verdict on the exact tree being committed — a fix that was never reviewed is the case this skill exists to catch.
+When the user asks for a fix, it is made as `glab:project-review` sends findings back — or, with no plan behind the change, as a **glab:project-developer** fix round dispatched directly, whose contract is the review findings, quoted verbatim in the dispatch (`glab:project-developer` *A fix round*). Either way the amended tree returns to step 1: a new reviewer, given what Stage 5 gives a round after the first, within `glab:session-rules` *Round caps*. A commit only ever follows a `SHIP` verdict on the exact tree being committed — a fix that was never reviewed is the case this skill exists to catch.
 
 ## 3. Commit
 

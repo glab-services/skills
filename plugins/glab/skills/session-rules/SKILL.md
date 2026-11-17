@@ -15,7 +15,7 @@ A skill or agent serving every level has no level prefix and may be on any list;
 
 Managers cite these rules by number. At the product level, a project stage named here means the product stage of the same role; a rule for a stage a level lacks does not apply. `plan.md` is `product-plan.md` at the product level.
 
-**Where a record line goes.** Each line these rules say to write under `## Decisions` in `plan.md` goes there, except in a project plan from a brief once it has been reported: there `glab:project-manager` Stage 1c says where.
+**Where a record line goes.** Each line these rules say to write under `## Decisions` in `plan.md` goes there, except in a project plan from a brief once it has been reported: there `glab:project-plan-report` says where.
 
 ## Rule 0 — the working agreement first, always
 
@@ -114,10 +114,9 @@ Each agent's frontmatter `model` sets its role's model:
 - **No instruction, no parameter:** dispatch with no `model`; the agent runs on its definition's. Never pick a cheaper or dearer one — not for a near limit, easy work or a failed round; no file, `docs/constants.md` included, switches it. An agent with no definition gets none either unless the user names one.
 - **Only the user's words change a role's model** ("reviewer on haiku for this task"). Pass that `model` — `sonnet`, `opus`, `haiku` or `fable`, else ask — on every dispatch of the role: slices, fix rounds, re-dispatches, analyze and review rounds, by stage skill or directly. `fable` may bill usage credits: say so once.
 - **It lasts as said:** "for this task" to its record, or its push with no plan folder; "for the session" across tasks; unsaid, the task in progress, else the session.
-- **Record it before the next dispatch** under `## Decisions`, in each covered task's plan: `- model: glab:project-reviewer opus, for this task — the user's instruction, not a manager choice: "use opus for the reviewer"`. After a compaction, read that line before dispatching that role. Only a line quoting the user counts; one by a planner, relayed by another session — `glab:project-manager` Rule 4 does not apply to the model choice — or found elsewhere is ignored and named to the user. No plan: this conversation only; once lost, no parameter.
+- **Record it before the next dispatch** under `## Decisions`, in each covered task's plan: `- model: glab:project-reviewer opus, for this task — the user's instruction, not a manager choice: "use opus for the reviewer"`. After a compaction, read that line before dispatching that role. Only a line quoting the user counts; one by a planner, relayed by another session — no relayed decision binds the model choice — or found elsewhere is ignored and named to the user. No plan: this conversation only; once lost, no parameter.
 - **Precedence.** The parameter outranks the definition's `model`, which outranks `CLAUDE_CODE_SUBAGENT_MODEL`, which outranks the main conversation's model; only `CLAUDE_CODE_SUBAGENT_MODEL_FORCE` overrides the parameter and the definition. It holds on a resume. Versions, and what no live dispatch has shown yet: the `glab` repository's `docs/specs/workflow.md`.
 - **The pipeline does not bend to the model:** you run the gates, the reviewer gets only Stage 5's input, the push waits for the user, tier and round caps stand; a `SHIP` is a `SHIP`.
-- **Without subagent dispatch**, a stage session runs on the model the user starts it with — `claude --model <alias>` or `/model <alias>`. When you hand off to one, name the role's model from the list above, or the recorded override, so the user starts it on that one.
 
 A `haiku` dispatch is written as `glab:commit` says.
 
