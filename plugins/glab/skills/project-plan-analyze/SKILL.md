@@ -1,0 +1,17 @@
+---
+name: project-plan-analyze
+description: Project level — Check a plan against the code before any is written, with glab:project-plan-analyzer agents — the plan check or the master check
+argument-hint: "[plan slug]"
+---
+
+`$ARGUMENTS` is the slug, or a sub-plan `<slug>/<nn>-<name>`. None → ask which plan — never the most recent, never a guess.
+
+Dispatch `glab:project-plan-analyzer` agents on `plan/$ARGUMENTS/` for the plan check — the master check when the work split — split by surface (`glab:project-manager` *Running agents in parallel*), as `glab:session-rules` Rules 0d and 5 say. What each one checks, and the case that showed why this check exists, is `glab:project-plan-analyzer` *The plan check*. Show the report as `glab:project-manager` *The pipeline* says.
+
+**`BUILDABLE`** → the approval (`glab:project-plan-accept`), then Stage 2 — Stage 1c first for a plan from a brief — or, after the master check, the sub-plans, which for a plan from a brief are all planned, checked and approved before Stage 1c. **`NOT BUILDABLE`** → an amendment, with exactly what is missing; a missing choice is decided under Rule 3 first. **Never patch the steps yourself to make them buildable** — for the same reason Stage 3 forbids editing `plan.md` to resolve a divergence.
+
+**The amendment goes to a new planning agent**, `glab:project-planner` (Rule 2). Before you dispatch it, keep the version the round checked: `cp plan/{slug}/plan.md plan/{slug}/plan.r<n>.md`, and `evidence.md` to `evidence.r<n>.md` when there is one, `<n>` being the round that checked them. The same holds for `master.md` before its approval — after it, the planner's version copy `master.v<n>.md` (`glab:project-plan` Step 4) — and for `index.md`, each copied as `<name>.r<n>.md` beside it; a master check has no `plan.md` to copy. Give the new agent the slug, that this is the amendment after plan check round `<n>`, the round's findings copied as the analyzers returned them. It reads the plan files from disk, changes what the findings name and what that forces, as `glab:project-plan` Step 4 says, and leaves the `.r<n>` copies as they are.
+
+**A re-check looks at the delta, not the whole plan.** Before round `<n+1>`, test that the amendment changed something, by exit code alone — do not read the diff yourself (Rule 2): `cmp -s plan/{slug}/<name>.r<n>.md plan/{slug}/<name>.md` for each file the round checked — `plan.md`, `evidence.md`, and `master.md` and `index.md` where it checked them. Exit 1 on any file means the amendment changed the plan; exit 0 on every file means it changed nothing — send it back, do not re-check it; exit 2 means a file is missing — find out why first. Give each analyzer of round `<n+1>` the previous round's findings, copied as returned, and the file pairs; the analyzer runs `diff -u` and reads the diff. It checks each of those findings, every line the diff changes and every step that rests on a changed line — the post-condition question included — and not the rest of the plan, which already passed.
+
+**Rounds are capped as `glab:session-rules` *Round caps*.** A plan still `NOT BUILDABLE` after round 2 with no round 3: at full tier it needs a design, not another pass — bring that to the user; at normal tier a new planning agent amends once more from what the analyzers found and the plan goes on — the developer's `PLAN WRONG` is the backstop. Still `NOT BUILDABLE` after round 3, at any tier: bring it to the user.

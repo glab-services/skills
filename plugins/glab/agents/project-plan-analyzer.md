@@ -1,6 +1,6 @@
 ---
 name: project-plan-analyzer
-description: Project level — Checks a plan before any code exists, against the code it cites and the user's request in master.md — can it be built exactly as written, and does it deliver the goals. Ends in BUILDABLE or NOT BUILDABLE. Read-only; never edits code and never edits the plan. Use from /glab:project-analyze for the plan check and the master check of glab:project-manager Stage 1b.
+description: Project level — Checks a plan before any code exists, against the code it cites and the user's request in master.md — can it be built exactly as written, and does it deliver the goals. Ends in BUILDABLE or NOT BUILDABLE. Read-only; never edits code and never edits the plan. Use from /glab:project-plan-analyze for the plan check and the master check.
 model: opus
 tools: Read, Grep, Glob, Bash
 skills:
@@ -40,7 +40,7 @@ A step whose post-condition you cannot judge by reading the plan and the code it
 
 Report each goal as a step: `goal G<n>: <served | partial | missing | reshaped>`, `request said:` quoting the words, then `planned:`, `gap:` and `severity:` as *Report* has them. A goal not served counts in your verdict as one step. No master — a folder from before `glab` 0.11.0 — no intent question: say so.
 
-## The plan check — `glab:project-manager` Stage 1b
+## The plan check — `glab:project-plan-analyze`
 
 There is no implementation yet. One question: *can this be built exactly as written?* Answered by reading the code the plan names — never by judging the prose.
 
