@@ -43,15 +43,27 @@ this file and an owning file disagree, the owning file is right.
   of `product-plan.md`'s shape, its 49152-byte budget and the 8192-byte rule
   file), `glab:product-plan-analyze`, `glab:product-project-brief`,
   `glab:product-project-plan-analyze`, `glab:product-project-plan-verdict`;
-  and `glab:product-project-plan-report`, which the project manager runs at
-  Stage 1c and whose description says `Project level` (its agreed name kept:
-  the product chain sets the contract). The agents, flat files under
+  and `glab:project-plan-report`, which the project manager runs at
+  Stage 1c and whose description says `Project level` — named
+  `glab:product-project-plan-report` until `glab` 0.15.0 (`0c49626`,
+  `flow-project-level`), the one name whose prefix did not say its level.
+  The level-boundary exception went with that name (F13): the clause
+  `, and a name's prefix does not always say the level —
+  `glab:product-project-plan-report` is the project level's.` of
+  `session-rules/SKILL.md` and the product manager's line
+  `` `glab:product-project-plan-report` is not on it: `glab:session-rules`
+  *The level boundary* says why. `` are removed
+  (`[flow-project-level/01-rename/plan.md]` P3, R4); every project skill's
+  prefix now says its level. The agents, flat files under
   `plugins/glab/agents/` because `plugin details` lists no agent in a
   subfolder and the model and skills gates glob `agents/*.md` (`E3`):
   `glab:product-planner` (`model: opus`; `skills:` `glab:product-plan`,
   `glab:security`; no `Skill` tool) and `glab:product-analyzer` (`model:
   opus`; read-only, `tools: Read, Grep, Glob, Bash`; `skills:`
-  `glab:security`, `glab:audit`), which ends a product plan check `SOUND`
+  `glab:security`, `glab:severity` since `glab` 0.15.0 — `0cfe335`,
+  `flow-project-level` 02, `glab:audit` until then; the agent and its
+  preloads 16508 bytes at `db5feae`, 19721 at `1bbf4bc`), which ends a
+  product plan check `SOUND`
   or `NOT SOUND: <n> findings` and a project plan audit `NO CONFLICT` or
   `CONFLICTS: <n>`, both `BLOCK: target unresolved` when a file is missing
   (`agents/product-analyzer.md`); the verdict's reason is taken from its
@@ -216,6 +228,17 @@ this file and an owning file disagree, the owning file is right.
   the manager sent that trace (434 lines) to the user on 2026-11-13 and
   removed it, as X2 says (`result.md` *Final check record*). The gate lines
   are in `docs/specs/marketplace.md`.
+- **The product session start** (since `glab` 0.15.0, `flow-project-level`
+  G5; `[flow-project-level/master.md]` *Final check* step 4, the owner of
+  the measure: the hook's session-start text for a `glab-level: product`
+  repo, `bootstrap`, `session-rules`, `security` and `product-manager`, by
+  `wc -c`). Before: 57203 bytes (`[flow-project-level/evidence.md]` E2, the
+  G5 table's *Before*), the hook text 2394 of it. After: `prod` 44924
+  against the cap 47104 (*Final check* step 4, run 2026-11-18 on `db5feae`
+  and again for this record), the hook text 2584 (`[flow-project-level/02-shared-rules/plan.md]`
+  *Dry run*: product 2584, base 2394; 2584 again for this record), with
+  `bootstrap` 5212 and `session-rules` 13012. The
+  product-analyzer's agent set (agent file plus preloads) is 16508.
 
 ## Decisions that still bind
 
@@ -293,8 +316,8 @@ this file and an owning file disagree, the owning file is right.
 - [flow-product-level/plan.md FU-P3] The Notion view of the store ("plain folder but I'm planing to connect here notion page"), read-only, never the gate; it changes `glab:product-manager` *The shared store* and `plan-gate.sh` only — open.
 - [flow-product-level/plan.md FU-P4] The live tests LP1–LP6, run by the user after install (*Known limits*) — open.
 - [flow-product-level/plan.md FU-P5] A hard hold on `by user`: today any session can pass it (R12); a check that the words came from the user needs a mechanism this plan does not have, and whether Claude Code offers one is UNVERIFIED — open.
-- [manager-flow-notes.md later-1] **The user's, parked 2026-11-13** ("yes, and also main CLAUDE.md in claude code home folder must not mention about bootstrap skill, would be better to think about hook based force skill loader for main sessions, bot let's add note about this, to solve it later, good?", from `plan/manager-flow-notes.md` *Later: agent and session context cleanup*, untracked): `omitClaudeMd: true` on all nine `glab` agents, an agent frontmatter field of CLI 2.1.310 that runs a subagent without the user, project and local `CLAUDE.md` files (Claude Code's built-in Explore and Plan agents set it; the public docs not yet checked), and a gate that every agent file carries it. **Prerequisite:** the machine hazards, above all temp files in the host file's temp directory and never `/tmp`, reach agents today only through `~/.claude/CLAUDE.md`, and no `glab` agent reads the host file, so each agent first needs another way to learn them — it reads the host file at start, or the manager's dispatch carries the temp-directory line; without it an agent writing to `/tmp` can exhaust the shared tmpfs quota. Verifiable only live, by a real dispatch after install — open, agreed, not planned.
-- [manager-flow-notes.md later-2] **The user's, parked 2026-11-13** (the same words, same source): no bootstrap text in `~/.claude/CLAUDE.md`; a hook-based skill loader makes the main session load its skills instead. Already true: the `SessionStart` hook injects the session-start text, and since 0.14.0 reads `glab-level` and names the level's manager and `glab:session-rules`. To prove first: whether a hook can make Claude invoke a skill or only add context (inferred: only add context, UNVERIFIED); that `additionalContext` is capped at 10,000 characters, so a hook injects a short, firm instruction and the level's skill list, never a whole skill (`glab:manager` was about 55 KB when noted, 40284 bytes at `ce1a933`); which event gives the strongest guarantee, and whether a `UserPromptSubmit` check can re-assert it after a compaction; what stays in `~/.claude/CLAUDE.md` afterwards — the machine hazards only, or nothing. Changing that home file is the user's step, never an agent's. Once it holds no session rules, `omitClaudeMd` (later-1) loses nothing but the hazards, which later-1 moves anyway — open, an idea, not planned.
+- [manager-flow-notes.md later-1] **The user's, parked 2026-11-13** ("yes, and also main CLAUDE.md in claude code home folder must not mention about bootstrap skill, would be better to think about hook based force skill loader for main sessions, bot let's add note about this, to solve it later, good?", from `plan/manager-flow-notes.md` *Later: agent and session context cleanup*, untracked): `omitClaudeMd: true` on all nine `glab` agents, an agent frontmatter field of CLI 2.1.310 that runs a subagent without the user, project and local `CLAUDE.md` files (Claude Code's built-in Explore and Plan agents set it; the public docs not yet checked), and a gate that every agent file carries it. **Prerequisite:** the machine hazards, above all temp files in the host file's temp directory and never `/tmp`, reach agents today only through `~/.claude/CLAUDE.md`, and no `glab` agent reads the host file, so each agent first needs another way to learn them — it reads the host file at start, or the manager's dispatch carries the temp-directory line; without it an agent writing to `/tmp` can exhaust the shared tmpfs quota. Verifiable only live, by a real dispatch after install — open, agreed, not planned; timing, per `[flow-project-level/master.md]` *Out of scope*: "in the end when we will finish all agents" (the user's words, relayed by the manager 2026-11-14).
+- [manager-flow-notes.md later-2] **The user's, parked 2026-11-13** (the same words, same source): no bootstrap text in `~/.claude/CLAUDE.md`; a hook-based skill loader makes the main session load its skills instead. Already true: the `SessionStart` hook injects the session-start text, and since 0.14.0 reads `glab-level` and names the level's manager and `glab:session-rules`. To prove first: whether a hook can make Claude invoke a skill or only add context (inferred: only add context, UNVERIFIED); that `additionalContext` is capped at 10,000 characters, so a hook injects a short, firm instruction and the level's skill list, never a whole skill (`glab:manager` was about 55 KB when noted, 40284 bytes at `ce1a933`); which event gives the strongest guarantee, and whether a `UserPromptSubmit` check can re-assert it after a compaction; what stays in `~/.claude/CLAUDE.md` afterwards — the machine hazards only, or nothing. Changing that home file is the user's step, never an agent's. Once it holds no session rules, `omitClaudeMd` (later-1) loses nothing but the hazards, which later-1 moves anyway — open, an idea, not planned; timing as later-1's (`[flow-project-level/master.md]` *Out of scope*).
 
 ## Closed follow-ups
 
@@ -329,3 +352,6 @@ this file and an owning file disagree, the owning file is right.
   - [flow-gate-hardening/result.md Stages] Result → B1 and S1–S4 done, nothing blocked, no unplanned change; A6 "NOT RUN" superseded by `a6-a7-run`; its UNVERIFIED → *Known limits*.
   - Incidents → none recorded by this change.
   - [flow-gate-hardening/master.md Record] Record → this record, in this file, its primary area, and in `docs/specs/marketplace.md`; no audit file.
+- 2026-11-18 · flow-project-level · recorded in `docs/specs/workflow.md`, its primary area; here: `glab` 0.15.0, the level-boundary exception gone with the name `glab:product-project-plan-report` (F13; `[flow-project-level/01-rename/plan.md]` P3 holds the old text), `glab:product-analyzer` preloading `glab:severity` in place of `glab:audit`, the product session start before (57203) and after (`prod` 44924, cap 47104; hook text 2584, base 2394), the project-level names in *How it works now* · change db5feae (01 `0c49626`, 02 `0cfe335`, 03 `db5feae`) · plan: `git ls-tree -r --name-only db5feae -- plan/flow-project-level/` (one file: `git show db5feae:plan/flow-project-level/<file>`). `db5feae` is the last commit on `origin/main` that holds it (`git log -1 --format=%h origin/main -- plan/flow-project-level/`; PR glab-services/skills#15, merged with rebase from `cf909b5`); final check CONFORMS (G1–G6).
+  - Incidents → none recorded here.
+  - [flow-project-level/master.md Record] Record → `docs/specs/workflow.md`, its primary area, this file for the product level's side and `docs/specs/marketplace.md` for the gates, the names and the handoff file.

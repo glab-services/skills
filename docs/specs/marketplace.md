@@ -49,7 +49,25 @@ owning file is right and this spec is out of date.
   `glab` 0.8.0 (`467b7c4`, 2026-10-20) `glab` also held the external agents,
   which `docs/specs/external-agents.md` keeps as a record.
 - **What each plugin holds** (`AGENTS.md` *Gates*, `README.md`): `glab` —
-  since `glab` 0.14.0 (`ce1a933`, `flow-product-level`) two levels, the
+  since `glab` 0.15.0 (`db5feae`, `flow-project-level`)
+  `Skills (25)  audit, bootstrap, comments, commit, product-manager, product-plan, product-plan-analyze, product-project-brief, product-project-plan-analyze, product-project-plan-verdict, project-analyze, project-develop, project-integrate, project-manager, project-plan, project-plan-accept, project-plan-analyze, project-plan-report, project-record, project-review, project-ship, push, security, session-rules, severity`
+  and `Agents (9)` naming `committer`, `product-analyzer`,
+  `product-planner`, `project-analyzer`, `project-developer`,
+  `project-integrator`, `project-plan-analyzer`, `project-planner` and
+  `project-reviewer`, in any order. Every project-level skill and agent
+  carries the `project-` prefix (`0c49626`, its sub-plan 01; old → new,
+  `plan/flow-project-level/evidence.md` E5, and the migration note in
+  `README.md`): the skills `glab:manager`, `glab:plan`, `glab:develop`,
+  `glab:analyze`, `glab:integrate`, `glab:review` and `glab:ship` →
+  `glab:project-<the same>`, `glab:product-project-plan-report` →
+  `glab:project-plan-report`, the agents `planner`, `plan-analyzer`,
+  `analyzer`, `developer`, `integrator` and `reviewer` → `project-<the
+  same>` (`skills/<name>/` and `agents/<name>.md` the same). New:
+  `glab:severity` (`0cfe335`, sub-plan 02) and `glab:project-plan-accept`,
+  `glab:project-plan-analyze` and `glab:project-record` (`db5feae`, sub-plan
+  03, the stage skills split out of the manager); the hook events and the
+  three scripts unchanged in number. From `glab` 0.14.0 (`ce1a933`,
+  `flow-product-level`) until `0c49626`: two levels, the
   user's "one plugin for all" (`docs/specs/product.md`, *Two levels in one
   plugin*):
   `Skills (21)  analyze, audit, bootstrap, comments, commit, develop, integrate, manager, plan, product-manager, product-plan, product-plan-analyze, product-project-brief, product-project-plan-analyze, product-project-plan-report, product-project-plan-verdict, push, review, security, session-rules, ship`
@@ -78,7 +96,11 @@ owning file is right and this spec is out of date.
   skill, `sync-memory`, no agent, hooks on `SessionStart`, `SessionEnd`,
   `PostToolUse` and `Stop`.
 - **Versions.** Each `plugin.json` carries an explicit `version` — `glab`
-  `0.14.1` (raised once by `2724086`, `flow-gate-hardening`, the change's
+  `0.15.0` (raised once by `0c49626`, the first of `flow-project-level`'s
+  three commits, `0cfe335` and `db5feae` keeping it; merged with rebase
+  through PR glab-services/skills#15 from `cf909b5`; 01's subject a
+  `refactor`, 02's and 03's a `feat`, each ending `(glab 0.15.0)`,
+  `[flow-project-level/master.md]` *Final check* step 7); `0.14.1` (raised once by `2724086`, `flow-gate-hardening`, the change's
   one commit — `bdee40a` on its branch, the same tree, merged with rebase
   through PR #13; its review fix round kept it; a patch step, the four
   `plan-gate.sh` follow-ups closed; exit codes, stdout and the store layout kept, the contract gaining the takeover clause,
@@ -165,7 +187,44 @@ owning file is right and this spec is out of date.
   T51 use the same launcher); coverage as a list, in `plan.md` *Tests* and
   `result.md`. The walkthrough's fixtures are under
   `tests/fixtures/product-loop/`, named in *Layout*. In the plugin block
-  the `glab` lines are green as `Skills (21)` and `Agents (9)` naming them
+  the `glab` lines are green, since `glab` 0.15.0, as `AGENTS.md` *Gates*
+  lists them: `Skills (25)` and `Agents (9)` naming them (*What each plugin
+  holds*), the model gate as nine lines —
+  `project-analyzer.md:model: sonnet`, `committer.md:model: haiku`,
+  `project-developer.md:model: sonnet`, `project-integrator.md:model: sonnet`,
+  `project-plan-analyzer.md:model: opus`, `project-planner.md:model: opus`,
+  `product-analyzer.md:model: opus`, `product-planner.md:model: opus`,
+  `project-reviewer.md:model: sonnet` — and the skills gate as eighteen —
+  `project-analyzer.md:glab:security`, `project-analyzer.md:glab:severity`,
+  `committer.md:glab:security`, `project-developer.md:glab:security`,
+  `project-developer.md:glab:comments`, `project-integrator.md:glab:security`,
+  `project-integrator.md:glab:comments`,
+  `project-plan-analyzer.md:glab:security`,
+  `project-plan-analyzer.md:glab:severity`,
+  `project-planner.md:glab:project-plan`, `project-planner.md:glab:security`,
+  `product-analyzer.md:glab:security`, `product-analyzer.md:glab:severity`,
+  `product-planner.md:glab:product-plan`, `product-planner.md:glab:security`,
+  `project-reviewer.md:glab:security`, `project-reviewer.md:glab:comments`,
+  `project-reviewer.md:glab:severity` — each with its `plugins/glab/agents/`
+  prefix. **Green at `db5feae`, both blocks run for this record**
+  (2026-11-18, `TMPDIR` set, `CLAUDE_CONFIG_DIR` a new empty directory):
+  nine `rc=0` lines, `shellcheck` `rc=0`, `PASS 35/35` (memory-sync),
+  `PASS 24/24` (context-size), `PASS 51/51` (plan-gate), `PASS 19/19`
+  (manager-bootstrap; 13 at `2724086`),
+  `PASS 17/17` (product-loop), no line but `ok` before each; three
+  `✔ Validation passed`, the `Skills (25)` line above,
+  `Agents (9)  project-planner, product-planner, project-developer, project-integrator, product-analyzer, committer, project-analyzer, project-reviewer, project-plan-analyzer`
+  (the build's order), both `Hooks (4)` lines with the `harness-only`
+  suffix, `glab = glab` and `memory-sync = memory-sync`, `:0` `:0` then
+  `rc=1`, `1` `1` `1` then `rc=0`, the nine model lines then `rc=0`, the
+  eighteen skills lines with no `MISSING`, and no line then `rc=1`. **The
+  old-name search** (`[flow-project-level/master.md]` *Final check* step 2,
+  run for this record): the first search, over `plugins README.md
+  AGENTS.md tests host.example.md .claude-plugin`, prints only `rc=1`; the
+  second, the old names in the `glab` *Gates* line of `AGENTS.md`, prints
+  `0` (`1` before `0c49626`). The `docs/specs/` files are outside it: they
+  are records, and their dated lines keep the old names. Until `0c49626`
+  the `glab` lines were green as `Skills (21)` and `Agents (9)` naming them
   (*What each plugin holds*), the model gate as nine lines — with
   `product-analyzer.md:model: opus` and `product-planner.md:model: opus` —
   and the skills gate as eighteen, with `product-analyzer.md:glab:security`,
@@ -474,7 +533,12 @@ owning file is right and this spec is out of date.
   `developer.md`, `develop.md`, `ship.md`, `analyze.md`); the mapping files
   `map-<area>.md` and the round copies `<name>.r<n>.md` (the manager,
   `plan-first`, `analyzer.md`, `developer.md`); the handoff file
-  `plan/SESSION-HANDOFF.md` (`glab:bootstrap` step 5, the manager Rule 2);
+  per-session file `plan/handoff/<session id>.md` as of 0.15.0
+  (`glab:session-rules` Rule 2, its owner — at most 4096 bytes, first line
+  `- status: in-flight` or `- status: completed`, removed once completed
+  under Rule 2's standing approval; `glab:bootstrap` step 5 points at it;
+  `.gitignore` holds `plan/handoff/`; one shared file
+  `plan/SESSION-HANDOFF.md` until `0cfe335`);
   the `glab` context hook — the modes `prompt`, `agent` and `stop` on
   `UserPromptSubmit`, `PostToolUse` with matcher `Agent` and `Stop`, the
   line `glab: context <n>k (last completed call)`, the `Stop` message, and
@@ -682,7 +746,7 @@ owning file is right and this spec is out of date.
   `tests/fixtures/product-loop/`, the walkthrough's sample product;
   *Gates* gained the three tests, nine `rc=0` lines, "run all seven",
   `Skills (21)`, `Agents (9)`, nine model lines and eighteen skills lines
-  (*The gates*, above); *Rules* gained the hook contract of
+  (`Skills (25)` and the renamed agents since 0.15.0, *The gates*, above); *Rules* gained the hook contract of
   `manager-bootstrap.sh` and the contract of `plan-gate.sh`, a script no hook
   runs (*The repo's own rules*, above); the `plan/` rule's list of area
   specs gained `product.md` (the product level and the product ⇄ project
@@ -713,7 +777,7 @@ owning file is right and this spec is out of date.
   last record and names the file that owns it, so it is not one of the
   *One fact* files. `plan/` is the working area: a change's `plan/<slug>/`
   is committed with the change, and after its push the record
-  (`glab:manager` Stage 8, `docs/specs/workflow.md`) updates the spec of
+  (`glab:project-record`, `docs/specs/workflow.md`) updates the spec of
   each area it touched. `glab` never removes the folder; this repo's
   `AGENTS.md` does, by its own rule: once the change has landed on
   `origin/main`, the manager session — not a `glab` step — removes the
@@ -725,8 +789,11 @@ owning file is right and this spec is out of date.
   back without touching the tree: one file `git show <sha>:plan/<slug>/<file>`,
   the list `git ls-tree -r --name-only <sha> -- plan/<slug>/`, the whole
   folder through `git archive` into a new directory under `$TMPDIR`. No
-  untracked file under `plan/` is removed; `plan/SESSION-HANDOFF.md` is
-  never committed. Until `feature-docs-specs` the rule was "`plan/` is
+  untracked file under `plan/` is removed but a manager's own completed
+  handoff file `plan/handoff/<session id>.md` (`glab:session-rules` Rule 2's
+  standing approval, since 0.15.0); `plan/handoff/` is never committed
+  (`.gitignore`; the one shared `plan/SESSION-HANDOFF.md` it replaced in
+  `0cfe335` was never committed either). Until `feature-docs-specs` the rule was "`plan/` is
   tracked and permanent".
 
 ## Decisions that still bind
@@ -867,3 +934,5 @@ owning file is right and this spec is out of date.
   - [flow-product-level/master.md Record] Record → the entries above; the decisions, follow-ups, known limits and incidents in `docs/specs/product.md`, and the project edges' in `docs/specs/workflow.md`; of its follow-ups none is open against `AGENTS.md` or the gates — `FR1-1` (hard links) and the UNVERIFIED network filesystem concern the store, open in `docs/specs/product.md`; the `mkdir` hazard → *Incidents* here and there.
 - 2026-11-14 · flow-gate-hardening · recorded in `docs/specs/product.md`, its primary area; here: `glab` 0.14.1, `plan-gate.sh`'s contract with the takeover clause as `AGENTS.md` *Rules* states it, the `ln` and `head` stubs and the new background and launcher cases of `tests/plan-gate.test.sh`, its green at `PASS 51/51` (not run for this record; the developer's and the manager's runs on the same files); the component counts, the hook events, `AGENTS.md` *Gates*, `README.md`, `host.example.md` and `.claude-plugin/marketplace.json` unchanged · change 2724086 · plan: `git ls-tree -r --name-only 2724086 -- plan/flow-gate-hardening/` (one file: `git show 2724086:plan/flow-gate-hardening/<file>`). `2724086` is the last commit on `origin/main` that holds it (`git log -1 --format=%h origin/main -- plan/flow-gate-hardening/`; PR #13, merged with rebase from `bdee40a`): the folder is removed in the same PR as this record.
   - [flow-gate-hardening/master.md Record] Record → the entries above; the decisions, follow-ups and known limits in `docs/specs/product.md`; of its follow-ups `[flow-gate-hardening/follow-ups.md FG-1]` (a failed claim write exits 1, not the contract's 2) concerns the contract in `AGENTS.md` *Rules* and `FG-2` (the store's filesystems in `README.md`) the store, both open in `docs/specs/product.md`; no incident.
+- 2026-11-18 · flow-project-level · recorded in `docs/specs/workflow.md`, its primary area; here: `glab` 0.15.0, `Skills (25)` and the nine agents as `AGENTS.md` *Gates* lists them, the project level's old → new names (`glab:<name>`, `skills/<name>/`, `agents/<name>.md`) through *How it works now*, the nine model gate lines and the eighteen skills gate lines, the old-name search of `[flow-project-level/master.md]` *Final check* step 2, the per-session handoff file `plan/handoff/<session id>.md` in place of `plan/SESSION-HANDOFF.md` (G6), both *Gates* blocks run for this record (`PASS 35/35`, `PASS 24/24`, `PASS 51/51`, `PASS 19/19`, `PASS 17/17`); final check CONFORMS (G1–G6) · change db5feae (01 `0c49626`, 02 `0cfe335`, 03 `db5feae`) · plan: `git ls-tree -r --name-only db5feae -- plan/flow-project-level/` (one file: `git show db5feae:plan/flow-project-level/<file>`). `db5feae` is the last commit on `origin/main` that holds it (`git log -1 --format=%h origin/main -- plan/flow-project-level/`; PR glab-services/skills#15, merged with rebase from `cf909b5`).
+  - [flow-project-level/master.md Record] Record → the entries above; the project level, its decisions, follow-ups and known limits in `docs/specs/workflow.md`, the product level's side in `docs/specs/product.md`; its incidents, if any, with the primary area's record (none recorded here).
