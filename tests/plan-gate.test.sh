@@ -935,6 +935,149 @@ left=$(find "$S" -name '.plan-gate.*')
 [ -z "$left" ] || bad "left in the store: $left"
 done_case T51 "on a store without hard links, report and verdict exit 2 naming the requirement, and leave nothing"
 
+# T52 to T55 make a claim's or a lock's create fail (plan-gate.sh, create_line). capped <args...>:
+# as gate, but the run may write no byte to a regular file - ulimit -f 0 - so that its first write,
+# the line of its claim, fails as on a full disk; the file is still created, empty. Only regular
+# files are capped, not pipes, so OUT and ERR come back through pipes - gate's stderr file would
+# fail the same way - and RC and ERR are written to $W/capped by the outer shell, which is not
+# capped, outside $C so that snap "$C" holds. trap '' because a write over the limit sends SIGXFSZ,
+# which kills the run; a signal ignored when bash starts stays ignored in it, so the write fails
+# with EFBIG instead.
+capped() {
+	local e
+	OUT=$( { e=$( (trap '' XFSZ; ulimit -f 0; exec bash "$SCRIPT" "$@") 2>&1 1>&3 ); printf '%s\n%s' "$?" "$e" >"$W/capped"; } 3>&1 )
+	RC=$(head -n 1 "$W/capped")
+	ERR=$(tail -n +2 "$W/capped")
+}
+
+# T52
+loop_case t52 notes-api
+# A decoy at the very name the run claims, holding another host's line: the capped run is refused
+# on it and leaves it as it was - it removes only a file it made itself [script-hardening/review.r1.md].
+decoy=$S/$B/.plan-gate.claim.report.r1
+printf 'plan-gate-test-elsewhere x pid:[1] 1 1\n' >"$decoy"
+sum=$(cksum <"$decoy")
+before=$(snap "$C")
+capped report "$P" "$S"
+[ "$RC" = 1 ] && [ -z "$OUT" ] && [ "$ERR" = "REFUSED: another run is writing report r1; when no run is writing, remove $decoy by hand" ] || bad "report on the decoy: rc=$RC [$OUT] [$ERR]"
+[ "$(cksum <"$decoy" 2>/dev/null)" = "$sum" ] || bad "the decoy changed or went"
+[ "$before" = "$(snap "$C")" ] || bad "the refused report wrote something"
+rm -f -- "$decoy"
+before=$(snap "$C")
+capped report "$P" "$S"
+[ "$RC" = 2 ] && [ -z "$OUT" ] && [ "$ERR" = "plan-gate.sh: writing $S/$B/.plan-gate.claim.report.r1 failed" ] || bad "report: rc=$RC [$OUT] [$ERR]"
+[ "$before" = "$(snap "$C")" ] || bad "the failed report left something"
+ran report "$P" "$S"
+before=$(snap "$C")
+capped verdict "$S" notes-api ACCEPTED product-manager "$C/ok"
+[ "$RC" = 2 ] && [ -z "$OUT" ] && [ "$ERR" = "plan-gate.sh: writing $S/$B/.plan-gate.claim.verdict.r1 failed" ] || bad "verdict: rc=$RC [$OUT] [$ERR]"
+[ "$before" = "$(snap "$C")" ] || bad "the failed verdict left something"
+done_case T52 "a claim whose line cannot be written: exit 2 naming it, its own empty file removed; another run's claim at that name refused and kept"
+
+# T53
+loop_case t53 notes-api
+if [ -n "$PROC" ]; then
+	ran report "$P" "$S"
+	claim=$S/$B/.plan-gate.claim.verdict.r1 lock=$S/$B/.plan-gate.takeover.verdict.r1
+	owner "$(dead_pid)" 1 >"$claim"
+	sum=$(cksum <"$claim")
+	capped verdict "$S" notes-api ACCEPTED product-manager "$C/ok"
+	[ "$RC" = 2 ] && [ -z "$OUT" ] && [ "$ERR" = "plan-gate.sh: writing $lock failed" ] || bad "verdict: rc=$RC [$OUT] [$ERR]"
+	[ "$(cksum <"$claim" 2>/dev/null)" = "$sum" ] || bad "the stale claim changed or went"
+	[ ! -e "$lock" ] || bad "the takeover lock was left"
+	rm -f -- "$claim"
+	done_case T53 "a takeover lock whose line cannot be written: exit 2 naming it, the lock removed, the stale claim kept"
+else
+	done_case T53 "a takeover lock whose line cannot be written (skipped: no /proc)"
+fi
+
+# T54
+loop_case t54 notes-api
+chmod a-w "$S/$B"
+if [ -w "$S/$B" ]; then
+	chmod u+w "$S/$B"
+	done_case T54 "a claim or lock in a folder this run cannot write: exit 2 naming it (skipped: the folder stays writable, root)"
+else
+	before=$(snap "$C")
+	gate report "$P" "$S"
+	[ "$RC" = 2 ] && [ -z "$OUT" ] && [ "$ERR" = "plan-gate.sh: writing $S/$B/.plan-gate.claim.report.r1 failed" ] || bad "report: rc=$RC [$OUT] [$ERR]"
+	[ "$before" = "$(snap "$C")" ] || bad "the failed report wrote something"
+	if [ -n "$PROC" ]; then
+		chmod u+w "$S/$B"
+		ran report "$P" "$S"
+		claim=$S/$B/.plan-gate.claim.verdict.r1
+		owner "$(dead_pid)" 1 >"$claim"
+		chmod a-w "$S/$B"
+		before=$(snap "$C")
+		gate verdict "$S" notes-api ACCEPTED product-manager "$C/ok"
+		[ "$RC" = 2 ] && [ -z "$OUT" ] && [ "$ERR" = "plan-gate.sh: writing $S/$B/.plan-gate.takeover.verdict.r1 failed" ] || bad "verdict: rc=$RC [$OUT] [$ERR]"
+		[ "$before" = "$(snap "$C")" ] || bad "the failed verdict wrote something"
+		chmod u+w "$S/$B"
+		rm -f -- "$claim"
+	fi
+	chmod u+w "$S/$B"
+	done_case T54 "a claim or lock in a folder this run cannot write: exit 2 naming it, nothing written"
+fi
+
+# T55
+loop_case t55 notes-api
+# An rm that fails, with a line on stderr that the script must drop: the run cannot remove the
+# empty claim its failed write left.
+stub rm 'echo "rm: stub, failing on purpose" >&2; exit 1'
+PATH=$C/bin:$PATH capped report "$P" "$S"
+claim=$S/$B/.plan-gate.claim.report.r1
+[ "$RC" = 2 ] && [ -z "$OUT" ] && [ "$ERR" = "plan-gate.sh: writing $claim failed, and removing it failed; remove $claim by hand" ] || bad "report: rc=$RC [$OUT] [$ERR]"
+[ -f "$claim" ] && [ ! -s "$claim" ] || bad "no empty claim was left"
+rm -f -- "$claim"
+done_case T55 "a claim whose line cannot be written nor its file removed: exit 2, one line naming it to remove by hand"
+
+# T56
+# Under POSIXLY_CORRECT bash runs in posix mode, where a failed redirection on exec, a special
+# builtin, ends the shell at once with no message - the caller's one line never printed
+# [script-hardening/review.r1.md] [script-hardening/plan.md D21]. Two failed opens: one in a folder
+# the run cannot write (code 2), and the loser of a claim race (code 1). The race is made certain
+# here: the run is sourced by a bash whose function [ wraps the builtin and, the first time
+# create_line's guard tests the claim with -L, puts another run's claim at that name, as a run that
+# won between the guard and the open would. The line is another host's, so the refusal does not
+# need /proc. That bash turns posix mode on with set -o posix after the function is defined, not
+# with POSIXLY_CORRECT at its start: bash 4.4 to 5.2 rejects the name [ in posix mode, and only 5.3
+# accepts it [script-hardening/review.r2.md] [script-hardening/plan.md D23].
+loop_case t56 notes-api
+chmod a-w "$S/$B"
+if [ -w "$S/$B" ]; then
+	chmod u+w "$S/$B"
+	done_case T56 "under POSIXLY_CORRECT a failed open still ends in one line (skipped: the folder stays writable, root)"
+else
+	before=$(snap "$C")
+	POSIXLY_CORRECT=1 gate report "$P" "$S"
+	[ "$RC" = 2 ] && [ -z "$OUT" ] && [ "$ERR" = "plan-gate.sh: writing $S/$B/.plan-gate.claim.report.r1 failed" ] || bad "read-only store: rc=$RC [$OUT] [$ERR]"
+	[ "$before" = "$(snap "$C")" ] || bad "the failed report wrote something"
+	chmod u+w "$S/$B"
+	claim=$S/$B/.plan-gate.claim.report.r1 line='plan-gate-test-elsewhere x pid:[1] 1 1'
+	# shellcheck disable=SC2016 # expanded by the bash that sources the script
+	OUT=$(PLANT=$claim LINE=$line bash -c '
+		planted=""
+		[ () {
+			local r=0
+			builtin [ "$@" || r=1
+			if builtin [ -z "$planted" ] && builtin [ "$#" -eq 3 ] && builtin [ "$1" = -L ] && builtin [ "$2" = "$PLANT" ]; then
+				planted=1
+				printf "%s\n" "$LINE" >"$PLANT"
+			fi
+			return "$r"
+		}
+		set -o posix
+		s=$1
+		shift
+		. "$s"' _ "$SCRIPT" report "$P" "$S" 2>"$W/err")
+	RC=$?
+	ERR=$(cat "$W/err")
+	[ "$RC" = 1 ] && [ -z "$OUT" ] && [ "$ERR" = "REFUSED: another run is writing report r1; when no run is writing, remove $claim by hand" ] || bad "race loser: rc=$RC [$OUT] [$ERR]"
+	[ "$(cat "$claim" 2>/dev/null)" = "$line" ] || bad "the other run's claim changed or went"
+	rm -f -- "$claim"
+	done_case T56 "under POSIXLY_CORRECT a failed open still ends in one line: exit 2 in a folder it cannot write, REFUSED for a claim race lost"
+fi
+
 # T22 last: judged over every store the cases above wrote
 left=$(find "$W" -name '.plan-gate.*')
 [ -z "$left" ] || bad "temporary files left: $left"
