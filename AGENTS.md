@@ -10,7 +10,9 @@ and this file disagree about how to work *in this repo*, this file wins.
 - `.claude-plugin/marketplace.json` — the marketplace. It lists both plugins.
 - `plugins/glab/` — the workflow plugin: its skills and agents,
   `hooks/hooks.json`, `scripts/manager-bootstrap.sh`,
-  `scripts/context-size.sh` and `scripts/plan-gate.sh`.
+  `scripts/context-size.sh`, `scripts/level-guard.sh`,
+  `scripts/glab-level.sh` (the level rule both hooks source) and
+  `scripts/plan-gate.sh`.
 - `plugins/memory-sync/` — the memory sync plugin: its one skill,
   `hooks/hooks.json`, `scripts/memory-sync.sh` and `settings.example.json`.
 - `docs/specs/` — one spec per area: how it works now, why, what is not
@@ -76,10 +78,16 @@ repo and to nothing else.
   `manager-bootstrap.sh`: exit 0 on every path, on stdout one JSON object
   whose only key is `hookSpecificOutput`, or the plain text when `jq` fails,
   messages on stderr, and the level read from the first `glab-level:` line of
-  the repo's `AGENTS.md` — the project level when there is none; it reads
+  the repo's `AGENTS.md` — the project level when there is none, and, with a
+  warning, when `glab-level.sh` is missing beside it; it reads
   `session_id` from stdin with `jq`, never from a terminal, and names
   `plan/handoff/<id>.md` only for an id matching
   `^[A-Za-z0-9][A-Za-z0-9_-]{0,127}$`, the `no session id` line otherwise.
+  `level-guard.sh`: the mode names `skill` and `bash`, exit 0 on every path,
+  on stdout one JSON object whose only key is `hookSpecificOutput`, or
+  nothing, messages on stderr;
+  `skill` decides only `deny`, `bash` only `ask`, never `allow`; the level
+  from `glab-level.sh`, which `manager-bootstrap.sh` sources too.
   One script is not a hook, and its contract holds the same way —
   `plan-gate.sh`: the mode names `digest`, `report`, `verdict` and `check`;
   exit 0 done, 1 refused, 2 usage or a failed write; every refusal one `REFUSED:` line on stderr, and no

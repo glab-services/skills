@@ -249,6 +249,29 @@ hasnt 'plan/handoff/abc'
 no_err
 done_case B19 "an id with a trailing newline: the no-id line, no path"
 
+# B20: the script copied alone, without the glab-level.sh it sources, in a product repo. It must
+# still keep the contract and give the project text with the warning; and the same in POSIX mode,
+# where a `.` of a missing file would exit the shell with rc 1 (plan level-guard D20).
+WARN_LONE='glab: glab-level.sh is missing or unreadable beside manager-bootstrap.sh; this session runs at the project level'
+mkdir -p "$W/lone"
+cp "$SCRIPT" "$W/lone/manager-bootstrap.sh"
+r=$(repo b20 'glab-level: product')
+for e in '' 'POSIXLY_CORRECT=1'; do
+	if [ -n "$e" ]; then
+		OUT=$(CLAUDE_PROJECT_DIR=$r env "$e" bash "$W/lone/manager-bootstrap.sh" </dev/null 2>"$W/err")
+	else
+		OUT=$(CLAUDE_PROJECT_DIR=$r bash "$W/lone/manager-bootstrap.sh" </dev/null 2>"$W/err")
+	fi
+	RC=$?
+	ERR=$(cat "$W/err")
+	contract
+	[ "$(printf '%s\n' "$TEXT" | head -n 1)" = "$WARN_LONE" ] || bad "${e:-plain}: the warning is not the first line"
+	[ "$(printf '%s\n' "$TEXT" | sed -n 3p)" = "$PROJECT_LINE" ] || bad "${e:-plain}: the project line does not follow the warning"
+	has "$PROJECT_MGR"
+	[ "$ERR" = "$WARN_LONE" ] || bad "${e:-plain}: stderr [$ERR] is not the warning"
+done
+done_case B20 "glab-level.sh missing: the project text with the warning, exit 0, POSIX mode too"
+
 if [ "$fail" -eq 0 ]; then
 	echo "PASS $pass/$n"
 else

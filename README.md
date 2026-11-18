@@ -6,7 +6,7 @@ to S3.
 
 | Plugin | What it adds |
 |---|---|
-| `glab` | Skills `glab:bootstrap`, `glab:project-manager`, `glab:session-rules`, `glab:security`, `glab:comments`, `glab:audit`, `glab:severity` · agents `glab:project-planner`, `glab:project-plan-analyzer`, `glab:project-analyzer`, `glab:project-developer`, `glab:project-integrator`, `glab:project-reviewer`, `glab:committer` · stage skills `/glab:project-plan-accept`, `/glab:project-plan-analyze`, `/glab:project-develop`, `/glab:project-analyze`, `/glab:project-integrate`, `/glab:project-review`, `/glab:commit`, `/glab:push`, `/glab:project-ship`, `/glab:project-plan-report`, `/glab:project-record`, which `glab:project-manager` runs itself and you can type to step in · `/glab:project-plan <task>`, the planning procedure `glab:project-planner` follows, which you can type to plan in your own session · a `SessionStart` hook that injects the session bootstrap rules · a context hook on `UserPromptSubmit`, `PostToolUse` (`Agent`) and `Stop` that tells the session its context size and tells you when a turn crosses 300k or a further 100k · the product level (*Levels*): skills `glab:product-manager`, `glab:product-plan`, `glab:product-plan-analyze`, `glab:product-project-brief`, `glab:product-project-plan-analyze`, `glab:product-project-plan-verdict` · agents `glab:product-planner`, `glab:product-analyzer` |
+| `glab` | Skills `glab:bootstrap`, `glab:project-manager`, `glab:session-rules`, `glab:security`, `glab:comments`, `glab:audit`, `glab:severity` · agents `glab:project-planner`, `glab:project-plan-analyzer`, `glab:project-analyzer`, `glab:project-developer`, `glab:project-integrator`, `glab:project-reviewer`, `glab:committer` · stage skills `/glab:project-plan-accept`, `/glab:project-plan-analyze`, `/glab:project-develop`, `/glab:project-analyze`, `/glab:project-integrate`, `/glab:project-review`, `/glab:commit`, `/glab:push`, `/glab:project-ship`, `/glab:project-plan-report`, `/glab:project-record`, which `glab:project-manager` runs itself and you can type to step in · `/glab:project-plan <task>`, the planning procedure `glab:project-planner` follows, which you can type to plan in your own session · a `SessionStart` hook that injects the session bootstrap rules · a context hook on `UserPromptSubmit`, `PostToolUse` (`Agent`) and `Stop` that tells the session its context size and tells you when a turn crosses 300k or a further 100k · a `PreToolUse` hook on `Skill` and on `Bash`, `PowerShell` and `Monitor` that refuses another level's skill and asks you before a verdict by `user` · the product level (*Levels*): skills `glab:product-manager`, `glab:product-plan`, `glab:product-plan-analyze`, `glab:product-project-brief`, `glab:product-project-plan-analyze`, `glab:product-project-plan-verdict` · agents `glab:product-planner`, `glab:product-analyzer` |
 | `memory-sync` | Skill `memory-sync:sync-memory` · hooks on four events that run `memory-sync.sh` |
 
 In `glab` the skills and agents are one set: `glab:project-manager` runs each stage
@@ -124,13 +124,32 @@ the user's.
 
 **The boundary.** Each manager's *Your skills — this level only* list is the
 rule a session keeps to; a description's `Product level — ` or
-`Project level — ` prefix is a hint. Only the product agents, which have no
-`Skill` tool, are held to it by Claude Code itself.
+`Project level — ` prefix is a hint. No `glab` agent has the `Skill` tool,
+and a `PreToolUse` hook refuses every other Skill call to a `glab:` skill not
+on the session's list — except when it cannot read the call, the list or the
+level rule, and then it lets the call through.
 
-**Known limits.** The main session's boundary is text, which a session keeps
-to as far as it follows its skills. `by user` is an argument the calling
-session chooses, and both levels can write the store, so the cap holds as far
-as the sessions keep to the skill text.
+**Known limits.** The hook judges the skills Claude calls, in subagents too;
+it judges no agent. A skill you type yourself as `/glab:<name>` is never
+refused, but a skill it calls in turn through the Skill tool is judged
+(inferred: no live run made such a call). A verdict `by user` opens the
+permission dialog, so only you pass it, as far as the command's text shows
+`plan-gate.sh`, `verdict` and `user`; it reads the command of a Bash or
+PowerShell call, and by inference of a Monitor call, whose input is not
+verified; where no dialog can open — a -p run, dontAsk mode included, and by
+inference dontAsk outside -p — the call is refused; with an allow rule that
+covers the command, the dialog still opens — seen in auto mode, while a -p run
+refused it, and other interactive modes are UNVERIFIED; under
+bypassPermissions, a -p run still refused it; an interactive session was not
+tried. Seen live on Linux, 2026-11-19: the refusals, the typed skill, and a
+by-user verdict refused in -p runs under an allow rule, in dontAsk mode and
+under bypassPermissions, of Claude Code 2.1.325; and the dialog in an
+interactive session of Claude Code 2.1.327 in auto mode with an allow rule,
+where Yes ran the command and No left it unrun. Both levels can write the
+store, so beyond that the cap holds as far as the sessions keep to the skill
+text. Skill names are matched case-sensitively; whether the CLI resolves a
+skill name case-insensitively is UNVERIFIED. A skill of your own with the same
+bare name as a `glab` skill of the other level is refused too.
 
 ## Try the product loop
 
@@ -183,8 +202,9 @@ The live checks, each UNVERIFIED until run:
 ## Requirements
 
 Linux with bash. `jq` is optional: without it the `glab` `SessionStart` hook
-falls back to plain text, and the context hook says nothing — the session's
-manager then counts dispatches instead (`glab:session-rules` Rule 2). `memory-sync` also needs GNU coreutils (`timeout`, `stat`,
+falls back to plain text, the level guard reads its input as plain text, and
+the context hook says nothing — the session's manager then counts dispatches
+instead (`glab:session-rules` Rule 2). `memory-sync` also needs GNU coreutils (`timeout`, `stat`,
 `date`), util-linux `flock`, `rsync` and the AWS CLI. macOS is not supported.
 
 ## Install

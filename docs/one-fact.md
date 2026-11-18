@@ -105,7 +105,7 @@ user's words overriding any role, no `model` parameter otherwise, and
   `plugins/glab/skills/session-rules/SKILL.md`
 - the nine `plugins/glab/agents/*.md`
 - `README.md`
-- and the model check (G29) in `tests/gates.sh`
+- and the model check (G33) in `tests/gates.sh`
 
 ## The skills each agent preloads
 
@@ -116,7 +116,7 @@ the skills each agent preloads — its frontmatter `skills:` list,
 
 - the nine `plugins/glab/agents/*.md`
 - `README.md`
-- and the skills check (G30) in `tests/gates.sh`
+- and the skills check (G34) in `tests/gates.sh`
 
 ## The reviewer's verdict lines
 
@@ -191,6 +191,20 @@ warning for an invalid value
 - `tests/context-size.test.sh`
 - `plugins/glab/hooks/hooks.json`
 - `plugins/glab/skills/session-rules/SKILL.md`
+- `README.md`
+
+## The `glab` guard hook
+
+the `glab` guard hook — the modes `skill` and `bash` on `PreToolUse` with
+matchers `Skill` and `Bash|PowerShell|Monitor`, `deny` and `ask` only, and the
+texts of the deny reason and the ask reason
+
+- `plugins/glab/scripts/level-guard.sh`
+- `tests/level-guard.test.sh`
+- `plugins/glab/hooks/hooks.json`
+- `plugins/glab/skills/session-rules/SKILL.md` *The level boundary*
+- `plugins/glab/skills/product-manager/SKILL.md` *The cap*
+- `AGENTS.md` *Rules*
 - `README.md`
 
 ## What a later review round is given
@@ -355,8 +369,11 @@ begins `glab-level:`; `product` and `project` built, no line the project
 level, any other value the project level with the warning, `delivery` and
 `support` reserved
 
+- `plugins/glab/scripts/glab-level.sh`
 - `plugins/glab/scripts/manager-bootstrap.sh`
+- `plugins/glab/scripts/level-guard.sh`
 - `tests/manager-bootstrap.test.sh`
+- `tests/level-guard.test.sh`
 - `tests/product-loop.test.sh`
 - `plugins/glab/skills/bootstrap/SKILL.md`
 - `README.md`
@@ -420,6 +437,18 @@ opening with the user's words
 - `tests/product-loop.test.sh`
 - `README.md`
 
+## The `by user` hold
+
+the `by user` hold — a Bash or PowerShell command, and by inference a Monitor
+command, naming `plan-gate.sh` with the words `verdict` and `user` goes to the
+permission dialog, and its known limits as `product-manager/SKILL.md` *The
+cap* and `README.md` *Known limits* state them
+
+- `plugins/glab/scripts/level-guard.sh`
+- `tests/level-guard.test.sh`
+- `plugins/glab/skills/product-manager/SKILL.md` *The cap*
+- `README.md` *Known limits*
+
 ## The rule file budget
 
 the rule file budget — 8192 bytes
@@ -444,12 +473,17 @@ each level's manager loads and cites by number
 
 the level boundary — each manager's *Your skills — this level only* the
 binding list, a description's level prefix `Product level — ` or
-`Project level — ` a hint, no prefix on what serves every level
+`Project level — ` a hint, no prefix on what serves every level;
+`level-guard.sh` reads the list from that section — its heading
+`## Your skills — this level only`, its `- **` bullets, one line each, but the
+agents' — and refuses a Skill call to a `glab:` skill not on it
 
 - `plugins/glab/skills/session-rules/SKILL.md`
 - `plugins/glab/skills/project-manager/SKILL.md`
 - `plugins/glab/skills/product-manager/SKILL.md`
 - `plugins/glab/scripts/manager-bootstrap.sh`
+- `plugins/glab/scripts/level-guard.sh`
+- `tests/level-guard.test.sh`
 - the `description:` of every `plugins/glab/skills/*/SKILL.md` and
   `plugins/glab/agents/*.md`
 - `README.md`
