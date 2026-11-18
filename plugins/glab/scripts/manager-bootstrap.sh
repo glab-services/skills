@@ -8,38 +8,27 @@
 # here. Keep it short: Claude Code caps a hook's additionalContext at 10,000 characters, and each
 # of the two texts must stay under that (tests/manager-bootstrap.test.sh B8).
 #
-# The level. The first line of the repo's AGENTS.md that begins `glab-level:` names it; the value
-# is the rest of the line, blanks around it dropped, a trailing CR too. `product` gives the product
-# text, `project` or no such line the project text — every repo that predates levels keeps the
-# session start it had. Any other value, `delivery` and `support` (reserved for levels not built
-# yet) included, gives the project text with a warning above it: the project level never touches a
-# live system, so it is the safe fallback. The repo is $CLAUDE_PROJECT_DIR — the folder the session
-# started in — or $PWD when that is unset; when that folder has no AGENTS.md, the top of its git
-# work tree is tried, so a session started in a subfolder of its repo still finds the line.
+# The level: glab-level.sh beside this script holds the rule and its reasons, and level-guard.sh
+# sources the same file, so the level this text names is the level the PreToolUse hook holds the
+# session to.
 #
 # The contract: always exits 0 — a bootstrap that can fail a session start is worse than none; on
 # stdout one JSON object whose only key is hookSpecificOutput, or the plain text when jq fails;
 # messages only on stderr. It reads stdin once, for the session id, only when stdin is not a terminal. The warning goes to stderr as well as into the text, for debugging only:
 # Claude Code shows no stderr of a hook that exits 0 to the session.
 
-dir=${CLAUDE_PROJECT_DIR:-$PWD}
-if [ ! -e "$dir/AGENTS.md" ] && top=$(git -C "$dir" rev-parse --show-toplevel 2>/dev/null) && [ -n "$top" ]; then
-	dir=$top
-fi
-# An unreadable or missing file gives no line, which is the project level.
-line=$({ tr -d '\r' <"$dir/AGENTS.md" | grep -m 1 '^glab-level:'; } 2>/dev/null)
-# The value as it is shown back in the warning: printable characters only, at most 40.
-value=$(printf '%s' "${line#glab-level:}" | sed 's/^[[:space:]]*//; s/[[:space:]]*$//' | tr -cd '[:print:]' | cut -c1-40)
+# The level, by the rule in glab-level.sh. Without that file - a copy of this script on its own -
+# the session runs at the project level with a warning: this hook must exit 0 (the contract). The
+# -r test comes first because in POSIX mode a `.` of a missing file exits the shell.
+here=${BASH_SOURCE[0]%/*}
+[ "$here" != "${BASH_SOURCE[0]}" ] || here=.
 level=project warn=''
-case $line in
-'') ;;
-*)
-	case $value in
-	product | project) level=$value ;;
-	*) warn="glab: level \"$value\" is not built in this version of glab; this session runs at the project level" ;;
-	esac
-	;;
-esac
+# shellcheck source-path=SCRIPTDIR source=glab-level.sh
+if [ -r "$here/glab-level.sh" ] && . "$here/glab-level.sh" 2>/dev/null; then
+	glab_level
+else
+	warn='glab: glab-level.sh is missing or unreadable beside manager-bootstrap.sh; this session runs at the project level'
+fi
 
 # The session id names the session's own handoff file, plan/handoff/<id>.md (glab:session-rules
 # Rule 2). Claude Code gives a command hook its input as JSON on stdin, with `session_id` on every

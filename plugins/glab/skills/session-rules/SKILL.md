@@ -11,6 +11,8 @@ Your manager's *Your skills — this level only* names the skills this session m
 
 A skill or agent serving every level has no level prefix and may be on any list; every other one's description begins `Product level — ` or `Project level — ` — a hint, never the rule.
 
+Since `glab` 0.17.0 a `PreToolUse` hook, `level-guard.sh`, holds the list too: it reads it from that section and refuses a Skill call to a `glab:` skill not on it, in subagents as well. It judges no agent. A skill the user types as `/glab:<name>` never reaches it, but a skill that one calls in turn through the Skill tool is judged (inferred; no live run made such a call) — when the user wants another level's skill, ask them to type it.
+
 ## How to read these rules
 
 Managers cite these rules by number. At the product level, a project stage named here means the product stage of the same role; a rule for a stage a level lacks does not apply. `plan.md` is `product-plan.md` at the product level.

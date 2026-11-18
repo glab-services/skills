@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Runs every gate of this repo and compares each result with its expected value: the syntax and
-# execute-bit check and shellcheck on the scripts, the five script tests, `claude plugin validate
+# execute-bit check and shellcheck on the scripts, the six script tests, `claude plugin validate
 # --strict`, the component lines of `claude plugin details`, and the searches that nothing else
 # catches. It prints one line per check, `ok G<n> <name>` or `FAIL G<n> <name>: <reason>`, then
 # `PASS n/n` or `FAIL f/n`.
@@ -23,7 +23,7 @@ set -uo pipefail
 # aborts only its own line and the rest still ran; a script stops instead. `:?` is not used here
 # either: it prints a bash-formatted `...: line n: ...` message and exits 1, not 2.
 # The bash line is first: this script is known to have run on bash 5.3.9 only, and an older bash -
-# before 4.4 an empty array under `set -u` is an error (the guard at G24 below) - could fail
+# before 4.4 an empty array under `set -u` is an error (the guard at G28 below) - could fail
 # part-way with its own message; this line stops it with one line instead
 # [slim-agents-md/follow-ups.md FU2] [script-hardening/plan.md D4]. Only this bash is checked; the
 # tests below run under the `bash` on `PATH`, which may be another [script-hardening/plan.md FU-SH2].
@@ -80,11 +80,14 @@ SCRIPTS=(
 	plugins/glab/scripts/manager-bootstrap.sh
 	plugins/glab/scripts/context-size.sh
 	plugins/glab/scripts/plan-gate.sh
+	plugins/glab/scripts/glab-level.sh
+	plugins/glab/scripts/level-guard.sh
 	tests/memory-sync.test.sh
 	tests/context-size.test.sh
 	tests/plan-gate.test.sh
 	tests/manager-bootstrap.test.sh
 	tests/product-loop.test.sh
+	tests/level-guard.test.sh
 	tests/gates.sh
 )
 TESTS=(
@@ -93,6 +96,7 @@ TESTS=(
 	'bash tests/plan-gate.test.sh plugins/glab/scripts/plan-gate.sh'
 	'bash tests/manager-bootstrap.test.sh plugins/glab/scripts/manager-bootstrap.sh'
 	'bash tests/product-loop.test.sh plugins/glab/scripts/plan-gate.sh plugins/glab/scripts/manager-bootstrap.sh'
+	'bash tests/level-guard.test.sh plugins/glab/scripts/level-guard.sh'
 )
 GLAB_SKILLS=(
 	audit bootstrap comments commit product-manager product-plan product-plan-analyze
@@ -105,7 +109,7 @@ GLAB_AGENTS=(
 	committer product-analyzer product-planner project-analyzer project-developer
 	project-integrator project-plan-analyzer project-planner project-reviewer
 )
-GLAB_HOOKS='Hooks (4)  SessionStart, UserPromptSubmit, PostToolUse, Stop  (harness-only — no model context cost)'
+GLAB_HOOKS='Hooks (5)  SessionStart, UserPromptSubmit, PreToolUse, PostToolUse, Stop  (harness-only — no model context cost)'
 MS_SKILLS=(sync-memory)
 # Count 0, so its line is `Agents (0)` with no names.
 MS_AGENTS=()
@@ -195,11 +199,11 @@ component() {
 	same_set "${names//, /$'\n'}" "$@"
 }
 
-# G1-G10. `bash -n` and `test -x` on each script. The `test -x` is there because a hook script
+# G1-G13. `bash -n` and `test -x` on each script. The `test -x` is there because a hook script
 # that has lost its execute bit passes every other gate and then fails when the hook runs. It is
 # joined to `bash -n` with `&&` so that the rc is the syntax check's when that fails; with `;` a
 # syntax error printed `rc=0`. The file list includes this script, which is checked here and in
-# G11 by shellcheck, and never executed: there is no recursion.
+# G14 by shellcheck, and never executed: there is no recursion.
 i=0
 for s in "${SCRIPTS[@]}"; do
 	i=$((i + 1))
@@ -209,18 +213,18 @@ for s in "${SCRIPTS[@]}"; do
 	done_case "G$i" "syntax and execute bit: $s"
 done
 
-# G11. shellcheck on the same files. Green is rc 0 with no findings.
+# G14. shellcheck on the same files. Green is rc 0 with no findings.
 out=$(shellcheck "${SCRIPTS[@]}" 2>&1)
 rc=$?
 [ "$rc" -eq 0 ] || bad "rc=$rc"
 [ -z "$out" ] || bad "findings: $(lines "$out" | head -n 1)"
-done_case G11 "shellcheck on ${#SCRIPTS[@]} scripts"
+done_case G14 "shellcheck on ${#SCRIPTS[@]} scripts"
 
-# G12-G16. The five tests. The tests create their work directories under `$TMPDIR`. Each test is
+# G15-G20. The six tests. The tests create their work directories under `$TMPDIR`. Each test is
 # green when its rc is 0, every line but the last is `ok`, and its last line is `PASS n/n`. On
 # FAIL, the reason carries the first non-ok line. The tests' own case counts are not fixed here,
 # as the old gate did not fix them either.
-i=11
+i=14
 for t in "${TESTS[@]}"; do
 	i=$((i + 1))
 	read -r -a cmd <<<"$t"
@@ -256,9 +260,9 @@ done
 	"$claude" --plugin-dir ./plugins plugin details memory-sync >"$W/details.ms" 2>"$W/details.ms.err"
 )
 
-# G17-G19. `plugin validate --strict` on each plugin and on the marketplace: its last line is
+# G21-G23. `plugin validate --strict` on each plugin and on the marketplace: its last line is
 # `✔ Validation passed`, with rc 0.
-i=16 k=0
+i=20 k=0
 for p in plugins/glab plugins/memory-sync .; do
 	i=$((i + 1)) k=$((k + 1))
 	if [ -f "$W/validate.$k" ]; then
@@ -272,39 +276,39 @@ for p in plugins/glab plugins/memory-sync .; do
 	done_case "G$i" "plugin validate --strict $p"
 done
 
-# G20/G21 and G23/G24. Skills and Agents are compared as sets, with their count: the CLI lists
+# G24/G25 and G27/G28. Skills and Agents are compared as sets, with their count: the CLI lists
 # them in directory read order, which is not stable.
-# G22/G25. The Hooks line is compared as an exact string. The CLI prints the suffix
+# G26/G29. The Hooks line is compared as an exact string. The CLI prints the suffix
 # `  (harness-only — no model context cost)` after it on the same line; it prints that suffix, and
 # it is expected.
 component "$W/details.glab" Skills "${GLAB_SKILLS[@]}"
-done_case G20 "glab Skills (${#GLAB_SKILLS[@]})"
+done_case G24 "glab Skills (${#GLAB_SKILLS[@]})"
 component "$W/details.glab" Agents "${GLAB_AGENTS[@]}"
-done_case G21 "glab Agents (${#GLAB_AGENTS[@]})"
+done_case G25 "glab Agents (${#GLAB_AGENTS[@]})"
 line=$(command grep -E '^  Hooks ' "$W/details.glab")
 [ "$line" = "  $GLAB_HOOKS" ] || bad "line [$line]"
-done_case G22 "glab $GLAB_HOOKS"
+done_case G26 "glab $GLAB_HOOKS"
 component "$W/details.ms" Skills "${MS_SKILLS[@]}"
-done_case G23 "memory-sync Skills (${#MS_SKILLS[@]})"
+done_case G27 "memory-sync Skills (${#MS_SKILLS[@]})"
 # The `+` expansion: an empty array under `set -u` is an unbound-variable error before bash 4.4.
 # The preflight refuses such a bash, but the guard stays: that refusal never ran on a real bash
 # older than 4.4 (UNVERIFIED), and the guard costs nothing.
 component "$W/details.ms" Agents ${MS_AGENTS[@]+"${MS_AGENTS[@]}"}
-done_case G24 "memory-sync Agents (${#MS_AGENTS[@]})"
+done_case G28 "memory-sync Agents (${#MS_AGENTS[@]})"
 line=$(command grep -E '^  Hooks ' "$W/details.ms")
 [ "$line" = "  $MS_HOOKS" ] || bad "line [$line]"
-done_case G25 "memory-sync $MS_HOOKS"
+done_case G29 "memory-sync $MS_HOOKS"
 
-# G26. Each marketplace entry's name equals the name in the `plugin.json` its source points at.
+# G30. Each marketplace entry's name equals the name in the `plugin.json` its source points at.
 # Validation does not compare a marketplace entry with the plugin it points at; it passes with a
 # wrong name and with a directory that does not exist.
 out=$(jq -r '.plugins[] | .name + " " + .source' .claude-plugin/marketplace.json | while read -r nm src; do echo "$nm = $(jq -r .name "$src/.claude-plugin/plugin.json")"; done)
 rc=$?
 [ "$rc" -eq 0 ] || bad "rc=$rc"
 [ "$out" = "$(lines "${MARKET[@]}")" ] || bad "got [$(lines "$out" | paste -sd, -)]"
-done_case G26 "marketplace names match plugin.json"
+done_case G30 "marketplace names match plugin.json"
 
-# G27. No `user_config` in any `hooks.json`: expected `:0` after each `hooks.json`, then rc 1.
+# G31. No `user_config` in any `hooks.json`: expected `:0` after each `hooks.json`, then rc 1.
 # `grep -c` exits 1 when it counts nothing, and nothing is the green result here. A
 # `${user_config.…}` in a hook command passes validation and fails when the hook runs.
 out=$(command grep -c user_config plugins/*/hooks/hooks.json)
@@ -312,9 +316,9 @@ rc=$?
 exp=$(for f in plugins/*/hooks/hooks.json; do echo "$f:0"; done)
 [ "$out" = "$exp" ] || bad "got [$(lines "$out" | paste -sd, -)]"
 [ "$rc" -eq 1 ] || bad "rc=$rc, expected 1"
-done_case G27 "no user_config in hooks.json"
+done_case G31 "no user_config in hooks.json"
 
-# G28. A count of 1 or more after each of the three files, then rc 0. Read the counts, not the
+# G32. A count of 1 or more after each of the three files, then rc 0. Read the counts, not the
 # rc: `grep -c` exits 0 as soon as one file matches. The phrase is the hedge on
 # `CLAUDE_CODE_SESSIONEND_HOOKS_TIMEOUT_MS` - documented as the override for the `SessionEnd`
 # budget, not yet shown to cover a hook that a plugin provides - and no other gate notices when
@@ -327,18 +331,18 @@ for f in "${hedge[@]}"; do
 	c=$(lines "$out" | command grep -F "$f:" | sed 's/.*://')
 	[[ $c =~ ^[0-9]+$ ]] && [ "$c" -ge 1 ] || bad "$f count [${c}]"
 done
-done_case G28 "'not yet confirmed' hedge in ${#hedge[@]} files"
+done_case G32 "'not yet confirmed' hedge in ${#hedge[@]} files"
 
-# G29. The model of each agent, exactly these lines (compared after sorting both sides: grep
+# G33. The model of each agent, exactly these lines (compared after sorting both sides: grep
 # prints them in glob order), then rc 0. `plugin validate --strict` passes an unknown model value
 # and `plugin details` shows none, so nothing else catches a typo.
 out=$(command grep -H '^model: ' plugins/*/agents/*.md)
 rc=$?
 [ "$rc" -eq 0 ] || bad "rc=$rc"
 same_set "$out" "${MODEL_LINES[@]}"
-done_case G29 "agent models (${#MODEL_LINES[@]} lines)"
+done_case G33 "agent models (${#MODEL_LINES[@]} lines)"
 
-# G30. The skills each agent preloads, exactly these lines (sorted on both sides), none ending
+# G34. The skills each agent preloads, exactly these lines (sorted on both sides), none ending
 # `MISSING`. A line ends `MISSING` when its entry names no `skills/<name>/SKILL.md` in that
 # plugin, when that file's frontmatter has no line `name: <name>` - Claude Code names a plugin
 # skill by that line, not by its directory - or when it carries another plugin's prefix.
@@ -346,15 +350,15 @@ done_case G29 "agent models (${#MODEL_LINES[@]} lines)"
 # `plugin details` does not show the lists, so nothing else catches a typo.
 out=$(for f in plugins/*/agents/*.md; do awk 'FNR==1{n=0} /^---$/{n++; next} n==1 && /^skills:/{s=1; next} n==1 && s && /^  - /{print FILENAME ":" $2; next} {s=0}' "$f"; done | while IFS=: read -r f p s; do r=${f%%/agents/*}; if test -f "$r/skills/$s/SKILL.md" && command grep -qx "name: $s" "$r/skills/$s/SKILL.md" && [ "$p" = "$(jq -r .name "$r/.claude-plugin/plugin.json")" ]; then echo "$f:$p:$s"; else echo "$f:$p:$s MISSING"; fi; done)
 same_set "$out" "${SKILL_LINES[@]}"
-done_case G30 "agent skills (${#SKILL_LINES[@]} lines)"
+done_case G34 "agent skills (${#SKILL_LINES[@]} lines)"
 
-# G31. No line, then rc 1. A frontmatter `name:` that carries the plugin prefix passes validation
+# G35. No line, then rc 1. A frontmatter `name:` that carries the plugin prefix passes validation
 # and `plugin details`, and nothing else catches it.
 out=$(command grep -rH --include='*.md' '^name: .*:' plugins)
 rc=$?
 [ -z "$out" ] || bad "got [$(lines "$out" | paste -sd, -)]"
 [ "$rc" -eq 1 ] || bad "rc=$rc, expected 1"
-done_case G31 "no prefixed name: in plugins"
+done_case G35 "no prefixed name: in plugins"
 
 if [ "$fail" -eq 0 ]; then
 	echo "PASS $pass/$n"

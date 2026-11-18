@@ -14,6 +14,20 @@
         ]
       }
     ],
+    "PreToolUse": [
+      {
+        "matcher": "Skill",
+        "hooks": [
+          { "type": "command", "command": "\"${CLAUDE_PLUGIN_ROOT}\"/scripts/level-guard.sh skill", "timeout": 5 }
+        ]
+      },
+      {
+        "matcher": "Bash|PowerShell|Monitor",
+        "hooks": [
+          { "type": "command", "command": "\"${CLAUDE_PLUGIN_ROOT}\"/scripts/level-guard.sh bash", "timeout": 5 }
+        ]
+      }
+    ],
     "PostToolUse": [
       {
         "matcher": "Agent",
