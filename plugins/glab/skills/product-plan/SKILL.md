@@ -45,6 +45,7 @@ When the dispatch says this is the roadmap — stage P7 of `glab:product-manager
 - the rules added;
 - every `## Decisions` line, with its reason;
 - the answered questions, with the user's words;
+- the `## Delivered` line, with the user's words;
 - the round history: the `NOT SOUND` rounds, and the `REJECTED` verdicts with their reasons;
 - the open items, each tagged `[<slug>/product-plan.md <id>]`;
 - its *Records* line, in the form `glab:project-record` states.

@@ -37,7 +37,7 @@ Each finding cites the rule file or the decision it breaks and the plan step tha
 
 ## The roadmap check — stage P7
 
-This check reads the roadmap page whole, not a diff — a new, untracked page shows in no `git diff` — against `plan/<slug>/product-plan.md`, its round copies `product-plan.r<n>.md` and the store's verdicts. Each decision, project and its verdict, rule added, answered question and open item is either `carried` (cite the page's line) or missing, and each missing one is a finding. It ends `SOUND` or `NOT SOUND: <n> findings`.
+This check reads the roadmap page whole, not a diff — a new, untracked page shows in no `git diff` — against `plan/<slug>/product-plan.md`, its round copies `product-plan.r<n>.md` and the store's verdicts. Each decision, project and its verdict, rule added, answered question, open item and the `## Delivered` line, with the user's words, is either `carried` (cite the page's line) or missing, and each missing one is a finding. It ends `SOUND` or `NOT SOUND: <n> findings`.
 
 ## Every check
 
