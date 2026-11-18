@@ -48,10 +48,66 @@ paragraph and layout row, the size of `AGENTS.md`) as of `3ed6746` (`glab`
 record), and its `script-hardening` lines (the version, `tests/gates.sh`'s
 bash line and `PATH` rewrite, the store pointers in `README.md` and
 `host.example.md`) as of `64b4e57` (`glab` `0.16.3`, PR #23, not merged at
-this record); where this file and an owning file disagree, the
+this record), and its `level-guard` lines (the version, the layout, the
+hook events, the gates at 35, the hook contract of `level-guard.sh` and
+`manager-bootstrap.sh`'s fallback, the size of `AGENTS.md`, the *One fact*
+entries, the `README.md` row and *Requirements*) as of `632dcb0` (`glab`
+`0.17.0`, PR #24, not merged at this record), whose first bullet below
+supersedes every count and line below it where they disagree; where this
+file and an owning file disagree, the
 owning file is right and this spec is out of date.
 
 ## How it works now
+
+- **The repo after `level-guard`, as of 0.17.0** (`632dcb0`; the owners
+  `tests/gates.sh`, `AGENTS.md`, `docs/one-fact.md`, `README.md` and
+  `plugins/glab/.claude-plugin/plugin.json`; `[level-guard/plan.md D15]`,
+  `D16`, `D17`). This bullet supersedes every count and line below where
+  they disagree. **Version:** `glab` 0.16.3 → 0.17.0, a minor step for a
+  new hook, raised once in the change's one commit; `memory-sync` stays
+  `0.1.0` (`D16`, `D17`). **Layout** (`AGENTS.md` *Layout*): `plugins/glab/`
+  holds `scripts/manager-bootstrap.sh`, `scripts/context-size.sh`,
+  `scripts/level-guard.sh`, `scripts/glab-level.sh` ("the level rule both
+  hooks source") and `scripts/plan-gate.sh`; new in `tests/`:
+  `tests/level-guard.test.sh`. **Hook events:** `glab` has five —
+  `SessionStart`, `UserPromptSubmit`, `PreToolUse` (matchers `Skill` and
+  `Bash|PowerShell|Monitor`, both running `level-guard.sh`), `PostToolUse`
+  (matcher `Agent`) and `Stop` — and `plugin details` prints
+  `Hooks (5)  SessionStart, UserPromptSubmit, PreToolUse, PostToolUse, Stop  (harness-only — no model context cost)`;
+  the hook itself is recorded in `docs/specs/product.md` *How it works
+  now*. **The gates** (`D15`): `tests/gates.sh` runs 35 checks — G1–G13
+  `bash -n` and `test -x` on thirteen scripts (`glab-level.sh` and
+  `level-guard.sh` after `plan-gate.sh`, `tests/level-guard.test.sh` after
+  `tests/product-loop.test.sh`), G14 `shellcheck on 13 scripts`, G15–G20 the
+  six tests (G20 `tests/level-guard.test.sh 29/29`, G18
+  `tests/manager-bootstrap.test.sh 20/20` with B20), G21–G23
+  `plugin validate --strict`, G24–G29 the Skills, Agents and Hooks lines,
+  G30 the marketplace names, G31 `user_config`, G32 the hedge, G33 the
+  agent models, G34 the agent skills, G35 the prefixed `name:` search;
+  every id renumbered in code and comments, and the two G-id pointers of
+  `docs/one-fact.md` moved to (G33) and (G34). Green: `PASS 35/35`, exit 0
+  (`[level-guard/result.md]` *Gates* after each round; this record's run).
+  `LG29` pins each matcher to its mode by reading `hooks.json`, inside G20.
+  **The hook-contract rule** (`AGENTS.md` *Rules*): `manager-bootstrap.sh`'s
+  level is "the project level when there is none, and, with a warning,
+  when `glab-level.sh` is missing beside it"; and `level-guard.sh`: "the
+  mode names `skill` and `bash`, exit 0 on every path, on stdout one JSON
+  object whose only key is `hookSpecificOutput`, or nothing, messages on
+  stderr; `skill` decides only `deny`, `bash` only `ask`, never `allow`;
+  the level from `glab-level.sh`, which `manager-bootstrap.sh` sources
+  too". `AGENTS.md` is 8789 bytes (`wc -c`), under its 8800 cap
+  (`[slim-agents-md/plan.md D17]`). **One fact:** `docs/one-fact.md` has 40
+  entries (`grep -c '^## '`; 38 before), two new — *The `glab` guard hook*
+  (the modes, matchers, `deny` and `ask` only, the deny and ask reason
+  texts; seven files) and *The `by user` hold* (the hold and a pointer to
+  its known limits; four files) — and four changed: *The level line*
+  (`glab-level.sh`, `level-guard.sh` and its test as readers), *The level
+  boundary* (`level-guard.sh` reads the list from that section, one line
+  per bullet), *The model per role* (G33) and *The skills each agent
+  preloads* (G34). **`README.md`:** the `glab` row names the hook, and
+  *Requirements* says that without `jq` "the level guard reads its input as
+  plain text"; *Levels* *The boundary* and *Known limits* are in
+  `docs/specs/product.md`.
 
 - **One marketplace, two plugins.** `.claude-plugin/marketplace.json` names
   the marketplace `glab-services` and lists `glab` (`source`
@@ -110,6 +166,10 @@ owning file is right and this spec is out of date.
   skill, `sync-memory`, no agent, hooks on `SessionStart`, `SessionEnd`,
   `PostToolUse` and `Stop`.
 - **Versions.** Each `plugin.json` carries an explicit `version` — `glab`
+  `0.17.0` (raised once by `632dcb0`, `level-guard`'s one commit,
+  ``feat(skills): guard each level's skills and hold `by user` verdicts for the user (glab 0.17.0)``,
+  in PR #24, not merged at this record; a minor step, a new hook;
+  `[level-guard/plan.md D16]`; `memory-sync` unchanged at `0.1.0`);
   `0.16.3` (raised once by `64b4e57`, `script-hardening`'s one change
   commit, `fix(skills): remove a claim the run failed to write, and harden the gates (glab 0.16.3)`,
   in PR #23, not merged at this record; a patch step, `plan-gate.sh`'s
@@ -1034,6 +1094,10 @@ owning file is right and this spec is out of date.
 - [script-hardening/plan.md D10] (`check.r1.md` F-c) The `PATH` loop runs over `"$PATH:"`, `e=${rest%%:*} rest=${rest#*:}`, so empty entries are kept, a trailing one included; entries starting `/` or `~` are kept (bash expands `~` against `$HOME`), an empty one becomes `$PWD`, any other `$PWD/<entry>`; the block runs `rest=$PATH: p=''` … `PATH=$p`.
 - [script-hardening/plan.md D12] (`check.r1.md` F-d) The version-substituted copies run with `env -u TMPDIR`, so a copy that passes the bash line stops at the `TMPDIR` line before any check.
 - [script-hardening/plan.md D13] (`check.r1.md` F-g) The `PATH` post-condition's wrappers log to and exec by absolute paths, since `gates.sh` changes into the repo.
+- [level-guard/plan.md D15] The gates: `glab-level.sh` and `level-guard.sh` join `SCRIPTS` after `plan-gate.sh`, `tests/level-guard.test.sh` after `tests/product-loop.test.sh`; one test joins `TESTS`; `GLAB_HOOKS` becomes `Hooks (5) …`: 35 checks, every id renumbered, and `docs/one-fact.md`'s two G-id pointers moved with them (*How it works now*).
+- [level-guard/plan.md D16] `glab` 0.16.3 → 0.17.0, a new hook being a minor step; `memory-sync` unchanged.
+- [level-guard/plan.md D17] One commit, `feat(skills): …`, holding the plan's whole diff with the version bump (`632dcb0`).
+- [level-guard/plan.md D27] (its `AGENTS.md` half) `AGENTS.md` keeps "missing" for `manager-bootstrap.sh`'s fallback, while the script's warning says "missing or unreadable": adding "or unreadable" would take `AGENTS.md` to 8804 bytes, over its 8800 cap (`[slim-agents-md/plan.md D17]`); the sentence is true, narrower than the code (FU-LG10).
 
 ## Known limits and not verified
 
@@ -1058,6 +1122,7 @@ owning file is right and this spec is out of date.
 - [lifecycle-hardening/result.md Tests] The Markdown has no runtime: Steps 1–7 are shown by the post-condition greps and, after `D26`, by `result.md` *D26 rework*'s searches and listing run in a throwaway repo; no script or test changed (`/usr/bin/grep` over `tests/` printed nothing); gates `PASS 31/31`, exit 0, at every run and at review rounds 1–3. That a live session follows the text is UNVERIFIED (`docs/specs/workflow.md` *Known limits*).
 - [docs-lifecycle/result.md Tests] The Markdown has no runtime: P1–P22 are shown by the post-conditions PC1–PC28 (each at its expected value but PC12, which waits for this record and the folder's removal) and the gates, the text there, not a live session following it — UNVERIFIED, as for every prose rule. No script or test changed (PC11 printed nothing).
 - [script-hardening/plan.md Coverage] UNVERIFIED, as of `64b4e57`: a real bash older than 4.4 running `tests/gates.sh` — none was at hand (`plan.md` F9), and only the version-substituted copies ran the refusal; bash 5.3.9 ran the gates, and bash 5.2.37 and 5.1.16 ran the plan-gate suite and passed (the manager, this record's dispatch; `docs/specs/product.md` *Incidents*); bash 4.4 and 5.0 were not run; macOS was not checked (`[script-hardening/review.r1.md]`, `review.r2.md` *Not checked*). The `plan-gate.sh` items — real ENOSPC or EDQUOT, the code 1 after a failed open in a real race, the re-create under the lock — are in `docs/specs/product.md` *Known limits*.
+- [level-guard/plan.md Coverage] The gates show the scripts, not a session: `tests/level-guard.test.sh` runs the hook on made-up inputs and a copy of the tree, and G20 and G26 prove neither that the matchers fire nor what Claude Code does with `deny` and `ask`. That is the live test S10, run by the manager and the user outside the gates (`docs/specs/product.md` *How it works now* and *Known limits*), on Linux only. `plugin details` still labels the new hook "harness-only — no model context cost", which the deny reason Claude reads contradicts, as for the context hook above.
 
 ## Open follow-ups
 
@@ -1066,6 +1131,7 @@ owning file is right and this spec is out of date.
 - [feature-docs-specs/follow-ups.md 3] `README.md:226`: the `plan/` row says "removed once each change is recorded", while `AGENTS.md` removes a folder only once it has landed on `origin/main`. Suggested: "removed after each change has landed, under this repo's `AGENTS.md`" — open; the conformance round 3/4 hand-off named the same line. Re-read at `3ed6746`: `README.md:377` still reads "removed once each change is recorded"; under `docs-lifecycle` the manager removes a folder once its record has landed on `origin/main` (`AGENTS.md`'s `plan/` rule), and the plan took the row as already true (`[docs-lifecycle/plan.md E5]`, P19 "Line 374 stays") — still open, the wording the item suggests being closer to the rule. Re-read at `bf9c73f` (`lifecycle-hardening`): `README.md:378` reads "removed on your word once each change is recorded" — the removal is now on the user's word, but the row still says "recorded" where the rule says the record has landed on `origin/main` — still open.
 - [feature-docs-specs/follow-ups.md 8] The *Records* lines of every spec, the transcript citations of `docs/specs/external-agents.md` *Profiles* and *Live runs* and its rev2-build line under *Incidents*, and the list form of `AGENTS.md`'s `plan/` rule: `git ls-tree -r --name-only <sha> -- plan/<slug>/` prints nothing, with exit 0, when run from a subdirectory. Suggested: add `--full-tree`, in the specs and `AGENTS.md` in the same commit — open. Re-read at `467b7c4`: `AGENTS.md`'s list form still has no `--full-tree`, and the `docs/specs/external-agents.md` citations stay, that spec being kept as a record — still open. Re-read at `3ed6746`: `AGENTS.md`'s list form is gone (`ls-tree` → `0` there), so only the older *Records* lines of the specs and the `docs/specs/external-agents.md` citations hold it, all kept as records — still open, for those.
 - [script-hardening/plan.md FU-SH2] `tests/gates.sh` checks only its own bash: the tests it runs use the `bash` on `PATH`, which may be another, older one (`plan.md` F9; `tests/gates.sh:28-29`). Opened by `script-hardening` (0.16.3) — open.
+- [level-guard/follow-ups.md FU-LG10] `AGENTS.md` *Rules* says `manager-bootstrap.sh` warns "when `glab-level.sh` is missing beside it"; the warning now says "missing or unreadable", and both cases give the project text. Adding "or unreadable" would take `AGENTS.md` to 8804 bytes, over its 8800 target (`[slim-agents-md/plan.md D17]`), so it was left as it is (`[level-guard/plan.md D27]`) — open, for a pass that frees bytes there.
 
 ## Closed follow-ups
 
@@ -1105,6 +1171,7 @@ owning file is right and this spec is out of date.
 - **The removal command emptied a symlink's target, twice, in plan check** (`docs-lifecycle`, plan check rounds 1 and 2; `[docs-lifecycle/check.r1.md F1]`, `[docs-lifecycle/check.r2.md N2]`; told in full in `docs/specs/workflow.md` *Incidents*): `rm -r -- plan/<slug>/` on a symlinked slug folder, then `rm -r -- plan/s` through a symlinked `plan`, emptied a target outside `plan/` in throwaway repos while every planned condition passed — the same lesson as *A removal path that is not exact removes all of `plan/`*, above. The approval now checks both symlinks and the `realpath` from the repo root, and its command has no trailing slash.
 - **Review round 3's helper wrote outside the temp root** (`lifecycle-hardening`, 2026-11-18; `[lifecycle-hardening/review.r3.md]`, process note): the reviewer's check helper wrote one file to `/tmp/.x`, outside the allowed temp root `/data/tmp/claude` (the host file's temp directory, *Host and tool hazards* above); the reviewer removed it by its exact path, and `/data/tmp/claude/rv-rule2-c5uvw6` too, and the repo kept the same 16 modified files and no new one. Nothing else is known to have been written there. The rule it broke is the same as *A wildcard `rm` in the shared temp directory*'s: temp files only in the host file's temp directory, removed by exact path.
 - **`script-hardening`'s incidents, pointed at, told in full in `docs/specs/product.md` *Incidents*** (2026-11-18): review round 1 found that a failed `exec 9>` redirection ends bash silently in posix mode, hence `command exec` (`[script-hardening/review.r1.md]`); review round 2 found that T56 failed on bash 4.4–5.2, the function name `[` being rejected in posix mode (`[script-hardening/review.r2.md]`); the planner's background run of the FU-SH1 hang had to be stopped (the manager, this record's dispatch); and plan check round 2, the plan-check cap (`[script-hardening/plan.md D20]`), and review round 2 were the caps, their fixes verified by the manager, review round 2's verified on bash 5.2 (`D23`); the suite ran on bash 5.2.37 and 5.1.16 in local container images with `--network none` and the repo mounted read-only (the manager, this record's dispatch).
+- **`level-guard`'s incidents, pointed at, told in full in `docs/specs/product.md` *Incidents*** (2026-11-18 and 2026-11-19): a plan checker sent stderr to `/tmp/x_unused_never` once, removed by its exact path (`[level-guard/plan.md IN-LG1]`), the second slip of the kind after *A wildcard `rm` in the shared temp directory*; the scripts reviewer of review round 2 ran `claude --version` once without `CLAUDE_CONFIG_DIR`, against `AGENTS.md` *Gates* (`[level-guard/plan.md IN-LG2]`); and the plan-check cap was reached, its last 40 replacements checked by the manager's `grep -cF` (`[level-guard/plan.md D24]`).
 
 ## Records
 
@@ -1179,3 +1246,11 @@ owning file is right and this spec is out of date.
   - Security → no secrets; no hook contract changed, and `plan-gate.sh`'s contract in `AGENTS.md` *Rules* holds unchanged (`[script-hardening/plan.md D1]`, `plan.md` F6, PC7).
   - Incidents → pointed at under *Incidents*, told in full in `docs/specs/product.md`.
   - Record → this record, in this file and `docs/specs/product.md`; no feature page, no audit file.
+- 2026-11-19 · level-guard · 632dcb0 · 632dcb0 · level-guard · #24
+  - PR #24 (glab-services/skills), not merged at this record; recorded in `docs/specs/product.md`, its primary area (the hook, the hold, the live test); here: `glab` 0.17.0 (`memory-sync` 0.1.0), `AGENTS.md` *Layout* and the hook contract of `level-guard.sh` and `manager-bootstrap.sh`'s fallback (8789 bytes), `Hooks (5)`, `tests/gates.sh` at 35 checks with the new test (`PASS 29/29`) and B20 (`PASS 20/20`), `PASS 35/35`, the two new *One fact* entries and the four changed (40 entries), the `README.md` row and *Requirements*. The plan folder was not kept in git.
+  - [level-guard/plan.md Decisions] Decisions → `D15`–`D17` and `D27`'s `AGENTS.md` half above under *Decisions that still bind*; the others in `docs/specs/product.md` and, for the project edge, `docs/specs/workflow.md`.
+  - Not verified → the gates prove the scripts, not a session, above under *Known limits*; the live results and what S10 left UNVERIFIED in `docs/specs/product.md`.
+  - Follow-ups → open: `[level-guard/follow-ups.md FU-LG10]` above; the others in `docs/specs/product.md`.
+  - Security → no secrets; the hook-contract rule of `AGENTS.md` gains `level-guard.sh`'s contract under that change's plan, as its *Rules* require; `plan-gate.sh`'s contract unchanged.
+  - Incidents → pointed at under *Incidents*, told in full in `docs/specs/product.md`.
+  - Record → this record, in this file, `docs/specs/product.md`, `docs/specs/workflow.md` and `docs/features/level-guard.md`; no audit file.
