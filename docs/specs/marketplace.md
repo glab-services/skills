@@ -35,7 +35,9 @@ the hook contracts of `manager-bootstrap.sh` and `plan-gate.sh`, the host
 file's store line, the *One fact* entries, the `README.md` sections, the
 `glab` description in its `plugin.json`) as of `ce1a933`, and its
 `flow-gate-hardening` lines (the version, the `plan-gate.sh` contract, the
-stubs and count of `tests/plan-gate.test.sh`) as of `2724086`; where this file and an owning file disagree, the
+stubs and count of `tests/plan-gate.test.sh`) as of `2724086`, and its
+`slim-agents-md` lines (the gates as `tests/gates.sh`, the *One fact*
+registry as `docs/one-fact.md`, the size of `AGENTS.md`) as of `113870b`; where this file and an owning file disagree, the
 owning file is right and this spec is out of date.
 
 ## How it works now
@@ -48,7 +50,8 @@ owning file is right and this spec is out of date.
   `memory-sync` holds the memory sync (`docs/specs/memory-sync.md`). Until
   `glab` 0.8.0 (`467b7c4`, 2026-10-20) `glab` also held the external agents,
   which `docs/specs/external-agents.md` keeps as a record.
-- **What each plugin holds** (`AGENTS.md` *Gates*, `README.md`): `glab` —
+- **What each plugin holds** (`tests/gates.sh` as of `113870b`, `AGENTS.md`
+  *Gates* until then, `README.md`): `glab` —
   since `glab` 0.15.0 (`db5feae`, `flow-project-level`)
   `Skills (25)  audit, bootstrap, comments, commit, product-manager, product-plan, product-plan-analyze, product-project-brief, product-project-plan-analyze, product-project-plan-verdict, project-analyze, project-develop, project-integrate, project-manager, project-plan, project-plan-accept, project-plan-analyze, project-plan-report, project-record, project-review, project-ship, push, security, session-rules, severity`
   and `Agents (9)` naming `committer`, `product-analyzer`,
@@ -164,7 +167,40 @@ owning file is right and this spec is out of date.
   this repo has `CLAUDE_CONFIG_DIR` set to a new, empty directory under the
   host's temp directory, because the CLI writes into its config directory
   even for `plugin validate`.
-- **The gates** are the two blocks of `AGENTS.md` *Gates*. **Since `glab`
+- **The gates** are, as of `113870b` (`slim-agents-md`), one script,
+  `tests/gates.sh`; `AGENTS.md` *Gates* says to export `TMPDIR`, run
+  `bash tests/gates.sh` and paste what it prints. It runs 31 checks
+  (`[slim-agents-md/plan.md D1]`): G1–G10 `bash -n` and `test -x` on ten
+  scripts (the nine below and itself), G11 `shellcheck` on the ten, G12–G16
+  the five tests, G17–G19 `plugin validate --strict` (`glab`,
+  `memory-sync`, `.`), G20–G25 the Skills, Agents and Hooks lines of each
+  plugin, G26 the marketplace names, G27 `user_config`, G28
+  `not yet confirmed`, G29 the model lines, G30 the skills lines, G31 the
+  prefixed `name:` search. It prints `ok G<n> <name>` or
+  `FAIL G<n> <name>: <reason>` per check, then `PASS 31/31` or
+  `FAIL <f>/31`, and exits 0 when all pass, 1 on any `FAIL`, 2 when a
+  preflight fails. The preflight runs first (`D3`, `tests/gates.sh:27-34`):
+  no `TMPDIR`, a `TMPDIR` that is not an absolute path (fix round 1,
+  `[slim-agents-md/review.r1.md 4]`), no CLI (`claude` on `PATH` or
+  `CLAUDE_BIN`, made absolute before the `cd`), no `jq` or no `shellcheck`
+  each print one stderr line and exit 2, with no `ok`, `FAIL` or `PASS`
+  line; it does not use `:?`, which exits 1. Every `claude` command runs in
+  one subshell with `CLAUDE_CONFIG_DIR` a new directory inside the work
+  directory `mktemp -d "$TMPDIR/gates.XXXXXX"`, which an EXIT trap removes;
+  INT, TERM and HUP exit 130, 143 and 129 through it (`D4`,
+  `[slim-agents-md/review.r1.md 1]`); it starts no background process.
+  Skills and Agents are compared as sets — the count and the sorted names
+  (`D5`) —, Hooks lines as exact strings, the model and skills lines after
+  `LC_ALL=C sort`; the five tests' own counts are not pinned (`D6`): rc 0,
+  every line but the last `ok `, a last line `PASS k/k`. The expected
+  values are the arrays at its top and each reason a `#` comment above its
+  check (`D7`, `D8`; `AGENTS.md` *Gates*: "the values in its arrays, the
+  reasons in its comments"); it checks itself through G10 and G11 and never
+  runs itself (`D2`). Green at `113870b` (`[slim-agents-md/result.md]`
+  *Fix round 1*): G1–G31 `ok`, `PASS 31/31`, `rc=0`, no `gates.*`
+  directory left under `$TMPDIR`. Until `113870b` the gates were the
+  script block and the plugin block of `AGENTS.md` *Gates*, which G1–G31
+  carry over; what follows records those blocks. **Since `glab`
   0.14.0** (`ce1a933`; `[flow-product-level/plan.md]` R3, X1) the script
   block takes nine files — `plugins/glab/scripts/plan-gate.sh`,
   `tests/plan-gate.test.sh`, `tests/manager-bootstrap.test.sh` and
@@ -188,7 +224,8 @@ owning file is right and this spec is out of date.
   `result.md`. The walkthrough's fixtures are under
   `tests/fixtures/product-loop/`, named in *Layout*. In the plugin block
   the `glab` lines are green, since `glab` 0.15.0, as `AGENTS.md` *Gates*
-  lists them: `Skills (25)` and `Agents (9)` naming them (*What each plugin
+  listed them until `113870b` and the arrays of `tests/gates.sh` hold them
+  since: `Skills (25)` and `Agents (9)` naming them (*What each plugin
   holds*), the model gate as nine lines —
   `project-analyzer.md:model: sonnet`, `committer.md:model: haiku`,
   `project-developer.md:model: sonnet`, `project-integrator.md:model: sonnet`,
@@ -290,7 +327,7 @@ owning file is right and this spec is out of date.
   list and the loop prints `<file>:<plugin>:<skill>` for each entry, with
   ` MISSING` when the entry names no `skills/<name>/SKILL.md` in that
   plugin, when that file has no line `name: <name>`, or when its prefix is
-  another plugin's. Green is the fourteen lines `AGENTS.md` *Gates* lists,
+  another plugin's. Green is the fourteen lines `AGENTS.md` *Gates* listed then,
   none `MISSING`. Its reason, in *Gates*: `plugin validate --strict` passes
   an entry that names no skill and `plugin details` does not show the lists
   (proven on a throwaway copy, `F13`), so nothing else catches a typo; it
@@ -378,7 +415,9 @@ owning file is right and this spec is out of date.
   `[flow-product-level/result.md]` *Unplanned changes*); a repo's own
   `AGENTS.md` line wins over it (`docs/specs/product.md`, *The shared
   store*).
-- **The repo's own rules** are `AGENTS.md`: the gates, the scoped test
+- **The repo's own rules** are `AGENTS.md` (8225 bytes as of `113870b`,
+  29824 before; `[slim-agents-md/plan.md D13]`, `D17`): the gates (since
+  `113870b` the instruction to run `tests/gates.sh`), the scoped test
   exception for shell scripts (a stub on `PATH`, coverage as a list), no
   secrets (`<bucket>`, `<prefix>`, `<profile, or delete this key>`), never
   running `memory-sync.sh` against a real backend (and, until `467b7c4`,
@@ -398,7 +437,10 @@ owning file is right and this spec is out of date.
   claim, and its temporary file, whose run provably no longer runs — since
   `2724086`, `[flow-gate-hardening/plan.md contract]`; "and no write" until
   then) — the *One fact,
-  one value* list, comments and incidents kept, tests that clean up by PID,
+  one value* rule (since `113870b` three sentences in `AGENTS.md`, its
+  known cases — 37 entries, one `##` section each — in `docs/one-fact.md`;
+  `[slim-agents-md/plan.md D9]`–`D11`; the list was in `AGENTS.md` until
+  then), comments and incidents kept, tests that clean up by PID,
   the version rule (per push since `0cbf5b0`, *Versions* above),
   Conventional Commits.
 - **The external-agent rule** — history: removed from `AGENTS.md` *Rules*
@@ -761,6 +803,7 @@ owning file is right and this spec is out of date.
   LP1–LP6, each UNVERIFIED until run); the version is "the version in
   `plugins/glab/.claude-plugin/plugin.json`", not written by hand (advisory
   2); the `tests/` row names the scripts' tests and the fixtures.
+  As of `113870b` (`[slim-agents-md/plan.md D14]`): the `README.md` `tests/` row also names `tests/gates.sh` (`README.md:373`), a new row names `docs/one-fact.md` (`README.md:376`), and `AGENTS.md` *Layout* names both paths (`AGENTS.md:18-21`).
   **`host.example.md`**: the section *glab shared store* (*The host file*,
   above).
 - **`docs/specs/` and `plan/`** (`AGENTS.md` *Layout* and *Rules*, the
@@ -838,13 +881,24 @@ owning file is right and this spec is out of date.
 - [flow-gate-hardening/plan.md version] `glab` goes 0.14.0 → 0.14.1, once, in `plugins/glab/.claude-plugin/plugin.json`, in the change's one commit (`2724086`, `bdee40a` on the branch), merged with rebase through PR #13; its review fix round kept `0.14.1`; `memory-sync` untouched at `0.1.0`.
 - [flow-gate-hardening/plan.md contract] `plan-gate.sh`'s contract in `AGENTS.md` *Rules* gains one clause: a refusal writes nothing "but the takeover before it of a claim, and its temporary file, whose run provably no longer runs" — the change's one `AGENTS.md` edit (*The repo's own rules*, above); exit codes and stdout unchanged.
 - [flow-gate-hardening/plan.md gates] `AGENTS.md` *Gates* unchanged: it names no case count, and its nine files and seven commands stay; the plan-gate test's green moves to `PASS 51/51`. Its other decisions, with the user's words ("let's work on these gates", "Yes, develop"), are carried in `docs/specs/product.md`, the change's primary area, each as a line of its own.
+- [slim-agents-md/plan.md D2] `tests/gates.sh` checks itself without running itself: it is in its own file list (G10 `bash -n` and `test -x`, G11 `shellcheck`) and never runs `bash tests/gates.sh`.
+- [slim-agents-md/plan.md D3] The preflight comes before any check and does not use `:?`: a failed one prints exactly one stderr line, exits 2 and prints no `ok`, `FAIL` or `PASS` line — never `FAIL` lines or a skip, which could be pasted as green; since fix round 1 a `TMPDIR` that does not start with `/` is refused the same way (`D19` 4).
+- [slim-agents-md/plan.md D4] Every `claude` command runs in one subshell with `CLAUDE_CONFIG_DIR` a new directory inside the work directory, never exported empty; the EXIT trap removes the directory, and INT, TERM and HUP exit 130, 143 and 129 so that it runs (`D19` 1).
+- [slim-agents-md/plan.md D5] Skills and Agents are compared as sets (the count and the sorted names), because the CLI lists them in directory read order; Hooks lines as exact strings, suffix included; model and skills lines after `LC_ALL=C sort` on both sides.
+- [slim-agents-md/plan.md D6] `tests/gates.sh` does not pin the five tests' own case counts: rc 0, every line but the last `ok `, a last line `PASS k/k` — no new copy of those counts.
+- [slim-agents-md/plan.md D7] The expected values live in the arrays at the top of `tests/gates.sh` (with `README.md` and the `hooks.json` files, the files `docs/one-fact.md` #7 names); `AGENTS.md` states no count and says only that green is `PASS n/n`. `D8`: each reason is a `#` comment above the check it explains.
+- [slim-agents-md/plan.md D9] The *One fact* registry is `docs/one-fact.md`: a title, one intro line pointing at `AGENTS.md` *Rules*, and the 37 entries in order, each a `##` heading, its text and one bullet per file; `D10` rewrote #6, #7, #10, #11, #12 and #20 to name `tests/gates.sh` or `AGENTS.md`'s `plan/` rule.
+- [slim-agents-md/plan.md D11] The *One fact* rule in `AGENTS.md` is three sentences — one value in every file in the same commit, a rule in the file of the role that acts on it, the known cases in `docs/one-fact.md` — with its meaning unchanged.
+- [slim-agents-md/plan.md D12] The hook-contract paragraph stays in `AGENTS.md` *Rules*, verbatim: an agent in this repo acts on it, and `plugins/glab/scripts/context-size.sh:34` cites "AGENTS.md *Rules*" for it, so moving it would leave that pointer dangling or force a payload edit and a version bump. The `~/.claude` rule keeps citing the `CLAUDE_CONFIG_DIR` rule in *Gates*, which stays there.
+- [slim-agents-md/plan.md D15] No file under `plugins/` or `.claude-plugin/` changed, so no plugin version was raised.
+- [slim-agents-md/plan.md D17] (manager) The size target of `AGENTS.md` is ≤ 8800 bytes, not about 6 KB (`D13`; 8225 at `113870b`): the hook contracts stay (`D12`) and the `plan/` rule shrinks only in the queued docs-lifecycle slug.
 
 ## Known limits and not verified
 
 - [feature-plugin-marketplace/plan.md unverified] Not shown in a live session, as of the record: prefixed names resolve (`/glab:plan`, the Skill tool with `glab:manager`, the Agent tool with `glab:developer`); the bootstrap hook fires from a plugin and its text reaches the model; `${CLAUDE_PLUGIN_ROOT}` is substituted in the `sync-memory` skill body, and the skill's fallback for when it is not; everything the README says about credentials, SSH then HTTPS, `CLAUDE_CODE_PLUGIN_PREFER_HTTPS`, background auto-update and the `extraKnownMarketplaces` / `enabledPlugins` keys (it restates the Claude Code docs); `CLAUDE_CODE_SESSIONEND_HOOKS_TIMEOUT_MS` for a plugin's `SessionEnd` hook; `claude plugin marketplace add glab-services/skills` on a teammate's machine; `claude plugin update glab@glab-services` delivering a raised version.
 - [feature-plugin-marketplace/result-slice-G.md unverified] That the hook fires from the plugin in a live session and that the prefixed names resolve — needs a session; smoke test part 1.
 - [feature-plugin-marketplace/plan.md smoke-test-1] Smoke test part 1, `glab` alone under `--plugin-dir ./plugins/glab` (the `/glab:` listing, `/plugin` errors, item 4 of the bootstrap text, loading `glab:security`, dispatching `glab:developer`, `/glab:plan`), and the bare-name questions in a clean config directory: not run, as recorded. Its steps: `git show b853635:plan/feature-plugin-marketplace/plan.md`, *Smoke test*. Parts 2 and 3 are in `docs/specs/memory-sync.md`.
-- Validation does not compare a marketplace entry with the plugin it points at: it passes a wrong name and a directory that does not exist. The `jq` line of the plugin gates is what catches it (`AGENTS.md` *Gates*).
+- Validation does not compare a marketplace entry with the plugin it points at: it passes a wrong name and a directory that does not exist. The `jq` line of the plugin gates is what catches it (G26 in `tests/gates.sh` as of `113870b`; `AGENTS.md` *Gates* before).
 - [remove-external-agents/plan.md validate-prose] Validation and the component count do not see dangling prose: a throwaway copy of `plugins/` with only the `external-agents` skill and the script removed, every `glab:external-agents` mention still in place, printed `✔ Validation passed` and `Skills (14)` (*Findings*, *Other facts*, proven). Only the plan's searches told the finished tree from a half-finished one.
 
 - The `glab` hook events and their commands are counted by `plugin details` and checked for `user_config` by the gates, but **no gate shows what a hook does when it runs**: the context hook's test passed `19/19` on a script that could never speak in a live session, because every fixture held a transcript entry that is not yet written when `Stop` runs (`docs/specs/workflow.md`, *Incidents*, `[flow-cheaper-rounds/plan.md IN1]`). Only a model run by the user (integration I1) shows the live behaviour; `plugin details` also labels every hook "harness-only — no model context cost", which is not true of one that returns `additionalContext` (`[flow-cheaper-rounds/plan.md FU12]`, open in `docs/specs/workflow.md`).
@@ -854,6 +908,10 @@ owning file is right and this spec is out of date.
 - The plugin block of the gates was not run on `ce1a933` for the `flow-product-level` record: its dispatch allowed no `claude` command, so its green is the manager's run on the branch's tree before the commit (`[flow-product-level/result.md]` *Fix round — review round 2*, *Gates*), the same tree as `ce1a933` (`e4b8157^{tree}` equals `ce1a933^{tree}`); the script block was run for the record (*The gates*).
 - The new tests show the scripts, not a session: `tests/manager-bootstrap.test.sh` runs the hook script with a made-up `AGENTS.md` and `tests/product-loop.test.sh` plays every agent from fixtures; that the hook picks the product text in a live session, and every other runtime claim of the product level, is LP1–LP6, UNVERIFIED (`docs/specs/product.md` *Known limits*).
 - `[flow-product-level/plan.md]` X4 cannot run as written: `docs/specs/product.md` *Known limits*, `[flow-product-level/result.md X4]`.
+- [slim-agents-md/plan.md Not done] UNVERIFIED: that the CLI's Hooks order is stable — taken as stable because the old gate compared that line exactly; G22 and G25 compare it exactly and passed at `113870b` (`[slim-agents-md/result.md]` *Not done*).
+- [slim-agents-md/follow-ups.md FU2] UNVERIFIED: `tests/gates.sh` on bash older than 4.4, the `${MS_AGENTS[@]+…}` expansion included — only bash 5.3.9 was available (`[slim-agents-md/result.md]` *Fix round 1*).
+- [slim-agents-md/result.md fix-round-1] UNVERIFIED: a full gate run with a relative `CLAUDE_BIN` pointing at the real CLI — only the two resolution lines (`tests/gates.sh:31-32`) were run, not a whole run.
+- [slim-agents-md/result.md M1] `claude plugin validate --strict` accepts an agent with no `model:` line: with `model: haiku` removed from a copy of `committer.md`, only G29 failed (`FAIL G29 agent models (9 lines): missing [plugins/glab/agents/committer.md:model: haiku]`, `FAIL 1/31`), so the model check is the only gate that catches it (the plan's UNVERIFIED, resolved by M1).
 
 ## Open follow-ups
 
@@ -863,6 +921,8 @@ owning file is right and this spec is out of date.
 - [feature-docs-specs/follow-ups.md 3] `README.md:226`: the `plan/` row says "removed once each change is recorded", while `AGENTS.md` removes a folder only once it has landed on `origin/main`. Suggested: "removed after each change has landed, under this repo's `AGENTS.md`" — open; the conformance round 3/4 hand-off named the same line.
 - [feature-docs-specs/follow-ups.md 6] `AGENTS.md:220-224`: the repo's removal rule should name the forms that are never valid — never `plan/`, `plan/.`, or a slug outside `[A-Za-z0-9._-]`; review round 2 measured that `plan/./` removes every folder under `plan/` (*Incidents*) — open.
 - [feature-docs-specs/follow-ups.md 8] The *Records* lines of every spec, the transcript citations of `docs/specs/external-agents.md` *Profiles* and *Live runs* and its rev2-build line under *Incidents*, and the list form of `AGENTS.md`'s `plan/` rule: `git ls-tree -r --name-only <sha> -- plan/<slug>/` prints nothing, with exit 0, when run from a subdirectory. Suggested: add `--full-tree`, in the specs and `AGENTS.md` in the same commit — open. Re-read at `467b7c4`: `AGENTS.md`'s list form still has no `--full-tree`, and the `docs/specs/external-agents.md` citations stay, that spec being kept as a record — still open.
+- [slim-agents-md/follow-ups.md FU1] `tests/gates.sh:33-35` (review round 2, low): only `claude` is made absolute before the `cd`; a `jq` or `shellcheck` found through a relative `PATH` entry passes the preflight and then gives `FAIL` lines instead of exit 2. Suggested: resolve both the way `:32` resolves `claude`, or say in the `:24-26` comment that only `claude` gets it — open.
+- [slim-agents-md/follow-ups.md FU2] `tests/gates.sh` untested on bash older than 4.4 (*Known limits*) — open: needs an older bash.
 
 ## Closed follow-ups
 
@@ -871,11 +931,12 @@ owning file is right and this spec is out of date.
 - [bug-reviewer-findings/follow-ups.md 21] `install.sh --check` to compare the repo with `~/.claude` (Q1's deferred half) — closed, superseded: no install script is tracked, and the plugin install replaced the copy install (`f19f7f0`, `README.md` *Coming from the copy install*).
 - [feature-plugin-marketplace/result-review1.md 1] The plan recorded values that no longer held (P3, P9, P15, P17) — closed: the plan is a record of that change, not a check anyone re-runs.
 - [feature-plugin-marketplace/result-review1.md 2] `follow-ups.md` did not exist and slice D's four items were open — closed as a pointer: each of the four is carried under its own tag, `[feature-plugin-marketplace/result-slice-D.md 3]` here and `1`, `2`, `4` in `docs/specs/memory-sync.md`.
-- [feature-plugin-marketplace/result-review1.md 3] The `:?` guards stop a script, not an interactive shell — closed: `AGENTS.md` *Gates* says so beside the block.
+- [feature-plugin-marketplace/result-review1.md 3] The `:?` guards stop a script, not an interactive shell — closed: `AGENTS.md` *Gates* says so beside the block; since `113870b`: the history comment at `tests/gates.sh:20-23`.
 - [feature-plugin-marketplace/result-slice-D.md 3] Stale step ranges in the plan ("P1–P13", "P1–P9, P12") — closed: plan text, history.
-- [feature-plugin-marketplace/result-slice-S.md 1] A gate for the hedged sentences — closed: the `not yet confirmed` line of the plugin gates (`AGENTS.md` *Gates*).
+- [feature-plugin-marketplace/result-slice-S.md 1] A gate for the hedged sentences — closed: the `not yet confirmed` line of the plugin gates (`AGENTS.md` *Gates*); since `113870b`: G28 (`tests/gates.sh:288-301`).
 - [feature-plugin-marketplace/result-slice-S.md 4] The plan's UNVERIFIED list described the old fallback wording of the skill — closed: plan text; its substance stands in `[feature-plugin-marketplace/plan.md unverified]`.
 - [feature-plugin-marketplace/result-slice-S.md 5] `0.1.0` is the first version, so no bump was due — closed: information.
+- [slim-agents-md/follow-ups.md FU3] `docs/specs/marketplace.md` still described the old *Gates* blocks and the registry in `AGENTS.md` — closed by this record (`D16`): *The gates*, *What each plugin holds* and *The repo's own rules* name `tests/gates.sh` and `docs/one-fact.md` as of `113870b`.
 
 ## Incidents
 
@@ -886,10 +947,13 @@ owning file is right and this spec is out of date.
 - **A `${user_config.KEY}` in a hook command passes `validate`** (`✔ Validation passed`) and fails only when the hook runs (feature-plugin-marketplace findings, *Experiment B*); the `user_config` search of the plugin gates is the check.
 - **The CLI writes into its config directory even for `plugin validate`** (proven in a throwaway directory, feature-plugin-marketplace findings §1), so a `claude` command without `CLAUDE_CONFIG_DIR` writes into the live `~/.claude`.
 - **A wrapped phrase defeats a per-line gate.** The hedge gate first counted `0` in the script: the plan's comment wrapped `not yet confirmed` over two lines, and `grep -F` reads one line at a time (feature-plugin-marketplace `result-slice-D.md`, *Blocked*). The comment was re-wrapped so the phrase sits on one line.
-- **`;` instead of `&&` hid a syntax error.** The first gate line printed `rc=0` for a script that failed `bash -n`, because the `rc` was `test -x`'s; it is now `bash -n "$s" && test -x "$s"` (`AGENTS.md` *Gates*).
+- **`;` instead of `&&` hid a syntax error.** The first gate line printed `rc=0` for a script that failed `bash -n`, because the `rc` was `test -x`'s; it is now `bash -n "$s" && test -x "$s"` (`AGENTS.md` *Gates*); since `113870b`: `tests/gates.sh:179`.
 - **A removal path that is not exact removes all of `plan/`** (`feature-docs-specs`, review rounds 1 and 2, measured in throwaway repos): with an empty slug, `git rm -r -n -- "plan/$slug/"` listed every file under `plan/`, `rc=0`, and so did `plan/../` and `plan/./`. The `plan/` rule removes a folder by its exact path, after checking it is tracked, clean and identical on `origin/main`; the forms that are never valid are not yet named (`[feature-docs-specs/follow-ups.md 6]`).
 - **The installed plugins load beside `--plugin-dir` in the user's own config** (`flow-cheaper-rounds`, integration I1a, 2026-10-20; `[flow-cheaper-rounds/plan.md IN2]`, told in full in `docs/specs/workflow.md` *Incidents*): the earlier proof that `--plugin-dir ./plugins/glab` loads `glab` alone was under an empty `CLAUDE_CONFIG_DIR`; in the user's own config a second `Stop` hook ran and ended `cancelled`, exit 1. Which plugin's it was is UNVERIFIED. An agent still tests only under a new empty `CLAUDE_CONFIG_DIR` (*Testing without installing*).
 - **`mkdir` was not exclusive on the build host** (`flow-product-level`, review fix round 1; told in full in `docs/specs/product.md` *Incidents*): the host's `/usr/bin/mkdir`, uutils coreutils 0.10.0, let two racing calls on one name both succeed; `plan-gate.sh` therefore takes every claim with bash's own `set -C` (`O_EXCL`) create. A host tool hazard beside the ugrep one above: a command's atomicity is the host's.
+- **A wildcard `rm` in the shared temp directory** (`slim-agents-md`, fix round 1, 2026-11-18; `[slim-agents-md/follow-ups.md IN1]`): the fix developer cleaned up with `rm -f "$TMPDIR"/fr1-*.out "$TMPDIR"/fr1-*.err` in the shared temp directory, where other sessions keep `fr1-*` files; whether another session's `.out` or `.err` file was removed is unknown. Briefs now say: remove temp files by exact path only.
+- **Plan check round 1: NOT BUILDABLE** (`slim-agents-md`; `[slim-agents-md/check.r1.md]`), two high findings: P5 matched `tests/gates.sh` itself, so the search printed `rc=0` instead of `rc=1` on a correctly built tree; and D3's `: "${TMPDIR:?…}"` exits 1 with a bash-formatted `…: line 3: TMPDIR: …` message, not 2 with a `gates.sh:` line. Round 2 was BUILDABLE with one medium (`D18`).
+- **The planner overran its budget** (`slim-agents-md`): about 122k tokens against a 60k cap. UNVERIFIED in the repo — the figure is the manager's (record dispatch); no file under `plan/slim-agents-md/` states it.
 
 ## Records
 
@@ -936,3 +1000,8 @@ owning file is right and this spec is out of date.
   - [flow-gate-hardening/master.md Record] Record → the entries above; the decisions, follow-ups and known limits in `docs/specs/product.md`; of its follow-ups `[flow-gate-hardening/follow-ups.md FG-1]` (a failed claim write exits 1, not the contract's 2) concerns the contract in `AGENTS.md` *Rules* and `FG-2` (the store's filesystems in `README.md`) the store, both open in `docs/specs/product.md`; no incident.
 - 2026-11-18 · flow-project-level · recorded in `docs/specs/workflow.md`, its primary area; here: `glab` 0.15.0, `Skills (25)` and the nine agents as `AGENTS.md` *Gates* lists them, the project level's old → new names (`glab:<name>`, `skills/<name>/`, `agents/<name>.md`) through *How it works now*, the nine model gate lines and the eighteen skills gate lines, the old-name search of `[flow-project-level/master.md]` *Final check* step 2, the per-session handoff file `plan/handoff/<session id>.md` in place of `plan/SESSION-HANDOFF.md` (G6), both *Gates* blocks run for this record (`PASS 35/35`, `PASS 24/24`, `PASS 51/51`, `PASS 19/19`, `PASS 17/17`); final check CONFORMS (G1–G6) · change db5feae (01 `0c49626`, 02 `0cfe335`, 03 `db5feae`) · plan: `git ls-tree -r --name-only db5feae -- plan/flow-project-level/` (one file: `git show db5feae:plan/flow-project-level/<file>`). `db5feae` is the last commit on `origin/main` that holds it (`git log -1 --format=%h origin/main -- plan/flow-project-level/`; PR glab-services/skills#15, merged with rebase from `cf909b5`).
   - [flow-project-level/master.md Record] Record → the entries above; the project level, its decisions, follow-ups and known limits in `docs/specs/workflow.md`, the product level's side in `docs/specs/product.md`; its incidents, if any, with the primary area's record (none recorded here).
+- 2026-11-18 · slim-agents-md · repo only: the gates as `tests/gates.sh` (31 checks, `PASS 31/31`, exit 0/1/2, preflight, config-dir subshell and traps, set comparisons), the *One fact* registry as `docs/one-fact.md` (37 entries), the rule in `AGENTS.md` in three sentences, `AGENTS.md` at 8225 bytes (29824 before), through *How it works now*; no file under `plugins/` or `.claude-plugin/`, no plugin version change · change 113870b · PR glab-services/skills#17, rebase-merged 2026-11-18 · plan: `git ls-tree -r --name-only 113870b -- plan/slim-agents-md/` (one file: `git show 113870b:plan/slim-agents-md/<file>`). `113870b` is the last commit on `origin/main` that holds it.
+  - Decisions → `[slim-agents-md/plan.md D2]`–`D7`, `D9`, `D11`, `D12`, `D15`, `D17` under *Decisions that still bind*; the rest (`D1`, `D8`, `D10`, `D13`, `D14`, `D16`, `D18`, `D19`) through *How it works now* or the plan folder.
+  - Follow-ups → `FU1`, `FU2` under *Open follow-ups*; `FU3` under *Closed follow-ups*, closed by this record.
+  - Incidents → `IN1`, plan check round 1 `NOT BUILDABLE` and the planner's overrun under *Incidents*.
+  - Record → this record, in this file only; no audit file.
