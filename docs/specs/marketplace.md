@@ -37,7 +37,11 @@ file's store line, the *One fact* entries, the `README.md` sections, the
 `flow-gate-hardening` lines (the version, the `plan-gate.sh` contract, the
 stubs and count of `tests/plan-gate.test.sh`) as of `2724086`, and its
 `slim-agents-md` lines (the gates as `tests/gates.sh`, the *One fact*
-registry as `docs/one-fact.md`, the size of `AGENTS.md`) as of `113870b`; where this file and an owning file disagree, the
+registry as `docs/one-fact.md`, the size of `AGENTS.md`) as of `113870b`, and its
+`docs-lifecycle` lines (the version, the `.gitignore`, `docs/features/` in
+the layout, the `plan/` rule, the *One fact* entries, `README.md`'s record
+paragraph and layout row, the size of `AGENTS.md`) as of `3ed6746` (`glab`
+`0.16.0`, rebase-merged as `d2ca05b`); where this file and an owning file disagree, the
 owning file is right and this spec is out of date.
 
 ## How it works now
@@ -99,6 +103,10 @@ owning file is right and this spec is out of date.
   skill, `sync-memory`, no agent, hooks on `SessionStart`, `SessionEnd`,
   `PostToolUse` and `Stop`.
 - **Versions.** Each `plugin.json` carries an explicit `version` — `glab`
+  `0.16.0` (raised once by `3ed6746`, `docs-lifecycle`'s one commit,
+  `feat(skills): stop committing plan folders and record into docs/features (glab 0.16.0)`,
+  merged with rebase through PR #19 as `d2ca05b`; `memory-sync` unchanged
+  at `0.1.0`, no file under it changed, `[docs-lifecycle/plan.md M4]`);
   `0.15.0` (raised once by `0c49626`, the first of `flow-project-level`'s
   three commits, `0cfe335` and `db5feae` keeping it; merged with rebase
   through PR glab-services/skills#15 from `cf909b5`; 01's subject a
@@ -415,7 +423,8 @@ owning file is right and this spec is out of date.
   `[flow-product-level/result.md]` *Unplanned changes*); a repo's own
   `AGENTS.md` line wins over it (`docs/specs/product.md`, *The shared
   store*).
-- **The repo's own rules** are `AGENTS.md` (8225 bytes as of `113870b`,
+- **The repo's own rules** are `AGENTS.md` (8212 bytes as of `3ed6746`,
+  under the 8800 cap, its `plan/` rule rewritten by `docs-lifecycle`; 8225 bytes as of `113870b`,
   29824 before; `[slim-agents-md/plan.md D13]`, `D17`): the gates (since
   `113870b` the instruction to run `tests/gates.sh`), the scoped test
   exception for shell scripts (a stub on `PATH`, coverage as a list), no
@@ -804,10 +813,49 @@ owning file is right and this spec is out of date.
   `plugins/glab/.claude-plugin/plugin.json`", not written by hand (advisory
   2); the `tests/` row names the scripts' tests and the fixtures.
   As of `113870b` (`[slim-agents-md/plan.md D14]`): the `README.md` `tests/` row also names `tests/gates.sh` (`README.md:373`), a new row names `docs/one-fact.md` (`README.md:376`), and `AGENTS.md` *Layout* names both paths (`AGENTS.md:18-21`).
+  As of `3ed6746` (`docs-lifecycle`, P19, P21): `README.md`'s record paragraph (`README.md:36-45`) names `docs/features/<feature>.md`, `plan/` ignored and never committed, the manager's removal once the record has landed, and `docs/roadmap/<slug>.md` at the product level; a `docs/features/` row follows the `docs/specs/` row (`README.md:379`), the `plan/` row kept (`:377`); `AGENTS.md` *Layout* gains the `docs/features/` bullet (`:18`) and the `.gitignore` parenthesis "(it holds `/plan/`, the working area, handoff files included)" (`:23`).
   **`host.example.md`**: the section *glab shared store* (*The host file*,
   above).
+- **`docs/specs/`, `docs/features/` and `plan/` as of 0.16.0** (`AGENTS.md`
+  *Layout* and *Rules*, the `plan/` rule; `.gitignore`; `docs/one-fact.md`
+  *The plan lifecycle*; `[docs-lifecycle/plan.md]` P19–P22, `D19`–`D21`),
+  as of `3ed6746`. `plan/` is ignored by git and never committed:
+  `.gitignore` is three lines, two comments — the handoff comment kept and
+  moved — then `/plan/`, in place of `plan/handoff/` and its comment.
+  After a change's push the record (`glab:project-record`) writes, from
+  `plan/<slug>/` on disk, the spec of each area it touched — the area list
+  and the spec's content as before, incidents moved into *Incidents* rather
+  than dropped — and a page in `docs/features/` when what a user sees
+  changed. Its *Records* line names the date, the slug, the change's
+  commits on the pushed branch by both ends, `<first>` and `<last>`, the
+  branch, and the PR when one exists (form: `glab:project-record`). Once
+  the record has landed on `origin/main`, the manager removes `plan/<slug>`
+  at a session start under `glab:session-rules` Rule 2's plan-folder
+  approval, by its command there (`docs/specs/workflow.md`, *The docs
+  lifecycle as of 0.16.0*); nothing else under `plan/` is removed but a
+  completed handoff file under the same Rule. A folder committed before
+  `glab` 0.16.0 is read back from the commit its *Records* line names:
+  `git show <sha>:plan/<slug>/<file>`. The dropped mechanics — the
+  `docs(repo)` removal commit, the tracked, clean and identical checks, the
+  `ls-tree` and `git archive` read-backs — are in the bullet below, kept
+  as superseded. `docs/features/` holds one page per feature;
+  `docs/features/docs-lifecycle.md` is its first, at most 2048 bytes,
+  written by this record (`D19`); `README.md` stays the overview and
+  points at `docs/features/`, and no page per plugin restates it.
+  `docs/one-fact.md` keeps 37 entries (`D20`): *The plan lifecycle* is
+  rewritten — `/plan/`, the record's specs and feature pages and the
+  product level's `docs/roadmap/<slug>.md`, the *Records* line's fields
+  (`D39`), the record never removing, the manager's removal — and lists 18
+  files, ten new ones before its last line, ``- and `AGENTS.md`'s `plan/`
+  rule``, which stays last, the `.gitignore` line exactly ``- `.gitignore` ``
+  (`D41`); *Round caps* gains P7's roadmap check and
+  `plugins/glab/skills/product-manager/SKILL.md` P7 (`D43`). `tests/gates.sh`
+  is unchanged (`D21`): no skill or agent was added and no gate reads plan
+  files from git; `PASS 31/31`.
 - **`docs/specs/` and `plan/`** (`AGENTS.md` *Layout* and *Rules*, the
-  `plan/` rule; `README.md` *Working on this repo*), as of `09d2787`. `docs/specs/` holds
+  `plan/` rule; `README.md` *Working on this repo*), as of `09d2787`. **Superseded by `docs-lifecycle` (`glab`
+  0.16.0, 2026-11-18)** by the bullet above; kept as the rule from
+  `09d2787` to `ae769ec`. `docs/specs/` holds
   one spec per area — this file (the marketplace, this repo's layout, gates
   and rules), `workflow.md`, `memory-sync.md`, `external-agents.md` (a
   record only since `glab` 0.8.0, `467b7c4`, its area removed), and, named
@@ -891,7 +939,16 @@ owning file is right and this spec is out of date.
 - [slim-agents-md/plan.md D11] The *One fact* rule in `AGENTS.md` is three sentences — one value in every file in the same commit, a rule in the file of the role that acts on it, the known cases in `docs/one-fact.md` — with its meaning unchanged.
 - [slim-agents-md/plan.md D12] The hook-contract paragraph stays in `AGENTS.md` *Rules*, verbatim: an agent in this repo acts on it, and `plugins/glab/scripts/context-size.sh:34` cites "AGENTS.md *Rules*" for it, so moving it would leave that pointer dangling or force a payload edit and a version bump. The `~/.claude` rule keeps citing the `CLAUDE_CONFIG_DIR` rule in *Gates*, which stays there.
 - [slim-agents-md/plan.md D15] No file under `plugins/` or `.claude-plugin/` changed, so no plugin version was raised.
-- [slim-agents-md/plan.md D17] (manager) The size target of `AGENTS.md` is ≤ 8800 bytes, not about 6 KB (`D13`; 8225 at `113870b`): the hook contracts stay (`D12`) and the `plan/` rule shrinks only in the queued docs-lifecycle slug.
+- [slim-agents-md/plan.md D17] (manager) The size target of `AGENTS.md` is ≤ 8800 bytes, not about 6 KB (`D13`; 8225 at `113870b`): the hook contracts stay (`D12`) and the `plan/` rule shrinks only in the queued docs-lifecycle slug. **Done by `docs-lifecycle` (`3ed6746`):** `AGENTS.md` is 8212 bytes, its `plan/` rule rewritten (P21).
+- [docs-lifecycle/plan.md M1] (manager) `plan/` is ignored by git, and the payload tells an installing repo to add the line; before 0.16.0 no payload text told a repo to ignore `plan/handoff/` and only this repo's `.gitignore` held it, so the instruction is new text, written once, in `glab:bootstrap` step 5 (`docs/specs/workflow.md`).
+- [docs-lifecycle/plan.md M4] `glab` goes 0.15.0 → 0.16.0 once; `memory-sync` stays 0.1.0, since no file under it changes.
+- [docs-lifecycle/plan.md D1] One plan, no split: about 22 files of text edits and one milestone.
+- [docs-lifecycle/plan.md D19] This repo gets one feature page, `docs/features/docs-lifecycle.md`, at most 2048 bytes: what happens to plan files, where each kind of doc goes, and how a user finds them. The record writes it, not the build, because the rule says the record writes features. `README.md` stays this repo's overview and only points at `docs/features/`; a page per plugin would restate `README.md` (*One fact*).
+- [docs-lifecycle/plan.md D20] `docs/one-fact.md` keeps 37 entries: the plan-lifecycle entry is rewritten, and plan-folder removal, `/plan/` and `docs/roadmap/` fold into it; the handoff entry is unchanged.
+- [docs-lifecycle/plan.md D21] `tests/gates.sh` is unchanged: no skill or agent is added (`GLAB_SKILLS`/`GLAB_AGENTS`), and no gate reads plan files from git.
+- [docs-lifecycle/plan.md D39] The *Records* line format (`<first>`, `<last>`, branch, PR, the squash note) joins the fact of `docs/one-fact.md` *The plan lifecycle*; the entry count stays 37.
+- [docs-lifecycle/plan.md D41] The new files of *The plan lifecycle* go before its last line, ``- and `AGENTS.md`'s `plan/` rule``, which stays last; every post-condition string sits on one line of its file, with no hard wrap inside it.
+- [docs-lifecycle/plan.md D44] (manager, 2026-11-18) Round 2 was the plan-check cap; N1–N9 were fixed as the checker specified and verified by the manager's greps, not by a third round (`docs/specs/workflow.md` *Incidents*).
 
 ## Known limits and not verified
 
@@ -912,20 +969,22 @@ owning file is right and this spec is out of date.
 - [slim-agents-md/follow-ups.md FU2] UNVERIFIED: `tests/gates.sh` on bash older than 4.4, the `${MS_AGENTS[@]+…}` expansion included — only bash 5.3.9 was available (`[slim-agents-md/result.md]` *Fix round 1*).
 - [slim-agents-md/result.md fix-round-1] UNVERIFIED: a full gate run with a relative `CLAUDE_BIN` pointing at the real CLI — only the two resolution lines (`tests/gates.sh:31-32`) were run, not a whole run.
 - [slim-agents-md/result.md M1] `claude plugin validate --strict` accepts an agent with no `model:` line: with `model: haiku` removed from a copy of `committer.md`, only G29 failed (`FAIL G29 agent models (9 lines): missing [plugins/glab/agents/committer.md:model: haiku]`, `FAIL 1/31`), so the model check is the only gate that catches it (the plan's UNVERIFIED, resolved by M1).
+- [docs-lifecycle/plan.md Evidence] The plan's UNVERIFIED gates baseline, `PASS 31/31` before the build — answered: the manager's B1 run printed `PASS 31/31`, rc 0, and so did the build, both review rounds (`[docs-lifecycle/review.r1.md]`, `review.r2.md`, *Claims*) and this record's run at `d2ca05b`.
+- [docs-lifecycle/result.md Tests] The Markdown has no runtime: P1–P22 are shown by the post-conditions PC1–PC28 (each at its expected value but PC12, which waits for this record and the folder's removal) and the gates, the text there, not a live session following it — UNVERIFIED, as for every prose rule. No script or test changed (PC11 printed nothing).
 
 ## Open follow-ups
 
 - [bug-reviewer-findings/follow-ups.md 17] `AGENTS.md` *No secrets* names the placeholder as `<profile, or delete this key>`, which reads oddly outside the JSON example — open: `AGENTS.md` at `6838133` still reads so; a cleaner wording is the user's call.
-- [bug-reviewer-findings/follow-ups.md 20] No `.gitignore`, and no Markdown lint, so the prose files have no gate — open: `git show 6838133:.gitignore` finds no such file; a Markdown gate is out of scope for `feature-docs-specs` too.
-- [feature-docs-specs/follow-ups.md 1] `AGENTS.md:225`: the `git archive` read-back extracts into a directory it never prints. Suggested: `t=$(mktemp -d "${TMPDIR:?}/plan.XXXXXX") && git archive <sha> plan/<slug>/ | tar -x -C "$t" && echo "$t"` — open.
-- [feature-docs-specs/follow-ups.md 3] `README.md:226`: the `plan/` row says "removed once each change is recorded", while `AGENTS.md` removes a folder only once it has landed on `origin/main`. Suggested: "removed after each change has landed, under this repo's `AGENTS.md`" — open; the conformance round 3/4 hand-off named the same line.
-- [feature-docs-specs/follow-ups.md 6] `AGENTS.md:220-224`: the repo's removal rule should name the forms that are never valid — never `plan/`, `plan/.`, or a slug outside `[A-Za-z0-9._-]`; review round 2 measured that `plan/./` removes every folder under `plan/` (*Incidents*) — open.
-- [feature-docs-specs/follow-ups.md 8] The *Records* lines of every spec, the transcript citations of `docs/specs/external-agents.md` *Profiles* and *Live runs* and its rev2-build line under *Incidents*, and the list form of `AGENTS.md`'s `plan/` rule: `git ls-tree -r --name-only <sha> -- plan/<slug>/` prints nothing, with exit 0, when run from a subdirectory. Suggested: add `--full-tree`, in the specs and `AGENTS.md` in the same commit — open. Re-read at `467b7c4`: `AGENTS.md`'s list form still has no `--full-tree`, and the `docs/specs/external-agents.md` citations stay, that spec being kept as a record — still open.
+- [bug-reviewer-findings/follow-ups.md 20] No `.gitignore`, and no Markdown lint, so the prose files have no gate — open: `git show 6838133:.gitignore` finds no such file; a Markdown gate is out of scope for `feature-docs-specs` too. Re-read at `3ed6746`: a `.gitignore` exists (since `0cfe335` with `plan/handoff/`, since `3ed6746` `/plan/`); the Markdown gate half is still open — `AGENTS.md` *Gates*: "The Markdown files have no gate."
+- [feature-docs-specs/follow-ups.md 3] `README.md:226`: the `plan/` row says "removed once each change is recorded", while `AGENTS.md` removes a folder only once it has landed on `origin/main`. Suggested: "removed after each change has landed, under this repo's `AGENTS.md`" — open; the conformance round 3/4 hand-off named the same line. Re-read at `3ed6746`: `README.md:377` still reads "removed once each change is recorded"; under `docs-lifecycle` the manager removes a folder once its record has landed on `origin/main` (`AGENTS.md`'s `plan/` rule), and the plan took the row as already true (`[docs-lifecycle/plan.md E5]`, P19 "Line 374 stays") — still open, the wording the item suggests being closer to the rule.
+- [feature-docs-specs/follow-ups.md 8] The *Records* lines of every spec, the transcript citations of `docs/specs/external-agents.md` *Profiles* and *Live runs* and its rev2-build line under *Incidents*, and the list form of `AGENTS.md`'s `plan/` rule: `git ls-tree -r --name-only <sha> -- plan/<slug>/` prints nothing, with exit 0, when run from a subdirectory. Suggested: add `--full-tree`, in the specs and `AGENTS.md` in the same commit — open. Re-read at `467b7c4`: `AGENTS.md`'s list form still has no `--full-tree`, and the `docs/specs/external-agents.md` citations stay, that spec being kept as a record — still open. Re-read at `3ed6746`: `AGENTS.md`'s list form is gone (`ls-tree` → `0` there), so only the older *Records* lines of the specs and the `docs/specs/external-agents.md` citations hold it, all kept as records — still open, for those.
 - [slim-agents-md/follow-ups.md FU1] `tests/gates.sh:33-35` (review round 2, low): only `claude` is made absolute before the `cd`; a `jq` or `shellcheck` found through a relative `PATH` entry passes the preflight and then gives `FAIL` lines instead of exit 2. Suggested: resolve both the way `:32` resolves `claude`, or say in the `:24-26` comment that only `claude` gets it — open.
 - [slim-agents-md/follow-ups.md FU2] `tests/gates.sh` untested on bash older than 4.4 (*Known limits*) — open: needs an older bash.
 
 ## Closed follow-ups
 
+- [feature-docs-specs/follow-ups.md 1] `AGENTS.md:225`: the `git archive` read-back extracts into a directory it never prints. Suggested: `t=$(mktemp -d "${TMPDIR:?}/plan.XXXXXX") && git archive <sha> plan/<slug>/ | tar -x -C "$t" && echo "$t"` — open. **Closed by `docs-lifecycle` (`3ed6746`, P21):** `AGENTS.md` holds no `git archive` read-back any more (`/usr/bin/grep -c 'git archive' AGENTS.md` → `0`); its one read-back is `git show <sha>:plan/<slug>/<file>`. The form stays in older *Records* lines, kept as records.
+- [feature-docs-specs/follow-ups.md 6] `AGENTS.md:220-224`: the repo's removal rule should name the forms that are never valid — never `plan/`, `plan/.`, or a slug outside `[A-Za-z0-9._-]`; review round 2 measured that `plan/./` removes every folder under `plan/` (*Incidents*) — open. **Closed by `docs-lifecycle` (`3ed6746`; `[docs-lifecycle/plan.md D23]`):** `AGENTS.md` holds no removal rule of its own; the removal is `glab:session-rules` Rule 2's plan-folder approval, whose slug must match `[A-Za-z0-9][A-Za-z0-9_-]{0,127}` as a whole name and not be `handoff` — no empty slug, no `.`, no `/`, no `..` — and whose command is `rm -r -- plan/<slug>`, run only after the symlink, `realpath` and `.git` checks.
 - [remove-external-agents/record.md review-r1-advisory] Review round 1 advisory, carried from the manager's Stage 8 dispatch (no review file is in the folder): `AGENTS.md:168`, the `plan/` rule, still lists `external-agents.md` among the area specs a record updates, although the area is gone (`[remove-external-agents/plan.md D8]`). Suggested reword of that list item: "`external-agents.md` (removed in 0.8.0, a record only)". It is an `AGENTS.md` change, not a spec change, so the record does not make it → closed 2026-10-20: `AGENTS.md`'s `plan/` rule now reads "`external-agents.md` (removed in 0.8.0, a record only)".
 - [bug-reviewer-findings/follow-ups.md 15] *One fact, one value* listed the default time limit but not the coupled maximum (17) and hook timeout (20) — closed: `AGENTS.md` *One fact* lists both, the 20-second hook timeout and "the largest time limit the script accepts, 17".
 - [bug-reviewer-findings/follow-ups.md 21] `install.sh --check` to compare the repo with `~/.claude` (Q1's deferred half) — closed, superseded: no install script is tracked, and the plugin install replaced the copy install (`f19f7f0`, `README.md` *Coming from the copy install*).
@@ -954,6 +1013,7 @@ owning file is right and this spec is out of date.
 - **A wildcard `rm` in the shared temp directory** (`slim-agents-md`, fix round 1, 2026-11-18; `[slim-agents-md/follow-ups.md IN1]`): the fix developer cleaned up with `rm -f "$TMPDIR"/fr1-*.out "$TMPDIR"/fr1-*.err` in the shared temp directory, where other sessions keep `fr1-*` files; whether another session's `.out` or `.err` file was removed is unknown. Briefs now say: remove temp files by exact path only.
 - **Plan check round 1: NOT BUILDABLE** (`slim-agents-md`; `[slim-agents-md/check.r1.md]`), two high findings: P5 matched `tests/gates.sh` itself, so the search printed `rc=0` instead of `rc=1` on a correctly built tree; and D3's `: "${TMPDIR:?…}"` exits 1 with a bash-formatted `…: line 3: TMPDIR: …` message, not 2 with a `gates.sh:` line. Round 2 was BUILDABLE with one medium (`D18`).
 - **The planner overran its budget** (`slim-agents-md`): about 122k tokens against a 60k cap. UNVERIFIED in the repo — the figure is the manager's (record dispatch); no file under `plan/slim-agents-md/` states it.
+- **The removal command emptied a symlink's target, twice, in plan check** (`docs-lifecycle`, plan check rounds 1 and 2; `[docs-lifecycle/check.r1.md F1]`, `[docs-lifecycle/check.r2.md N2]`; told in full in `docs/specs/workflow.md` *Incidents*): `rm -r -- plan/<slug>/` on a symlinked slug folder, then `rm -r -- plan/s` through a symlinked `plan`, emptied a target outside `plan/` in throwaway repos while every planned condition passed — the same lesson as *A removal path that is not exact removes all of `plan/`*, above. The approval now checks both symlinks and the `realpath` from the repo root, and its command has no trailing slash.
 
 ## Records
 
@@ -1005,3 +1065,10 @@ owning file is right and this spec is out of date.
   - Follow-ups → `FU1`, `FU2` under *Open follow-ups*; `FU3` under *Closed follow-ups*, closed by this record.
   - Incidents → `IN1`, plan check round 1 `NOT BUILDABLE` and the planner's overrun under *Incidents*.
   - Record → this record, in this file only; no audit file.
+- 2026-11-18 · docs-lifecycle · 3ed6746 · 3ed6746 · docs-lifecycle · #19
+  - PR #19 (glab-services/skills), rebase-merged onto `main` as `d2ca05b` on 2026-11-18; recorded in `docs/specs/workflow.md`, its primary area; here: `glab` 0.16.0 (`memory-sync` 0.1.0), `.gitignore` as `/plan/` with its two comments, `docs/features/` in `AGENTS.md` *Layout* and `README.md`, `AGENTS.md`'s `plan/` rule rewritten (8212 bytes), the *One fact* entries *The plan lifecycle* and *Round caps*, the old rule kept as superseded; `tests/gates.sh` unchanged, `PASS 31/31`. The plan folder was not kept in git.
+  - [docs-lifecycle/plan.md Decisions] Decisions → M1, M4, D1, D19–D21, D39, D41, D44 under *Decisions that still bind*; `[slim-agents-md/plan.md D17]` marked done; the others in `docs/specs/workflow.md` and `docs/specs/product.md`.
+  - Not verified → the gates baseline (answered) and the Markdown's lack of a runtime, under *Known limits*.
+  - Follow-ups → closed: `[feature-docs-specs/follow-ups.md 1]`, `6`; re-read, still open: `[feature-docs-specs/follow-ups.md 3]`, `8`, `[bug-reviewer-findings/follow-ups.md 20]`. The change's own follow-ups are in `docs/specs/workflow.md` and `docs/specs/product.md`.
+  - Incidents → the symlink incidents of plan check rounds 1 and 2, under *Incidents*, told in full in `docs/specs/workflow.md`.
+  - Record → this record, in this file, `docs/specs/workflow.md`, `docs/specs/product.md` and `docs/features/docs-lifecycle.md` (`D19`); no audit file.

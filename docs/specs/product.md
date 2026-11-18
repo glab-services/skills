@@ -19,10 +19,51 @@ are in `docs/specs/marketplace.md`. Stated as of `ce1a933` (`glab`
 `0.14.0`), the record of `flow-product-level`, and its `plan-gate.sh`
 lines (the store's filesystems, the claims, the takeover, the held
 signals, the publish, the tests, the known limits and follow-ups) as of
-`2724086` (`glab` `0.14.1`), the record of `flow-gate-hardening`; where
+`2724086` (`glab` `0.14.1`), the record of `flow-gate-hardening`, and its
+`docs-lifecycle` lines (stage P7 Roadmap and the roadmap page, the product
+plan as an uncommitted working file, the product agents' descriptions) as
+of `3ed6746` (`glab` `0.16.0`, rebase-merged as `d2ca05b`); where
 this file and an owning file disagree, the owning file is right.
 
 ## How it works now
+
+- **P7 Roadmap, and the product plan as a working file** (since `glab`
+  0.16.0, `3ed6746`, `docs-lifecycle`; `glab:product-manager` *The product
+  pipeline*, the owner; `[docs-lifecycle/plan.md D9]`–`D14`, `D29`, `D33`,
+  `D43`). This bullet supersedes any line below where they disagree. A
+  product slug is delivered when each project of `product-plan.md`
+  `## Projects` has `ACCEPTED` as its latest verdict and P6 has landed;
+  then P7 runs: `glab:product-planner` writes `docs/roadmap/<slug>.md` in
+  the product repo, not the store (`glab:product-plan` *The roadmap*);
+  `glab:product-analyzer`'s roadmap check reads the page whole, not a diff,
+  against `plan/<slug>/product-plan.md`, its round copies and the store's
+  verdicts, and ends `SOUND` or `NOT SOUND: <n> findings`; one fix round
+  by a new planner, then the recheck, never a third (`glab:session-rules`
+  *Round caps*); still `NOT SOUND`, stop and tell the user (the P7 bullet,
+  `[docs-lifecycle/review.r1.md 7]`); then `/glab:commit` and `/glab:push`
+  on the user's go-ahead. Its pipeline row: `| P7 | Roadmap | … |
+  docs/roadmap/<slug>.md of the product repo | SOUND, committed, pushed on
+  the user's go-ahead | 8 |`. The page holds the business plan (path,
+  sha256, the user's words verbatim), the goals, per project its goal,
+  scope, out of scope, rule files, seams, brief path and final verdict, the
+  rules added, every `## Decisions` line with its reason, the answered
+  questions with the user's words, the round history, the open items
+  tagged `[<slug>/product-plan.md <id>]`, and its *Records* line in the form
+  `glab:project-record` states. `plan/<slug>/product-plan.md` is under the
+  ignored `/plan/`, so it is never committed, and it is removed like any
+  plan folder once the roadmap page has landed (`glab:bootstrap` step 5,
+  `glab:session-rules` Rule 2, whose record file for a product slug is
+  `docs/roadmap/<slug>.md`; `docs/specs/workflow.md`, *The docs lifecycle
+  as of 0.16.0*); the removal is not a P7 exit condition. The store
+  `docs/product-rules/` stays committed and untouched, and `/plan/` does
+  not match `briefs/<p>/plan.r<n>/` (M2). "Every file the product level
+  writes — a product plan, a brief, a roadmap page, a skill — names a store
+  path relative to the store". `glab:commit` and `glab:push` name stages P6
+  and P7; the planner's description and write boundary include the roadmap
+  page and stages P1, P2 and P7, the analyzer's the roadmap check and
+  stages P1b, P4 and P7; the analyzer's *Either check* is *Every check*, and
+  a missing roadmap page is `BLOCK: target unresolved`; the handoff line's
+  stage names gain `roadmap`.
 
 - **Two levels in one plugin: the product level** (since `glab` 0.14.0,
   `ce1a933`, `flow-product-level`; `[flow-product-level/master.md]` G1, the
@@ -93,7 +134,10 @@ this file and an owning file disagree, the owning file is right.
   project's repo), `verdict.r<n>.md`, and `releases/` reserved for the
   delivery level; `<project>` is `[a-z0-9-]+`, `<n>` has no leading zero and
   is compared as a number. Every committed file names a store path relative
-  to the store. Reports, copies and verdicts are written only by
+  to the store (**superseded by `docs-lifecycle`, `glab` 0.16.0,
+  2026-11-18:** "every file the product level writes — a product plan, a
+  brief, a roadmap page, a skill —", the product plan no longer being
+  committed; `[docs-lifecycle/plan.md D13]`). Reports, copies and verdicts are written only by
   `plan-gate.sh`. The product session has the store among its directories —
   `claude --add-dir <store>` or `/add-dir` — or keeps it inside its repo, so
   its writes are not each prompted (R2-4; a subagent's Write there is LP6).
@@ -289,6 +333,16 @@ this file and an owning file disagree, the owning file is right.
 - [flow-gate-hardening/plan.md a6-a7-run] The manager ran A6 on the built tree, ten runs, each `PASS 51/51`. M1 (no lock) fails T46 on every run and T48 in 2 of 5, the race in T48 going either way without the lock; accepted, T46 being the deterministic bar.
 - [flow-gate-hardening/plan.md final-check] The final check returned CONFORMS. Re-run on the shipped script, A4 printed `FAIL T38 FAIL T43 FAIL T44 FAIL T45 FAIL T46 FAIL T47 FAIL T48 FAIL T49 FAIL T50 FAIL T51 FAIL T22 FAIL 11/51` against `f6fcb14`'s script, and A8 `trace byte-identical`, `434`. A5 and A7 apply to the pre-fix build only; the shipped window is proven by the developer's stand-ins (`result.md` *Review round 1 fixes*) and review round 2.
 - [flow-gate-hardening/plan.md spent] `- effort: high (the user's words: "high (Recommended)"), for the session`; tier full; one plan, no sub-plans, its code in steps files for size only (`one-plan`, `size`); `AGENTS.md` *Gates* unchanged (`gates`) and version `0.14.1` once (`version`), both in `docs/specs/marketplace.md` — scoping of that change, spent.
+- [docs-lifecycle/plan.md M2] (manager) The store `docs/product-rules/` stays committed and untouched; the ignore line is anchored at the root, so `docs/product-rules/briefs/<p>/plan.r<n>/` is not matched; `plan-gate.sh` runs no git command.
+- [docs-lifecycle/plan.md D9] A product slug is delivered, and so complete, when each project of `product-plan.md` `## Projects` has `ACCEPTED` as its latest verdict and P6 has landed. The product level sees no later event: `releases/` is reserved for the delivery level, and nothing writes it yet.
+- [docs-lifecycle/plan.md D10] P7 Roadmap goes in `glab:product-manager` *The product pipeline* (project-stage column 8), in this order: the product manager dispatches `glab:product-planner` to write `docs/roadmap/<slug>.md` in the product repo, not the store (the manager does not plan or audit itself); `glab:product-analyzer`'s roadmap check ends `SOUND` or `NOT SOUND: <n> findings`, reused so that *The analyzers' verdict lines* stay unchanged; one fix round to a new planner, then a recheck, still `NOT SOUND` → stop and tell the user; `/glab:commit`, then `/glab:push` on the user's go-ahead, on which P7 leaves; the folder's removal later, at a session start, is no P7 exit condition. No new skill or agent: `glab:product-record` was considered and not taken.
+- [docs-lifecycle/plan.md D11] The roadmap name is the product slug: already kebab, unique, and it ties the page to its plan.
+- [docs-lifecycle/plan.md D12] The roadmap page's contents (*How it works now*, above); no size cap is stated, so *The plan size budget* entry is unchanged.
+- [docs-lifecycle/plan.md D13] Product plans live under `plan/<slug>/product-plan.md`, so they are ignored and removed like any plan folder; product-manager's sentence reads "Every file the product level writes — a product plan, a brief, a roadmap page, a skill — …"; the store-relative-path rule still binds the product plan.
+- [docs-lifecycle/plan.md D14] P4 reads the product plan from disk (`plan/*/product-plan.md`). Removal waits for D9, after which no audit of that plan remains; a later brief for the same project is a new product plan and a new slug. A known limit (*Known limits*).
+- [docs-lifecycle/plan.md D29] P7 is in every list of the product stages or the product agents' jobs: `commit/SKILL.md:7` and `push/SKILL.md:7` ("stages P6 and P7"), `product-analyzer.md:3`, `product-planner.md:3`; the planner's write boundary includes `docs/roadmap/`; *Either check* became *Every check*, and its missing-file list gained the roadmap page. Each frontmatter `description` stays ≤ 1024 bytes and `claude plugin validate --strict` passes.
+- [docs-lifecycle/plan.md D33] The roadmap check reads the page whole, not a diff: a new, untracked page shows in no `git diff`.
+- [docs-lifecycle/plan.md D43] P7's cap — one fix round, then the recheck, never a third — is in `glab:session-rules` *Round caps* and its `docs/one-fact.md` entry; the P7 bullet of `glab:product-manager` points at it. `[docs-lifecycle/plan.md D45]` (review round 1, finding 7): the last-round action, "still `NOT SOUND` after its last round, stop and tell the user", lives in the P7 bullet, since *Round caps* ends "What a stage does when its last round fails is in that stage."
 
 ## Known limits and not verified
 
@@ -307,6 +361,11 @@ this file and an owning file disagree, the owning file is right.
 - [flow-product-level/result.md final-check] The final check gave `DIVERGES: 1`, a missing record, which the manager supplied as `result.md` *Final check record*: X3 prints `253 ok` and 8 FAIL lines, not `261 ok`, every failing post checking text a review decision superseded — A1 one byte-compare, A2 two byte-compares and its partner run (`FAIL 13/42` against the superseded script), P4 (B7), P7 (B4), J2 (A4, B9), R5 two (B5). The master's *Final check* item 3 holds with these eight recorded exceptions; the plan files were not edited.
 - [flow-product-level/result.md X4] X4 as `plan.md` writes it prints `xargs: command: No such file or directory`, since `command` is a shell builtin `xargs` cannot run, and `git diff --name-only main` lists no untracked new file; the developer ran an equivalent over the 49 changed and new files, which printed only `host.example.md`'s author's temp-dir lines, as on `main`.
 - [flow-product-level/plan.md Tests] The Markdown has no runtime: P1–P9, J1–J12 and R1–R6 are shown by their posts and the gates only, the text there, not a live session following it — UNVERIFIED, as for every prose rule. The scripts are covered as listed in `plan.md` *Tests* and `result.md`'s fix rounds; LP1–LP6 by no case, accepted because each needs a live, logged-in session.
+- [docs-lifecycle/result.md Not done] UNVERIFIED: P7 in a live product loop — no session ran the roadmap stage end to end (`[docs-lifecycle/review.r1.md]` and `review.r2.md`, *What I did not check*); `tests/product-loop.test.sh` was not changed and plays no P7. Only the greps, `plugin validate --strict` and the gates were run.
+- [docs-lifecycle/plan.md Evidence] UNVERIFIED: that `claude plugin validate --strict` limits a frontmatter `description` to 1024 bytes — not run as a limit test; 1024 is the Agent Skills frontmatter limit. The new descriptions measure 472 (`product-planner.md`) and 423 bytes (`product-analyzer.md`) by `sed -n 's/^description: //p' | wc -c` (`[docs-lifecycle/result.md]` PC28), and G17–G19 pass on them.
+- [docs-lifecycle/plan.md Evidence] UNVERIFIED: the product-side facts the plan rests on (its `E9`) come from the cited lines, not from a live run of the product loop.
+- [docs-lifecycle/plan.md D14] Known limit: a later report for a project whose product slug was recorded and removed finds no `plan/*/product-plan.md`, and `product-project-plan-analyze:15` then asks the user (*Open follow-ups*).
+- [docs-lifecycle/plan.md Not done] The delivery level (`releases/`) is still not written; "delivered" is defined at the product level only (D9).
 
 ## Open follow-ups
 
@@ -318,6 +377,9 @@ this file and an owning file disagree, the owning file is right.
 - [flow-product-level/plan.md FU-P5] A hard hold on `by user`: today any session can pass it (R12); a check that the words came from the user needs a mechanism this plan does not have, and whether Claude Code offers one is UNVERIFIED — open.
 - [manager-flow-notes.md later-1] **The user's, parked 2026-11-13** ("yes, and also main CLAUDE.md in claude code home folder must not mention about bootstrap skill, would be better to think about hook based force skill loader for main sessions, bot let's add note about this, to solve it later, good?", from `plan/manager-flow-notes.md` *Later: agent and session context cleanup*, untracked): `omitClaudeMd: true` on all nine `glab` agents, an agent frontmatter field of CLI 2.1.310 that runs a subagent without the user, project and local `CLAUDE.md` files (Claude Code's built-in Explore and Plan agents set it; the public docs not yet checked), and a gate that every agent file carries it. **Prerequisite:** the machine hazards, above all temp files in the host file's temp directory and never `/tmp`, reach agents today only through `~/.claude/CLAUDE.md`, and no `glab` agent reads the host file, so each agent first needs another way to learn them — it reads the host file at start, or the manager's dispatch carries the temp-directory line; without it an agent writing to `/tmp` can exhaust the shared tmpfs quota. Verifiable only live, by a real dispatch after install — open, agreed, not planned; timing, per `[flow-project-level/master.md]` *Out of scope*: "in the end when we will finish all agents" (the user's words, relayed by the manager 2026-11-14).
 - [manager-flow-notes.md later-2] **The user's, parked 2026-11-13** (the same words, same source): no bootstrap text in `~/.claude/CLAUDE.md`; a hook-based skill loader makes the main session load its skills instead. Already true: the `SessionStart` hook injects the session-start text, and since 0.14.0 reads `glab-level` and names the level's manager and `glab:session-rules`. To prove first: whether a hook can make Claude invoke a skill or only add context (inferred: only add context, UNVERIFIED); that `additionalContext` is capped at 10,000 characters, so a hook injects a short, firm instruction and the level's skill list, never a whole skill (`glab:manager` was about 55 KB when noted, 40284 bytes at `ce1a933`); which event gives the strongest guarantee, and whether a `UserPromptSubmit` check can re-assert it after a compaction; what stays in `~/.claude/CLAUDE.md` afterwards — the machine hazards only, or nothing. Changing that home file is the user's step, never an agent's. Once it holds no session rules, `omitClaudeMd` (later-1) loses nothing but the hazards, which later-1 moves anyway — open, an idea, not planned; timing as later-1's (`[flow-project-level/master.md]` *Out of scope*).
+- [docs-lifecycle/result.md follow-up-3] `plugins/glab/skills/product-plan/SKILL.md:3`, the `description`, does not mention the roadmap, which the skill's *The roadmap* now holds; no step changed it — open.
+- [docs-lifecycle/result.md follow-up-4] `plugins/glab/skills/product-manager/SKILL.md:55`: the P7 row has no backticks, unlike the other rows, because it was written exactly as P14 gives it — open, cosmetic.
+- [docs-lifecycle/plan.md D14] Make the roadmap page an audit source, so that a P4 audit of a project whose product slug was recorded and removed has something to read instead of asking the user (*Known limits*) — open, named by the plan's *Not done* for the record to carry.
 
 ## Closed follow-ups
 
@@ -355,3 +417,10 @@ this file and an owning file disagree, the owning file is right.
 - 2026-11-18 · flow-project-level · recorded in `docs/specs/workflow.md`, its primary area; here: `glab` 0.15.0, the level-boundary exception gone with the name `glab:product-project-plan-report` (F13; `[flow-project-level/01-rename/plan.md]` P3 holds the old text), `glab:product-analyzer` preloading `glab:severity` in place of `glab:audit`, the product session start before (57203) and after (`prod` 44924, cap 47104; hook text 2584, base 2394), the project-level names in *How it works now* · change db5feae (01 `0c49626`, 02 `0cfe335`, 03 `db5feae`) · plan: `git ls-tree -r --name-only db5feae -- plan/flow-project-level/` (one file: `git show db5feae:plan/flow-project-level/<file>`). `db5feae` is the last commit on `origin/main` that holds it (`git log -1 --format=%h origin/main -- plan/flow-project-level/`; PR glab-services/skills#15, merged with rebase from `cf909b5`); final check CONFORMS (G1–G6).
   - Incidents → none recorded here.
   - [flow-project-level/master.md Record] Record → `docs/specs/workflow.md`, its primary area, this file for the product level's side and `docs/specs/marketplace.md` for the gates, the names and the handoff file.
+- 2026-11-18 · docs-lifecycle · 3ed6746 · 3ed6746 · docs-lifecycle · #19
+  - PR #19 (glab-services/skills), rebase-merged onto `main` as `d2ca05b` on 2026-11-18; recorded in `docs/specs/workflow.md`, its primary area; here: stage P7 Roadmap and `docs/roadmap/<slug>.md`, the product plan as an uncommitted working file, the product agents' descriptions and the stage lists naming P7; `glab` 0.16.0. The plan folder was not kept in git.
+  - [docs-lifecycle/plan.md Decisions] Decisions → M2, D9–D14, D29, D33, D43 and D45's P7 half, above under *Decisions that still bind*; the others in `docs/specs/workflow.md` and `docs/specs/marketplace.md`.
+  - Not verified → the live P7 flow, the 1024-byte description limit, E9's cited lines, D14's limit and the delivery level, above under *Known limits*.
+  - Follow-ups → `[docs-lifecycle/result.md follow-up-3]`, `follow-up-4` and `[docs-lifecycle/plan.md D14]`, open above; the others in `docs/specs/workflow.md`.
+  - Incidents → none at the product level; the plan check and review incidents of the change are in `docs/specs/workflow.md` *Incidents*.
+  - Record → this record, in this file, `docs/specs/workflow.md`, `docs/specs/marketplace.md` and `docs/features/docs-lifecycle.md`; no audit file.
