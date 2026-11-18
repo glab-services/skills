@@ -1,0 +1,15 @@
+BUILDABLE. All 9 round-1 findings are resolved. One new finding: P4 can fail on a correctly built tree. It is medium, not high or critical, so it does not trigger a third round. Measured against plan/slim-agents-md/plan.md, which is untracked (`git status -uall`: `?? plan/slim-agents-md/plan.md`). HEAD and origin/main are both 684163d, and `git diff --stat origin/main` is empty.
+
+1: resolved — I ran P5's grep with `--exclude=gates.sh`, leaving out docs/one-fact.md since it does not exist yet. Today it hits only AGENTS.md:76, :77, :138, :160 and :180, and nothing in README, tests or plugins. Against a scratch `tests/{gates.sh,x.sh}`, the exclude skipped gates.sh and still printed `tests/x.sh:1`. No other file named gates.sh exists in the tree.
+2: resolved — D3 now uses `[ -n "${TMPDIR:-}" ] || { echo 'gates.sh: TMPDIR unset - …' >&2; exit 2; }`. M6 (plan:240) expects that exact line.
+3: resolved — Step 3 and E9 now cite :15–16, :20 and :37–47.
+4: resolved — I ran P4's script against origin/main with an empty one-fact.md. All four retarget asserts held, the split gave 37 entries, and the output was `37 0 0`. #14 has paragraph 392 and list 0. #6, #7, #10, #11 and #12 split as D10 expects.
+5: resolved — `harness-only`, `user_config` and `live` are gone. All 21 P6 phrases are quoted in Step 5. I ran the pipeline on a sample comment wrapped across two lines (`# with ; a syntax error` / `#   printed rc=0, lost its` / `# execute bit`). It joined them to `… a syntax error printed rc=0, lost its execute bit` and both phrases printed ok.
+6: resolved — the plan lists the 10 names with their asterisks. They match the italic names in origin/main's registry: `*Gates*` 3 times plus the 10 listed.
+7: resolved — P7 now accepts `?? plan/slim-agents-md/*` lines. Today that is check.r1.md, plan.md and plan.r1.md.
+8: resolved — Step 10 now gives G4, G10, G29, G30 and the preflight as mutated, and G1–G3, G5–G9, G11–G28 and G31 as not. M1 now allows `FAIL 1/31` or `FAIL 2/31`.
+9: resolved — D7 now names tests/gates.sh, README.md and the hooks.json files, as registry #7 does.
+
+New: P4 (plan:182–212), with D9 — medium — a correctly built one-fact.md can fail P4. The source is entry #3 at origin/main AGENTS.md:152: `(every agent, and the session-start text in …)`. D9 asks for one bullet per file. If the builder drops the joining "and" from the bullet, P4's word check needs "and" somewhere in the section, and #3 has no other "and". I built a one-fact.md per D9 that drops the "and". P4 printed `BAD 3 ['and']` and `37 37 1` instead of `37 37 0`. The other entries pass only because their paragraph happens to contain an "and". With "and" kept on the bullet, the file meets both D9 and P4, so the step can still be built. Fix: either have D9 say a joining "and" stays on its bullet, or have P4's word check skip `and`.
+
+I did not check M1–M6 or E3/E4 (I ran no `claude` command), or the text the amendment left unchanged. P4 was run only against origin/main and the file I built, not a real docs/one-fact.md. I removed my scratch files, which were under /data/tmp/claude.

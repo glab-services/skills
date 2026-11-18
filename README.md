@@ -370,9 +370,10 @@ share one lock. Uninstalling the plugin leaves those files in place.
 | `.claude-plugin/marketplace.json` | The marketplace: lists both plugins |
 | `plugins/` | The two plugins. Payload: written for the sessions of whoever installs them |
 | `host.example.md` | Template for the per-machine `~/.claude/host.md` |
-| `tests/` | The scripts' tests — `memory-sync.sh` against a stub, the hooks, `plan-gate.sh` — and the product-loop walkthrough with its fixtures, `tests/fixtures/product-loop/` |
+| `tests/` | The scripts' tests — `memory-sync.sh` against a stub, the hooks, `plan-gate.sh` — and the product-loop walkthrough with its fixtures, `tests/fixtures/product-loop/`, and `tests/gates.sh`, every gate with its expected result |
 | `plan/` | Working area: the files of changes in progress, removed once each change is recorded |
 | `docs/specs/` | One spec per area: how it works now, why, what is not verified, what is open |
+| `docs/one-fact.md` | The *One fact, one value* registry: each fact more than one file states, and the files that state it |
 
 To try a change without installing anything, load the plugins for one session:
 `claude --plugin-dir ./plugins` loads both, `claude --plugin-dir ./plugins/glab`
