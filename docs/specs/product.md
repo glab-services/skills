@@ -24,10 +24,47 @@ signals, the publish, the tests, the known limits and follow-ups) as of
 plan as an uncommitted working file, the product agents' descriptions) as
 of `3ed6746` (`glab` `0.16.0`, rebase-merged as `d2ca05b`), and its
 `p7-delivery-gate` lines (P7's start condition, P6's done condition, the
-`## Delivered` line) as of `afda097` (`glab` `0.16.1`); where
+`## Delivered` line) as of `afda097` (`glab` `0.16.1`), and its
+`lifecycle-hardening` lines (P6's "nothing to commit" test, `## Delivered`
+after the last `## Approval`, the brief's precondition) as of `bf9c73f`
+(`glab` `0.16.2`, PR #22, not merged at this record); where
 this file and an owning file disagree, the owning file is right.
 
 ## How it works now
+
+- **P6, `## Delivered` and the brief as of 0.16.2** (`glab` 0.16.2,
+  `bf9c73f`, `lifecycle-hardening`; `glab:product-manager` *The product
+  pipeline*, the owner; `[lifecycle-hardening/plan.md D4]`, `D10`, `D14`,
+  `D20`, `D21`, `D24` item 3). This bullet supersedes the next one where
+  they disagree: its P6 test, "has its `## Delivered` line", "at the end
+  of", the brief's precondition and that refusal's message. P6 is done
+  when it landed and was confirmed on the user's go-ahead, or when there
+  is nothing to commit: in the product repo `git status --short --branch`
+  exits 0 and prints one line, `## <branch>...origin/<upstream>`, with no
+  bracket or exactly `[behind <n>]`; `[gone]`, `[ahead`, `No commits yet`,
+  no upstream, a detached HEAD or exit ≠ 0 fail it
+  (`product-manager/SKILL.md:54`; `D10`; the upstream a remote-tracking
+  `origin/` branch, `D20`, the line already read, chosen over `@{push}`).
+  P7 starts when each project of `## Projects` has `ACCEPTED` as its
+  latest verdict, P6 has landed or had nothing to commit, and
+  `product-plan.md` has a `## Delivered` line after the last `## Approval`
+  (`:60`); a plan approved again after delivery needs a new `## Delivered`
+  before P7, as `[p7-delivery-gate/plan.md D7]` wants. The table's
+  Approval and Delivered rows say each line is "appended to
+  `product-plan.md`" (`:49`, `:55`; `D14`), no longer "at the end of".
+  `glab:product-project-brief`'s precondition
+  (`product-project-brief/SKILL.md:9`): `product-plan.md` "has its
+  `## Approval` line, and no `## Delivered` after the last `## Approval`";
+  "Otherwise → stop: a brief is written only from a plan the user
+  approved, and a delivered plan takes none until the user approves it
+  again." So a delivered slug still takes no brief, and one approved again
+  after delivery takes briefs. The roadmap page and
+  `glab:product-analyzer`'s roadmap check carry "the last `## Delivered`
+  line, with the user's words" (`product-plan/SKILL.md:48`,
+  `product-analyzer.md:40`; `D4`, `D21`). The plan folder is removed later,
+  at a session start (`:60`), now only on the user's word
+  (`glab:session-rules` Rule 2; `docs/specs/workflow.md` *The docs
+  lifecycle as of 0.16.2*).
 
 - **P7 waits for the user's delivery confirmation** (since `glab` 0.16.1,
   `afda097`, `p7-delivery-gate`; `glab:product-manager` *The product
@@ -381,12 +418,18 @@ this file and an owning file disagree, the owning file is right.
 - [docs-lifecycle/plan.md D33] The roadmap check reads the page whole, not a diff: a new, untracked page shows in no `git diff`.
 - [docs-lifecycle/plan.md D43] P7's cap — one fix round, then the recheck, never a third — is in `glab:session-rules` *Round caps* and its `docs/one-fact.md` entry; the P7 bullet of `glab:product-manager` points at it. `[docs-lifecycle/plan.md D45]` (review round 1, finding 7): the last-round action, "still `NOT SOUND` after its last round, stop and tell the user", lives in the P7 bullet, since *Round caps* ends "What a stage does when its last round fails is in that stage."
 - [p7-delivery-gate/plan.md D1] (manager) P7 also needs the user's word that every project of `## Projects` has delivered. The product manager asks once every latest verdict is `ACCEPTED`, or when the user raises it; on an explicit yes it writes `## Delivered`, then `- confirmed by the user, <date>, in chat: "<their words>"`, at the end of `product-plan.md`. No `## Delivered` line means no P7. Reason: `ACCEPTED` judges a plan (`F2`), and no file showed delivery.
-- [p7-delivery-gate/plan.md D2] (manager) P6 is done when there is nothing to commit, which means the product repo's `git status --short` prints nothing; P7's condition reads "P6 has landed or had nothing to commit". Reason: `F3` — with the store outside the product repo, P1–P5 write only the ignored `plan/` and the store, so P6 had nothing to commit and the old condition never held.
-- [p7-delivery-gate/plan.md D3] (manager) The removal mechanism does not change: it still follows P7's roadmap, which now waits for D1. `glab:bootstrap` step 5 and `glab:session-rules` Rule 2 key on the roadmap page's *Records* line and do not restate the condition (`F5`), so neither file changed.
+- [p7-delivery-gate/plan.md D2] (manager) P6 is done when there is nothing to commit, which means the product repo's `git status --short` prints nothing; P7's condition reads "P6 has landed or had nothing to commit". Reason: `F3` — with the store outside the product repo, P1–P5 write only the ignored `plan/` and the store, so P6 had nothing to commit and the old condition never held. **Superseded in its test by `[lifecycle-hardening/plan.md D10]` (`glab` 0.16.2):** "nothing to commit" is `git status --short --branch` exiting 0 with one `## <branch>...origin/<upstream>` line, no bracket or exactly `[behind <n>]`.
+- [p7-delivery-gate/plan.md D3] (manager) The removal mechanism does not change: it still follows P7's roadmap, which now waits for D1. `glab:bootstrap` step 5 and `glab:session-rules` Rule 2 key on the roadmap page's *Records* line and do not restate the condition (`F5`), so neither file changed. **Amended by `[lifecycle-hardening/plan.md D26]` (`glab` 0.16.2):** the removal still keys on the roadmap page's *Records* line, but the manager lists the folder and removes it only on the user's word.
 - [p7-delivery-gate/plan.md D6] (planner, accepted by the manager in `D8`) A `| — | Delivered |` row after P6 in the pipeline table, the way the `## Approval` row sits before P2 (`F4`), so the table shows every gate; with `D9` A6, the last-column sentence names `Delivered` beside P2 to P5.
-- [p7-delivery-gate/plan.md D7] (planner, accepted by the manager in `D8`) `glab:product-project-brief`'s precondition (`F8`) is unchanged: once `## Delivered` is written, a delivered slug takes no new brief; new work becomes a new product slug. `[p7-delivery-gate/plan.md D9]` A8: its refusal message for a delivered slug names approval, not delivery — accepted.
+- [p7-delivery-gate/plan.md D7] (planner, accepted by the manager in `D8`) `glab:product-project-brief`'s precondition (`F8`) is unchanged: once `## Delivered` is written, a delivered slug takes no new brief; new work becomes a new product slug. `[p7-delivery-gate/plan.md D9]` A8: its refusal message for a delivered slug names approval, not delivery — accepted. **Amended by `lifecycle-hardening` (`glab` 0.16.2; `[lifecycle-hardening/plan.md D4]`, `D24` item 3):** the meaning is kept, the words now "no `## Delivered` after the last `## Approval`", and the message also names delivery (`[lifecycle-hardening/follow-ups.md FU1]`).
 - [p7-delivery-gate/plan.md D9] (manager, plan check `check.r1.md` A3) The roadmap page carries the `## Delivered` line with the user's words: an item of the roadmap contents list in `glab:product-plan` *The roadmap*, and of `glab:product-analyzer`'s roadmap check.
 - [p7-delivery-gate/plan.md spent] `D4` (`glab` 0.16.1, raised once; no *One fact* file states the version, `F7`), `D5` (the record commit on the change's branch, one PR, rebase-merged; only this spec changes), `D8` (D6 and D7 accepted), `D9` A1, A2 and A5 (the order commit → push → PR → record → push → merge, the manager's; PC9's `--reverse`), A4 (the Codex findings tagged `F2` and `F3`), A6, A7, and `D10` (PC9 lists five files) — scoping of that change, spent.
+- [lifecycle-hardening/plan.md D4] (its `p7-delivery-gate` half) `[p7-delivery-gate/review.r1.md 1]` → `D10`; `2` → "a `## Delivered` line after the last `## Approval`" (`product-manager/SKILL.md:60`); `3` → the brief's precondition "has its `## Approval` line, and no `## Delivered` after it" (since `D24` item 3 "… after the last `## Approval`"), and `:49` and `:55` "appended to" (`D14`); `product-plan/SKILL.md:48` → "the last `## Delivered` line". Keeps `[p7-delivery-gate/plan.md D7]`: a delivered slug takes no brief; one approved again after delivery takes briefs and needs a new `## Delivered` before P7.
+- [lifecycle-hardening/plan.md D10] (`check.r1.md` M3) P6's "nothing to commit": `git status --short --branch` exits 0 and prints one line, `## <branch>...origin/<upstream>` (`D20`), with no bracket or exactly `[behind <n>]`; `[gone]`, `[ahead`, `No commits yet`, no upstream, a detached HEAD or exit ≠ 0 fail it. Reason: the old `git status --short` printed nothing with `[gone]` and unpushed commits, and in a repo with no commits whose upstream is configured (`check.r1.md` M3).
+- [lifecycle-hardening/plan.md D14] (`check.r1.md` L1) `product-manager/SKILL.md:55`, the Delivered row, joins `:49`: "appended to `product-plan.md`".
+- [lifecycle-hardening/plan.md D20] (`check.r2.md` N4) The P6 upstream is a remote-tracking branch, `...origin/` in the `##` line, chosen over `@{push}` because it is the line already read; a local-branch upstream (`## feat2...feat [behind 1]`) fails it.
+- [lifecycle-hardening/plan.md D21] (`check.r2.md` N5) `product-analyzer.md:40` → "the last `## Delivered` line", as `product-plan:48`.
+- [lifecycle-hardening/plan.md D24] item 3 (manager, `[lifecycle-hardening/review.r1.md 3]`) `product-project-brief/SKILL.md:9` → "no `## Delivered` after the last `## Approval`", matching `product-manager:60`; the same fix rewrote the refusal (`[lifecycle-hardening/follow-ups.md FU1]`). Items 1, 2 and 4 are in `docs/specs/workflow.md`, superseded.
 
 ## Known limits and not verified
 
@@ -412,6 +455,9 @@ this file and an owning file disagree, the owning file is right.
 - [docs-lifecycle/plan.md Not done] The delivery level (`releases/`) is still not written; "delivered" is defined at the product level only (D9; since 0.16.1, `[p7-delivery-gate/plan.md D1]`: the user's `## Delivered` confirmation).
 - [p7-delivery-gate/review.r1.md] UNVERIFIED: no live product session ran through P6, the `## Delivered` confirmation and P7; that the folder's removal cannot come before `## Delivered` is reasoned from `glab:bootstrap` step 5, `glab:session-rules` Rule 2 and the P7 bullet, not run. Only the post-conditions' greps and the gates were run (`[p7-delivery-gate/result.md]`, `PASS 31/31`).
 - [p7-delivery-gate/check.r1.md] UNVERIFIED: that the Codex review's P1 and P2 on PR #19 say exactly what `F2` and `F3` say — the PR was not fetched by the plan check.
+- [lifecycle-hardening/result.md Not done] UNVERIFIED: no live product session ran P6's new test, the `## Delivered`-after-the-last-`## Approval` condition or the brief's new precondition; the P6 allow-list was run in throwaway repos only (`check.r1.md` M3, `check.r2.md` N4, `review.r1.md` and `review.r3.md`: `## main...origin/main` and `[behind 1]`/`[behind 2]` pass; `[ahead 1]`, `[ahead 1, behind 1]`, `[gone]`, no upstream, `## main...other`, a detached HEAD, `No commits yet … [gone]` and an untracked file's second line fail), not by the build (`result.md` *Tests*: "Not covered").
+- [lifecycle-hardening/review.r1.md] Known limit, not raised as a finding: P6 fails `## main...up/main`, a remote not named `origin`; the test is safe only where `origin` is the remote (`D20`).
+- [lifecycle-hardening/review.r1.md] UNVERIFIED: the roadmap page's *Records* `<first>`/`<last>` when P6 had nothing to commit (outside that diff, not checked).
 
 ## Open follow-ups
 
@@ -426,9 +472,7 @@ this file and an owning file disagree, the owning file is right.
 - [docs-lifecycle/result.md follow-up-3] `plugins/glab/skills/product-plan/SKILL.md:3`, the `description`, does not mention the roadmap, which the skill's *The roadmap* now holds; no step changed it — open.
 - [docs-lifecycle/result.md follow-up-4] `plugins/glab/skills/product-manager/SKILL.md:55`: the P7 row has no backticks, unlike the other rows, because it was written exactly as P14 gives it — open, cosmetic. Since 0.16.1 that row is `:56`, the Delivered row above it (`[p7-delivery-gate/plan.md D6]`).
 - [docs-lifecycle/plan.md D14] Make the roadmap page an audit source, so that a P4 audit of a project whose product slug was recorded and removed has something to read instead of asking the user (*Known limits*) — open, named by the plan's *Not done* for the record to carry.
-- [p7-delivery-gate/review.r1.md 1] (low) `plugins/glab/skills/product-manager/SKILL.md:54`: P6's "nothing to commit" test, the product repo's `git status --short` printing nothing, also passes when P6's commit was made but its push declined (a throwaway repo: `status --short` printed nothing, `status --short --branch` printed `[ahead 1]`), and outside a git repo it prints nothing on stdout (rc 128). Harm is limited: P7's own push, on the user's go-ahead, carries those commits, and the folder is removed only once the roadmap is on origin. Fix: "`git status --short --branch` exits 0 and prints only its `##` line, with no `[ahead`", the command in backticks — open.
-- [p7-delivery-gate/review.r1.md 2] (low) `plugins/glab/skills/product-manager/SKILL.md:60`: the condition is only that `product-plan.md` "has its `## Delivered` line", not tied to the last `## Approval`; a plan amended and approved again after delivery keeps the old Delivered line above the new Approval, and it still lets P7 start. Fix: "a `## Delivered` line after the last `## Approval`", or an amendment removes it — open.
-- [p7-delivery-gate/review.r1.md 3] (nit) `plugins/glab/skills/product-manager/SKILL.md:49` and `plugins/glab/skills/product-project-brief/SKILL.md:9` say the `## Approval` line is "at the end of" / "ends with" `product-plan.md`, no longer literally true once `## Delivered` follows it. Nothing breaks in the normal order (P2 runs before Delivered exists); only a P2 re-run after delivery is refused (`[p7-delivery-gate/plan.md D7]`). Optional fix: "ends with its `## Approval` line, or that line then `## Delivered`" — open.
+- [lifecycle-hardening/review.r3.md 6] (low) `plugins/glab/skills/product-manager/SKILL.md:60`: "The plan folder is removed later, at a session start (`glab:bootstrap` step 5)" leaves out "on the user's word". A pointer; it contradicts nothing. Suggested: add "on the user's word (`glab:session-rules` Rule 2)" — open.
 
 ## Closed follow-ups
 
@@ -439,6 +483,10 @@ this file and an owning file disagree, the owning file is right.
 - [flow-product-level/follow-ups.md FR1-2] A claim left by a killed run: a run killed by SIGKILL or a host crash leaves `.plan-gate.claim.<report|verdict>.r<n>` in `briefs/<project>/`, and every later run for that number is refused until someone removes it by hand (proven with a planted claim, `rc=1`). Review round 2 (finding 1) made the refusal name the claim file and say to remove it by hand when no run is writing (T38); nothing told a stale claim from a live one, so a person decided → closed by `2724086`, `[flow-gate-hardening/plan.md takeover]`: a claim names its run, and a later run on the same host takes over the claim of a run that provably no longer runs, exclusively under a lock, the claim read again under it; T38 (rewritten, `[flow-gate-hardening/plan.md t38]`) and T43–T48. A claim from another host, boot or pid namespace, or one whose run cannot be proven gone, keeps the refusal (*Known limits*).
 - [flow-product-level/follow-ups.md FR2-1] A signal while `ln` runs: a TERM inside `ln`'s own lifetime still removed `plan.r<n>/` of a report that is linked (*Known limits*); closing it needed the signals held off across the `ln`, which the review did not ask for → closed by `2724086`, `[flow-gate-hardening/plan.md hold]`: TERM, HUP and INT are held from before `ln` until `TMP_DIR` is cleared and re-sent after, T49 (a slow-`ln` stub, the signal arriving inside `ln`); an `ln` that linked and was then killed counts as published (`[flow-gate-hardening/plan.md ef]`), T50.
 - [flow-product-level/follow-ups.md FR2-2] A temporary file left by SIGKILL: `.plan-gate.tmp.<report|verdict>.r<n>` stays beside its claim, and the claim's refusal named only the claim; the next run that takes the claim removes it (T38) (the finding asked for the trap to reach the file, which it does on every signal it sees) → closed by `2724086`, `[flow-gate-hardening/plan.md refusals]`: the run that takes over a stale claim removes that file, and a refusal of a claim that cannot be proven stale names it too; T38, T43 and T44.
+- [p7-delivery-gate/review.r1.md 1] (low) `plugins/glab/skills/product-manager/SKILL.md:54`: P6's "nothing to commit" test, the product repo's `git status --short` printing nothing, also passes when P6's commit was made but its push declined (a throwaway repo: `status --short` printed nothing, `status --short --branch` printed `[ahead 1]`), and outside a git repo it prints nothing on stdout (rc 128). Harm is limited: P7's own push, on the user's go-ahead, carries those commits, and the folder is removed only once the roadmap is on origin. Fix: "`git status --short --branch` exits 0 and prints only its `##` line, with no `[ahead`", the command in backticks — open. **Closed by `lifecycle-hardening` (`bf9c73f`, `glab` 0.16.2; `[lifecycle-hardening/plan.md D10]`, `D20`):** `product-manager/SKILL.md:54` — "in the product repo `git status --short --branch` exits 0 and prints one line, `## <branch>...origin/<upstream>`, with no bracket or exactly `[behind <n>]`; `[gone]`, `[ahead`, `No commits yet`, no upstream, a detached HEAD or exit ≠ 0 fail it".
+- [p7-delivery-gate/review.r1.md 2] (low) `plugins/glab/skills/product-manager/SKILL.md:60`: the condition is only that `product-plan.md` "has its `## Delivered` line", not tied to the last `## Approval`; a plan amended and approved again after delivery keeps the old Delivered line above the new Approval, and it still lets P7 start. Fix: "a `## Delivered` line after the last `## Approval`", or an amendment removes it — open. **Closed by `lifecycle-hardening` (`bf9c73f`, `glab` 0.16.2; `[lifecycle-hardening/plan.md D4]`):** `product-manager/SKILL.md:60` — "`product-plan.md` has a `## Delivered` line after the last `## Approval`".
+- [p7-delivery-gate/review.r1.md 3] (nit) `plugins/glab/skills/product-manager/SKILL.md:49` and `plugins/glab/skills/product-project-brief/SKILL.md:9` say the `## Approval` line is "at the end of" / "ends with" `product-plan.md`, no longer literally true once `## Delivered` follows it. Nothing breaks in the normal order (P2 runs before Delivered exists); only a P2 re-run after delivery is refused (`[p7-delivery-gate/plan.md D7]`). Optional fix: "ends with its `## Approval` line, or that line then `## Delivered`" — open. **Closed by `lifecycle-hardening` (`bf9c73f`, `glab` 0.16.2; `[lifecycle-hardening/plan.md D4]`, `D14`, `D24` item 3):** the Approval and Delivered rows say "appended to `product-plan.md`" (`product-manager/SKILL.md:49`, `:55`), and the brief's precondition reads "has its `## Approval` line, and no `## Delivered` after the last `## Approval`" (`product-project-brief/SKILL.md:9`), so a P2 re-run after a new approval is no longer refused.
+- [lifecycle-hardening/follow-ups.md FU1] `plugins/glab/skills/product-project-brief/SKILL.md:9` — the precondition became "has its `## Approval` line, and no `## Delivered` after it", but the next sentence still read "None → stop: a brief is written only from a plan the user approved"; "None" and its reason fit only the first half, and a slug delivered after its approval also stops without saying why. Out of scope then: Step 5 named only the precondition clause (`result.md` *Follow-ups*) → closed in the review-round-1 fixes (`[lifecycle-hardening/plan.md D24]` item 3): "Otherwise → stop: a brief is written only from a plan the user approved, and a delivered plan takes none until the user approves it again."
 
 ## Incidents
 
@@ -484,3 +532,10 @@ this file and an owning file disagree, the owning file is right.
   - Security → no secrets; no script or hook contract changed (`[p7-delivery-gate/review.r1.md]` *AGENTS.md rules*).
   - Incidents → none recorded by this change.
   - Record → this record, in this file only; `docs/specs/workflow.md`, `docs/specs/marketplace.md` and the feature pages untouched (`[p7-delivery-gate/plan.md Record]`); no audit file.
+- 2026-11-18 · lifecycle-hardening · bf9c73f · bf9c73f · lifecycle-hardening · #22
+  - PR #22 (glab-services/skills), not merged at this record; recorded in `docs/specs/workflow.md`, its primary area; here: P6's "nothing to commit" test, `## Delivered` after the last `## Approval`, "appended to", the brief's precondition and refusal, "the last `## Delivered` line" in `glab:product-plan` and `glab:product-analyzer`; `glab` 0.16.2. The plan folder was not kept in git.
+  - [lifecycle-hardening/plan.md Decisions] Decisions → `D4`'s `p7-delivery-gate` half, `D10`, `D14`, `D20`, `D21` and `D24` item 3 above under *Decisions that still bind*; `[p7-delivery-gate/plan.md D2]` marked superseded in its test, `D3` and `D7`'s A8 amended, their text kept; the others in `docs/specs/workflow.md` and `docs/specs/marketplace.md`.
+  - Not verified → the live product flow, the P6 allow-list proven only in throwaway repos, the non-`origin` remote and the roadmap's `<first>`/`<last>`, above under *Known limits*.
+  - Follow-ups → closed: `[p7-delivery-gate/review.r1.md 1]`–`3`, moved to *Closed follow-ups*, and `[lifecycle-hardening/follow-ups.md FU1]`; open: `[lifecycle-hardening/review.r3.md 6]`; the others in `docs/specs/workflow.md`.
+  - Incidents → none at the product level; the change's are in `docs/specs/workflow.md` and `docs/specs/marketplace.md` *Incidents*.
+  - Record → this record, in this file, `docs/specs/workflow.md`, `docs/specs/marketplace.md` and `docs/features/docs-lifecycle.md`; no audit file.
