@@ -7,13 +7,15 @@ it.
 ## Round caps
 
 the round caps — Stage 1b, Stage 3, Stage 5 and the final check (Stage 6b),
-and P1b at the product level, at most 2 rounds at every tier, per sub-plan
+and P1b at the product level, P7's roadmap check at most 2 rounds and never a
+third, at most 2 rounds at every tier, per sub-plan
 where there are, a third only on a `critical` or `high` finding of round 2,
 recorded first as a `## Decisions` line, or in the handoff line and this
 conversation when there is no plan, none past 3
 
 - `plugins/glab/skills/session-rules/SKILL.md` *Round caps*
 - `plugins/glab/skills/project-plan-analyze/SKILL.md`
+- `plugins/glab/skills/product-manager/SKILL.md` P7
 - and the reviewer's round-2 rule in `plugins/glab/agents/project-reviewer.md`
   *Re-reviews*
 
@@ -203,9 +205,15 @@ the slug or the intent
 
 ## The plan lifecycle
 
-the plan lifecycle — specs in `docs/specs/` unless `AGENTS.md` names another
-place, the record after the push, and that the record never removes the plan
-folder
+the plan lifecycle — `/plan/` ignored by git and never committed; after the
+push the record writes specs in `docs/specs/` and feature pages in
+`docs/features/` (the product level: `docs/roadmap/<slug>.md`), unless
+`AGENTS.md` names other places; a *Records* line, a spec's or a roadmap
+page's, names the date, the slug and the change's commits by both ends,
+`<first>` and `<last>`, the branch and the PR when one exists, since a squash or rebase merge can give the commits new shas; the
+record never removes the plan folder; the manager removes it at a session
+start once the record has landed (`glab:bootstrap` step 5,
+`glab:session-rules` Rule 2)
 
 - `plugins/glab/skills/project-plan/SKILL.md`
 - `plugins/glab/skills/project-record/SKILL.md`
@@ -214,6 +222,16 @@ folder
 - `plugins/glab/skills/bootstrap/SKILL.md`
 - `plugins/glab/skills/audit/SKILL.md`
 - `README.md`
+- `plugins/glab/skills/session-rules/SKILL.md` Rule 2
+- `plugins/glab/skills/project-manager/SKILL.md` Stage 8
+- `plugins/glab/skills/push/SKILL.md` step 4
+- `plugins/glab/agents/committer.md`
+- `plugins/glab/agents/project-plan-analyzer.md`
+- `plugins/glab/skills/product-manager/SKILL.md` P7
+- `plugins/glab/skills/product-plan/SKILL.md` *The roadmap*
+- `plugins/glab/agents/product-planner.md`
+- `plugins/glab/agents/product-analyzer.md`
+- `.gitignore`
 - and `AGENTS.md`'s `plan/` rule
 
 ## The session effort

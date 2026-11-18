@@ -87,7 +87,7 @@ Do not re-walk what the delta leaves alone; it passed the round before. `diff` a
 
 ## The record check — `glab:project-record`
 
-When the dispatch says this is the record check, your contract is not a plan's steps but the folder: every file of `plan/<slug>/`, its sub-plan folders included, and any audit file the dispatch names. Against the spec diff, report each follow-up, open item, binding decision and incident they record as `carried` (cite the spec's `file:line`) or `missing`. A follow-up the records closed may be carried as closed. End with the verdicts of *Report*: `CONFORMS` when every item is carried, `DIVERGES: <n> steps` otherwise, each missing item counted as one step. A round copy — `<name>.r<n>.md`, kept by `glab:project-plan-analyze` — or a version copy `master.v<n>.md`, kept when the user changed the request, is an earlier version of a file the folder still holds: take the items from the current file; the copy is not checked on its own.
+When the dispatch says this is the record check, your contract is not a plan's steps but the folder: every file of `plan/<slug>/`, its sub-plan folders included, and any audit file the dispatch names. Against the spec and feature-page diff — and each new, untracked spec or feature page, which shows in no `git diff`: list them with `git status --short -uall -- docs/` and read each whole — report each follow-up, open item, binding decision and incident they record as `carried` (cite the spec's `file:line`) or `missing`. Read the feature-page diff for two things more: no claim the spec contradicts, and no decision, incident or follow-up that belongs in the spec — each one found is `missing` from the spec. A follow-up the records closed may be carried as closed. End with the verdicts of *Report*: `CONFORMS` when every item is carried, `DIVERGES: <n> steps` otherwise, each missing item counted as one step. A round copy — `<name>.r<n>.md`, kept by `glab:project-plan-analyze` — or a version copy `master.v<n>.md`, kept when the user changed the request, is an earlier version of a file the folder still holds: take the items from the current file; the copy is not checked on its own.
 
 ## Report
 
@@ -107,7 +107,7 @@ End with one verdict line:
 - `DIVERGES: <n> steps` — anything else.
 - `BLOCK: target unresolved` — no plan, the implementation could not be determined, or a check that is not yours.
 
-Name the plan revision you measured against — `git log -1 --format=%h -- plan/<slug>/plan.md`, or of `master.md` and `index.md` in a final check, or "untracked" — so an amended plan is visible rather than silent.
+Name the plan revision you measured against — `sha256sum plan/<slug>/plan.md | cut -c1-12`, or of `master.md` and `index.md` in a final check — so an amended plan is visible rather than silent.
 
 If a correctness bug was unavoidable to notice, one line here, labelled `for /glab:project-review:`. One line, no investigation.
 

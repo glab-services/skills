@@ -4,7 +4,7 @@ description: Push the current branch after showing exactly which commits will go
 argument-hint: "[remote, default origin]"
 ---
 
-Push the current branch. The entry point of the push stage of the manager of your level — `glab:project-manager` Stage 7 and the record's push (Stage 8) at the project level, `glab:product-manager` stage P6 at the product level.
+Push the current branch. The entry point of the push stage of the manager of your level — `glab:project-manager` Stage 7 and the record's push (Stage 8) at the project level, `glab:product-manager` stages P6 and P7 at the product level.
 
 The session that runs it — that manager, or a person who typed `/glab:push` — does this itself. There is no push agent on purpose: a push leaves the machine, so the session stays in the loop rather than relaying an agent's report about something already sent.
 
@@ -41,7 +41,7 @@ Two placeholders. Substitute both directly into every command — never carry ei
 
    Every commit reachable from `HEAD` that `<remote>` does not already have, correct whether or not the branch has an upstream. Never compute it against `main`: on a branch cut from another branch that reports hundreds of already-pushed commits and destroys the only signal this step exists to give.
 
-   With them, show the `## Decisions` lines of each plan folder those commits carry — at normal tier this is where the user reads what the manager decided.
+   With them, show the `## Decisions` lines of the slug's plan folder, read from disk — `plan/<slug>/plan.md`, or `master.md` and each sub-plan's `plan.md`; git ignores `plan/`, so the commits do not carry it — at normal tier this is where the user reads what the manager decided.
 
 5. If that list is empty, no new *commits* go out — but the branch ref may still need to move. Ask git where this branch points first:
 

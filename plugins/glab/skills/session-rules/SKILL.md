@@ -75,7 +75,24 @@ You cannot run `/clear` or `/compact` — never do; the user can. The `glab` hoo
 - **A smaller window.** With no `compact at <t>k` and a window no larger than the first step plus 100k, tell the user once that `GLAB_COMPACT_AT` (thousands, exported before Claude Code starts) moves it; the number is the user's.
 - **Your handoff file** is the `plan/handoff/<id>.md` the session-start text names — with `no session id` there, the name it gives — and `plan/handoff/` is never committed. It holds the current state only: slug, stage, round, the next dispatch, what you wait on, and decisions no plan file holds — rewritten in place, never appended to, at most 4096 bytes (`wc -c`). Its first lines are `- status: in-flight` or `- status: completed`, `- session: <id>` and `- updated: <UTC ISO 8601>`. After a compaction keep writing the file your summary names as yours; if the session-start text names another, say so once.
 - **At a task boundary** — after a task's last push, its record's when it has a plan folder — write `- status: completed`, then remove your own handoff file, and tell the user this is a good point to `/clear` and start the next task in a new session, whatever the number says; the next task opens a new file. No hook can tell a task boundary.
-- **The standing approval.** The user's words "managers are must clean completed sessions handoffs, just remove them" are the one standing approval of a removal: they cover a regular file `plan/handoff/<id>.md`, `<id>` matching `[A-Za-z0-9][A-Za-z0-9_-]{0,127}` as the no-id name does, whose first line is `- status: completed`, and nothing else. Every other removal stops and asks (`glab:security`).
+- **The handoff approval.** The user's words "managers are must clean completed sessions handoffs, just remove them" are one of the two standing approvals of a removal: they cover a regular file `plan/handoff/<id>.md`, `<id>` matching `[A-Za-z0-9][A-Za-z0-9_-]{0,127}` as the no-id name does, whose first line is `- status: completed`, and nothing else of the handoff files.
+- **The plan-folder approval.** The user's words, 2026-11-18, in chat, "The manager removes plan/<slug>/ right after the record is merged, under a standing approval (like completed handoffs). Nothing piles up; the docs are the only lasting copy." are the other of the two standing approvals of a removal. Here "merged" means landed on the default branch, checked at the next session start (`glab:bootstrap` step 5), and the manager removes the folder, not `glab:project-record`. They cover the directory `plan/<slug>` only when every one of these holds. The checks run from the repo root: first `cd "$(git rev-parse --show-toplevel)"`, and `<toplevel>` below is the path that prints.
+  - `<slug>` matches `[A-Za-z0-9][A-Za-z0-9_-]{0,127}` as a whole name and is not `handoff`, so it holds no `/` and no `..`;
+  - `! test -L plan`, `test -d plan/<slug>` and `! test -L plan/<slug>`: neither `plan` nor the folder is a symlink;
+  - `test "$(realpath plan/<slug>)" = "<toplevel>/plan/<slug>"`: the folder resolves inside this repo's own `plan/`;
+  - `find plan/<slug> -name .git` prints nothing: no nested repository, which is someone else's history (`glab:committer`);
+  - `git ls-files -- plan/<slug>` prints nothing, so nothing in it is tracked;
+  - the record-file list is non-empty. `<record files>` are the files its record wrote: the specs and feature pages its `## Record` names (`master.md`'s, or `plan.md`'s with no master), or `docs/roadmap/<slug>.md` for a product slug. An empty list would let the next two checks pass without checking anything;
+  - its record has landed: after `git fetch origin`, `git diff --quiet origin/<default> -- <record files>` exits 0. This works for squash merges, where ancestry does not;
+  - nothing in it is newer than its record: `<branch>` is the branch its *Records* line names (`origin/<branch>` when the local one is gone) and `<last>` the last commit that line names; `<record-sha>` is `git log --reverse --format=%H <last>..<branch> -- <record files> | head -1`, the first commit after the change that touches the record files — its record, not a later change's record of the same spec; it is not empty; `ct=$(git log -1 --format=%ct "<record-sha>") && test -n "$ct"` holds; and `find plan/<slug> -newermt "@$ct"` prints nothing and exits 0.
+
+  The outcomes:
+  - every condition holds → `rm -r -- plan/<slug>`, with no trailing slash: with one, `rm` follows a symlinked folder and empties its target;
+  - the record has not landed (`git diff --quiet` exits 1) → the folder stays, without a word;
+  - a condition cannot be evaluated — `git fetch` fails, the `## Record` or the *Records* line is not found, the record-file list is empty, neither `<branch>` nor `origin/<branch>` exists, `<record-sha>` or `$ct` is empty, or a command errors → the folder stays, nothing is removed, and the session-start report says so in one line; no question is asked, at this or any later session start;
+  - a file in it is tracked — a folder committed before glab 0.16.0 → the approval does not cover it: it stays and is never removed under it, the session-start report names every such folder in one line, and no question is asked, at this or any later session start; untracking it, for example `git rm -r --cached -- plan/<slug>`, is the user's decision;
+  - any other condition fails (the slug pattern, a symlink, `realpath`, a `.git`, a newer file) → the folder stays and the manager asks (`glab:security`).
+- Every other removal — under `plan/` a tracked folder, an audit file, any other folder or file — stops and asks (`glab:security`).
 - **No line at all:** say so once, then suggest `/compact` every **15** dispatches and after a stage of more than one round; end the handoff line `· dispatches <d>`. Lines with user messages only: use the latest.
 
 ## Rule 3 — decide, record, move on
@@ -95,7 +112,7 @@ Three things this rule does not touch:
 
 - **A fact is not a choice:** look it up and prove it.
 - **`docs/constants.md` is already decided:** changing it is the user's question.
-- **`glab:security` still stops you.** Its stop list and its *Destructive operations are proven* rule hold at every tier, and so does this skill's confirmation before every destructive action — except the standing approval of Rule 2 — and before every push (`glab:push`, at every level).
+- **`glab:security` still stops you.** Its stop list and its *Destructive operations are proven* rule hold at every tier, and so does this skill's confirmation before every destructive action — except the standing approvals of Rule 2 — and before every push (`glab:push`, at every level).
 
 ## Rule 5 — each agent runs on its role's model; the user's words override it
 
@@ -124,7 +141,7 @@ A `haiku` dispatch is written as `glab:commit` says.
 
 ## Round caps
 
-Stage 1b, Stage 3, Stage 5 and the final check (Stage 6b) at the project level, and P1b at the product level, run at most **2 rounds** each, per sub-plan where there are, at every tier where the stage runs. A **third** runs only on a round-2 finding rated `critical` or `high` — by the analyzer or reviewer, on `glab:severity`, never re-ranked by you — recorded first under `## Decisions`: `- round 3: <stage> — <severity> <the finding, as its file:line or step id and its claim>`. With no plan behind the stage, put it in the handoff line, `round 3/3 (<severity> <finding>)`, and this conversation; once lost, there is no round 3. Nothing runs past round 3. What a stage does when its last round fails is in that stage.
+Stage 1b, Stage 3, Stage 5 and the final check (Stage 6b) at the project level, and P1b at the product level, run at most **2 rounds** each, per sub-plan where there are, at every tier where the stage runs. P7's roadmap check at the product level runs at most 2 rounds — one fix round, then the recheck — and never a third. A **third** runs only on a round-2 finding rated `critical` or `high` — by the analyzer or reviewer, on `glab:severity`, never re-ranked by you — recorded first under `## Decisions`: `- round 3: <stage> — <severity> <the finding, as its file:line or step id and its claim>`. With no plan behind the stage, put it in the handoff line, `round 3/3 (<severity> <finding>)`, and this conversation; once lost, there is no round 3. Nothing runs past round 3. What a stage does when its last round fails is in that stage.
 
 ## The handoff line
 

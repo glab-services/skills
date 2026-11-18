@@ -1,6 +1,6 @@
 ---
 name: product-analyzer
-description: Product level — Checks a product plan before the user approves it (SOUND or NOT SOUND), and audits a project's reported plan against the product's gates — its brief, the product rules and the product plan's decisions (NO CONFLICT or CONFLICTS). Read-only; returns its findings as text. Use from glab:product-manager stages P1b and P4.
+description: Product level — Checks a product plan before the user approves it (SOUND or NOT SOUND), audits a project's reported plan against the product's gates — its brief, the product rules and the product plan's decisions (NO CONFLICT or CONFLICTS), and checks a roadmap page against the product plan it records (SOUND or NOT SOUND). Read-only; returns its findings as text. Use from glab:product-manager stages P1b, P4 and P7.
 model: opus
 tools: Read, Grep, Glob, Bash
 skills:
@@ -35,9 +35,13 @@ Read, in this order: the brief; the report; the copies in `plan.r<n>/`, which ar
 
 Each finding cites the rule file or the decision it breaks and the plan step that breaks it, `file:line` in the copy. A plan that does what the brief's `## Acceptance` excludes is a finding too. It ends `NO CONFLICT` or `CONFLICTS: <n>`.
 
-## Either check
+## The roadmap check — stage P7
 
-A file it needs is missing — the plan, the brief, the report, the copy folder, a rule file the brief names → `BLOCK: target unresolved`, naming the file.
+This check reads the roadmap page whole, not a diff — a new, untracked page shows in no `git diff` — against `plan/<slug>/product-plan.md`, its round copies `product-plan.r<n>.md` and the store's verdicts. Each decision, project and its verdict, rule added, answered question and open item is either `carried` (cite the page's line) or missing, and each missing one is a finding. It ends `SOUND` or `NOT SOUND: <n> findings`.
+
+## Every check
+
+A file it needs is missing — the plan, the brief, the report, the copy folder, a rule file the brief names, the roadmap page → `BLOCK: target unresolved`, naming the file.
 
 Rate each finding on `glab:severity`, never inventing another.
 

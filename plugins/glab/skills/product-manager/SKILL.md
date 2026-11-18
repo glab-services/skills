@@ -38,7 +38,7 @@ The product level and its projects exchange plain files in one shared folder, th
     <store>/briefs/<project>/verdict.r<n>.md  written by plan-gate.sh verdict
     <store>/releases/                         reserved for the delivery level; nothing writes it yet
 
-`<project>` is kebab-case, `[a-z0-9-]+`. `<n>` starts at 1, has no leading zero, and is compared as a number, so `r10` follows `r9`. `plan.r<n>/` is there because this session cannot read the project's repo: the audit reads the copy the report hashed. Every committed file — a product plan, a brief, a skill — names a store path relative to the store, never the machine's path. Reports, copies and verdicts are written only by `"${CLAUDE_PLUGIN_ROOT}/scripts/plan-gate.sh"`, never by hand.
+`<project>` is kebab-case, `[a-z0-9-]+`. `<n>` starts at 1, has no leading zero, and is compared as a number, so `r10` follows `r9`. `plan.r<n>/` is there because this session cannot read the project's repo: the audit reads the copy the report hashed. Every file the product level writes — a product plan, a brief, a roadmap page, a skill — names a store path relative to the store, never the machine's path. Reports, copies and verdicts are written only by `"${CLAUDE_PLUGIN_ROOT}/scripts/plan-gate.sh"`, never by hand.
 
 ## The product pipeline
 
@@ -52,11 +52,13 @@ The product level and its projects exchange plain files in one shared folder, th
 | P4 | Audit | `/glab:product-project-plan-analyze <project>` (`glab:product-analyzer`), once per report | — | `NO CONFLICT` or `CONFLICTS: <n>` | — |
 | P5 | Verdict | `/glab:product-project-plan-verdict <project>` | the store's `verdict.r<n>.md` | the project session told | — |
 | P6 | Commit, push | `/glab:commit`, `/glab:push` | commits of the product repo, the remote branch | landed and confirmed, on the user's go-ahead | 6 and 7 |
+| P7 | Roadmap | glab:product-planner, then glab:product-analyzer's roadmap check, then /glab:commit, /glab:push | docs/roadmap/<slug>.md of the product repo | SOUND, committed, pushed on the user's go-ahead | 8 |
 
 The last column is the project stage of the same role: it is how `glab:session-rules` *How to read these rules* maps a stage its rules name onto this level. P2 to P5 have none, so a rule about another stage does not apply to them.
 
+- **P7 starts when the slug is delivered** — each project of `## Projects` has `ACCEPTED` as its latest verdict and P6 has landed. P7's rounds are capped by `glab:session-rules` *Round caps*; still `NOT SOUND` after its last round, stop and tell the user. The plan folder is removed later, at a session start (`glab:bootstrap` step 5); that is not a P7 exit condition.
 - **The approval is the user's, always.** A product plan decides what the product is (`glab:session-rules` Rule 3, its fourth condition), at every size. After P1b, bring it to the user; on their explicit approval write one line at the end of `product-plan.md`: `## Approval`, then `- approved by the user, <date>, in chat: "<their words>"`. No brief is written before it.
-- **Announce each handoff** as `glab:session-rules` *The handoff line* says, the stage named `product-plan`, `plan-check`, `brief`, `audit` or `verdict`.
+- **Announce each handoff** as `glab:session-rules` *The handoff line* says, the stage named `product-plan`, `plan-check`, `brief`, `audit`, `verdict` or `roadmap`.
 - **A product rule file changes only through an approved product plan's `## Rules to add`**, never as a `glab:session-rules` Rule 1 trivial change, however small: the rules are the user's.
 
 ## Starting project sessions

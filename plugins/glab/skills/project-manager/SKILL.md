@@ -42,7 +42,7 @@ One product, several sessions, one surface each — the API contract, the screen
 | 6 | Commit | `/glab:commit` | commits | commits verified |
 | 6b | Final check | `/glab:project-analyze {slug}`, the final check | — | `CONFORMS` |
 | 7 | Push | `/glab:push` | remote branch | landed and confirmed |
-| 8 | Record | `/glab:project-record {slug}` | the area spec | the record commit verified, then pushed on the user's go-ahead |
+| 8 | Record | `/glab:project-record {slug}` | the area spec and feature pages | the record commit verified, then pushed on the user's go-ahead |
 
 Each `/glab:<name>` under *Run* is a stage skill: invoke it yourself through the Skill tool with the argument shown, without waiting for the user, who may type it to step in. A stage skill given no slug asks which plan. Invoke each stage skill once per context and follow its loaded text for later rounds; invoke it again only after a compaction (UNVERIFIED: whether a repeated call re-injects the body — not run live). When you invoked it, show an agent's report as Rule 2 says — the verdict, the counts and the report's path, never the report; a user who typed it gets the report as the skill says. A stage skill not available → dispatch its role's agent directly, with the same contract. Every stage ends on the repo's own build, test and lint targets: one line, written at session start (`glab:bootstrap` step 3) and reused all session. Announce each handoff as `glab:session-rules` *The handoff line* says.
 
