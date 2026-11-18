@@ -76,10 +76,57 @@ committed on the change's branch, the record check's and the reviewer's
 paths) as of `bf9c73f` (`glab` `0.16.2`, PR #22, not merged at this
 record), whose subsection *The docs lifecycle as of 0.16.2* supersedes
 *The docs lifecycle as of 0.16.0* and every line below it where they
-disagree; where this file
+disagree, and its `level-guard` lines (the level boundary held by the
+`PreToolUse` hook `level-guard.sh`, the new paragraph of
+`glab:session-rules` *The level boundary*, the level read shared through
+`plugins/glab/scripts/glab-level.sh`) as of `632dcb0` (`glab` `0.17.0`,
+PR #24, not merged at this record), whose subsection *The level guard as
+of 0.17.0* supersedes every line below it that calls the main session's
+boundary text only, and whose hook is recorded in full in
+`docs/specs/product.md`; where this file
 and an owning file disagree, the owning file is right.
 
 ## How it works now
+
+### The level guard as of 0.17.0
+
+- **The project-level edge of the level guard** (`glab` 0.17.0,
+  `632dcb0`, `level-guard`; `glab:session-rules` *The level boundary*,
+  the owner of the rule; `plugins/glab/scripts/level-guard.sh` and
+  `plugins/glab/hooks/hooks.json`, the owners of the hook;
+  `[level-guard/plan.md D2]`, `D5`, `D8`, `D9`). Since 0.17.0 the
+  boundary's skill half is held by a `PreToolUse` hook on `Skill`: in a
+  project session (no `glab-level:` line, or `glab-level: project`), a
+  Skill call to a `glab:` skill that `glab:project-manager` *Your skills —
+  this level only* does not list — every `glab:product-*` skill — is
+  refused, in the main session and in subagents alike, and the deny reason
+  tells Claude the user can type `/glab:<name>`; in a product session the
+  same holds against `glab:product-manager`'s list (`docs/specs/product.md`
+  *How it works now*, LV1, LV3, LV4). Measured offline by LG1 and LG2 over
+  every shipped skill: at the project level 19 pass and 6 are refused, at
+  the product level 14 and 11. The list stays where the manager reads it:
+  the hook parses that section — the exact heading, its `- **` bullets but
+  the agents', one line each — so each list stays one bullet per line, and
+  LG1 and LG2 fail the gates when a list stops parsing (`D2`, `D10`). The
+  level is the one `manager-bootstrap.sh` names, both reading it through
+  `glab_level` in `glab-level.sh` (`D3`), from `$CLAUDE_PROJECT_DIR`, never
+  the call's `cwd` (`D4`). A skill the user types never reaches the hook
+  (`D8`); agents are not judged, so "dispatch no agent not on it" stays
+  text (`D9`, `[level-guard/follow-ups.md FU-LG1]`). Where the hook cannot
+  read the call, the list or the level rule, it lets the call through, and
+  the text rule still holds (`D10`). `glab:session-rules` *The level
+  boundary* gains one paragraph (`session-rules/SKILL.md:14`): "Since
+  `glab` 0.17.0 a `PreToolUse` hook, `level-guard.sh`, holds the list too:
+  it reads it from that section and refuses a Skill call to a `glab:` skill
+  not on it, in subagents as well. It judges no agent. A skill the user
+  types as `/glab:<name>` never reaches it, but a skill that one calls in
+  turn through the Skill tool is judged (inferred; no live run made such a
+  call) — when the user wants another level's skill, ask them to type it."
+  `glab:session-rules` grows from 17951 to 18394 bytes (`wc -c`), its
+  session-start cap already exceeded at the base
+  (`[level-guard/follow-ups.md FU-LG4]`, `docs/specs/product.md`). No glab
+  agent has the `Skill` tool, so the hook reaches the main session and
+  non-glab subagents such as `general-purpose` (`D5`).
 
 ### The docs lifecycle as of 0.16.2
 
@@ -394,6 +441,9 @@ and an owning file disagree, the owning file is right.
   boundary (`E11`); the main session's boundary is text only, every level's
   skills being listed in every session, and a hard boundary is
   `[flow-product-level/plan.md FU-P2]`, open (`docs/specs/product.md`).
+  **Amended by `level-guard` (`632dcb0`, `glab` 0.17.0):** the skill
+  half of the boundary is held by the `PreToolUse` hook, and FU-P2 is
+  closed; the agent half stays text (*The level guard as of 0.17.0*).
 - **The level line `glab-level:` and the session-start text by level**
   (since `ce1a933`; `plugins/glab/scripts/manager-bootstrap.sh`, rewritten
   whole by A3, its header comment the owner of the read rule;
@@ -1924,7 +1974,7 @@ and an owning file disagree, the owning file is right.
 - [flow-product-level/master.md Request] **The user: "manager(s): must work with current flow what we have" and "product:project:plan:report (must force managers to send back report of planing before go to development phase)"** (from `plan/manager-flow-notes.md` *Idea 1* and *Idea 2*, untracked, quoted in `master.md` *Request*) — G3: the project level runs today's flow and changes only at its edges; it sends its plan report before development and waits for the verdict (Stage 1c and the develop gate, `report-brief` and `once-per-slug`, here).
 - [flow-product-level/plan.md report-brief] The report is sent after every approval the plan needs, as Stage 1c; `report` and `check` refuse when the brief changed since the plan quoted it; a plan from a brief must quote it (checklist item 8, I2).
 - [flow-product-level/master.md Request] **The user: "mean: example: planing skill of product manager must not work for project manager(s)"** (from `plan/manager-flow-notes.md` *Idea 1*, untracked, quoted in `master.md` *Request*) — G2: a session runs one level only, and each manager uses only its own level's skills (`boundary`, below).
-- [flow-product-level/plan.md boundary] The boundary is each level manager's explicit list *Your skills — this level only*, and the rule binding to it is written once, in `glab:session-rules` *The level boundary* (I12, F14, F22); a skill or agent serving every level carries no prefix; every other description begins `Product level — ` or `Project level — ` (N2, amended); the product agents have no `Skill` tool (`E11`).
+- [flow-product-level/plan.md boundary] The boundary is each level manager's explicit list *Your skills — this level only*, and the rule binding to it is written once, in `glab:session-rules` *The level boundary* (I12, F14, F22); a skill or agent serving every level carries no prefix; every other description begins `Product level — ` or `Project level — ` (N2, amended); the product agents have no `Skill` tool (`E11`). **Amended by `[level-guard/plan.md D2]` (`632dcb0`, `glab` 0.17.0):** the list stays the one owner, and `level-guard.sh` reads it from that section to refuse another level's skill (*The level guard as of 0.17.0*); the decisions of the hook are in `docs/specs/product.md`.
 - [flow-product-level/plan.md rules-move] Rules 0, 0b, 0c, 0d, 1, 2, 3 and 5, the round caps and the handoff line move into `glab:session-rules` with their words kept and one reading rule at its top (J2; `FU-P1`, closed); Rule 4 stays in `glab:manager`; Rule 5's list gains the two product roles; `glab:commit` and `glab:push` name either level's stage and take the commit-on-`main` rule (R6); every pointer names `glab:session-rules` (J12); `glab:audit`'s two project-scoped sentences stay.
 - [flow-product-level/plan.md once-per-slug] A plan from a brief is reported once per slug, every sub-plan planned, checked and approved before Stage 1c (R2-1; L16): one report per sub-plan lost, being an audit per sub-plan, against Q1's "not per change".
 - [flow-product-level/plan.md rejected] On `REJECTED`: round copies, a new planning agent amending from the verdict's reason, one Stage 1b delta round per verdict outside Stage 1b's cap, the approvals, report `r<n+1>`; a `REJECTED` whose fix needs `master.md` is a changed request (R13).
@@ -2056,6 +2106,7 @@ and an owning file disagree, the owning file is right.
 - [lifecycle-hardening/plan.md Not done] UNVERIFIED: what author date GitHub's squash and rebase merges set, and whether a forge's squash has `%at` equal to `%ct` (`check.r1.md`, `check.r2.md`, `review.r2.md`, `review.r3.md`: only local CLI squash, rebase and `--no-ff` merges were run). Since `D26` it decides nothing: it only changes which files the listing shows as newer.
 - [lifecycle-hardening/plan.md D11] Known limit, stated in Rule 2's reason: a rebase with `--ignore-date` or `--reset-author-date` resets `%at` to its run time, so a file written between the record and that rebase is not listed as newer (proven in `check.r1.md` M4: a default rebase kept `at=01-03`, either option set it to the run day; not re-run). A rewrite of the default branch with `--reset-author-date` is reasoned, not run (`review.r2.md`).
 - [lifecycle-hardening/review.r3.md Not checked] Not checked by review round 3: bind mounts inside a plan folder (`rm -r` has no `--one-file-system`; also `review.r1.md`'s mount points), `<record files>` paths with spaces (the facts command leaves them unquoted), the window between the re-check and `rm`, and clock skew between machines (`review.r1.md`, `review.r2.md`).
+- [level-guard/result.md Live test (S10)] The project-level edge, as of `632dcb0`: the refusals were shown live from a product repo only (LV1, LV3, LV4: `glab:project-plan` refused, on Linux, Claude Code 2.1.325 `-p`, haiku and opus); a project session refusing a `glab:product-*` skill is shown offline only, by LG2 (`tests/level-guard.test.sh`; LG1 is the product level's). UNVERIFIED: whether Claude makes a Skill call in turn after a typed skill (`[level-guard/follow-ups.md FU-LG5]`), case-insensitive name resolution (FU-LG6), and that a live session follows the new paragraph of *The level boundary* rather than meeting the refusal, as for every prose rule; the rest in `docs/specs/product.md` *Known limits*.
 
 ## Open follow-ups
 
@@ -2117,6 +2168,8 @@ and an owning file disagree, the owning file is right.
 - [lifecycle-hardening/review.r3.md 4] (low) `session-rules/SKILL.md:89`–`94`: "the first that applies" puts "not landed" and "cannot be evaluated" before the symlink, `realpath` and `.git` failures, so a symlinked folder whose record has not landed is never named and never asked about. Safe: it is never listed. Suggested: none, or move the structural outcome before "not landed" — open.
 - [lifecycle-hardening/review.r3.md 5] (low) `session-rules/SKILL.md:79`: the user's "Ask once per folder" could mean once ever; the rule re-asks about a kept folder at every session start and stops asking only within one session, and `docs/features/docs-lifecycle.md` says the same, so the files agree. The reading was not confirmed with the user (review r3 could not check the chat). Suggested: confirm it with the user — open, the user's.
 - [lifecycle-hardening/review.r3.md 6] `glab:product-manager:60` omits "on the user's word" — open, in `docs/specs/product.md`.
+- [level-guard/follow-ups.md FU-LG1] The boundary's agent half, an `Agent` matcher refusing a `subagent_type` of another level — open, in `docs/specs/product.md`.
+- [level-guard/follow-ups.md FU-LG5] A skill a typed other-level skill calls in turn is judged; whether Claude makes such a call is UNVERIFIED — open, in `docs/specs/product.md`.
 
 ## Closed follow-ups
 
@@ -2342,3 +2395,10 @@ and an owning file disagree, the owning file is right.
   - Follow-ups → closed: `[docs-lifecycle/review.r1.md 10]`, `[docs-lifecycle/review.r2.md record-branch]`, `project-record:13`, `session-rules:87`, `session-rules:91,93`, `project-record:12` and `[docs-lifecycle/result.md review-r1-follow-up]`, moved to *Closed follow-ups*; `[p7-delivery-gate/review.r1.md 1]`–`3` and `FU1` in `docs/specs/product.md`. Open: `[lifecycle-hardening/review.r3.md 1]`–`5` above, `6` in `docs/specs/product.md`.
   - Security → no secrets; no script or hook contract changed (`plan.md` tier line; `review.r3.md`: no secret added, no comment or incident removed).
   - Record → this record, in this file, `docs/specs/product.md`, `docs/specs/marketplace.md` and `docs/features/docs-lifecycle.md`, shortened to 2047 bytes (`docs/specs/marketplace.md` *Records*); no audit file.
+- 2026-11-19 · level-guard · 632dcb0 · 632dcb0 · level-guard · #24
+  - PR #24 (glab-services/skills), not merged at this record; `glab` 0.17.0. Recorded in `docs/specs/product.md`, its primary area (the hook, its decisions, the live test, the `by user` hold); here, the project-level edge: a project session's Skill calls to `glab:product-*` skills are refused by the `PreToolUse` hook `level-guard.sh`, which reads each manager's *Your skills* list and the level through `glab-level.sh`, shared with `manager-bootstrap.sh`, and the new paragraph of `glab:session-rules` *The level boundary* (*The level guard as of 0.17.0*); the version, the gates and `AGENTS.md` in `docs/specs/marketplace.md`. The plan folder was not kept in git.
+  - [level-guard/plan.md Decisions] Decisions → `D2`, `D3`–`D5`, `D8`–`D10` named in *The level guard as of 0.17.0*, their text in `docs/specs/product.md` *Decisions that still bind*; `[flow-product-level/plan.md boundary]` and the level-boundary bullet amended, their text kept.
+  - Not verified → the project-side refusal shown offline only, FU-LG5, FU-LG6, the prose, above under *Known limits*.
+  - Follow-ups → `[flow-product-level/plan.md FU-P2]` closed in `docs/specs/product.md`; FU-LG1 and FU-LG5 pointed at above, open; the others in `docs/specs/product.md` and `docs/specs/marketplace.md`.
+  - Incidents → none at the workflow level; the change's are in `docs/specs/product.md` *Incidents*.
+  - Record → this record, in this file, `docs/specs/product.md`, `docs/specs/marketplace.md` and `docs/features/level-guard.md`; no audit file.
