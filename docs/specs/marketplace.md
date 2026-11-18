@@ -45,7 +45,10 @@ paragraph and layout row, the size of `AGENTS.md`) as of `3ed6746` (`glab`
 (the version, `AGENTS.md`'s `plan/` rule and size, the *One fact* entry
 *Where the record is committed*, `README.md`'s record paragraph and
 `plan/` row) as of `bf9c73f` (`glab` `0.16.2`, PR #22, not merged at this
-record); where this file and an owning file disagree, the
+record), and its `script-hardening` lines (the version, `tests/gates.sh`'s
+bash line and `PATH` rewrite, the store pointers in `README.md` and
+`host.example.md`) as of `64b4e57` (`glab` `0.16.3`, PR #23, not merged at
+this record); where this file and an owning file disagree, the
 owning file is right and this spec is out of date.
 
 ## How it works now
@@ -107,7 +110,11 @@ owning file is right and this spec is out of date.
   skill, `sync-memory`, no agent, hooks on `SessionStart`, `SessionEnd`,
   `PostToolUse` and `Stop`.
 - **Versions.** Each `plugin.json` carries an explicit `version` — `glab`
-  `0.16.2` (raised once by `bf9c73f`, `lifecycle-hardening`'s one commit,
+  `0.16.3` (raised once by `64b4e57`, `script-hardening`'s one change
+  commit, `fix(skills): remove a claim the run failed to write, and harden the gates (glab 0.16.3)`,
+  in PR #23, not merged at this record; a patch step, `plan-gate.sh`'s
+  failed-write path and the gates' preflight; `[script-hardening/plan.md D5]`;
+  `memory-sync` unchanged at `0.1.0`); `0.16.2` (raised once by `bf9c73f`, `lifecycle-hardening`'s one commit,
   `fix(skills): ask before removing a plan folder, and harden the record lifecycle (glab 0.16.2)`,
   in PR #22, not merged at this record; `[lifecycle-hardening/plan.md D5]`;
   `memory-sync` unchanged at `0.1.0`); `0.16.1` (raised once by `afda097`,
@@ -196,12 +203,35 @@ owning file is right and this spec is out of date.
   prefixed `name:` search. It prints `ok G<n> <name>` or
   `FAIL G<n> <name>: <reason>` per check, then `PASS 31/31` or
   `FAIL <f>/31`, and exits 0 when all pass, 1 on any `FAIL`, 2 when a
-  preflight fails. The preflight runs first (`D3`, `tests/gates.sh:27-34`):
+  preflight fails. The preflight runs first (`D3`, `tests/gates.sh:27-34`
+  at `113870b`; `:35-62` since 0.16.3, below):
   no `TMPDIR`, a `TMPDIR` that is not an absolute path (fix round 1,
   `[slim-agents-md/review.r1.md 4]`), no CLI (`claude` on `PATH` or
   `CLAUDE_BIN`, made absolute before the `cd`), no `jq` or no `shellcheck`
   each print one stderr line and exit 2, with no `ok`, `FAIL` or `PASS`
-  line; it does not use `:?`, which exits 1. Every `claude` command runs in
+  line; it does not use `:?`, which exits 1. **Since `glab` 0.16.3**
+  (`64b4e57`, `script-hardening`; the comments of `tests/gates.sh:12-15`
+  and `:25-44` the owners): the first preflight line refuses a bash older
+  than 4.4 — exit 2, `gates.sh: bash 4.4 or newer is required, this is
+  bash <BASH_VERSION>` (`[script-hardening/plan.md D4]`) — because before
+  4.4 an empty array under `set -u` is an error, which the
+  `${MS_AGENTS[@]+…}` guard at G24 still avoids, its comment updated; only
+  the bash running `gates.sh` is checked, while the tests it runs use the
+  `bash` on `PATH` (`[script-hardening/plan.md FU-SH2]`). Shown by copies
+  with `BASH_VERSINFO` replaced, run with `env -u TMPDIR` (`D12`): 3 2 and
+  4 3 give that line, rc 2; 4 4 and 5 0 pass it and stop at the `TMPDIR`
+  line, rc 2, before any check (`plan.md` PC5). Then, after the `TMPDIR`
+  lines and before `command -v`, `PATH` is rewritten (`D3`, `D10`): a loop
+  over `"$PATH:"` keeps each entry that starts `/` or `~` (bash expands
+  `~` against `$HOME` when it searches `PATH`), makes an empty entry —
+  leading, middle or trailing — `$PWD`, and any other `$PWD/<entry>`, so
+  `jq`, `shellcheck` and the tests use, after the `cd`, the tool the
+  preflight found (`[slim-agents-md/follow-ups.md FU1]`, closed). An
+  all-absolute `PATH` is unchanged and `command -v claude` finds the same
+  CLI; shown with logging wrappers in a relative `relbin/` and
+  `PATH="~/.local/bin:relbin:.:$PATH:"` (`D13`; `plan.md` PC4, PC4b):
+  `PASS 31/31`, both wrappers ran. The 31 checks and exit codes are
+  otherwise unchanged; green `PASS 31/31`, exit 0, G14 `PASS 56/56`. Every `claude` command runs in
   one subshell with `CLAUDE_CONFIG_DIR` a new directory inside the work
   directory `mktemp -d "$TMPDIR/gates.XXXXXX"`, which an EXIT trap removes;
   INT, TERM and HUP exit 130, 143 and 129 through it (`D4`,
@@ -431,7 +461,14 @@ owning file is right and this spec is out of date.
   the first line that begins `glab-shared-store:` (R6;
   `[flow-product-level/result.md]` *Unplanned changes*); a repo's own
   `AGENTS.md` line wins over it (`docs/specs/product.md`, *The shared
-  store*).
+  store*). Since `64b4e57` (`glab` 0.16.3, `script-hardening`,
+  `[script-hardening/plan.md D2]`) *glab shared store* ends with one
+  sentence, "The filesystems it may sit on are named in the header of
+  `plugins/glab/scripts/plan-gate.sh`" (`host.example.md:39-41`), and
+  `README.md` *The shared store* says the same (`README.md:99-100`); both
+  point at the header and restate none of it, and `docs/one-fact.md` is
+  unchanged (`[flow-gate-hardening/follow-ups.md FG-2]`, closed, in
+  `docs/specs/product.md`).
 - **The repo's own rules** are `AGENTS.md` (8313 bytes as of `bf9c73f`,
   its `plan/` rule gaining where the record is committed and the removal
   on the user's word; 8212 bytes as of `3ed6746`,
@@ -990,6 +1027,13 @@ owning file is right and this spec is out of date.
 - [docs-lifecycle/plan.md D44] (manager, 2026-11-18) Round 2 was the plan-check cap; N1–N9 were fixed as the checker specified and verified by the manager's greps, not by a third round (`docs/specs/workflow.md` *Incidents*).
 - [lifecycle-hardening/plan.md D3] (the repo's half) `AGENTS.md`'s `plan/` rule says, in one sentence, that the record is committed on the change's branch, after its push and before its merge, "on the change's branch" on one line; `docs/one-fact.md` gains *Where the record is committed*, its fact, then the bullets `` - `plugins/glab/skills/project-record/SKILL.md` `` and ``- and `AGENTS.md`'s `plan/` rule`` (`docs/specs/workflow.md` for the rule).
 - [lifecycle-hardening/plan.md D5] `glab` 0.16.1 → 0.16.2, once; the version is stated only in `plugins/glab/.claude-plugin/plugin.json` (`F7`); `memory-sync` unchanged.
+- [script-hardening/plan.md D3] (FU1) Before the preflight's `command -v`, `tests/gates.sh` rewrites `PATH` as `D10` says.
+- [script-hardening/plan.md D4] (FU2) The first preflight line refuses a bash older than 4.4: exit 2, `gates.sh: bash 4.4 or newer is required, this is bash <BASH_VERSION>`. Support for an older bash cannot be proven on the build host (`plan.md` F9: only bash 5.3.9, no image to pull); the `+` guard at G24 stays, its comment updated.
+- [script-hardening/plan.md D5] `glab` 0.16.2 → 0.16.3, once, in `plugins/glab/.claude-plugin/plugin.json`, which alone states it (`plan.md` F10); `memory-sync` unchanged.
+- [script-hardening/plan.md D6] One `fix(skills)` commit for the change (`64b4e57`), then the `docs(repo)` record, in one PR (#23), to be rebase-merged. The plan's text says the commit goes "with this folder"; `plan/` is ignored, and `64b4e57` holds no file under it (`git show --stat 64b4e57`).
+- [script-hardening/plan.md D10] (`check.r1.md` F-c) The `PATH` loop runs over `"$PATH:"`, `e=${rest%%:*} rest=${rest#*:}`, so empty entries are kept, a trailing one included; entries starting `/` or `~` are kept (bash expands `~` against `$HOME`), an empty one becomes `$PWD`, any other `$PWD/<entry>`; the block runs `rest=$PATH: p=''` … `PATH=$p`.
+- [script-hardening/plan.md D12] (`check.r1.md` F-d) The version-substituted copies run with `env -u TMPDIR`, so a copy that passes the bash line stops at the `TMPDIR` line before any check.
+- [script-hardening/plan.md D13] (`check.r1.md` F-g) The `PATH` post-condition's wrappers log to and exec by absolute paths, since `gates.sh` changes into the repo.
 
 ## Known limits and not verified
 
@@ -1007,12 +1051,13 @@ owning file is right and this spec is out of date.
 - The new tests show the scripts, not a session: `tests/manager-bootstrap.test.sh` runs the hook script with a made-up `AGENTS.md` and `tests/product-loop.test.sh` plays every agent from fixtures; that the hook picks the product text in a live session, and every other runtime claim of the product level, is LP1–LP6, UNVERIFIED (`docs/specs/product.md` *Known limits*).
 - `[flow-product-level/plan.md]` X4 cannot run as written: `docs/specs/product.md` *Known limits*, `[flow-product-level/result.md X4]`.
 - [slim-agents-md/plan.md Not done] UNVERIFIED: that the CLI's Hooks order is stable — taken as stable because the old gate compared that line exactly; G22 and G25 compare it exactly and passed at `113870b` (`[slim-agents-md/result.md]` *Not done*).
-- [slim-agents-md/follow-ups.md FU2] UNVERIFIED: `tests/gates.sh` on bash older than 4.4, the `${MS_AGENTS[@]+…}` expansion included — only bash 5.3.9 was available (`[slim-agents-md/result.md]` *Fix round 1*).
+- [slim-agents-md/follow-ups.md FU2] UNVERIFIED: `tests/gates.sh` on bash older than 4.4, the `${MS_AGENTS[@]+…}` expansion included — only bash 5.3.9 was available (`[slim-agents-md/result.md]` *Fix round 1*). **Answered in part by `script-hardening` (`64b4e57`, 0.16.3):** such a bash is now refused by the first preflight line, exit 2 (`[script-hardening/plan.md D4]`); that a real one reaches that line and is refused is still UNVERIFIED, since only copies with `BASH_VERSINFO` replaced ran it (`plan.md` PC5); the `+` guard stays for that reason. The FU2 follow-up is closed (*Closed follow-ups*).
 - [slim-agents-md/result.md fix-round-1] UNVERIFIED: a full gate run with a relative `CLAUDE_BIN` pointing at the real CLI — only the two resolution lines (`tests/gates.sh:31-32`) were run, not a whole run.
 - [slim-agents-md/result.md M1] `claude plugin validate --strict` accepts an agent with no `model:` line: with `model: haiku` removed from a copy of `committer.md`, only G29 failed (`FAIL G29 agent models (9 lines): missing [plugins/glab/agents/committer.md:model: haiku]`, `FAIL 1/31`), so the model check is the only gate that catches it (the plan's UNVERIFIED, resolved by M1).
 - [docs-lifecycle/plan.md Evidence] The plan's UNVERIFIED gates baseline, `PASS 31/31` before the build — answered: the manager's B1 run printed `PASS 31/31`, rc 0, and so did the build, both review rounds (`[docs-lifecycle/review.r1.md]`, `review.r2.md`, *Claims*) and this record's run at `d2ca05b`.
 - [lifecycle-hardening/result.md Tests] The Markdown has no runtime: Steps 1–7 are shown by the post-condition greps and, after `D26`, by `result.md` *D26 rework*'s searches and listing run in a throwaway repo; no script or test changed (`/usr/bin/grep` over `tests/` printed nothing); gates `PASS 31/31`, exit 0, at every run and at review rounds 1–3. That a live session follows the text is UNVERIFIED (`docs/specs/workflow.md` *Known limits*).
 - [docs-lifecycle/result.md Tests] The Markdown has no runtime: P1–P22 are shown by the post-conditions PC1–PC28 (each at its expected value but PC12, which waits for this record and the folder's removal) and the gates, the text there, not a live session following it — UNVERIFIED, as for every prose rule. No script or test changed (PC11 printed nothing).
+- [script-hardening/plan.md Coverage] UNVERIFIED, as of `64b4e57`: a real bash older than 4.4 running `tests/gates.sh` — none was at hand (`plan.md` F9), and only the version-substituted copies ran the refusal; bash 5.3.9 ran the gates, and bash 5.2.37 and 5.1.16 ran the plan-gate suite and passed (the manager, this record's dispatch; `docs/specs/product.md` *Incidents*); bash 4.4 and 5.0 were not run; macOS was not checked (`[script-hardening/review.r1.md]`, `review.r2.md` *Not checked*). The `plan-gate.sh` items — real ENOSPC or EDQUOT, the code 1 after a failed open in a real race, the re-create under the lock — are in `docs/specs/product.md` *Known limits*.
 
 ## Open follow-ups
 
@@ -1020,11 +1065,12 @@ owning file is right and this spec is out of date.
 - [bug-reviewer-findings/follow-ups.md 20] No `.gitignore`, and no Markdown lint, so the prose files have no gate — open: `git show 6838133:.gitignore` finds no such file; a Markdown gate is out of scope for `feature-docs-specs` too. Re-read at `3ed6746`: a `.gitignore` exists (since `0cfe335` with `plan/handoff/`, since `3ed6746` `/plan/`); the Markdown gate half is still open — `AGENTS.md` *Gates*: "The Markdown files have no gate."
 - [feature-docs-specs/follow-ups.md 3] `README.md:226`: the `plan/` row says "removed once each change is recorded", while `AGENTS.md` removes a folder only once it has landed on `origin/main`. Suggested: "removed after each change has landed, under this repo's `AGENTS.md`" — open; the conformance round 3/4 hand-off named the same line. Re-read at `3ed6746`: `README.md:377` still reads "removed once each change is recorded"; under `docs-lifecycle` the manager removes a folder once its record has landed on `origin/main` (`AGENTS.md`'s `plan/` rule), and the plan took the row as already true (`[docs-lifecycle/plan.md E5]`, P19 "Line 374 stays") — still open, the wording the item suggests being closer to the rule. Re-read at `bf9c73f` (`lifecycle-hardening`): `README.md:378` reads "removed on your word once each change is recorded" — the removal is now on the user's word, but the row still says "recorded" where the rule says the record has landed on `origin/main` — still open.
 - [feature-docs-specs/follow-ups.md 8] The *Records* lines of every spec, the transcript citations of `docs/specs/external-agents.md` *Profiles* and *Live runs* and its rev2-build line under *Incidents*, and the list form of `AGENTS.md`'s `plan/` rule: `git ls-tree -r --name-only <sha> -- plan/<slug>/` prints nothing, with exit 0, when run from a subdirectory. Suggested: add `--full-tree`, in the specs and `AGENTS.md` in the same commit — open. Re-read at `467b7c4`: `AGENTS.md`'s list form still has no `--full-tree`, and the `docs/specs/external-agents.md` citations stay, that spec being kept as a record — still open. Re-read at `3ed6746`: `AGENTS.md`'s list form is gone (`ls-tree` → `0` there), so only the older *Records* lines of the specs and the `docs/specs/external-agents.md` citations hold it, all kept as records — still open, for those.
-- [slim-agents-md/follow-ups.md FU1] `tests/gates.sh:33-35` (review round 2, low): only `claude` is made absolute before the `cd`; a `jq` or `shellcheck` found through a relative `PATH` entry passes the preflight and then gives `FAIL` lines instead of exit 2. Suggested: resolve both the way `:32` resolves `claude`, or say in the `:24-26` comment that only `claude` gets it — open.
-- [slim-agents-md/follow-ups.md FU2] `tests/gates.sh` untested on bash older than 4.4 (*Known limits*) — open: needs an older bash.
+- [script-hardening/plan.md FU-SH2] `tests/gates.sh` checks only its own bash: the tests it runs use the `bash` on `PATH`, which may be another, older one (`plan.md` F9; `tests/gates.sh:28-29`). Opened by `script-hardening` (0.16.3) — open.
 
 ## Closed follow-ups
 
+- [slim-agents-md/follow-ups.md FU1] `tests/gates.sh:33-35` (review round 2, low): only `claude` is made absolute before the `cd`; a `jq` or `shellcheck` found through a relative `PATH` entry passes the preflight and then gives `FAIL` lines instead of exit 2. Suggested: resolve both the way `:32` resolves `claude`, or say in the `:24-26` comment that only `claude` gets it — open → **closed by `64b4e57`** (`glab` 0.16.3, `script-hardening`, PR #23), `[script-hardening/plan.md D3]`, `D10`: every relative `PATH` entry, an empty one included, is made absolute against the calling directory before the preflight's `command -v`, so the checks after the `cd` use the tool the preflight found; shown by logging wrappers on a relative `PATH` entry, both run, `PASS 31/31` (`plan.md` PC4, PC4b; *The gates*, above).
+- [slim-agents-md/follow-ups.md FU2] `tests/gates.sh` untested on bash older than 4.4 (*Known limits*) — open: needs an older bash → **closed by `64b4e57`** (`glab` 0.16.3, `script-hardening`, PR #23), `[script-hardening/plan.md D4]`: support cannot be proven on the build host (`plan.md` F9), so the first preflight line refuses a bash older than 4.4 with exit 2 and one line; the refusal on a real bash older than 4.4 is UNVERIFIED (*Known limits*, where the FU2 line is amended too).
 - [feature-docs-specs/follow-ups.md 1] `AGENTS.md:225`: the `git archive` read-back extracts into a directory it never prints. Suggested: `t=$(mktemp -d "${TMPDIR:?}/plan.XXXXXX") && git archive <sha> plan/<slug>/ | tar -x -C "$t" && echo "$t"` — open. **Closed by `docs-lifecycle` (`3ed6746`, P21):** `AGENTS.md` holds no `git archive` read-back any more (`/usr/bin/grep -c 'git archive' AGENTS.md` → `0`); its one read-back is `git show <sha>:plan/<slug>/<file>`. The form stays in older *Records* lines, kept as records.
 - [feature-docs-specs/follow-ups.md 6] `AGENTS.md:220-224`: the repo's removal rule should name the forms that are never valid — never `plan/`, `plan/.`, or a slug outside `[A-Za-z0-9._-]`; review round 2 measured that `plan/./` removes every folder under `plan/` (*Incidents*) — open. **Closed by `docs-lifecycle` (`3ed6746`; `[docs-lifecycle/plan.md D23]`):** `AGENTS.md` holds no removal rule of its own; the removal is `glab:session-rules` Rule 2's plan-folder approval, whose slug must match `[A-Za-z0-9][A-Za-z0-9_-]{0,127}` as a whole name and not be `handoff` — no empty slug, no `.`, no `/`, no `..` — and whose command is `rm -r -- plan/<slug>`, run only after the symlink, `realpath` and `.git` checks.
 - [remove-external-agents/record.md review-r1-advisory] Review round 1 advisory, carried from the manager's Stage 8 dispatch (no review file is in the folder): `AGENTS.md:168`, the `plan/` rule, still lists `external-agents.md` among the area specs a record updates, although the area is gone (`[remove-external-agents/plan.md D8]`). Suggested reword of that list item: "`external-agents.md` (removed in 0.8.0, a record only)". It is an `AGENTS.md` change, not a spec change, so the record does not make it → closed 2026-10-20: `AGENTS.md`'s `plan/` rule now reads "`external-agents.md` (removed in 0.8.0, a record only)".
@@ -1058,6 +1104,7 @@ owning file is right and this spec is out of date.
 - **The planner overran its budget** (`slim-agents-md`): about 122k tokens against a 60k cap. UNVERIFIED in the repo — the figure is the manager's (record dispatch); no file under `plan/slim-agents-md/` states it.
 - **The removal command emptied a symlink's target, twice, in plan check** (`docs-lifecycle`, plan check rounds 1 and 2; `[docs-lifecycle/check.r1.md F1]`, `[docs-lifecycle/check.r2.md N2]`; told in full in `docs/specs/workflow.md` *Incidents*): `rm -r -- plan/<slug>/` on a symlinked slug folder, then `rm -r -- plan/s` through a symlinked `plan`, emptied a target outside `plan/` in throwaway repos while every planned condition passed — the same lesson as *A removal path that is not exact removes all of `plan/`*, above. The approval now checks both symlinks and the `realpath` from the repo root, and its command has no trailing slash.
 - **Review round 3's helper wrote outside the temp root** (`lifecycle-hardening`, 2026-11-18; `[lifecycle-hardening/review.r3.md]`, process note): the reviewer's check helper wrote one file to `/tmp/.x`, outside the allowed temp root `/data/tmp/claude` (the host file's temp directory, *Host and tool hazards* above); the reviewer removed it by its exact path, and `/data/tmp/claude/rv-rule2-c5uvw6` too, and the repo kept the same 16 modified files and no new one. Nothing else is known to have been written there. The rule it broke is the same as *A wildcard `rm` in the shared temp directory*'s: temp files only in the host file's temp directory, removed by exact path.
+- **`script-hardening`'s incidents, pointed at, told in full in `docs/specs/product.md` *Incidents*** (2026-11-18): review round 1 found that a failed `exec 9>` redirection ends bash silently in posix mode, hence `command exec` (`[script-hardening/review.r1.md]`); review round 2 found that T56 failed on bash 4.4–5.2, the function name `[` being rejected in posix mode (`[script-hardening/review.r2.md]`); the planner's background run of the FU-SH1 hang had to be stopped (the manager, this record's dispatch); and plan check round 2, the plan-check cap (`[script-hardening/plan.md D20]`), and review round 2 were the caps, their fixes verified by the manager, review round 2's verified on bash 5.2 (`D23`); the suite ran on bash 5.2.37 and 5.1.16 in local container images with `--network none` and the repo mounted read-only (the manager, this record's dispatch).
 
 ## Records
 
@@ -1124,3 +1171,11 @@ owning file is right and this spec is out of date.
   - Incidents → review round 3's `/tmp/.x`, under *Incidents*; the automatic-removal failures in `docs/specs/workflow.md` *Incidents*.
   - Feature page → `docs/features/docs-lifecycle.md`: its `## Record` change was the date-guard design, superseded by `D26`, and the page was rewritten for `D26` in `bf9c73f` itself; this record shortened it from 2315 to 2047 bytes, its meaning kept, on the manager's decision (*Closed follow-ups*).
   - Record → this record, in this file, `docs/specs/workflow.md`, `docs/specs/product.md` and `docs/features/docs-lifecycle.md`; no audit file.
+- 2026-11-18 · script-hardening · 64b4e57 · 64b4e57 · script-hardening · #23
+  - PR #23 (glab-services/skills), not merged at this record; recorded in `docs/specs/product.md`, its primary area (`plan-gate.sh`'s failed-write path and exit codes, the pre-open guard, `command exec`, the store-filesystem pointer, T52–T56 and `PASS 56/56`); here: `glab` 0.16.3 (`memory-sync` 0.1.0), `tests/gates.sh`'s bash 4.4 refusal and `PATH` rewrite (31 checks, `PASS 31/31`), the pointers in `README.md` and `host.example.md`; `AGENTS.md` and `docs/one-fact.md` unchanged. The plan folder was not kept in git.
+  - [script-hardening/plan.md Decisions] Decisions → `D3`–`D6`, `D10`, `D12`, `D13` above under *Decisions that still bind*; the others in `docs/specs/product.md`.
+  - Not verified → a real bash older than 4.4 and macOS, above under *Known limits*, the FU2 line amended; the `plan-gate.sh` items in `docs/specs/product.md`.
+  - Follow-ups → closed: `[slim-agents-md/follow-ups.md FU1]`, `FU2`, moved to *Closed follow-ups* (the slim-agents-md record's line above still lists them as open, as of its record); open: `[script-hardening/plan.md FU-SH2]`; FU-SH1, FU-SH3, FU-SH4 and the closed FG-1 and FG-2 in `docs/specs/product.md`.
+  - Security → no secrets; no hook contract changed, and `plan-gate.sh`'s contract in `AGENTS.md` *Rules* holds unchanged (`[script-hardening/plan.md D1]`, `plan.md` F6, PC7).
+  - Incidents → pointed at under *Incidents*, told in full in `docs/specs/product.md`.
+  - Record → this record, in this file and `docs/specs/product.md`; no feature page, no audit file.
