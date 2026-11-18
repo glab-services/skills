@@ -172,27 +172,70 @@ owner_gone() {
 	return 2
 }
 # create_line <file>: creates <file> holding the line ME, with bash's own O_CREAT|O_EXCL open
-# (noclobber, set -C) under umask 022; 1 when the name is there or the write fails, bash's message
-# dropped, so that the caller's refusal stays the one line on stderr. In this bash, not a ( )
-# subshell, so that the signals held around it stay held (hold_signals). It turns noclobber off and
-# puts back MASK, the umask this run started with, on either result: nothing else in this script
-# sets either. MASK is read once here, before any signal is held, since $( ) is a subshell too.
+# (noclobber, set -C) under umask 022, and returns what happened, bash's messages dropped so that
+# the caller's line stays the one line on stderr [script-hardening/plan.md D7]:
+#   0 written;
+#   1 the name is there - found before the open, or found there after the open failed;
+#   2 the open failed and no name is there;
+#   3 the write failed - a full disk or quota, a file size limit - and the file this run made is
+#     removed again, by its name;
+#   4 the write failed and that removal failed too (create_failed says so).
+# The open is an `exec` of fd 9 and the write a second command, so the two failures differ. When one
+# redirection opened and wrote at once, a failed write looked like a name that is there: claim then
+# handed the run's own empty file to take_over, which refused and asked a person to remove it
+# [flow-gate-hardening/follow-ups.md FG-1]. Each exec goes through `command`: exec is a special
+# builtin, and in posix mode - POSIXLY_CORRECT in the environment - a failed redirection on it ended
+# the shell at once, exit 1 and its message dropped, so a run that lost a claim race or could not
+# write the folder printed nothing; under `command` the failure is a status the code below reads
+# [script-hardening/review.r1.md] [script-hardening/plan.md D21]. The name is tested first, a
+# symlink included, because noclobber opens an existing name that is not a regular file without
+# O_EXCL: a claim that was a link to /dev/null opened and took the line, and the run went on with no
+# exclusive claim. Two windows stay open, each needing a writer that acts against this run on
+# purpose [script-hardening/plan.md D11, FU-SH3]: (1) a name that is not a regular file, put there
+# between the test and the open, still opens without O_EXCL, and when the write then fails, the rm
+# of code 3 removes that planted name - a symlink to /dev/full did so in the review's probe, the run
+# exiting 2 [script-hardening/review.r1.md]; (2) a file put at the name between a failed write and
+# the rm is removed. In this bash, not a ( ) subshell, so that the signals held around it
+# stay held (hold_signals). It turns noclobber off and puts back MASK, the umask this run started
+# with, on every result: nothing else in this script sets either, and nothing else uses fd 9. MASK is
+# read once here, before any signal is held, since $( ) is a subshell too.
 MASK=$(umask)
 create_line() {
 	local rc=0
 	umask 022
 	set -C
-	{ printf '%s\n' "$ME" >"$1"; } 2>/dev/null || rc=1
+	if [ -e "$1" ] || [ -L "$1" ]; then
+		rc=1
+	elif ! { command exec 9>"$1"; } 2>/dev/null; then
+		if [ -e "$1" ] || [ -L "$1" ]; then rc=1; else rc=2; fi
+	elif ! { printf '%s\n' "$ME" >&9; } 2>/dev/null; then
+		command exec 9>&-
+		if rm -f -- "$1" 2>/dev/null; then rc=3; else rc=4; fi
+	else
+		command exec 9>&-
+	fi
 	set +C
 	umask "$MASK"
 	return "$rc"
+}
+# create_failed <file> <code>: ends the run with exit 2 for create_line's code 2, 3 or 4 on <file>,
+# in one stderr line. For 4 the line names the file left behind, which no later run can tell from a
+# live run's claim or lock.
+create_failed() {
+	if [ "$2" -eq 4 ]; then
+		echo "plan-gate.sh: writing $1 failed, and removing it failed; remove $1 by hand" >&2
+		exit 2
+	fi
+	io "writing $1"
 }
 
 # claim <file> <refusal>: makes this run the one writer of a number, or refuses with <refusal> when
 # another run holds it. The claim is the file <file> holding the line ME, created by bash itself with
 # noclobber (set -C), which opens a name that is not there with O_CREAT|O_EXCL: of two runs at once
 # only one creates it. Not mkdir, and not a test for the name followed by a write: whether mkdir
-# fails on a name that exists depends on the coreutils, and the open is bash's own. Measured on a
+# fails on a name that exists depends on the coreutils, and the open is bash's own; the test
+# create_line makes before the open only refuses sooner, the O_EXCL open is still what makes one run
+# the winner. Measured on a
 # host whose mkdir is uutils coreutils 0.10.0: two mkdir calls racing on one name both exited 0 in
 # 11 of 40 tries (GNU mkdir 0 of 40, these set -C opens 0 of 40); with the copy folder claimed by
 # mkdir, two reports at once, each delayed 1 s before its mkdir, both wrote into one folder in 10 of
@@ -204,19 +247,23 @@ create_line() {
 # the other level's account can read the line. A run killed by SIGKILL runs no trap and leaves its
 # claim: a later run finds it and hands it to take_over, which takes it over when that run provably
 # no longer runs and otherwise refuses, naming the file - a live run's claim and one that cannot be
-# proven stale look the same to a person. Because a claim is removed, a run that read the store
-# before another run published that number can claim it afterwards: the caller tests again under
-# the claim.
+# proven stale look the same to a person. Only create_line's 1, the name is there, goes to
+# take_over; a create that failed (2, 3 or 4) ends the run with exit 2 (create_failed), having
+# removed nothing but the file it made itself, by that name - not another run's claim, which it
+# never opened. Because a claim is removed, a run that read the store before another run published
+# that number can claim it afterwards: the caller tests again under the claim.
 claim() {
+	local rc=0
 	whoami
 	hold_signals
-	if create_line "$1"; then
+	create_line "$1" || rc=$?
+	if [ "$rc" -eq 0 ]; then
 		CLAIM=$1
 		release_signals
 		return 0
 	fi
 	release_signals
-	[ -e "$1" ] || io "writing $1"
+	[ "$rc" -eq 1 ] || create_failed "$1" "$rc"
 	take_over "$1" "$2"
 }
 # take_over <claim> <refusal>: the claim <claim> is there and is not this run's. Takes it over when
@@ -232,9 +279,12 @@ claim() {
 # the line read under the lock stays the claim's until this run removes it; a line names one process,
 # so a new claim never repeats a stale one. The claim is read with head, one line - a claim is one.
 # A run killed by SIGKILL while it holds the lock, a few commands long, leaves the lock: every later
-# takeover of that number is refused, naming it, until someone removes it.
+# takeover of that number is refused, naming it, until someone removes it. create_line's codes
+# decide each create here: a lock that is there (1) is refused, naming it; a lock that could not be
+# made (2, 3 or 4) ends the run with exit 2 (create_failed), and so does a claim whose re-create
+# under the lock failed - a re-create that finds the name there (1) is refused, naming the claim.
 take_over() {
-	local line again kind=${1##*/.plan-gate.claim.}
+	local line again rc=0 kind=${1##*/.plan-gate.claim.}
 	local tmp=${1%/*}/.plan-gate.tmp.$kind lock=${1%/*}/.plan-gate.takeover.$kind
 	line=$(head -n 1 -- "$1" 2>/dev/null)
 	owner_gone "$line"
@@ -247,20 +297,22 @@ take_over() {
 		;;
 	esac
 	hold_signals
-	if ! create_line "$lock"; then
+	create_line "$lock" || rc=$?
+	if [ "$rc" -ne 0 ]; then
 		release_signals
-		if [ -e "$lock" ]; then refuse "$2; when no run is writing, remove $lock by hand"; fi
-		io "writing $lock"
+		if [ "$rc" -eq 1 ]; then refuse "$2; when no run is writing, remove $lock by hand"; fi
+		create_failed "$lock" "$rc"
 	fi
 	LOCK=$lock
 	again=$(head -n 1 -- "$1" 2>/dev/null)
 	if [ "$again" = "$line" ]; then rm -f -- "$tmp" "$1" || io "writing $1"; fi
-	if create_line "$1"; then CLAIM=$1; fi
+	create_line "$1" || rc=$?
+	if [ "$rc" -eq 0 ]; then CLAIM=$1; fi
 	rm -f -- "$lock" || io "writing $lock"
 	LOCK=''
 	release_signals
 	if [ -z "$CLAIM" ]; then
-		[ -e "$1" ] || io "writing $1"
+		[ "$rc" -eq 1 ] || create_failed "$1" "$rc"
 		refuse "$2; when no run is writing, remove $1 by hand"
 	fi
 }

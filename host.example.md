@@ -36,4 +36,6 @@ glab-shared-store: <path to the shared folder>
 
 The folder where the product level and its projects exchange briefs, reports
 and verdicts. Its path is a fact of one machine, so it sits here; a repo whose
-`AGENTS.md` has its own `glab-shared-store:` line uses that one instead.
+`AGENTS.md` has its own `glab-shared-store:` line uses that one instead. The
+filesystems it may sit on are named in the header of
+`plugins/glab/scripts/plan-gate.sh`.

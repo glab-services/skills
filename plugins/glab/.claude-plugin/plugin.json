@@ -1,6 +1,6 @@
 {
   "name": "glab",
-  "version": "0.16.2",
+  "version": "0.16.3",
   "description": "The glab workflow: a product level that plans a business plan into project briefs and judges each project's plan, and a project level that plans, develops, analyzes, integrates, reviews, commits, pushes and records through dedicated agents, with evidence and comment discipline",
   "author": {
     "name": "glab-services"

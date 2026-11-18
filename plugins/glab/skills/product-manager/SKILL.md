@@ -24,7 +24,7 @@ The list `glab:session-rules` *The level boundary* binds to. Invoke nothing that
 
 The product level and its projects exchange plain files in one shared folder, the store.
 
-**Where it is.** The first `glab-shared-store: <path>` line of the repo's `AGENTS.md`, else the first one of `~/.claude/host.md`; `~/` is the home directory. No such line → stop and ask the user for the path. Say which path is in use, and where it came from, before the first write.
+**Where it is.** The first `glab-shared-store: <path>` line of the repo's `AGENTS.md`, else the first one of `~/.claude/host.md`; `~/` is the home directory. No such line → stop and ask the user for the path. Say which path is in use, and where it came from, before the first write. The filesystems the store may sit on are named in the header of `"${CLAUDE_PLUGIN_ROOT}/scripts/plan-gate.sh"`.
 
 **Before anything writes it**, the store is one of this session's directories — `claude --add-dir <store>` when the session starts, or `/add-dir <store>` in it — or it sits inside the product repo. Otherwise every write into it, the product planner's briefs and the verdict's Bash call alike, waits on a permission prompt. Whether a subagent's Write there is prompted or refused is UNVERIFIED (LP6).
 

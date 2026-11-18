@@ -9,9 +9,10 @@
 # before any check. It changes no file in the repo; its work directory under `$TMPDIR` is removed
 # on every exit path, an INT, TERM or HUP signal included.
 #
-# Exit codes: 0 every check passed; 1 at least one check failed; 2 a preflight failed (no TMPDIR
-# or one that is not an absolute path, no Claude Code CLI, no jq or no shellcheck, or no work
-# directory), in which case it prints one line on stderr and no ok, FAIL or PASS line.
+# Exit codes: 0 every check passed; 1 at least one check failed; 2 a preflight failed (a bash
+# older than 4.4, no TMPDIR or one that is not an absolute path, no Claude Code CLI, no jq or no
+# `shellcheck`, or no work directory), in which case it prints one line on stderr and no ok, FAIL
+# or PASS line.
 set -uo pipefail
 
 # Preflight. A failed one stops the script before any check, with one stderr line and exit 2,
@@ -21,11 +22,37 @@ set -uo pipefail
 # ran as a script or through an agent's shell, but pasted into an interactive shell the `:?`
 # aborts only its own line and the rest still ran; a script stops instead. `:?` is not used here
 # either: it prints a bash-formatted `...: line n: ...` message and exits 1, not 2.
-# The TMPDIR and CLI lines run before the `cd` below: a relative `TMPDIR` would put the work
-# directory inside the repo, so it is refused, and a relative `CLAUDE_BIN` (or a relative `PATH`
-# entry) is made absolute against the directory the script was called from.
+# The bash line is first: this script is known to have run on bash 5.3.9 only, and an older bash -
+# before 4.4 an empty array under `set -u` is an error (the guard at G24 below) - could fail
+# part-way with its own message; this line stops it with one line instead
+# [slim-agents-md/follow-ups.md FU2] [script-hardening/plan.md D4]. Only this bash is checked; the
+# tests below run under the `bash` on `PATH`, which may be another [script-hardening/plan.md FU-SH2].
+# That a real bash older than 4.4 reaches this line and is refused is UNVERIFIED: none was at hand,
+# so only copies of this script with the version numbers replaced ran it.
+# The TMPDIR, PATH and CLI lines run before the `cd` below: a relative `TMPDIR` would put the work
+# directory inside the repo, so it is refused; a relative `PATH` entry is made absolute against the
+# directory the script was called from, and so is a relative `CLAUDE_BIN`.
+if [ "${BASH_VERSINFO[0]}" -lt 4 ] || { [ "${BASH_VERSINFO[0]}" -eq 4 ] && [ "${BASH_VERSINFO[1]}" -lt 4 ]; }; then echo "gates.sh: bash 4.4 or newer is required, this is bash $BASH_VERSION" >&2; exit 2; fi
 [ -n "${TMPDIR:-}" ] || { echo 'gates.sh: TMPDIR unset - export it to the temp directory your host file names' >&2; exit 2; }
 case $TMPDIR in /*) ;; *) echo 'gates.sh: TMPDIR is not an absolute path - export it to the temp directory your host file names' >&2; exit 2 ;; esac
+# Every relative `PATH` entry made absolute against the directory the script was called from, an
+# empty one - which means that directory - included: the preflight's `command -v` found a relative
+# one from there, but the checks run after the `cd`, where the same entry names another directory or
+# none, so jq, shellcheck and the tests used another tool than the one the preflight found
+# [slim-agents-md/follow-ups.md FU1]. An entry starting `/` is kept, and so is one starting `~`,
+# which bash expands against `$HOME` when it searches `PATH`. The `:` added at the end ends the last
+# entry, so a trailing empty entry is kept too.
+rest=$PATH: p=''
+while [ -n "$rest" ]; do
+	e=${rest%%:*} rest=${rest#*:}
+	case $e in
+	/* | '~'*) ;;
+	'') e=$PWD ;;
+	*) e=$PWD/$e ;;
+	esac
+	p=${p:+$p:}$e
+done
+PATH=$p
 # `claude` is the Claude Code CLI: `claude` on `PATH`, or the path in `CLAUDE_BIN` that the host
 # file names, for a host without `claude` on `PATH`.
 claude=$(command -v "${CLAUDE_BIN:-claude}") || { echo 'gates.sh: no Claude Code CLI found - set CLAUDE_BIN to the path your host file names' >&2; exit 2; }
@@ -260,6 +287,8 @@ done_case G22 "glab $GLAB_HOOKS"
 component "$W/details.ms" Skills "${MS_SKILLS[@]}"
 done_case G23 "memory-sync Skills (${#MS_SKILLS[@]})"
 # The `+` expansion: an empty array under `set -u` is an unbound-variable error before bash 4.4.
+# The preflight refuses such a bash, but the guard stays: that refusal never ran on a real bash
+# older than 4.4 (UNVERIFIED), and the guard costs nothing.
 component "$W/details.ms" Agents ${MS_AGENTS[@]+"${MS_AGENTS[@]}"}
 done_case G24 "memory-sync Agents (${#MS_AGENTS[@]})"
 line=$(command grep -E '^  Hooks ' "$W/details.ms")

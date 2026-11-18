@@ -96,7 +96,8 @@ rules every level's manager runs under, and `glab:security`.
 **The shared store.** The levels exchange plain files in one shared folder,
 named by a line `glab-shared-store: <path to the shared folder>` in the
 repo's `AGENTS.md`, or else in `~/.claude/host.md`, where a machine's paths
-belong. Its layout:
+belong. The filesystems it may sit on are named in the header of
+`plugins/glab/scripts/plan-gate.sh`. Its layout:
 
     <store>/docs/product-rules/index.md       one line per rule file
     <store>/docs/product-rules/<name>.md      one topic, its size as glab:product-plan says
