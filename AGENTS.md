@@ -15,11 +15,12 @@ and this file disagree about how to work *in this repo*, this file wins.
   `hooks/hooks.json`, `scripts/memory-sync.sh` and `settings.example.json`.
 - `docs/specs/` — one spec per area: how it works now, why, what is not
   verified, what is open (*Rules*, the `plan/` rule).
+- `docs/features/` — one page per feature: what it does, how to use it.
 - `tests/` (the scripts' tests, `tests/gates.sh`, which runs every gate, and
   `tests/fixtures/product-loop/`, the walkthrough's sample product), `plan/`
   (the working area of changes in progress), `docs/`, `docs/one-fact.md` (the
-  *One fact* registry), `host.example.md`, `README.md`, `.gitignore` (it holds
-  `plan/handoff/`, the managers' per-session handoff files) and this file
+  *One fact* registry), `host.example.md`, `README.md`, `.gitignore`
+  (it holds `/plan/`, the working area, handoff files included) and this file
   belong to the repo and to neither plugin.
 
 ## Gates
@@ -93,9 +94,10 @@ repo and to nothing else.
   they describe changes; do not delete them.
 - **Tests clean up by PID.** A test kills only processes it started itself,
   never by name or pattern.
-- **`plan/` is the working area; `docs/specs/` is what stays.** A change's
-  `plan/<slug>/` is committed with the change. After its push, the record
-  (`glab:project-record`) updates the spec of each area it touched —
+- **`plan/` is the working area; `docs/` is what stays.** `plan/` is ignored
+  by git and never committed. After a change's push, the record
+  (`glab:project-record`) writes, from `plan/<slug>/` on disk, the spec of
+  each area it touched —
   `marketplace.md` (the marketplace, this repo's layout, gates and rules),
   `workflow.md` (the `glab` workflow), `product.md` (the product level and the
   product ⇄ project loop), `memory-sync.md`,
@@ -103,21 +105,18 @@ repo and to nothing else.
   now, the decisions that still
   bind, what is not verified, every follow-up — open or closed, each tagged
   `[<slug>/<file> <id>]` — and its incidents, moved into *Incidents* rather
-  than dropped (*Comments and recorded incidents are kept*). A spec states a
-  fact as of its last record and names the file that owns it, so it is not
-  one of the *One fact* files. Once the change has landed on `origin/main`,
-  the manager session — not a `glab` step — removes the folder by its exact
-  path in a `docs(repo)` commit, after checking that it is tracked, clean
-  (`git status --short -uall -- plan/<slug>/` prints nothing) and identical
-  on `origin/main` (`git diff --quiet origin/main -- plan/<slug>/`); the
-  spec's *Records* line names the last commit on `origin/main` that holds
-  it. Read it back without touching the tree: one file
-  `git show <sha>:plan/<slug>/<file>`, the list
-  `git ls-tree -r --name-only <sha> -- plan/<slug>/`, the whole folder
-  `git archive <sha> plan/<slug>/ | tar -x -C "$(mktemp -d "${TMPDIR:?}/plan.XXXXXX")"`.
-  No untracked file under `plan/` is removed, except a completed handoff file
-  under `glab:session-rules` Rule 2's standing approval;
-  `plan/handoff/` is never committed.
+  than dropped (*Comments and recorded incidents are kept*) — and a page in
+  `docs/features/` when what a user sees changed. A spec states a fact as of
+  its last record and names the file that owns it, so it is not one of the
+  *One fact* files. Its *Records* line names the date, the slug, and the
+  change's commits on the pushed branch by both ends, `<first>` and `<last>`,
+  the branch, and the PR when one exists; a squash or rebase merge can give the commits new shas, so
+  the branch and the PR are what to look up. Once the record has landed on
+  `origin/main`, the manager removes `plan/<slug>` at a session start under
+  `glab:session-rules` Rule 2's plan-folder approval, by its command there.
+  Nothing else under `plan/` is removed, except a completed handoff file under
+  the same Rule. A folder committed before glab 0.16.0 is read back from the
+  commit its *Records* line names: `git show <sha>:plan/<slug>/<file>`.
 - **A change under `plugins/<name>/` raises that plugin's `version`** in
   `plugins/<name>/.claude-plugin/plugin.json`, in the same commit. When one
   push carries several commits of one change — one per sub-plan — the first

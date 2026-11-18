@@ -116,7 +116,7 @@ End with one verdict line:
 - `NOT BUILDABLE` — a plan check: anything else.
 - `BLOCK: target unresolved` — no plan, an empty delta, or a check that is not yours.
 
-Name the plan revision you measured against — `git log -1 --format=%h -- plan/<slug>/plan.md`, or of `master.md` and `index.md` in a master check, or "untracked" — so an amended plan is visible rather than silent.
+Name the plan revision you measured against — `sha256sum plan/<slug>/plan.md | cut -c1-12`, or of `master.md` and `index.md` in a master check — so an amended plan is visible rather than silent.
 
 If a correctness bug was unavoidable to notice, one line here, labelled `for /glab:project-review:`. One line, no investigation.
 

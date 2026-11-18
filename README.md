@@ -37,9 +37,12 @@ the reviewer sees only the code, and `glab:project-analyzer`'s final check befor
 the push compares the master with everything built.
 Once the change has been pushed, the workflow records what
 stays true — how the area works, the decisions that still bind, what is open
-— in `docs/specs/<area>.md`, as a docs commit of its own. It never removes the
-plan folder: whether a repo does is that repo's `AGENTS.md` decision. A
-repo's `AGENTS.md` can also put specs elsewhere.
+— in `docs/specs/<area>.md`, and what a user can do with it in
+`docs/features/<feature>.md`, as a docs commit of its own. `plan/` is ignored
+by git and never committed; once the record has landed, the manager removes
+the plan folder at a session start. A repo's `AGENTS.md` can also put specs
+and feature pages elsewhere. The product level records each delivered
+business plan in `docs/roadmap/<slug>.md`.
 
 A plugin cannot ship global instructions. The session rules reach a session
 through the `glab` `SessionStart` hook, so they hold only while `glab` is
@@ -373,6 +376,7 @@ share one lock. Uninstalling the plugin leaves those files in place.
 | `tests/` | The scripts' tests — `memory-sync.sh` against a stub, the hooks, `plan-gate.sh` — and the product-loop walkthrough with its fixtures, `tests/fixtures/product-loop/`, and `tests/gates.sh`, every gate with its expected result |
 | `plan/` | Working area: the files of changes in progress, removed once each change is recorded |
 | `docs/specs/` | One spec per area: how it works now, why, what is not verified, what is open |
+| `docs/features/` | One page per feature: what it does and how to use it |
 | `docs/one-fact.md` | The *One fact, one value* registry: each fact more than one file states, and the files that state it |
 
 To try a change without installing anything, load the plugins for one session:

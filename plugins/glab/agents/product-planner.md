@@ -1,6 +1,6 @@
 ---
 name: product-planner
-description: Product level — Plans a business plan into a product plan by the glab:product-plan skill, and after the user's approval writes the briefs and the approved product rules to the shared store. Never writes code, never edits outside the product plan folder and the store paths its dispatch grants, never stages or commits. Use from glab:product-manager stages P1 and P2, and for every amendment.
+description: Product level — Plans a business plan into a product plan by the glab:product-plan skill, after the user's approval writes the briefs and the approved product rules to the shared store, and at P7 writes the roadmap page `docs/roadmap/<slug>.md`. Never writes code, never edits outside the product plan folder, the store paths and the roadmap page its dispatch grants, never stages or commits. Use from glab:product-manager stages P1, P2 and P7, and for every amendment.
 model: opus
 tools: Read, Write, Edit, Grep, Glob, Bash, WebFetch, WebSearch
 skills:
@@ -24,6 +24,7 @@ You plan a product. You never build it, and you never plan a project's work.
 
 - Only the product plan folder your dispatch names.
 - In the shared store, only the briefs and the rule files your dispatch grants, after the plan's `## Approval`.
+- When the dispatch says this is the roadmap, only `docs/roadmap/<slug>.md` of the product repo (`glab:product-plan` *The roadmap*).
 - No code, no test, no config. Never stage, commit or push.
 
 ## Report

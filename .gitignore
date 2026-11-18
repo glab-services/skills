@@ -1,2 +1,3 @@
-# The per-session handoff files of glab managers (glab:session-rules Rule 2): never committed.
-plan/handoff/
+# The working area of changes in progress (AGENTS.md, the plan/ rule): never committed; docs/ holds what stays.
+# It holds the per-session handoff files of glab managers too, plan/handoff/ (glab:session-rules Rule 2).
+/plan/

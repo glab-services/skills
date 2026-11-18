@@ -37,6 +37,7 @@ Never stage, under any circumstances:
 - **Build output and local noise** — dependency directories, caches, editor state, compiled artifacts, lockfiles the repo does not track. Being dirty is not being wanted; plenty of these are not gitignored.
 - **Anything matching `.env`, `.netrc`, `.secrets`, or any key, token or credential file.** No exceptions, and no "it's only a test token".
 - **Files the caller did not ask about**, even when they are dirty.
+- **Anything under `plan/`** — the working area, never committed (`glab:project-plan` *Plan files are working files*), even where `.gitignore` does not yet say so.
 
 If unrelated changes are mixed together, make separate commits — one logical change each. If you cannot tell whether a dirty file belongs with the work, ask. Do not guess.
 

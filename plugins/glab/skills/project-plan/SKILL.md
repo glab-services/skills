@@ -80,7 +80,7 @@ Write to `plan/{slug}/plan.md`. Must include:
 - test names to be added or updated;
 - the chosen implementation boundary;
 - why the other candidate boundaries were rejected;
-- `## Record`, in `master.md` (below) — the area spec or specs this change updates once it is pushed, any audit file under `plan/` it acts on, and what the entry will say. `glab:project-record` runs it (*Plan files are working files*).
+- `## Record`, in `master.md` (below) — the area spec or specs and the feature pages it writes, or `feature pages: none`, that this change updates once it is pushed, any audit file under `plan/` it acts on, and what the entry will say. `glab:project-record` runs it (*Plan files are working files*).
 
 Do not prescribe a concrete implementation shape until the boundary is proven by findings and recorded decisions. The plan must be complete enough that another agent could execute it without follow-ups.
 
@@ -123,7 +123,7 @@ The build is `glab:project-developer`'s, through `/glab:project-develop`; the E2
 
 ## Repo Rules
 
-**Plan files are working files; the spec is what stays.** Once the change is pushed, `glab:project-record` records it: a docs change updates the spec of each area the change touched — how the area works now, the decisions that still bind, what is not verified, and every follow-up still open and every incident, each under its source file and number. Specs live in `docs/specs/`, one file per area, unless the repo's `AGENTS.md` names another place. The record never removes `plan/{slug}/` or an audit file: whether a recorded plan folder is then removed, and how, is the repo's own `AGENTS.md` decision. A plan folder whose `master.md` — or `plan.md`, in a folder with no master — has no `## Record` was written before the repo followed this rule, and Stage 8 does not record it.
+**Plan files are working files; the docs are what stay.** `/plan/` is ignored by git and never committed; a repo without the line adds `/plan/` to `.gitignore` (`glab:bootstrap` step 5). After the push, `glab:project-record` writes from `plan/<slug>/` on disk: a docs change updates the spec of each area the change touched in `docs/specs/`, one file per area — how the area works now, the decisions that still bind, what is not verified, and every follow-up still open and every incident, each under its source file and number — and each feature page `docs/features/<feature>.md` whose user-visible behaviour changed. A feature page (kebab-case; the area's name when the area is one feature) says what the feature does, who it is for and how to use it: commands, inputs, outputs, and the limits a user meets; it never holds decisions, incidents, follow-ups or records, which stay in the spec. Both go where the repo's `AGENTS.md` names other places, if it does. The record never removes `plan/{slug}/` or an audit file. Once the record has landed on the default branch, the manager removes the folder at a session start (`glab:bootstrap` step 5) under `glab:session-rules` Rule 2's plan-folder approval; the docs are then the only copy. A plan folder whose `master.md` — or `plan.md`, in a folder with no master — has no `## Record` was written before the repo followed this rule, and Stage 8 does not record it.
 
 **One slug per task.** Reuse the same folder for findings, questions, and plan.
 

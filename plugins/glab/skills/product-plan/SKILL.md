@@ -35,6 +35,20 @@ A brief's `## Acceptance` and the rule files it names are the product's gates fo
 
 Whose the rules are, and how a rule file may change, is `glab:product-manager`'s. A draft from `## Rules to add` is written to `docs/product-rules/<name>.md` in the store only after the plan's approval: one topic per file, at most 8192 bytes, and `docs/product-rules/index.md` gains its line `- <name>.md — <what it covers>`.
 
+## The roadmap
+
+When the dispatch says this is the roadmap — stage P7 of `glab:product-manager`, once the slug is delivered — write `docs/roadmap/<slug>.md` of the product repo, named by the product slug. It is written from `plan/<slug>/product-plan.md`, its round copies `product-plan.r<n>.md`, and the store's briefs and latest verdicts. Nothing is dropped, and each item carries its source file and id. It holds:
+
+- the business plan: its path, its `sha256sum` and the user's words that define it, verbatim;
+- the goals `P1`, `P2`, …;
+- per project: its goal, its scope, what is out of its scope, its rule files, its seams, its brief's store path, and its final `verdict.r<n>.md`;
+- the rules added;
+- every `## Decisions` line, with its reason;
+- the answered questions, with the user's words;
+- the round history: the `NOT SOUND` rounds, and the `REJECTED` verdicts with their reasons;
+- the open items, each tagged `[<slug>/product-plan.md <id>]`;
+- its *Records* line, in the form `glab:project-record` states.
+
 ## Where it stops
 
-The plan written, or after the approval the briefs and the rule files written. The checks, the approvals and the verdicts are the product manager's. The store's layout is `glab:product-manager` *The shared store*'s.
+The plan written, or after the approval the briefs and the rule files written, or, when the dispatch says this is the roadmap, `docs/roadmap/<slug>.md` written. The checks, the approvals and the verdicts are the product manager's. The store's layout is `glab:product-manager` *The shared store*'s.
