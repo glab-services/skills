@@ -27,20 +27,24 @@ Your repo's `AGENTS.md` can name other places.
 
 ## When a plan folder is removed
 
-The record never removes anything. Once the record has landed on the
-default branch, the manager removes `plan/<slug>` at a later session
-start, without asking, only when every check passes: neither `plan` nor
-the folder is a symlink, it resolves inside this repo, it holds no nested
-repository and no tracked file, and nothing in it is newer than its
-record. Not landed yet: it waits. A check that cannot run: it stays, and
-the session start says so. Any other failure: the manager asks you. A
-folder committed before glab 0.16.0 is never removed this way. After
-removal the docs are the only copy.
+The record never removes anything, and nothing removes a plan folder
+without asking you. Once the record has landed on the default branch, the
+manager lists `plan/<slug>` at a later session start when every check
+passes: neither `plan` nor the folder is a symlink, it resolves inside this
+repo, and it holds no nested repository and no tracked file. With each
+folder it shows the commit that landed the record and every file in the
+folder newer than that commit's author date, and it asks you once which to
+remove. It removes only the folders you name, checking them again first; a
+folder you keep is not asked about again that session. Not landed yet: it
+waits. A check that cannot run: it stays, and the session start says so.
+Any other failure: the manager asks you. A folder committed before glab
+0.16.0 is never removed this way. After removal the docs are the only
+copy.
 
 ## Where the rules live
 
 - `glab:project-plan` *Plan files are working files* — the lifecycle.
 - `glab:project-record` — what a record writes, and the *Records* line.
-- `glab:session-rules` Rule 2 — the plan-folder approval and its checks.
+- `glab:session-rules` Rule 2 — the plan-folder listing, its checks and the removal.
 - `glab:bootstrap` step 5 — where the removal and `.gitignore` check run.
 - `glab:product-manager` P7 — the roadmap page.

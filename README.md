@@ -39,8 +39,9 @@ Once the change has been pushed, the workflow records what
 stays true — how the area works, the decisions that still bind, what is open
 — in `docs/specs/<area>.md`, and what a user can do with it in
 `docs/features/<feature>.md`, as a docs commit of its own. `plan/` is ignored
-by git and never committed; once the record has landed, the manager removes
-the plan folder at a session start. A repo's `AGENTS.md` can also put specs
+by git and never committed; once the record has landed, the manager asks
+at a session start whether to remove the plan folder, and removes it only on
+your word. A repo's `AGENTS.md` can also put specs
 and feature pages elsewhere. The product level records each delivered
 business plan in `docs/roadmap/<slug>.md`.
 
@@ -374,7 +375,7 @@ share one lock. Uninstalling the plugin leaves those files in place.
 | `plugins/` | The two plugins. Payload: written for the sessions of whoever installs them |
 | `host.example.md` | Template for the per-machine `~/.claude/host.md` |
 | `tests/` | The scripts' tests — `memory-sync.sh` against a stub, the hooks, `plan-gate.sh` — and the product-loop walkthrough with its fixtures, `tests/fixtures/product-loop/`, and `tests/gates.sh`, every gate with its expected result |
-| `plan/` | Working area: the files of changes in progress, removed once each change is recorded |
+| `plan/` | Working area: the files of changes in progress, removed on your word once each change is recorded |
 | `docs/specs/` | One spec per area: how it works now, why, what is not verified, what is open |
 | `docs/features/` | One page per feature: what it does and how to use it |
 | `docs/one-fact.md` | The *One fact, one value* registry: each fact more than one file states, and the files that state it |

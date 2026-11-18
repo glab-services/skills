@@ -143,7 +143,7 @@ A buffer shared across concurrent requests is a defect until proven otherwise. A
 
 Before any delete, overwrite, truncate, reset, drop or force: **look at the target first.** Confirm it is what you think it is, and establish whether it is recoverable.
 
-Untracked files, dropped volumes, remote branch history and reset working trees are not recoverable. For those, stop and ask — approval for one destructive action never carries to the next, except the standing approvals of `glab:session-rules` Rule 2.
+Untracked files, dropped volumes, remote branch history and reset working trees are not recoverable. For those, stop and ask — approval for one destructive action never carries to the next, except the standing approval of `glab:session-rules` Rule 2.
 
 ## Secrets never enter output
 

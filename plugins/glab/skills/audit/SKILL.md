@@ -62,4 +62,4 @@ The four levels and their meanings are `glab:severity`'s.
 1. Confirm the file is saved under `plan/` (create the directory if needed).
 2. Tell the user the path and a one-line summary of what it contains.
 3. Ask whether they want to act on any finding now — if so, that work goes through [glab:project-plan](../project-plan/SKILL.md).
-4. When a change acts on the file, its plan's `## Record` — `master.md`'s, where there is one — names it, and that change's record (`glab:project-record`) carries what is still open into the area spec and `glab:project-analyzer` checks it was carried. The record never removes the file. Like all of `plan/` it is never committed, and its removal is not under `glab:session-rules` Rule 2's plan-folder approval: ask.
+4. When a change acts on the file, its plan's `## Record` — `master.md`'s, where there is one — names it, and that change's record (`glab:project-record`) carries what is still open into the area spec and `glab:project-analyzer` checks it was carried. The record never removes the file. Like all of `plan/` it is never committed, and its removal is not under `glab:session-rules` Rule 2's plan-folder listing: ask.
