@@ -211,9 +211,9 @@ push the record writes specs in `docs/specs/` and feature pages in
 `AGENTS.md` names other places; a *Records* line, a spec's or a roadmap
 page's, names the date, the slug and the change's commits by both ends,
 `<first>` and `<last>`, the branch and the PR when one exists, since a squash or rebase merge can give the commits new shas; the
-record never removes the plan folder; the manager removes it at a session
-start once the record has landed (`glab:bootstrap` step 5,
-`glab:session-rules` Rule 2)
+record never removes the plan folder; the manager removes it only on the
+user's word, asked at a session start once the record has landed
+(`glab:bootstrap` step 5, `glab:session-rules` Rule 2)
 
 - `plugins/glab/skills/project-plan/SKILL.md`
 - `plugins/glab/skills/project-record/SKILL.md`
@@ -232,6 +232,14 @@ start once the record has landed (`glab:bootstrap` step 5,
 - `plugins/glab/agents/product-planner.md`
 - `plugins/glab/agents/product-analyzer.md`
 - `.gitignore`
+- and `AGENTS.md`'s `plan/` rule
+
+## Where the record is committed
+
+where the record is committed — on the change's branch, after its push and
+before its merge
+
+- `plugins/glab/skills/project-record/SKILL.md`
 - and `AGENTS.md`'s `plan/` rule
 
 ## The session effort

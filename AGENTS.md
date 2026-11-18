@@ -111,9 +111,11 @@ repo and to nothing else.
   *One fact* files. Its *Records* line names the date, the slug, and the
   change's commits on the pushed branch by both ends, `<first>` and `<last>`,
   the branch, and the PR when one exists; a squash or rebase merge can give the commits new shas, so
-  the branch and the PR are what to look up. Once the record has landed on
-  `origin/main`, the manager removes `plan/<slug>` at a session start under
-  `glab:session-rules` Rule 2's plan-folder approval, by its command there.
+  the branch and the PR are what to look up. The record is committed
+  on the change's branch, after its push and before its merge
+  (`glab:project-record`). Once the record has landed on
+  `origin/main`, the manager lists `plan/<slug>` at a session start and
+  removes it only on the user's word (`glab:session-rules` Rule 2).
   Nothing else under `plan/` is removed, except a completed handoff file under
   the same Rule. A folder committed before glab 0.16.0 is read back from the
   commit its *Records* line names: `git show <sha>:plan/<slug>/<file>`.
