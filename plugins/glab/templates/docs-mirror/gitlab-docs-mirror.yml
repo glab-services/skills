@@ -1,0 +1,23 @@
+# The glab docs mirror: on each push to the default branch, publishes this repo's docs/ to
+# its read-only mirror repository. A copy of the glab plugin's
+# templates/docs-mirror/gitlab-docs-mirror.yml, kept at .gitlab/docs-mirror.yml, runs
+# .glab/docs-mirror.sh and is included from .gitlab-ci.yml with
+#   include:
+#     - local: .gitlab/docs-mirror.yml
+# The job needs bash 4.4+, git 2.28+ and an ssh client: add an image: line if the runner's
+# default lacks them. Setup and the variables: the glab README, "The docs mirror".
+# The key file goes to TMPDIR, /tmp unless the runner sets it, and is removed on every exit but a
+# SIGKILL: on a shell executor, whose /tmp outlives the job, a killed job leaves it there (inferred).
+docs-mirror:
+  stage: .post # always defined, whatever this repo's stages: list says; runs after every earlier job has passed, and only when another job runs in the same pipeline
+  rules:
+    - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH && $CI_PIPELINE_SOURCE == "push" && $DOCS_MIRROR_URL'
+  resource_group: docs-mirror # one run at a time
+  environment: # DOCS_MIRROR_SSH_KEY is scoped to this environment, so no other job gets it; access: no deployment is created
+    name: docs-mirror
+    action: access
+  variables:
+    GIT_DEPTH: "0" # full history for the ancestry check
+    GIT_STRATEGY: clone # a fresh full clone: a reused shallow copy stays shallow
+  script:
+    - bash .glab/docs-mirror.sh "$DOCS_MIRROR_URL" "$CI_DEFAULT_BRANCH"

@@ -1,9 +1,10 @@
 #!/usr/bin/env bash
 # Runs every gate of this repo and compares each result with its expected value: the syntax and
-# execute-bit check and shellcheck on the scripts, the six script tests, `claude plugin validate
+# execute-bit check and shellcheck on the scripts, the seven script tests, `claude plugin validate
 # --strict`, the component lines of `claude plugin details`, and the searches that nothing else
-# catches. It prints one line per check, `ok G<n> <name>` or `FAIL G<n> <name>: <reason>`, then
-# `PASS n/n` or `FAIL f/n`.
+# catches. G36-G39, appended last, are the same three kinds of check and the test for the docs
+# mirror's script. It prints one line per check, `ok G<n> <name>` or `FAIL G<n> <name>: <reason>`,
+# then `PASS n/n` or `FAIL f/n`.
 #
 # Call it as `bash tests/gates.sh`, with no arguments, from anywhere: it changes to the repo root
 # before any check. It changes no file in the repo; its work directory under `$TMPDIR` is removed
@@ -97,6 +98,13 @@ TESTS=(
 	'bash tests/manager-bootstrap.test.sh plugins/glab/scripts/manager-bootstrap.sh'
 	'bash tests/product-loop.test.sh plugins/glab/scripts/plan-gate.sh plugins/glab/scripts/manager-bootstrap.sh'
 	'bash tests/level-guard.test.sh plugins/glab/scripts/level-guard.sh'
+)
+# The docs mirror's script (a template a code repo copies, not a hook) and its test, for G36-G39.
+# Not in SCRIPTS or TESTS: appending there renumbers every later check, and G33 and G34 are named
+# by number outside this file (docs/one-fact.md) [docs-mirror/plan.md D14].
+MIRROR=(
+	plugins/glab/templates/docs-mirror/docs-mirror.sh
+	tests/docs-mirror.test.sh
 )
 GLAB_SKILLS=(
 	audit bootstrap comments commit product-manager product-plan product-plan-analyze
@@ -359,6 +367,40 @@ rc=$?
 [ -z "$out" ] || bad "got [$(lines "$out" | paste -sd, -)]"
 [ "$rc" -eq 1 ] || bad "rc=$rc, expected 1"
 done_case G35 "no prefixed name: in plugins"
+
+# G36-G37. `bash -n` and `test -x` on the docs mirror's script and test, as G1-G13: a code repo
+# runs its copy with `bash`, but the README has it copied with mode 755 from this file.
+i=35
+for s in "${MIRROR[@]}"; do
+	i=$((i + 1))
+	bash -n "$s" && test -x "$s"
+	rc=$?
+	[ "$rc" -eq 0 ] || bad "rc=$rc (syntax error or no execute bit)"
+	done_case "G$i" "syntax and execute bit: $s"
+done
+
+# G38. shellcheck on the same two files, green as G14. The reason is shellcheck's first line that
+# is not blank: its output starts with a blank line, which `head -n 1` printed as an empty reason.
+out=$(shellcheck "${MIRROR[@]}" 2>&1)
+rc=$?
+[ "$rc" -eq 0 ] || bad "rc=$rc"
+[ -z "$out" ] || bad "findings: $(lines "$out" | command grep -m 1 '[^[:space:]]')"
+done_case G38 "shellcheck on ${#MIRROR[@]} docs-mirror scripts"
+
+# G39. The docs mirror's test, judged as G15-G20.
+cmd=(bash "${MIRROR[1]}" "${MIRROR[0]}")
+out=$("${cmd[@]}" 2>&1)
+rc=$?
+[ "$rc" -eq 0 ] || bad "rc=$rc"
+last=$(lines "$out" | tail -n 1)
+first=$(lines "$out" | sed '$d' | command grep -v -m 1 '^ok ')
+[ -z "$first" ] || bad "first non-ok line [$first]"
+if [[ $last =~ ^PASS\ ([0-9]+)/([0-9]+)$ ]] && [ "${BASH_REMATCH[1]}" = "${BASH_REMATCH[2]}" ]; then
+	:
+else
+	bad "last line [$last], expected PASS n/n"
+fi
+done_case G39 "test: ${cmd[1]}" "${last#PASS }"
 
 if [ "$fail" -eq 0 ]; then
 	echo "PASS $pass/$n"

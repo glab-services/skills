@@ -422,6 +422,29 @@ the store layout — `docs/product-rules/` with `index.md`,
 - `plugins/glab/skills/product-plan/SKILL.md`
 - `README.md`
 
+## The docs mirror
+
+the docs mirror — its templates `plugins/glab/templates/docs-mirror/` `docs-mirror.sh`,
+`github-docs-mirror.yml`, `gitlab-docs-mirror.yml`; the copies `.glab/docs-mirror.sh`,
+`.github/workflows/docs-mirror.yml` and `.gitlab/docs-mirror.yml`; the variables
+`DOCS_MIRROR_URL`, `DOCS_MIRROR_KNOWN_HOSTS`, `DOCS_MIRROR_SSH_KEY`, `DOCS_MIRROR_ADOPT`;
+commits as `glab docs-mirror <docs-mirror@glab.invalid>`, subject `docs: mirror <12 hex>`,
+last line `Source-Commit: <sha>`, the `Replaces …` and `Adopts …` paragraphs; its `REFUSED:`,
+`skipped` and `docs-mirror: git:` lines; bash 4.4, git 2.28; at most 4 `docs-mirror: git:`
+lines (the script, `README.md`, the test's DM19); GitLab's `stage: .post` (`README.md`, the GitLab
+template, DM21); `main` as the GitHub mirror's branch (`README.md` step 4, the GitHub template's
+`run:` line, DM21); the GitLab job's environment `docs-mirror`, which the key variable is scoped to
+(`README.md` step 5, the GitLab template, DM21); the GitHub workflow's concurrency group
+`glab-docs-mirror` (the GitHub template, DM21)
+
+- `plugins/glab/templates/docs-mirror/docs-mirror.sh`
+- `plugins/glab/templates/docs-mirror/github-docs-mirror.yml`
+- `plugins/glab/templates/docs-mirror/gitlab-docs-mirror.yml`
+- `tests/docs-mirror.test.sh`
+- `tests/gates.sh` (the template path)
+- `README.md` *The docs mirror*, *Requirements* and the plugin table
+- `AGENTS.md` *Layout* (`templates/`)
+
 ## The plan digest, report and verdict lines
 
 the plan digest — its file set, what it leaves out (round and version copies,

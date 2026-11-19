@@ -1,0 +1,31 @@
+# The glab docs mirror: on each push to main, publishes this repo's docs/ to its
+# read-only mirror repository by running .glab/docs-mirror.sh. A copy of the glab plugin's
+# templates/docs-mirror/github-docs-mirror.yml, kept at .github/workflows/docs-mirror.yml.
+# Setup and the variables: the glab README, "The docs mirror".
+name: docs-mirror
+# no paths: filter: every merge retries, so a failed run is repaired by the next
+on:
+  push:
+    branches: [main] # this repo's default branch: replace main when it is another; the run: line's main is the mirror's branch
+permissions: # the job token reads this repo only; the push uses the deploy key
+  contents: read
+concurrency: # one run at a time; a running push is never cancelled, a cancelled pending run is covered by the next
+  group: glab-docs-mirror # unique among this repo's workflows: a group is shared across them
+  cancel-in-progress: false
+jobs:
+  mirror:
+    if: vars.DOCS_MIRROR_URL != '' # skipped in forks and before setup, where the variables are empty
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0 # the script checks ancestry against the mirror's source commit
+          persist-credentials: false # no job token left in .git/config
+      - name: Mirror docs/
+        env:
+          TMPDIR: ${{ runner.temp }} # emptied by the runner after each job: the key file goes there
+          DOCS_MIRROR_URL: ${{ vars.DOCS_MIRROR_URL }}
+          DOCS_MIRROR_KNOWN_HOSTS: ${{ vars.DOCS_MIRROR_KNOWN_HOSTS }}
+          DOCS_MIRROR_ADOPT: ${{ vars.DOCS_MIRROR_ADOPT }}
+          DOCS_MIRROR_SSH_KEY: ${{ secrets.DOCS_MIRROR_SSH_KEY }}
+        run: bash .glab/docs-mirror.sh "$DOCS_MIRROR_URL" main

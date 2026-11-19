@@ -9,10 +9,9 @@ and this file disagree about how to work *in this repo*, this file wins.
 
 - `.claude-plugin/marketplace.json` — the marketplace. It lists both plugins.
 - `plugins/glab/` — the workflow plugin: its skills and agents,
-  `hooks/hooks.json`, `scripts/manager-bootstrap.sh`,
-  `scripts/context-size.sh`, `scripts/level-guard.sh`,
-  `scripts/glab-level.sh` (the level rule both hooks source) and
-  `scripts/plan-gate.sh`.
+  `hooks/hooks.json`, `scripts/` (`manager-bootstrap.sh`,
+  `context-size.sh`, `level-guard.sh`, `glab-level.sh` — the level
+  rule both hooks source — and `plan-gate.sh`) and `templates/`.
 - `plugins/memory-sync/` — the memory sync plugin: its one skill,
   `hooks/hooks.json`, `scripts/memory-sync.sh` and `settings.example.json`.
 - `docs/specs/` — one spec per area: how it works now, why, what is not
