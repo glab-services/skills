@@ -17,7 +17,7 @@ The manager writes the note — at most 10 lines from the planner's report and a
 
     "${CLAUDE_PLUGIN_ROOT}/scripts/plan-gate.sh" report plan/<slug> <store> [<note file>]
 
-It writes `briefs/<project>/report.r<n>.md` and beside it `plan.r<n>/`, the byte copy of the files it hashed, and prints the report's path. Show that path, or the `REFUSED:` line it printed, and stop: the session waits for the verdict (below).
+It writes `briefs/<project>/report.r<n>.md` and beside it `plan.r<n>/`, the byte copy of the files it hashed, and prints the report's path. In a store clone it also commits and pushes them itself: the store's commit and push, not this repo's (`glab:session-rules` Rule 3). Show that path, or the `REFUSED:` line it printed, and stop: the session waits for the verdict (below).
 
 ## Before the report
 
@@ -33,7 +33,7 @@ From the first report on, the plan's hashed files — `master.md`, `index.md`, e
 
 ## On resuming
 
-Read the latest `verdict.r<n>.md` of the brief, the numbers compared as numbers:
+Sync the store (`"${CLAUDE_PLUGIN_ROOT}/scripts/plan-gate.sh" sync <store>`; anything but exit 0 → stop and show its stderr line), then read the latest `verdict.r<n>.md` of the brief, the numbers compared as numbers:
 
 - `ACCEPTED` → Stage 2, whose `glab:project-develop` checks it.
 - On REJECTED: keep round copies as `glab:project-plan-analyze` does, numbered past the highest one there; a new `glab:project-planner` amends, with the verdict's reason quoted as its findings; run one `glab:project-plan-analyze` delta round — one per verdict, which neither resets nor uses its round cap; still `NOT BUILDABLE` after it → the user. Then the tier's approvals again — at full tier the user's, with `plan.md`'s `## Approval` line replaced — and this report again, as `r<n+1>`. A `REJECTED` whose fix needs `master.md` — a goal, the final check — is a changed request, not an amendment (`glab:project-plan-accept`).

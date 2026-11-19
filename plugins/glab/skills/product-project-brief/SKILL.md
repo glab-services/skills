@@ -10,4 +10,4 @@ The entry point of stage P2 of `glab:product-manager` *The product pipeline*. `$
 
 The session that runs it — the product manager, or a person who typed `/glab:product-project-brief` — dispatches **glab:product-planner**, as `glab:session-rules` Rules 0d and 5 say, to write the briefs and the approved rule drafts as `glab:product-plan` says; the dispatch names the slug and the store, and grants the writes in the store's `briefs/` and `docs/product-rules/`.
 
-**Then** list the briefs written by their store paths, `briefs/<project>/brief.md`, and the rule files with them. The store and its layout are `glab:product-manager` *The shared store*'s.
+**Then** run `"${CLAUDE_PLUGIN_ROOT}/scripts/plan-gate.sh" sync <store> product-manager`, which in a store clone commits and pushes them — anything but exit 0 → stop and show its stderr line — and list the briefs written by their store paths, `briefs/<project>/brief.md`, and the rule files with them. The store and its layout are `glab:product-manager` *The shared store*'s.

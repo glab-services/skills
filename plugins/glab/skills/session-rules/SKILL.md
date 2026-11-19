@@ -114,7 +114,7 @@ Three things this rule does not touch:
 
 - **A fact is not a choice:** look it up and prove it.
 - **`docs/constants.md` is already decided:** changing it is the user's question.
-- **`glab:security` still stops you.** Its stop list and its *Destructive operations are proven* rule hold at every tier, and so does this skill's confirmation before every destructive action — except the standing approval of Rule 2 — and before every push (`glab:push`, at every level).
+- **`glab:security` still stops you.** Its stop list and *Destructive operations are proven* hold at any tier, as does this skill's confirmation before every destructive action, bar Rule 2's standing approval, and before every push (`glab:push`, any level), bar `plan-gate.sh`'s store push.
 
 ## Rule 5 — each agent runs on its role's model; the user's words override it
 

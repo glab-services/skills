@@ -6,7 +6,7 @@ argument-hint: "[project]"
 
 The entry point of stage P4 of `glab:product-manager` *The product pipeline*. `$ARGUMENTS` is `<project>`. None → ask which one — never the most recent, never a guess.
 
-**Find what the audit reads**, in the store (`glab:product-manager` *The shared store*):
+**Find what the audit reads**, in the store (`glab:product-manager` *The shared store*), synced first by `"${CLAUDE_PLUGIN_ROOT}/scripts/plan-gate.sh" sync <store>` — anything but exit 0 → stop and show its stderr line; a latest report that already has its `verdict.r<n>.md` stops too: it is decided, and there is no new report to audit:
 
 - the latest `report.r<n>.md` in `briefs/<project>/`, the numbers compared as numbers, and its copy `plan.r<n>/`;
 - the brief, `briefs/<project>/brief.md`;

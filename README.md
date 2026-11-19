@@ -93,8 +93,8 @@ or of the top of its git work tree when that folder has none.
 `glab:project-manager` or `glab:product-manager` — then `glab:session-rules`, the
 rules every level's manager runs under, and `glab:security`.
 
-**The shared store.** The levels exchange plain files in one shared folder,
-named by a line `glab-shared-store: <path to the shared folder>` in the
+**The shared store.** The levels exchange plain files in one shared folder or a clone of the product's store repository,
+named by a line `glab-shared-store: <path to the store folder or clone>` in the
 repo's `AGENTS.md`, or else in `~/.claude/host.md`, where a machine's paths
 belong. The filesystems it may sit on are named in the header of
 `plugins/glab/scripts/plan-gate.sh`. Its layout:
@@ -106,6 +106,27 @@ belong. The filesystems it may sit on are named in the header of
     <store>/briefs/<project>/plan.r<n>/       the plan files the report hashed
     <store>/briefs/<project>/verdict.r<n>.md  the product's verdict
     <store>/releases/                         reserved for the delivery level
+
+**A store clone.** Each machine can hold, in place of the folder, a clone of
+the product's store repository. The user creates that repository once,
+empty, on its git host — its new-project page, or on a server of its own:
+
+    git init --bare <path to the store repository>
+
+then sets each clone up once, in one command:
+
+    git clone -c core.autocrlf=false -c glab.store=true <store repo URL> <path to the clone>
+
+The repository needs a first commit, made once, from the first clone, on a
+machine where git already has your name and email; until then
+`plan-gate.sh` refuses the clone:
+
+    cd <path to the clone> && git commit --allow-empty -m 'store: first commit' && git push
+
+The store line names the clone's path,
+best in `~/.claude/host.md`, since it differs per machine. `plan-gate.sh`
+commits and pushes the store itself, and its `sync` mode brings a clone up
+to date. Without `glab.store` a clone is a plain folder.
 
 **The loop.** A project session takes a brief as its request, plans it as
 usual, and after the approvals reports the plan — its digest, a sha256 over
@@ -166,8 +187,8 @@ each refusal and the text of every brief, report, verdict and rule written.
 Live, after installing `glab` at the version in
 `plugins/glab/.claude-plugin/plugin.json`:
 
-1. Make a store folder. Give a product repo an `AGENTS.md` with
-   `glab-level: product` and `glab-shared-store: <path to the shared folder>`,
+1. Make a store folder, or a clone, as above. Give a product repo an `AGENTS.md` with
+   `glab-level: product` and `glab-shared-store: <path to the store folder or clone>`,
    and a project repo an `AGENTS.md` with the same store line.
 2. Start the product session with the store among its directories:
    `claude --add-dir <store>`. Give it a business plan; approve the product
@@ -175,7 +196,7 @@ Live, after installing `glab` at the version in
 3. Start a project session in the project repo, with the start prompt, as
    `glab:product-manager` *Starting project sessions* says: the desktop
    app's session tool, `claude --bg` from the project repo, or by hand. That
-   the prompt keeps a background session from pushing is UNVERIFIED until
+   the prompt keeps a background session from pushing its repo is UNVERIFIED until
    LP4 has run.
 4. The project session plans, has you approve, reports and waits; the product
    session audits the report and writes the verdict; on `ACCEPTED` the project
@@ -193,18 +214,20 @@ The live checks, each UNVERIFIED until run:
 - **LP4** — a project session starts and is reached on each host: the
   desktop app's session tool; `claude --bg` from the product session's Bash
   tool, reached by `SendMessage` and waited on with `notify_when_idle`; and by
-  hand. The start prompt keeps a background session from pushing.
+  hand. The start prompt keeps a background session from pushing its repo.
 - **LP5** — the product agents preload their `skills:`.
 - **LP6** — with the store added by `--add-dir`, the product session writes a
   brief through `glab:product-planner` and a verdict through `plan-gate.sh`
   without a permission prompt for each write.
+- **LP7** — two machines, one store repository: a report from one, the
+  verdict from the other, and the develop gate passing on the first.
 
 ## Requirements
 
 Linux with bash. `jq` is optional: without it the `glab` `SessionStart` hook
 falls back to plain text, the level guard reads its input as plain text, and
 the context hook says nothing — the session's manager then counts dispatches
-instead (`glab:session-rules` Rule 2). `memory-sync` also needs GNU coreutils (`timeout`, `stat`,
+instead (`glab:session-rules` Rule 2). A store clone (*The shared store*) needs `git`. `memory-sync` also needs GNU coreutils (`timeout`, `stat`,
 `date`), util-linux `flock`, `rsync` and the AWS CLI. macOS is not supported.
 
 ## Install

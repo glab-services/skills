@@ -7,19 +7,25 @@
 #
 # Why a script and not skill text: both levels must compute the same digest byte for byte, and the
 # report and verdict formats need one owner and one test (tests/plan-gate.test.sh).
-# It reads no configuration - every path is an argument - and needs bash and coreutils only, with
-# `shasum -a 256` standing in where `sha256sum` is missing (macOS ships only shasum).
+# For a plain store it reads no configuration - every path is an argument - and needs bash and
+# coreutils only, with `shasum -a 256` standing in where `sha256sum` is missing (macOS ships only
+# shasum). For a store clone (A store clone, below) it also reads the clone's glab.store, branch and
+# upstream from its git config, and needs git.
 #
 #   digest  <plan dir>
 #   report  <plan dir> <store> [<note file>]
 #   verdict <store> <project> ACCEPTED|REJECTED product-manager|user <reason file>
 #   check   <plan dir> <store>
+#   sync    <store> [product-manager]
 #
 # Exit 0 done; 1 refused; 2 usage - an unknown mode, wrong arguments, a folder or file that does not
-# exist - or a write that failed. A refusal is one stderr line that begins "REFUSED: ", and it writes
-# nothing - but for a takeover before it (take_over below), which removes only the claim, and the
-# temporary file, of a run that provably no longer runs. stdout: digest prints the digest, report
-# and verdict the path they wrote, check the line "ACCEPTED r<n> <digest>". Before it writes
+# exist - or a write or fetch that failed. A refusal is one stderr line that begins "REFUSED: ", and
+# it writes nothing - but for a takeover before it (take_over below), which removes only the claim,
+# and the temporary file, of a run that provably no longer runs, and in a store clone its sync and
+# what it published and committed before a refusal, which it undoes (A store clone, below)
+# [remote-store/review-r1.md B1] [remote-store/review-r2.md B7]. stdout: digest prints the digest,
+# report and verdict the path they wrote, check the line "ACCEPTED r<n> <digest>", sync "git <40-hex HEAD>" for a store clone and "folder"
+# for a plain folder, where it does nothing. Before it writes
 # anything, a report run claims its number and a verdict run the number of the report it decides
 # (see claim below): of two runs at once only one gets the claim, and only that one creates
 # plan.r<n>/ and the final file; the other is refused and touches nothing. A report or verdict file
@@ -34,8 +40,68 @@
 # chmod fails there. On a filesystem without hard links every report and verdict fails with exit 2,
 # its message naming this requirement (publish_file); there is no fallback. A network, FUSE or
 # synced folder is UNVERIFIED: whether O_EXCL and a link are exclusive there, across hosts, was
-# never tested. A run killed by SIGKILL leaves its claim; on Linux a later run on the same host takes
-# it over once that run provably no longer runs (take_over), elsewhere a person removes it.
+# never tested. A store clone is a local folder, so this holds for the clone's filesystem; the
+# remote is reached only by git. A run killed by SIGKILL leaves its claim; on Linux a later run on
+# the same host takes it over once that run provably no longer runs (take_over), elsewhere a person
+# removes it.
+#
+# A store clone.
+# In a store clone - its top holds .git and its glab.store is true - a run also
+# fetches and fast-forwards the clone before it reads it; commits only the paths
+# it wrote, which the store's own ignore files do not drop, or for sync
+# product-manager the brief and rule files it names, as
+# glab plan-gate <plan-gate@glab.invalid>; pushes them to the clone's upstream,
+# never forced; and on any exit before its push landed undoes its own commit and
+# removes the files it published, never sync's - once a push was sent, the trap
+# fetches first, and a remote tip that is the run's own commit has landed and is
+# not undone [remote-store/review-r2.md A9]. A failed fetch is exit 2; a clone
+# git cannot use, or whose setup is incomplete, is refused. A store without .git
+# runs no git command; one with .git and no git on PATH is refused.
+# The switch is opt-in: .git is a folder and `git config --file .git/config --bool --get
+# glab.store`, run in the store, prints true - a file read, to which git's ownership check
+# (safe.directory) does not apply, so a clone another account owns is refused rather than run as a
+# plain folder; with .git a file, `config --local`. Unset or false is a plain folder and runs the
+# plain code; any other failing read is refused. A user who already versions a plain store by hand
+# must not find it committing and pushing after an upgrade [remote-store/plan.md D2]
+# [remote-store/evidence.md X9]. report, verdict and check fetch and fast-forward the clone before
+# their first store read, and report and verdict commit and push what they wrote before exit 0;
+# sync serves the readers that are not this script and the files written by hand
+# [remote-store/plan.md D5]. One clone-wide claim, <git dir>/.plan-gate.claim.store, is taken
+# through claim like every claim, after the opt-in read and before the first git command that reads
+# or writes the work tree, the index or a ref: two runs in one clone otherwise collide in git
+# itself, 10 of 20 concurrent commits failed [remote-store/plan.md D6] [remote-store/evidence.md
+# X5]. A reader - check, and sync without product-manager - waits for that claim up to 30 s while
+# its run provably runs, so that a report or verdict in the same clone does not turn a check into a
+# refusal; a writer is refused at once [remote-store/plan.md D37]. Across machines the push is the compare-and-swap: a run commits on the base it read and
+# pushes HEAD:<upstream ref>, never forced, and the remote takes it only as a fast-forward of that
+# base; the local claims complement it and replace nothing [remote-store/plan.md D7]
+# [remote-store/evidence.md X11]. A failed push is told by the remote's tip after a fetch, never by
+# git's words - under true concurrency 63 of 80 misses read "incorrect old value provided", 17
+# "fetch first": the tip is this run's commit, it landed; the base, the remote refused, exit 2; a
+# descendant of the base, a miss; anything else, the remote was rewritten, refused
+# [remote-store/plan.md D9] [remote-store/evidence.md X11]. A miss is replayed only when nothing
+# under briefs/<project>/ - every store input of a report, verdict or check
+# [remote-store/evidence.md E1] - moved between the base and the new tip, so the replay is
+# byte-identical to deciding again: reset to the base, fast-forward, commit the same paths, push
+# again; else it is refused. Not git rebase: a blind rebase landed a verdict on a brief it never
+# read, with no conflict [remote-store/plan.md D8] [remote-store/evidence.md X3]. At most 5 pushes
+# per run [remote-store/plan.md D10]. Every run first requires an index equal to HEAD, a HEAD equal
+# to its upstream or behind it, a fast-forward that would overwrite no local change - git refuses
+# that itself, and the check names the path [remote-store/evidence.md X6] - and, for report,
+# verdict and check, nothing uncommitted under briefs/<project>/ but .plan-gate.* names
+# [remote-store/evidence.md X8]; each failure is one refusal, and nothing is repaired
+# [remote-store/plan.md D11]. Every git command runs through sgit, whose settings keep the bytes,
+# hence the hashes, and the run its own - autocrlf and the per-user attribute and ignore files
+# [remote-store/evidence.md X7], signing, background gc and fsmonitor, prompts - and git's stdout
+# and stderr are never printed, since they carry the remote's URL [remote-store/plan.md D12]
+# [remote-store/evidence.md X1, X4]. The store's own .gitattributes and .git/info/* stay a known
+# limit. Author and committer of every commit are glab plan-gate <plan-gate@glab.invalid>, exported
+# on the commit alone, so no user's identity reaches a team store [remote-store/plan.md D13]. The
+# EXIT trap undoes a run that had not landed - its own commit, or its staging, never a commit it did
+# not make - then removes the files it published; after a push was sent, a push that finished before
+# the trap's fetch has landed - the fetched tip holds the run's commit - even when a TERM ended the
+# run then [remote-store/review-r3.md A13]; a SIGKILL leaves untracked files or a commit ahead, and
+# the next run refuses on either, naming it [remote-store/plan.md D14].
 #
 # A symlink anywhere in a plan folder, or in a copy folder, is refused: find does not follow links,
 # so a linked file or folder would sit beside the plan without moving its digest.
@@ -45,7 +111,7 @@ set -u
 export LC_ALL=C
 
 usage() {
-	echo 'usage: plan-gate.sh digest <plan dir> | report <plan dir> <store> [<note file>] | verdict <store> <project> ACCEPTED|REJECTED product-manager|user <reason file> | check <plan dir> <store>' >&2
+	echo 'usage: plan-gate.sh digest <plan dir> | report <plan dir> <store> [<note file>] | verdict <store> <project> ACCEPTED|REJECTED product-manager|user <reason file> | check <plan dir> <store> | sync <store> [product-manager]' >&2
 	exit 2
 }
 refuse() {
@@ -74,16 +140,28 @@ fi
 hash_of() { sha <"$1" | cut -c1-64; }
 
 # What this run made and has not yet published: the trap removes it - the copy folder of a report
-# that was not linked, and a temporary file - and then the claim this run holds, and last the
-# takeover lock it holds (take_over), always. Four scalars and no array: an empty array under
-# `set -u` is an error in the bash 3.2 that macOS ships. The claim goes after the copy folder: until
-# the copy folder is gone, no other run can take the number and find it.
+# that was not linked, and a temporary file - and then the claim this run holds, and the takeover
+# lock it holds (take_over), always. Scalars only and no array: an empty array under `set -u` is an
+# error in the bash 3.2 that macOS ships. The claim goes after the copy folder: until the copy folder
+# is gone, no other run can take the number and find it. In a store clone (GIT_STORE set) the trap
+# first undoes the run's git state and removes what it published but did not push (git_undo), while
+# the clone claim is still held, so that no other run sees the clone half undone; then the four
+# lines above, then the clone claim's temporary file and the clone claim itself, last. A failed undo
+# makes the exit 2; after a signal the status stays 128+n, since bash re-sends the signal once the
+# trap is done, and the undo's line is the record [remote-store/plan.md S1.4]
+# [remote-store/check-r1-code.md C9]. The scalars of a store clone are set by store_open,
+# store_push and publish_file.
 TMP_DIR='' TMP_FILE='' CLAIM='' LOCK=''
+GIT_STORE='' S_ROOT='' S_GITDIR='' S_REMOTE='' S_MERGE='' S_BASE='' S_ADDED='' S_COMMIT='' S_PUSHED='' S_PUSHING='' S_SHOW='' S_FILE='' S_DIR='' S_TMP='' DIRTY='' DIRTY_BAD='' STORE_CLAIM='' UNDO_FAILED=''
 cleanup() {
+	[ -z "$GIT_STORE" ] || git_undo
 	[ -z "$TMP_DIR" ] || rm -rf -- "$TMP_DIR"
 	[ -z "$TMP_FILE" ] || rm -f -- "$TMP_FILE"
 	[ -z "$CLAIM" ] || rm -f -- "$CLAIM"
 	[ -z "$LOCK" ] || rm -f -- "$LOCK"
+	[ -z "$S_TMP" ] || rm -f -- "$S_TMP"
+	[ -z "$STORE_CLAIM" ] || rm -f -- "$STORE_CLAIM"
+	[ -z "$UNDO_FAILED" ] || exit 2
 }
 trap cleanup EXIT
 
@@ -229,8 +307,8 @@ create_failed() {
 	io "writing $1"
 }
 
-# claim <file> <refusal>: makes this run the one writer of a number, or refuses with <refusal> when
-# another run holds it. The claim is the file <file> holding the line ME, created by bash itself with
+# claim <file> <refusal> [<seconds>]: makes this run the one writer of a number, or refuses with
+# <refusal> when another run holds it. The claim is the file <file> holding the line ME, created by bash itself with
 # noclobber (set -C), which opens a name that is not there with O_CREAT|O_EXCL: of two runs at once
 # only one creates it. Not mkdir, and not a test for the name followed by a write: whether mkdir
 # fails on a name that exists depends on the coreutils, and the open is bash's own; the test
@@ -246,31 +324,49 @@ create_failed() {
 # the create and CLAIM=$1, which is held (hold_signals). It is made under umask 022, so that a run of
 # the other level's account can read the line. A run killed by SIGKILL runs no trap and leaves its
 # claim: a later run finds it and hands it to take_over, which takes it over when that run provably
-# no longer runs and otherwise refuses, naming the file - a live run's claim and one that cannot be
-# proven stale look the same to a person. Only create_line's 1, the name is there, goes to
+# no longer runs and otherwise refuses - naming the file only when that run cannot be proven to run
+# still: a person cannot tell such a claim from a stale one, and a live run's must not be removed.
+# Only create_line's 1, the name is there, goes to
 # take_over; a create that failed (2, 3 or 4) ends the run with exit 2 (create_failed), having
 # removed nothing but the file it made itself, by that name - not another run's claim, which it
 # never opened. Because a claim is removed, a run that read the store before another run published
-# that number can claim it afterwards: the caller tests again under the claim.
+# that number can claim it afterwards: the caller tests again under the claim. With <seconds>, a
+# claim whose run provably runs (owner_gone 1) is tried again once a second, up to that many times,
+# before take_over decides; a claim that went meanwhile is tried again at once. Only a reader of a
+# store clone passes it (store_open): a check that met a report or verdict in its clone was refused,
+# and glab:project-develop then reported the plan again [remote-store/review-r1.md A2]
+# [remote-store/plan.md D37].
 claim() {
-	local rc=0
+	local rc g wait=${3:-0}
 	whoami
-	hold_signals
-	create_line "$1" || rc=$?
-	if [ "$rc" -eq 0 ]; then
-		CLAIM=$1
+	while :; do
+		rc=0
+		hold_signals
+		create_line "$1" || rc=$?
+		if [ "$rc" -eq 0 ]; then
+			CLAIM=$1
+			release_signals
+			return 0
+		fi
 		release_signals
-		return 0
-	fi
-	release_signals
-	[ "$rc" -eq 1 ] || create_failed "$1" "$rc"
+		[ "$rc" -eq 1 ] || create_failed "$1" "$rc"
+		[ "$wait" -gt 0 ] || break
+		wait=$((wait - 1))
+		if [ -e "$1" ] || [ -L "$1" ]; then
+			g=0
+			owner_gone "$(head -n 1 -- "$1" 2>/dev/null)" || g=$?
+			[ "$g" -eq 1 ] || break
+			sleep 1
+		fi
+	done
 	take_over "$1" "$2"
 }
 # take_over <claim> <refusal>: the claim <claim> is there and is not this run's. Takes it over when
 # the run that made it provably no longer runs (owner_gone), removing first the temporary file that
 # run left (claimed_tmp's name) [flow-product-level/follow-ups.md FR2-2]; else refuses with
-# <refusal>, naming the claim, and the temporary file too when there is one and the claim's run is
-# not proven alive. The takeover is
+# <refusal> - alone when the claim's run is proven alive, else naming the claim, and the temporary
+# file too when there is one - since a person told to remove a live run's claim by hand would break
+# that run [remote-store/review-r1.md A2]. The takeover is
 # itself exclusive: it holds the lock .plan-gate.takeover.<kind and number>, created as a claim is,
 # and under the lock reads the claim again and removes it only when it still holds the line found
 # stale. Of two runs that both found it stale, one makes the lock and the other is refused; a run
@@ -290,7 +386,7 @@ take_over() {
 	owner_gone "$line"
 	case $? in
 	0) ;;
-	1) refuse "$2; when no run is writing, remove $1 by hand" ;;
+	1) refuse "$2" ;;
 	*)
 		if [ -e "$tmp" ]; then refuse "$2; when no run is writing, remove $1 and $tmp by hand"; fi
 		refuse "$2; when no run is writing, remove $1 by hand"
@@ -443,10 +539,403 @@ publish_file() {
 	# The file is published: from here the copy folder is the report's, and the trap must not remove
 	# it. Cleared before the rm, not after: a TERM while rm ran let the trap remove plan.r<n>/ of a
 	# report already linked, and every later verdict and report on the project was refused.
+	# In a store clone the file and its copy folder become the run's until its push lands: the trap
+	# removes them if it has not (git_undo). Set only here, after ln made the link, so that the trap
+	# never removes a name another writer made.
+	if [ -n "$GIT_STORE" ]; then S_FILE=$1 S_DIR=$TMP_DIR; fi
 	TMP_DIR=''
 	release_signals
 	rm -f -- "$TMP_FILE"
 	TMP_FILE=''
+}
+
+# sgit <args...>: git on the store clone S_ROOT, the store as its argument gave it. Every git command
+# of this script goes through it [remote-store/plan.md D12]. The settings keep the stored bytes, and
+# so the hashes, whatever the user's config says: a clone with core.autocrlf=true checks an LF file
+# out with other bytes [remote-store/evidence.md X7], and the per-user attributes and ignore files are
+# read even under GIT_CONFIG_GLOBAL [remote-store/check-r1-code.md C7]; a signing setting would fail
+# every push or fast-forward [remote-store/check-r1-code.md C13]; no background gc, maintenance or
+# fsmonitor daemon outlives the run; no stash is made for a merge. stdin is /dev/null, so no prompt
+# waits for a headless session (GIT_TERMINAL_PROMPT, store_open), and stderr is dropped: git's
+# messages name the remote's URL [remote-store/evidence.md X1, X4]. Callers drop stdout too, or read
+# it - never print it. Hooks of the clone run. Every pathspec is literal (--literal-pathspecs): a
+# rule file named docs/product-rules/*.md, passed to add as a glob, added an excluded
+# docs/product-rules/private/secret.md, which was pushed [remote-store/review-r3.md A11].
+sgit() {
+	git --literal-pathspecs -C "$S_ROOT" -c core.autocrlf=false -c core.eol=lf -c core.safecrlf=false -c core.attributesFile=/dev/null \
+		-c core.excludesFile=/dev/null -c core.fsmonitor=false -c gc.auto=0 -c maintenance.auto=false \
+		-c advice.diverging=false -c push.gpgSign=false -c merge.verifySignatures=false -c merge.autoStash=false \
+		"$@" </dev/null 2>/dev/null
+}
+# git_failed <step> <rc>: ends the run with exit 2, io's line with git's exit code.
+git_failed() {
+	echo "plan-gate.sh: $1 failed (git exit $2)" >&2
+	exit 2
+}
+# store_broken <rc>: refuses on a git read that failed on a clone past rev-parse --absolute-git-dir -
+# a state of the store, not a failed write [remote-store/plan.md D32, D36].
+store_broken() { refuse "git refuses the store clone $S_SHOW (git exit $1); if another account owns it, see git's safe.directory"; }
+
+# store_open <store> [read]: steps 1 to 3 of a run on a store clone [remote-store/plan.md
+# Processing]. A store without .git returns at once, and no git command runs. Otherwise the caller's
+# GIT_* names that would point git at another repository, or date its commit, are unset before the
+# first git command, the opt-in read included, and prompts are off - GIT_CONFIG too, which git config
+# reads as its --file, so that a hostile one named the branch, remote and upstream ref the push went
+# to [remote-store/review-r1.md A4]; and the other names that set config or change how git reads a
+# pathspec, GIT_CONFIG_PARAMETERS, GIT_CONFIG_COUNT - its GIT_CONFIG_KEY_<n> and _VALUE_<n> are read
+# only with a count - and GIT_*_PATHSPECS: each redirected the push, or undid the refusal of an
+# ignored path [remote-store/review-r2.md A7]. S_SHOW is the store path as messages print it,
+# printable, so that a newline in it leaves every line one line [remote-store/review-r2.md A10].
+# With read - check, sync without product-manager - the clone
+# claim is waited for up to 30 s while its run provably runs (claim) [remote-store/plan.md D37]. Then: the opt-in read (D2), the clone
+# claim (D6), the branch and its upstream, a clean index, the fetch, and the fast-forward (D11).
+# Sets GIT_STORE only once glab.store reads true, and S_BASE to the HEAD the run decides on.
+store_open() {
+	local v b r t0 u h rc=0 wait=0
+	S_ROOT=$1
+	[ -e "$1/.git" ] || return 0
+	S_SHOW=$(printable "$1")
+	unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_OBJECT_DIRECTORY GIT_ALTERNATE_OBJECT_DIRECTORIES GIT_COMMON_DIR GIT_NAMESPACE GIT_AUTHOR_DATE GIT_COMMITTER_DATE GIT_CONFIG
+	unset GIT_CONFIG_PARAMETERS GIT_CONFIG_COUNT GIT_LITERAL_PATHSPECS GIT_GLOB_PATHSPECS GIT_NOGLOB_PATHSPECS GIT_ICASE_PATHSPECS
+	export GIT_TERMINAL_PROMPT=0
+	command -v git >/dev/null 2>&1 || refuse "$S_SHOW holds .git and git is not on PATH, so plan-gate.sh cannot tell whether it is a store clone"
+	# The file named relative to the store, as sgit runs there: --file <store>/.git/config would apply
+	# a relative store path twice, read no file, exit 1 and run the plain path silently
+	# [remote-store/check-r2-code.md N1].
+	if [ -d "$1/.git" ]; then
+		v=$(sgit config --file .git/config --bool --get glab.store) || rc=$?
+	else
+		v=$(sgit config --local --bool --get glab.store) || rc=$?
+	fi
+	case $rc:$v in
+	0:true) ;;
+	0:false | 1:) return 0 ;;
+	*) refuse "glab.store of $S_SHOW cannot be read (git exit $rc); look at its .git/config" ;;
+	esac
+	GIT_STORE=1
+	S_GITDIR=$(sgit rev-parse --absolute-git-dir) || store_broken $?
+	if [ "${2:-}" = read ]; then wait=30; fi
+	claim "$S_GITDIR/.plan-gate.claim.store" 'another run is using the store clone' "$wait"
+	STORE_CLAIM=$CLAIM
+	CLAIM=''
+	# The clone claim's temporary-file name, so that take_over removes one a killed run left.
+	S_TMP=$S_GITDIR/.plan-gate.tmp.store
+	rc=0
+	b=$(sgit symbolic-ref -q --short HEAD) || rc=$?
+	if [ "$rc" -eq 1 ]; then refuse "the store clone $S_SHOW is on no branch"; fi
+	[ "$rc" -eq 0 ] || store_broken "$rc"
+	# The remote's URL is tested, never printed.
+	if ! { S_REMOTE=$(sgit config "branch.$b.remote") && [ -n "$S_REMOTE" ] && sgit config "remote.$S_REMOTE.url" >/dev/null &&
+		S_MERGE=$(sgit config "branch.$b.merge") && [ -n "$S_MERGE" ]; }; then
+		refuse "the store clone's branch $b has no upstream on a remote"
+	fi
+	# diff --cached works on an unborn HEAD; diff-index --cached HEAD exits 128 there.
+	rc=0
+	sgit diff --cached --quiet || rc=$?
+	if [ "$rc" -eq 1 ]; then refuse 'the store clone has staged changes; unstage them by hand'; fi
+	[ "$rc" -eq 0 ] || store_broken "$rc"
+	# The remote-tracking tip before the fetch: a HEAD equal to it that the fetched tip no longer
+	# contains means the remote was rewritten, not that this clone made a commit.
+	t0=$(sgit rev-parse -q --verify '@{u}') || t0=''
+	rc=0
+	sgit fetch -q "$S_REMOTE" >/dev/null || rc=$?
+	if [ "$rc" -ne 0 ]; then
+		echo "plan-gate.sh: fetching the store from its remote $S_REMOTE failed (git exit $rc)" >&2
+		exit 2
+	fi
+	if ! u=$(sgit rev-parse -q --verify '@{u}'); then
+		r=$(sgit for-each-ref --count=1 "refs/remotes/$S_REMOTE/") || store_broken $?
+		[ -n "$r" ] || refuse "the store's remote branch has no commit; make its first commit by hand"
+		refuse "the store clone's branch $b has no upstream on a remote"
+	fi
+	if ! h=$(sgit rev-parse -q --verify HEAD); then
+		# An unborn branch - a clone made before the store's first push, as README.md sets one up: the
+		# merge works on it. git refuses to overwrite an untracked file itself [remote-store/evidence.md
+		# X6], but not an ignored one, which it overwrites, or one at a parent folder of a path the remote
+		# brings, which it deletes, without a word: the overlap check runs here too, over every path of
+		# the new tip [remote-store/review-r3.md A12a].
+		store_overlap "$u"
+		rc=0
+		sgit merge -q --ff-only '@{u}' >/dev/null || rc=$?
+		[ "$rc" -eq 0 ] || git_failed 'fast-forwarding the store clone' "$rc"
+	elif [ "$h" != "$u" ]; then
+		rc=0
+		sgit merge-base --is-ancestor "$h" "$u" || rc=$?
+		case $rc in
+		0)
+			store_overlap "$u"
+			rc=0
+			sgit merge -q --ff-only '@{u}' >/dev/null || rc=$?
+			[ "$rc" -eq 0 ] || git_failed 'fast-forwarding the store clone' "$rc"
+			;;
+		1)
+			if [ "$h" = "$t0" ]; then refuse "the store's remote no longer holds this clone's commit $h; look at its history"; fi
+			refuse "the store clone has commit $h that its remote does not have; push it or remove it by hand"
+			;;
+		*) store_broken "$rc" ;;
+		esac
+	fi
+	S_BASE=$(sgit rev-parse HEAD) || store_broken $?
+}
+
+# printable <path>: the path with each newline written \n and each tab \t, for a one-line message.
+printable() {
+	local p=${1//$'\n'/\\n}
+	printf '%s' "${p//$'\t'/\\t}"
+}
+# store_dirty [<pathspec>...]: sets DIRTY to the clone's uncommitted entries, one "XY<TAB>path" line
+# each, in git status order, the paths store-relative; an entry whose last component starts
+# ".plan-gate." - a claim or a temporary file of a run - is dropped [remote-store/evidence.md X8].
+# Called in this shell, never in $( ): a refusal there would end only the subshell, and $( ) drops
+# the NULs. git's output goes to S_TMP and is read back with read -d '', which keeps every byte; a
+# renamed or copied entry carries its old path as the next field, which is skipped. A path holding a
+# newline or a tab cannot be one line of DIRTY: DIRTY_BAD is set to it, as git gave it but with each
+# newline and tab written \n and \t (printable), and the function returns 1, for the caller to
+# refuse with its own line naming it - one line, as every refusal is [remote-store/review-r1.md A5].
+store_dirty() {
+	local e p skip=''
+	DIRTY='' DIRTY_BAD=''
+	if [ $# -eq 0 ]; then
+		sgit status --porcelain=v1 -z --untracked-files=all >"$S_TMP" || store_broken $?
+	else
+		sgit status --porcelain=v1 -z --untracked-files=all -- "$@" >"$S_TMP" || store_broken $?
+	fi
+	while IFS= read -r -d '' e; do
+		if [ -n "$skip" ]; then
+			skip=''
+			continue
+		fi
+		case $e in R* | C* | ?R* | ?C*) skip=1 ;; esac
+		p=${e#???}
+		case ${p##*/} in .plan-gate.*) continue ;; esac
+		case $p in *$'\n'* | *$'\t'*)
+			DIRTY_BAD=$(printable "$p")
+			return 1
+			;;
+		esac
+		DIRTY=$DIRTY${e:0:2}$'\t'$p$'\n'
+	done <"$S_TMP"
+}
+# store_overlap <new tip>: refuses when the fast-forward to <new tip> would touch a path the clone
+# has changed: git would refuse the merge itself [remote-store/evidence.md X6], and this names the
+# path. The diff is read from S_TMP as store_dirty reads status, never through $( ), which drops the
+# NULs and makes bash warn on stderr beside the refusal [remote-store/check-r2-code.md N2]. A
+# changed path holding a newline or a tab is one plan-gate.sh never commits, and is refused as such.
+# An ignored file is not in git status, and git overwrites it in the fast-forward without a word: the
+# paths the diff names are given to ls-files -o -i as well, and one it lists is refused
+# [remote-store/review-r3.md A12]. ls-files never lists a file at a parent folder of such a path,
+# which git deletes to make the folder: each parent folder that is there as anything but a folder,
+# and is not tracked, is refused too [remote-store/review-r3.md A12b]. On an unborn HEAD the paths
+# are every path of the new tip (ls-tree) [remote-store/review-r3.md A12a]. The paths go into the
+# positional parameters, not an array (the trap's comment).
+store_overlap() {
+	local p q tip=$1 k=0 rc
+	store_dirty || refuse "the store clone has a change plan-gate.sh does not commit: $DIRTY_BAD; look at it"
+	if sgit rev-parse -q --verify HEAD >/dev/null; then
+		sgit diff --name-only -z --no-renames HEAD "$tip" >"$S_TMP" || store_broken $?
+	else
+		sgit ls-tree -r --name-only -z "$tip" >"$S_TMP" || store_broken $?
+	fi
+	while IFS= read -r -d '' p; do
+		case $DIRTY in *$'\t'"$p"$'\n'*) refuse "the store's remote changed $p, which the store clone has changed too; look at both" ;; esac
+		q=$p
+		while case $q in */*) true ;; *) false ;; esac; do
+			q=${q%/*}
+			if [ -L "$S_ROOT/$q" ] || { [ -e "$S_ROOT/$q" ] && ! [ -d "$S_ROOT/$q" ]; }; then
+				rc=0
+				sgit ls-files --error-unmatch -- "$q" >/dev/null || rc=$?
+				if [ "$rc" -eq 1 ]; then refuse "the store's remote changed $(printable "$p"), under $(printable "$q"), which the store clone holds as an untracked file; look at both"; fi
+				[ "$rc" -eq 0 ] || store_broken "$rc"
+			fi
+		done
+		if [ "$k" -eq 0 ]; then set -- "$p"; else set -- "$@" "$p"; fi
+		k=$((k + 1))
+	done <"$S_TMP"
+	[ "$k" -gt 0 ] || return 0
+	sgit ls-files -z -o -i --exclude-standard -- "$@" >"$S_TMP" || store_broken $?
+	p=''
+	IFS= read -r -d '' p <"$S_TMP"
+	[ -z "$p" ] || refuse "the store's remote changed $(printable "$p"), which the store clone holds as an ignored file; look at both"
+}
+# store_clean <project>: refuses when briefs/<project>/ of a store clone holds an uncommitted entry
+# but a .plan-gate.* name - a hand edit, or the files a killed run left [remote-store/plan.md D11,
+# D14] - an untracked file the store's own .gitignore or .git/info/exclude ignores included: git
+# status never lists one, and a killed verdict run's verdict.r<n>.md that the store ignores was read
+# by the next check as the verdict [remote-store/review-r2.md A8]. Nothing for a plain store.
+store_clean() {
+	local l p
+	[ -n "$GIT_STORE" ] || return 0
+	store_dirty "briefs/$1/" || refuse "the store clone has a change under briefs/$1/ that is not committed: $DIRTY_BAD; look at it, and commit, push or remove it by hand"
+	if [ -n "$DIRTY" ]; then
+		l=${DIRTY%%$'\n'*}
+		refuse "the store clone has a change under briefs/$1/ that is not committed: ${l#*$'\t'}; look at it, and commit, push or remove it by hand"
+	fi
+	sgit ls-files -z -o -i --exclude-standard -- "briefs/$1/" >"$S_TMP" || store_broken $?
+	while IFS= read -r -d '' p; do
+		case ${p##*/} in .plan-gate.*) continue ;; esac
+		refuse "the store clone has a change under briefs/$1/ that is not committed: $(printable "$p"); look at it, and commit, push or remove it by hand"
+	done <"$S_TMP"
+}
+
+# store_push <subject> <scope> <path...>: step 6 [remote-store/plan.md Processing]: commits the paths
+# this run wrote - a folder with a trailing / - and pushes them to the clone's upstream, up to 5
+# times [remote-store/plan.md D7-D10]. <scope> is the one pathspec that holds every input of the
+# run's decision, briefs/<project>/, or - meaning the paths themselves (sync)
+# [remote-store/check-r1-code.md C2]. Nothing for a plain store. Each round: briefs/<project>/ holds
+# nothing uncommitted but these paths and .plan-gate.* names; add, commit, push. A failed push is
+# judged by the remote's tip after a fetch (D9). On a miss, when the remote moved nothing under
+# <scope> the round is replayed on the new tip - reset to the base, the overlap check, a
+# fast-forward, the same paths committed again - else it is refused (D8). Signals are held from
+# before S_ADDED=1, which comes before the add so that a partly staged index is unstaged too, to the
+# end of the add, and from before the commit until S_COMMIT is set: a TERM during an unheld commit
+# ran the trap with S_COMMIT empty, which only unstages, and removed the files of a commit still at
+# HEAD [remote-store/check-r2-code.md N5]. Not around fetch or push: a network call stays
+# interruptible, and the trap's undo covers it (D14) - S_PUSHING, set before the first push, has
+# the trap fetch first, so that a TERM after the remote took the push does not undo a commit that
+# landed [remote-store/review-r2.md A9].
+store_push() {
+	local subject=$1 scope=$2 body l p a own rc tip k pushes=0
+	[ -n "$GIT_STORE" ] || return 0
+	shift 2
+	body=$(printf '%s\n' "$@")
+	# r<n> for the refusal: the first path is report.r<n>.md or verdict.r<n>.md.
+	k=${1##*.r}
+	k=${k%.md}
+	while :; do
+		if [ "$scope" != - ]; then
+			store_dirty "$scope" || refuse "the store clone has a change under $scope that is not committed: $DIRTY_BAD; look at it, and commit, push or remove it by hand"
+			l=$DIRTY
+			while [ -n "$l" ]; do
+				p=${l%%$'\n'*}
+				l=${l#*$'\n'}
+				p=${p#*$'\t'}
+				own=''
+				for a in "$@"; do
+					case $a in
+					*/) case $p in "$a"*) own=1 ;; esac ;;
+					*) if [ "$p" = "$a" ]; then own=1; fi ;;
+					esac
+				done
+				[ -n "$own" ] || refuse "the store clone has a change under $scope that is not committed: $p; look at it, and commit, push or remove it by hand"
+			done
+		fi
+		hold_signals
+		S_ADDED=1
+		rc=0
+		# -f: a path the store's own .gitignore or .git/info/exclude names is added all the same - the
+		# commit otherwise lacked it, exit 0, and the other clone's verdict was refused on a copy
+		# folder short of a file [remote-store/review-r1.md A1]. sync's paths are never ignored
+		# (cmd_sync refuses them), so for sync -f changes nothing.
+		sgit add -f -- "$@" >/dev/null || rc=$?
+		release_signals
+		[ "$rc" -eq 0 ] || git_failed "staging the store's files" "$rc"
+		hold_signals
+		GIT_AUTHOR_NAME='glab plan-gate' GIT_AUTHOR_EMAIL=plan-gate@glab.invalid \
+			GIT_COMMITTER_NAME='glab plan-gate' GIT_COMMITTER_EMAIL=plan-gate@glab.invalid \
+			sgit commit -q --no-gpg-sign -m "$subject" -m "$body" -- "$@" >/dev/null || rc=$?
+		if [ "$rc" -eq 0 ]; then S_COMMIT=$(sgit rev-parse HEAD) || rc=$?; fi
+		release_signals
+		[ "$rc" -eq 0 ] || git_failed 'committing to the store' "$rc"
+		pushes=$((pushes + 1))
+		rc=0
+		S_PUSHING=1
+		sgit push -q "$S_REMOTE" "HEAD:$S_MERGE" >/dev/null || rc=$?
+		if [ "$rc" -eq 0 ]; then
+			S_PUSHED=1
+			return 0
+		fi
+		a=0
+		sgit fetch -q "$S_REMOTE" >/dev/null || a=$?
+		if [ "$a" -ne 0 ]; then
+			echo "plan-gate.sh: pushing the store to its remote $S_REMOTE failed, and fetching it again failed (git exit $a); whether this run's commit $S_COMMIT landed is unknown - run sync" >&2
+			exit 2
+		fi
+		tip=$(sgit rev-parse -q --verify '@{u}') || store_broken $?
+		# A push that landed and still failed - killed after the remote took it, or a hook's late failure.
+		# Two runs that wrote the same bytes on the same base in the same second make one commit, one
+		# sha: the tip is then this run's commit too, and it did land.
+		if [ "$tip" = "$S_COMMIT" ]; then
+			S_PUSHED=1
+			return 0
+		fi
+		if [ "$tip" = "$S_BASE" ]; then
+			echo "plan-gate.sh: pushing the store to its remote $S_REMOTE failed (git exit $rc), and the remote did not move; this run's commit is undone - run git -C $S_SHOW push --dry-run to see why" >&2
+			exit 2
+		fi
+		a=0
+		sgit merge-base --is-ancestor "$S_BASE" "$tip" || a=$?
+		if [ "$a" -eq 1 ]; then refuse "the store's remote no longer holds this clone's commit $S_BASE; look at its history"; fi
+		[ "$a" -eq 0 ] || store_broken "$a"
+		# A miss. The decision's inputs are all under <scope>: when the remote moved one of them, a
+		# replay would land a decision on a state it never read [remote-store/evidence.md X3].
+		a=0
+		if [ "$scope" = - ]; then
+			sgit diff --quiet --no-renames "$S_BASE" "$tip" -- "$@" || a=$?
+		else
+			sgit diff --quiet --no-renames "$S_BASE" "$tip" -- "$scope" || a=$?
+		fi
+		if [ "$a" -eq 1 ] && [ "$scope" = - ]; then
+			sgit diff --name-only -z --no-renames "$S_BASE" "$tip" -- "$@" >"$S_TMP" || store_broken $?
+			p=''
+			IFS= read -r -d '' p <"$S_TMP"
+			refuse "the store's remote changed $p while this run committed it; look at both"
+		fi
+		if [ "$a" -eq 1 ]; then refuse "the store's remote changed $scope while this run wrote r$k; run it again"; fi
+		[ "$a" -eq 0 ] || store_broken "$a"
+		[ "$pushes" -lt 5 ] || refuse "the store's remote moved 5 times while this run pushed; run it again"
+		# The replay. The reset takes HEAD back to the base this run's commit sits on; S_COMMIT is
+		# cleared right after it, and S_BASE moved right after the fast-forward, so that the trap
+		# never resets off a commit this run did not make [remote-store/check-r1-code.md C3]. A reset
+		# that fails leaves this run's commit at HEAD, and names the command that undoes it.
+		rc=0
+		sgit reset -q --mixed "$S_BASE" >/dev/null || rc=$?
+		if [ "$rc" -ne 0 ]; then
+			S_COMMIT='' S_ADDED=''
+			echo "plan-gate.sh: undoing this run's commit in $S_SHOW failed; run git -C $S_SHOW reset --mixed $S_BASE by hand" >&2
+			exit 2
+		fi
+		S_COMMIT=''
+		store_overlap "$tip"
+		rc=0
+		sgit merge -q --ff-only "$tip" >/dev/null || rc=$?
+		[ "$rc" -eq 0 ] || git_failed 'fast-forwarding the store clone' "$rc"
+		S_BASE=$tip
+	done
+}
+
+# git_undo: the trap's first step in a store clone, on every exit before the push landed
+# [remote-store/plan.md D14]. When HEAD is this run's commit, a reset to its parent; else, when the
+# run staged, an unstage: it never moves HEAD off a commit this run did not make
+# [remote-store/check-r1-code.md C3]. Then the report and its copy folder, or the verdict, that this
+# run published - by name, since publish_file set them; sync's files are the planner's and never
+# set. A reset that fails prints the command that does it by hand, and the exit becomes 2. Once a
+# push was sent (S_PUSHING), a fetch first: a remote tip that holds this run's commit - is it, or
+# another push already built on it - means the push landed, a TERM after it having ended the run
+# before S_PUSHED was set, and nothing is undone; a fetch that fails, or any other tip, undoes as
+# before [remote-store/review-r2.md A9] [remote-store/review-r3.md A13]. A push still running when
+# the trap fetches can land after it, and is undone here all the same: the next run's fetch brings
+# the commit back.
+git_undo() {
+	local h t u
+	[ -z "$S_PUSHED" ] || return 0
+	if [ -n "$S_PUSHING" ] && [ -n "$S_COMMIT" ] && sgit fetch -q "$S_REMOTE" >/dev/null &&
+		u=$(sgit rev-parse -q --verify '@{u}') && sgit merge-base --is-ancestor "$S_COMMIT" "$u"; then
+		return 0
+	fi
+	if [ -n "$S_COMMIT" ] && h=$(sgit rev-parse -q --verify HEAD) && [ "$h" = "$S_COMMIT" ]; then
+		if ! sgit reset -q --mixed "$S_COMMIT^" >/dev/null; then
+			t=$(sgit rev-parse -q --verify "$S_COMMIT^") || t=$S_BASE
+			echo "plan-gate.sh: undoing this run's commit in $S_SHOW failed; run git -C $S_SHOW reset --mixed $t by hand" >&2
+			UNDO_FAILED=1
+		fi
+	elif [ -n "$S_ADDED" ]; then
+		if ! sgit reset -q --mixed HEAD >/dev/null; then
+			echo "plan-gate.sh: undoing this run's commit in $S_SHOW failed; run git -C $S_SHOW reset --mixed HEAD by hand" >&2
+			UNDO_FAILED=1
+		fi
+	fi
+	[ -z "$S_FILE" ] || rm -f -- "$S_FILE"
+	[ -z "$S_DIR" ] || rm -rf -- "$S_DIR"
 }
 
 cmd_digest() {
@@ -464,6 +953,8 @@ cmd_report() {
 	[ -z "$note" ] || [ -f "$note" ] || missing file "$note"
 	no_links "$plan" 'the plan folder'
 	brief_line "$plan"
+	store_open "$store"
+	store_clean "$PROJECT"
 	dir=$store/briefs/$PROJECT
 	[ -f "$dir/brief.md" ] || missing file "$dir/brief.md"
 	[ "$(hash_of "$dir/brief.md")" = "$BRIEF_SHA" ] || refuse 'the brief changed since the plan was written; plan again'
@@ -502,6 +993,7 @@ cmd_report() {
 		if [ -n "$note" ] && [ -n "$(tr -d '[:space:]' <"$note")" ]; then cat -- "$note"; else echo none; fi
 	} >"$TMP_FILE" || io 'writing the report'
 	publish_file "$dir/report.r$n.md" "another run wrote report r$n first"
+	store_push "store(report): $PROJECT r$n by $PROJECT" "briefs/$PROJECT/" "briefs/$PROJECT/report.r$n.md" "briefs/$PROJECT/plan.r$n/"
 	echo "$dir/report.r$n.md"
 }
 
@@ -514,6 +1006,8 @@ cmd_verdict() {
 	case $project in '' | *[!a-z0-9-]*) usage ;; esac
 	[ -d "$store" ] || missing folder "$store"
 	[ -f "$reason" ] || missing file "$reason"
+	store_open "$store"
+	store_clean "$project"
 	dir=$store/briefs/$project
 	n=$(highest "$dir" report)
 	if [ "$n" -eq 0 ]; then refuse 'no report to decide'; fi
@@ -556,6 +1050,7 @@ cmd_verdict() {
 		cat -- "$reason"
 	} >"$TMP_FILE" || io 'writing the verdict'
 	publish_file "$dir/verdict.r$n.md" "report r$n already has a verdict"
+	store_push "store(verdict): $project r$n $verdict by $by" "briefs/$project/" "briefs/$project/verdict.r$n.md"
 	echo "$dir/verdict.r$n.md"
 }
 
@@ -565,6 +1060,8 @@ cmd_check() {
 	[ -d "$plan" ] || missing folder "$plan"
 	[ -d "$store" ] || missing folder "$store"
 	brief_line "$plan"
+	store_open "$store" read
+	store_clean "$PROJECT"
 	dir=$store/briefs/$PROJECT
 	[ -f "$dir/brief.md" ] || missing file "$dir/brief.md"
 	# The refusals in this order, so that each state has one answer: the brief, a report still
@@ -584,6 +1081,59 @@ cmd_check() {
 	echo "ACCEPTED r$v $d"
 }
 
+# cmd_sync <store> [product-manager]: brings a store clone up to date for a reader that is not this
+# script, and with product-manager also commits and pushes the files the planner wrote by hand -
+# a ` M` or `??` entry that is a brief, briefs/<project>/brief.md, or a rule file,
+# docs/product-rules/<name>.md; any other uncommitted entry but a .plan-gate.* name is refused, and
+# local edits are otherwise left in place [remote-store/plan.md D16]. Refused too: a brief or rule
+# file the store's own .gitignore or .git/info/exclude ignores, which git status never lists, so
+# sync would have pushed nothing and said nothing; and an entry that is not a regular file, since a
+# symlink would be committed as a link (mode 120000) [remote-store/review-r1.md A1, A6]. A plain folder: "folder", and
+# nothing else is done [remote-store/check-r1-code.md C20]. The trap never removes sync's files.
+cmd_sync() {
+	[ $# -eq 1 ] || { [ $# -eq 2 ] && [ "$2" = product-manager ]; } || usage
+	local store=$1 writer=${2:-} l p h k=0
+	[ -d "$store" ] || missing folder "$store"
+	if [ -n "$writer" ]; then store_open "$store"; else store_open "$store" read; fi
+	if [ -z "$GIT_STORE" ]; then
+		echo folder
+		exit 0
+	fi
+	if [ -n "$writer" ]; then
+		store_dirty || refuse "the store clone has a change plan-gate.sh does not commit: $DIRTY_BAD; look at it"
+		# The folders are literal pathspecs (sgit), so the names are matched here, as :(glob) matched
+		# them: one level, a brief under briefs/<name>/ and a rule file directly in docs/product-rules/.
+		sgit ls-files -z -o -i --exclude-standard -- briefs docs/product-rules >"$S_TMP" || store_broken $?
+		while IFS= read -r -d '' p; do
+			case $p in
+			briefs/*/*/* | docs/product-rules/*/*) ;;
+			briefs/*/brief.md | docs/product-rules/*.md)
+				refuse "the store clone ignores $(printable "$p"), so sync does not commit it; look at the store's .gitignore"
+				;;
+			esac
+		done <"$S_TMP"
+		l=$DIRTY
+		while [ -n "$l" ]; do
+			p=${l%%$'\n'*}
+			l=${l#*$'\n'}
+			case ${p%%$'\t'*} in ' M' | '??') ;; *) refuse "the store clone has a change plan-gate.sh does not commit: ${p#*$'\t'}; look at it" ;; esac
+			p=${p#*$'\t'}
+			# No glob character in a rule file's name: git read one as a pattern [remote-store/review-r3.md A11].
+			printf '%s\n' "$p" | grep -qxE 'briefs/[a-z0-9-]+/brief\.md|docs/product-rules/[^/*?[\]+\.md' ||
+				refuse "the store clone has a change plan-gate.sh does not commit: $p; look at it"
+			if [ -L "$store/$p" ] || ! [ -f "$store/$p" ]; then
+				refuse "the store clone has a change plan-gate.sh does not commit: $p, not a regular file; replace it with the file"
+			fi
+			# The paths go into the positional parameters, not an array (the trap's comment).
+			if [ "$k" -eq 0 ]; then set -- "$p"; else set -- "$@" "$p"; fi
+			k=$((k + 1))
+		done
+		if [ "$k" -gt 0 ]; then store_push "store(sync): $k files by product-manager" - "$@"; fi
+	fi
+	h=$(sgit rev-parse HEAD) || store_broken $?
+	echo "git $h"
+}
+
 mode=${1:-}
 [ $# -eq 0 ] || shift
 case $mode in
@@ -591,5 +1141,6 @@ digest) cmd_digest "$@" ;;
 report) cmd_report "$@" ;;
 verdict) cmd_verdict "$@" ;;
 check) cmd_check "$@" ;;
+sync) cmd_sync "$@" ;;
 *) usage ;;
 esac

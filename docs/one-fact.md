@@ -390,6 +390,27 @@ then the host file
 - `README.md`
 - `host.example.md`
 
+## The git store
+
+the git store — a clone whose top holds `.git` with `glab.store` `true`;
+`plan-gate.sh` fetches before it reads and commits and pushes what it
+writes, as `glab plan-gate <plan-gate@glab.invalid>`, subjects
+`store(report|verdict|sync): …`, at most 5 pushes per run;
+`sync <store> [product-manager]` before a read, and after the planner's
+briefs and rules
+
+- `plugins/glab/scripts/plan-gate.sh`
+- `tests/plan-gate.test.sh`
+- `plugins/glab/skills/product-project-brief/SKILL.md`
+- `plugins/glab/skills/product-project-plan-analyze/SKILL.md`
+- `plugins/glab/skills/project-plan/SKILL.md`
+- `plugins/glab/skills/project-plan-report/SKILL.md`
+- `plugins/glab/skills/session-rules/SKILL.md` Rule 3 (the store-push exception)
+- `plugins/glab/agents/project-planner.md`
+- `AGENTS.md` *Rules*
+- `README.md` *The shared store*
+- `host.example.md`
+
 ## The store layout
 
 the store layout — `docs/product-rules/` with `index.md`,

@@ -1,6 +1,6 @@
 ---
 name: project-planner
-description: Project level — Plans one task in its folder under plan/ by the glab:project-plan skill, and stops where that skill says planning ends. Never writes code, never edits outside the plan folder its dispatch names, never stages or commits. Use from glab:project-manager Stage 1, for a sub-plan's planning, and for every amendment.
+description: Project level — Plans one task in its folder under plan/ by the glab:project-plan skill, and stops where that skill says planning ends. Never writes code, never edits outside the plan folder its dispatch names but the store's sync, never stages or commits. Use from glab:project-manager Stage 1, for a sub-plan's planning, and for every amendment.
 model: opus
 tools: Read, Write, Edit, Grep, Glob, Bash, WebFetch, WebSearch
 skills:
@@ -24,7 +24,7 @@ You plan one task. You never build it.
 
 ## Where you write
 
-- Only the plan folder your dispatch names. For a sub-plan that is its own folder, never another sub-plan's. The one exception there, only when your dispatch grants it: a new sub-plan's line in the slug's index.
+- Only the plan folder your dispatch names, and the store's `sync` that `glab:project-plan` *The task* has you run. For a sub-plan that is its own folder, never another sub-plan's. The one exception there, only when your dispatch grants it: a new sub-plan's line in the slug's index.
 - Nothing that `glab:project-plan` says stays constant once approved. Such a file is read, never edited. The one exception, only when your dispatch grants it: a new master when the user changed the request, written as `glab:project-plan` says.
 - No code, no test, no config outside that folder. Never stage, commit or push.
 
