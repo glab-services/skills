@@ -56,13 +56,90 @@ entries, the `README.md` row and *Requirements*) as of `632dcb0` (`glab`
 lines (the version, the `plan-gate.sh` contract and the size of
 `AGENTS.md`, the test count, the *One fact* entry *The git store*,
 `README.md` *The shared store* and *Requirements*, `host.example.md`) as
-of `0634bd5` (`glab` `0.18.0`, PR #25, not merged at this record); the
+of `0634bd5` (`glab` `0.18.0`, PR #25, not merged at this record), and
+its `docs-mirror` lines (the version, the layout's `templates/`, the gates
+at 39 and the new test, the size of `AGENTS.md`, the *One fact* entry *The
+docs mirror*, `README.md` *The docs mirror*, the plugin table, *Requirements*
+and the `tests/` row) as of `cf511d4` (`glab` `0.19.0`, feature commit
+`6827075`, PR skills-marketplace#1, not merged at this record); the
 first bullet below, `remote-store`'s, and the second, `level-guard`'s,
-supersede every count and line below them where they disagree; where this
+supersede every count and line below them where they disagree
+(*amended by `docs-mirror`:* they are now the second and third bullets,
+and the first, `docs-mirror`'s, supersedes both where they disagree); where this
 file and an owning file disagree, the
 owning file is right and this spec is out of date.
 
 ## How it works now
+
+- **The repo after `docs-mirror`, as of 0.19.0** (`6827075` and
+  `cf511d4`; the owners `AGENTS.md`, `docs/one-fact.md`, `README.md`,
+  `tests/gates.sh`, `tests/docs-mirror.test.sh` and
+  `plugins/glab/.claude-plugin/plugin.json`; `[docs-mirror/plan.md D14]`,
+  `D15`, `D21`–`D23`, `D27`). This bullet supersedes the next two where
+  they disagree; the mirror itself is recorded in `docs/specs/workflow.md`
+  *The docs mirror as of 0.19.0*. **Version:** `glab` 0.18.0 → 0.19.0, a
+  minor step for a new shipped capability, raised once in the feature
+  commit `6827075`; `cf511d4`, the two skill descriptions' fix, ships under
+  the same 0.19.0 (`[docs-mirror/decisions-2.md R1-9]`); `memory-sync`
+  stays `0.1.0`; `plugin.json`'s description unchanged (`D23`).
+  **Layout** (`AGENTS.md` *Layout*): `plugins/glab/` now reads "its skills
+  and agents, `hooks/hooks.json`, `scripts/` (`manager-bootstrap.sh`,
+  `context-size.sh`, `level-guard.sh`, `glab-level.sh` — the level rule
+  both hooks source — and `plan-gate.sh`) and `templates/`", in place of
+  the four lines that listed each `scripts/…` path; `AGENTS.md` is 8788
+  bytes (`wc -c`; 8794 before), 12 under its 8800 cap; the
+  `plugins/glab/templates/docs-mirror/` folder holds `docs-mirror.sh`
+  (mode `100755`), `github-docs-mirror.yml` and `gitlab-docs-mirror.yml`;
+  new in `tests/`: `tests/docs-mirror.test.sh` (`100755`; `git ls-files -s`
+  at this record). **The gates** (`D14`): `tests/gates.sh` runs 39 checks,
+  four appended after G35 so `G1`–`G35` keep their ids and names (the
+  ok-line diff against a run of the base tree printed nothing,
+  `[docs-mirror/result-code.md]` *Gates*), and `docs/one-fact.md`'s
+  `G33`/`G34` stand: G36 and G37 `bash -n` and `test -x` on the script and
+  the test, G38 `shellcheck on 2 docs-mirror scripts`, G39 `test:
+  tests/docs-mirror.test.sh 25/25`, judged as G15–G20; their paths are a
+  `MIRROR` array beside `SCRIPTS` and `TESTS`, apart because appending to
+  those would renumber every later check; the header names "the seven
+  script tests" and G36–G39. G38 prints shellcheck's first non-blank line
+  as its reason (`[docs-mirror/decisions-2.md R1-7]`; G14 keeps the old
+  empty reason, FU-DM-R2). Green: `PASS 39/39`, exit 0. **The test**
+  (`D15`): `tests/docs-mirror.test.sh <path to docs-mirror.sh>`, local bare
+  repositories by path, a stub `ssh` first on `PATH` (`AGENTS.md` *Tests*)
+  that serves an `ssh://` remote locally and records its
+  argv, the key file's mode and whether the key text is in its
+  environment, a git wrapper that records whether a git process sees the
+  key text, and a failing-git wrapper for one subcommand at rc 128; the
+  isolation of `tests/plan-gate.test.sh`, a per-run `TMPDIR` asserted empty
+  after each run, `GIT_CEILING_DIRECTORIES`, `LC_ALL=C`; 25 cases DM1–DM25,
+  every case asserting stdout empty; later checks are variants inside
+  existing cases, so the count stays 25 (`R1-6`, `R2-2`); the only
+  background process is DM18's run, its PID held and killed by the trap
+  alone, the stub `ssh` under it polled with `kill -0`, never waited on or
+  killed (`D36`). The templates' YAML was parsed once with PyYAML
+  (`python3 -I`, `yaml.safe_load`), not a gate, python3 being no gate
+  requirement (`[docs-mirror/result-code.md]`). **One fact:**
+  `docs/one-fact.md` has 42 entries (`grep -c '^## '`; 41 at `0e5b38e`),
+  one new — *The docs mirror*, after *The store layout*: the templates and
+  their copies, the four variables, the commit identity, subject, trailer
+  and paragraphs, its `REFUSED:`, `skipped` and `docs-mirror: git:` lines,
+  bash 4.4 and git 2.28, and, from review rounds 1 and 2, the 4 git lines,
+  GitLab's `stage: .post`, `main` as the GitHub mirror's branch, the GitLab
+  environment `docs-mirror` and the GitHub concurrency group
+  `glab-docs-mirror`, each with the files that state it; seven file lines
+  (`R1-8`; `[docs-mirror/review-r2.md T2-L2]`). **`README.md`** (`D21`):
+  *The docs mirror*, between *Try the product loop* and *Requirements* —
+  what it does, the setup in seven steps, *What happens when*, *Updating a
+  copy*, *Not verified*; the plugin table's `glab` row names the templates;
+  *Requirements* "The docs mirror's CI job needs bash 4.4 or newer, git
+  2.28 or newer and an ssh client on its runner."; the `tests/` row of
+  *Working on this repo* names `docs-mirror.sh`. No `host.example.md` line:
+  nothing of it is a fact of one machine. No URL was added: A3's count
+  stayed at its baseline, 7 (`/usr/bin/grep -rho 'https\?://' plugins
+  tests README.md AGENTS.md docs/one-fact.md host.example.md | wc -l`, at
+  `0e5b38e` and at this record), and no PEM block is in `plugins`, `tests`
+  or `README.md`. **Commits** (`D27`): one `feat(skills): …` commit for the
+  whole change (`6827075`), the fix `cf511d4`, then this record's
+  `docs(repo): …` commit on the same branch.
 
 - **The repo after `remote-store`, as of 0.18.0** (`0634bd5`; the owners
   `AGENTS.md`, `docs/one-fact.md`, `README.md`, `host.example.md`,
@@ -1159,6 +1236,19 @@ owning file is right and this spec is out of date.
 - [remote-store/plan.md D23] `docs/one-fact.md` gains *The git store*, right after *The shared store line* and before *The store layout* (41 entries); *The shared store line* is not touched, since its files do not say what the path names. The record's clauses — `[docs-lifecycle/plan.md M2]`'s "`plan-gate.sh` runs no git command" superseded, FU-P3 kept open with its premise amended, LP7 added — are in `docs/specs/product.md`.
 - [remote-store/plan.md D32] (its `AGENTS.md` half) The contract sentence must be true and fit 8800 bytes: measured on a copy at 8796 as planned (`evidence.md` E4; a longer wording measured 8806 and was not taken), 8790 after review round 1's B1, 8794 after round 2's B7, as shipped. "2 usage, a failed write or fetch" names the new failed fetch; a clone git cannot use or whose setup is incomplete is a `REFUSED:` line, a state of the store; the git half lives in the script's header.
 - [remote-store/plan.md Steps] One commit for the change with the version raise (`0634bd5`, `feat(skills): let the plan gate's shared store be a git clone (glab 0.18.0)`; the plan named the subject `… keep the shared store in a git repository …`), then this record on the same branch, in PR #25.
+- [docs-mirror/plan.md D14] Four checks appended after G35 — G36/G37 the syntax-and-execute-bit check on `docs-mirror.sh` and `tests/docs-mirror.test.sh`, G38 shellcheck on both, G39 the test, judged as G15–G20 — so `G1`–`G35` keep their ids and `docs/one-fact.md`'s `G33`/`G34` stand. Green: `PASS 39/39`.
+- [docs-mirror/plan.md D15] The test runs the script against local bare repositories by path and a stub `ssh` first on `PATH`, with `tests/plan-gate.test.sh`'s environment isolation, and checks the templates' text beside the script; the YAML parse is a one-off of the developer's with PyYAML, recorded in `result-code.md`, not a gate: python3 is no gate requirement.
+- [docs-mirror/plan.md D21] The setup text lives once, in `README.md` *The docs mirror*, between *Try the product loop* and *Requirements*; *Requirements*, the `glab` row of the plugin table and the `tests/` row each gain a short clause; the templates' header comments point at it; no `host.example.md` line, nothing of it being a fact of one machine.
+- [docs-mirror/plan.md D22] One fact: a new `docs/one-fact.md` entry *The docs mirror*; the feature page restates none of its values.
+- [docs-mirror/plan.md D23] `glab` 0.18.0 → 0.19.0, a minor step for a new shipped capability, raised once in the change's one feature commit; `memory-sync` stays 0.1.0; `plugin.json`'s description unchanged.
+- [docs-mirror/plan.md D26] No new area spec: `AGENTS.md` *Rules* names each spec, and a new name would pass 8800 bytes. *Amended at plan check r1 (`D35`):* the record goes to `docs/specs/workflow.md` (primary) and this file, not `docs/specs/product.md`, which `AGENTS.md` defines as the product level and its loop, and the product level does not read the mirrors. *Amended at plan check r2:* the decision lists per file, as this record follows them.
+- [docs-mirror/plan.md D27] One `feat(skills): …` commit for the change, the version raised in it (`6827075`), then the record's `docs(repo): …` commit; `cf511d4` came between them by `[docs-mirror/decisions-2.md R1-9]`.
+- [docs-mirror/plan.md D35] (manager, plan check r1) The record goes to `docs/specs/workflow.md` and this file, not `docs/specs/product.md` (`D26`'s amendment).
+- [docs-mirror/plan.md D36] (manager, plan check r1) DM18 no longer waits by PID on a process it did not start: `wait` on the stub, a grandchild, fails (`not a child of this shell`, rc 127, proven); the test polls `kill -0` on the PID in the stub's PID file and never kills it, since it may be reused once the stub ends; the stub ends by itself after `STUB_SSH_SLEEP` s.
+- [docs-mirror/decisions-2.md R1-6] Review round 1's cheap test cases are variants inside existing DM cases, no new ids, so `PASS 25/25` and G39 stay: a hand commit ending in `Source-Commit:` by another email, `GIT_DIR`/`GIT_INDEX_FILE` set, `commit.gpgsign=true`, a key with a trailing newline, 21 hand commits; every mutation still surviving is listed with its reason (`docs/specs/workflow.md` *Known limits*).
+- [docs-mirror/decisions-2.md R1-7] G38's empty reason fixed, G14's left as FU-DM-R2: `G1`–`G35` stay unchanged in this change.
+- [docs-mirror/decisions-2.md R1-8] The three facts several files state — the 4 git lines, `stage: .post`, `main` as the GitHub branch — join the one-fact entry, each with its files; `AGENTS.md` stays at 8788 bytes.
+- [docs-mirror/decisions-2.md R2-2] Round 2's surviving mutations that guard a refusal or a leak get variants inside existing cases (`PASS 25/25` stays): the redaction forms, the `merge-base` other-rc guard (a git wrapper at rc 128), the fetch-failure path, the `commit-tree` rc check, the branch `-` guard; the rest may stay survivors, each with its reason.
 
 ## Known limits and not verified
 
@@ -1185,6 +1275,7 @@ owning file is right and this spec is out of date.
 - [script-hardening/plan.md Coverage] UNVERIFIED, as of `64b4e57`: a real bash older than 4.4 running `tests/gates.sh` — none was at hand (`plan.md` F9), and only the version-substituted copies ran the refusal; bash 5.3.9 ran the gates, and bash 5.2.37 and 5.1.16 ran the plan-gate suite and passed (the manager, this record's dispatch; `docs/specs/product.md` *Incidents*); bash 4.4 and 5.0 were not run; macOS was not checked (`[script-hardening/review.r1.md]`, `review.r2.md` *Not checked*). The `plan-gate.sh` items — real ENOSPC or EDQUOT, the code 1 after a failed open in a real race, the re-create under the lock — are in `docs/specs/product.md` *Known limits*.
 - [level-guard/plan.md Coverage] The gates show the scripts, not a session: `tests/level-guard.test.sh` runs the hook on made-up inputs and a copy of the tree, and G20 and G26 prove neither that the matchers fire nor what Claude Code does with `deny` and `ask`. That is the live test S10, run by the manager and the user outside the gates (`docs/specs/product.md` *How it works now* and *Known limits*), on Linux only. `plugin details` still labels the new hook "harness-only — no model context cost", which the deny reason Claude reads contradicts, as for the context hook above.
 - [remote-store/plan.md Not verified] The gates prove `plan-gate.sh` against a local bare repository by path only, on bash 5.3.9 and git 2.53.0: no network remote, hosted service or Platform clone ran, and no older bash or git (`docs/specs/product.md` *Known limits*). The Markdown of the change has no runtime: its sentences are shown by the plan's post-condition greps, not by a live session.
+- [docs-mirror/plan.md Not verified] The gates prove `docs-mirror.sh` against local bare repositories and a stub `ssh` only, on bash 5.3.9 and git 2.53.0; no hosted CI run, real ssh, older bash or git ran (`docs/specs/workflow.md` *Known limits*). DM24 and DM25 run copies whose version test asks 6.0 and 99.0, so they prove the line, not a real old bash or git. The templates' YAML has no gate: one PyYAML parse of their structure (`[docs-mirror/result-code.md]`), FU-DM4. The Markdown of the change has no runtime: `README.md`'s and `docs/one-fact.md`'s text is shown by the plan's searches and by reading (`[docs-mirror/result-text.md]`, `[docs-mirror/result-fix-r2.md]` T2-L1), not by a hosted run.
 
 ## Open follow-ups
 
@@ -1195,6 +1286,10 @@ owning file is right and this spec is out of date.
 - [script-hardening/plan.md FU-SH2] `tests/gates.sh` checks only its own bash: the tests it runs use the `bash` on `PATH`, which may be another, older one (`plan.md` F9; `tests/gates.sh:28-29`). Opened by `script-hardening` (0.16.3) — open.
 - [level-guard/follow-ups.md FU-LG10] `AGENTS.md` *Rules* says `manager-bootstrap.sh` warns "when `glab-level.sh` is missing beside it"; the warning now says "missing or unreadable", and both cases give the project text. Adding "or unreadable" would take `AGENTS.md` to 8804 bytes, over its 8800 target (`[slim-agents-md/plan.md D17]`), so it was left as it is (`[level-guard/plan.md D27]`) — open, for a pass that frees bytes there.
 - [remote-store/follow-ups.md FU-RS10] `AGENTS.md` *Rules*, the `plan-gate.sh` sentence: when a push fails and the fetch after it fails too, the run exits 2 with a write whose landing is unknown — its message says "run sync" — and the contract clause does not name this path; `AGENTS.md` has about 6 bytes of room under its 8800 cap (`[remote-store/review-r3.md]` *Follow-ups*) — open.
+- [docs-mirror/plan.md FU-DM4] A gate for the templates' YAML, if a YAML linter becomes a gate requirement — open.
+- [docs-mirror/plan.md FU-DM6] `.claude-plugin/marketplace.json`'s `glab` description names neither the level-guard hook nor `templates/`; a wording change with its own version raise (pre-existing, plan check r1) — open.
+- [docs-mirror/follow-ups.md FU-DM-R2] G14 in `tests/gates.sh` prints an empty reason (`findings: `) on a shellcheck finding, shellcheck's output starting with a blank line; G38 has the fix (the first line that is not blank); `G1`–`G35` stayed unchanged in `docs-mirror` (`[docs-mirror/decisions-2.md R1-7]`) — open.
+- [docs-mirror/record FU-DM-R5] The install source: `README.md:365`, `:382` and `:410`, `host.example.md:30` and the `repository` field of both `plugin.json` files (`plugins/glab/.claude-plugin/plugin.json:8`, `plugins/memory-sync/.claude-plugin/plugin.json:8`) name glab-services/skills, the public repo, while changes are delivered to the private glab-services/skills-marketplace first and reach the public repo only when the user merges them there; if the user moves the install source, those six lines change in one commit, the user's call — open.
 
 ## Closed follow-ups
 
@@ -1236,6 +1331,10 @@ owning file is right and this spec is out of date.
 - **`script-hardening`'s incidents, pointed at, told in full in `docs/specs/product.md` *Incidents*** (2026-11-18): review round 1 found that a failed `exec 9>` redirection ends bash silently in posix mode, hence `command exec` (`[script-hardening/review.r1.md]`); review round 2 found that T56 failed on bash 4.4–5.2, the function name `[` being rejected in posix mode (`[script-hardening/review.r2.md]`); the planner's background run of the FU-SH1 hang had to be stopped (the manager, this record's dispatch); and plan check round 2, the plan-check cap (`[script-hardening/plan.md D20]`), and review round 2 were the caps, their fixes verified by the manager, review round 2's verified on bash 5.2 (`D23`); the suite ran on bash 5.2.37 and 5.1.16 in local container images with `--network none` and the repo mounted read-only (the manager, this record's dispatch).
 - **`level-guard`'s incidents, pointed at, told in full in `docs/specs/product.md` *Incidents*** (2026-11-18 and 2026-11-19): a plan checker sent stderr to `/tmp/x_unused_never` once, removed by its exact path (`[level-guard/plan.md IN-LG1]`), the second slip of the kind after *A wildcard `rm` in the shared temp directory*; the scripts reviewer of review round 2 ran `claude --version` once without `CLAUDE_CONFIG_DIR`, against `AGENTS.md` *Gates* (`[level-guard/plan.md IN-LG2]`); and the plan-check cap was reached, its last 40 replacements checked by the manager's `grep -cF` (`[level-guard/plan.md D24]`).
 - **`remote-store`'s incidents, pointed at, told in full in `docs/specs/product.md` *Incidents*** (2026-11-19): the plan-check cap was reached, its last replacements applied by the manager and proven by `grep -cF`, 43 of 43 (`[remote-store/plan.md D36]`, `apply-r2.md`); and review round 3's fix for A12 was broken on two paths, found by its verification and fixed as A12a and A12b without a fourth review round (`[remote-store/plan.md D39]`, `result-fix-r3b.md`).
+- **DM18 waited on a process it did not start** (`docs-mirror`, plan check round 1; `[docs-mirror/check-r1-code.md]` M4): the plan had the test `wait` on the stub `ssh`, a grandchild of the test's shell; `wait` failed (`not a child of this shell`, rc 127, proven). Killing it instead would have broken *Tests clean up by PID* — a PID the test did not start, possibly reused once the stub ends — so the test polls `kill -0` and never signals it (`[docs-mirror/plan.md D36]`). Plan check round 2 proved the poll nearly a no-op: git reaps its ssh child before it returns (`[docs-mirror/check-r2-code.md]`).
+- **Review round 1: the tests passed broken scripts** (`docs-mirror`; `[docs-mirror/review-r1.md]` T-M1–T-M3, medium): with the refusal a fresh CI clone hits after a rewrite turned into `:`, the test still printed `PASS 25/25` and the copy published; DM22's search for `\+refs/` never matched `"+$c:refs/heads/…"`, a forced push; DM19 passed with the 4-line cut at 999, at 1 and in reversed order. Each now fails its case (`[docs-mirror/result-fix-r1.md]`). Review round 2's mutation sweep caught 70 of 88 (`[docs-mirror/review-r2.md]`); the survivors guarding a refusal or a leak got variants (`[docs-mirror/decisions-2.md R2-2]`), the rest are listed in `docs/specs/workflow.md` *Known limits*. Lesson: a case that never runs the failing branch passes every mutation of it.
+- **A comment broke a gate** (`docs-mirror`, fix round 2; `[docs-mirror/result-fix-r2.md]` *Unplanned / own*): a new script comment containing the words `git push` made DM22's one-`git push`-line check fail (`FAIL G39 … git push lines`); the comment now says "a push". The gate caught it before the review.
+- **The plan reached its size cap** (`docs-mirror`, after develop; `[docs-mirror/decisions-2.md]` header): `plan.md` reached 49152 bytes (`wc -c`), its 48 KiB budget (`docs/one-fact.md` *The plan size budget*), with `D1`–`D39`; the later decisions went to `decisions-2.md`, which binds the same way, and the review rounds' follow-ups to `follow-ups.md`.
 
 ## Records
 
@@ -1326,3 +1425,13 @@ owning file is right and this spec is out of date.
   - Security → no secrets and no URL added (PC11: 6, the baseline); the contract of `plan-gate.sh` in `AGENTS.md` *Rules* changed under the change's own plan, *The contract*, as its *Rules* require; no hook contract changed.
   - Incidents → pointed at under *Incidents*, told in full in `docs/specs/product.md`.
   - Record → this record, in this file, `docs/specs/product.md`, `docs/specs/workflow.md` and `docs/features/remote-store.md`; no audit file.
+- 2026-11-20 · docs-mirror · 6827075 · cf511d4 · docs-mirror · skills-marketplace#1
+  - PR #1 on glab-services/skills-marketplace, the private repo every change is delivered to first from 2026-11-20 (PRs up to #25 were on glab-services/skills, so the number restarted); as of this record glab-services/skills stays the public install source that `README.md`, `host.example.md` and both `plugin.json` `repository` fields name, and a change reaches it only when the user merges it there (FU-DM-R5), open, not merged at this record; recorded in `docs/specs/workflow.md`, its primary area (`[docs-mirror/plan.md D35]`: the mirror, its contract and rules, its callers and setup, `cf511d4`'s two skill descriptions); here: `glab` 0.19.0 (`memory-sync` 0.1.0), `AGENTS.md` *Layout* with `templates/` (8788 bytes), `tests/gates.sh` at 39 checks with G36–G39 and the new test (`PASS 25/25`), `PASS 39/39`, *The docs mirror* (42 entries), `README.md` *The docs mirror*, the plugin table, *Requirements* and the `tests/` row; no URL added.
+  - [docs-mirror/plan.md Decisions] Decisions → `D14`, `D15`, `D21`–`D23`, `D26`, `D27`, `D35`, `D36` and `[docs-mirror/decisions-2.md R1-6]`–`R1-8`, `R2-2` above under *Decisions that still bind*; the others in `docs/specs/workflow.md`.
+  - Not verified → the local-only proof, the version-substituted copies, the YAML without a gate and the Markdown's lack of a runtime, above under *Known limits*; the hosted runs and the rest in `docs/specs/workflow.md`.
+  - Follow-ups → open: FU-DM4, FU-DM6, FU-DM-R2 and FU-DM-R5 above; the others in `docs/specs/workflow.md`; `[level-guard/follow-ups.md FU-LG10]` and `[remote-store/follow-ups.md FU-RS10]` re-read, still open (`AGENTS.md` is 8788 bytes, 12 under its cap; inferred: FU-LG10's 15 bytes do not fit).
+  - Gates → the manager's run on the pushed branch: `bash tests/gates.sh` → `PASS 39/39`, the docs-mirror test → `PASS 25/25`; this record's run, `export TMPDIR=/data/tmp/claude`, `CLAUDE_CONFIG_DIR` a new empty directory under it, removed after, on `cf511d4` with this record's three files uncommitted: rc 0, `ok G38 shellcheck on 2 docs-mirror scripts`, `ok G39 test: tests/docs-mirror.test.sh 25/25`, last line `PASS 39/39`.
+  - Security → no secrets; no URL added (A3: 7, the baseline) and no PEM block (`grep` rc 1 at this record); no hook contract and no `plan-gate.sh` contract in `AGENTS.md` *Rules* changed; the new script's contract lives in its header (`D13`).
+  - Incidents → DM18's grandchild wait, the tests that passed broken scripts, a comment that broke G39, the plan's size cap, above under *Incidents*; the plan-check and review findings of the script and README in `docs/specs/workflow.md` *Incidents*.
+  - Feature page → `docs/features/docs-mirror.md`, 1895 bytes (`wc -c`, ≤ 2048); the plan's record-time search for the *One fact* values on it prints `0`.
+  - Record → this record, in this file, `docs/specs/workflow.md` and `docs/features/docs-mirror.md`; no audit file.

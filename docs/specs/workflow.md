@@ -91,10 +91,156 @@ set re-measured) as of `0634bd5` (`glab` `0.18.0`, PR #25, not merged at
 this record), whose subsection *The store sync as of 0.18.0* supersedes
 every line below it that has the project side read the store without a
 sync or confirm every push, and whose store clone is recorded in full in
-`docs/specs/product.md`; where this file
+`docs/specs/product.md`, and its `docs-mirror` lines (the docs mirror: the
+script and its two CI callers, their contract and rules, the setup the
+README owns, what the project level's record reaches through it, and
+`cf511d4`'s two skill descriptions) as of `cf511d4` (`glab` `0.19.0`,
+feature commit `6827075`, PR skills-marketplace#1, not merged at this
+record), whose subsection *The docs mirror as of 0.19.0* adds as owning
+files, since `glab` 0.19.0, `plugins/glab/templates/docs-mirror/`
+(`docs-mirror.sh`, whose header is the contract,
+`github-docs-mirror.yml`, `gitlab-docs-mirror.yml`) and `README.md` *The
+docs mirror*, and supersedes nothing below it; where this file
 and an owning file disagree, the owning file is right.
 
 ## How it works now
+
+### The docs mirror as of 0.19.0
+
+- **What ships** (`glab` 0.19.0, `6827075`, `docs-mirror`; the owners
+  `plugins/glab/templates/docs-mirror/docs-mirror.sh`, its two callers and
+  `README.md` *The docs mirror*; `[docs-mirror/plan.md D1]`–`D3`, `D34`).
+  One host-neutral bash script holds every decision; two thin CI callers,
+  GitHub Actions and GitLab CI, only check out, pass variables and call it
+  (boundary B1, `[docs-mirror/evidence.md]` *Candidate boundaries*, B2–B7
+  rejected there). A code repo vendors the script at
+  `.glab/docs-mirror.sh` and its host's one CI file at
+  `.github/workflows/docs-mirror.yml` or `.gitlab/docs-mirror.yml` (with an
+  `include:` entry), copied from a checkout of this marketplace repo at
+  the newest commit on `main` with the installed `version`; nothing of
+  `glab` is fetched at CI time, only the pinned `actions/checkout`
+  (`v7.0.1` by full sha, `D24`, `[docs-mirror/result-code.md]` B2), and
+  the copy is reviewed in that repo's own PR. The copies carry no version
+  stamp: a stale one is found with `cmp` against a checkout at the newer
+  version. No skill, agent, hook or session-start text changed in
+  `6827075` (`D20`, G4; A4 `git diff --quiet 0e5b38e -- plugins/glab/skills
+  plugins/glab/scripts plugins/glab/agents plugins/glab/hooks` → rc 0,
+  `[docs-mirror/result-text.md]`, `result-code.md`).
+- **The contract** (the script's header, not `AGENTS.md`, 12 bytes under
+  its cap after this change, `docs/specs/marketplace.md`; `D13`, `[docs-mirror/decisions-2.md R1-4]`, `R1-5`):
+  `docs-mirror.sh <mirror remote> <branch>`, run inside the source work
+  tree; the remote is a URL, and a name `git remote` lists is refused.
+  Exit 0 mirrored, nothing to mirror, or skipped; 1 refused, the mirror
+  unchanged; 2 usage, configuration (a key without known hosts, a
+  `TMPDIR` whose path is not usable), bash older than 4.4, no git or git
+  older than 2.28, not in a work tree, a failed `ls-remote` or `fetch`, an
+  unreadable fetched tip, a failed read of the mirror's history, a
+  `merge-base` rc other than 0 or 1, a failed `commit-tree`. Nothing on
+  stdout, ever; one `docs-mirror: …` stderr line per outcome, a refusal one
+  `docs-mirror: REFUSED: …` line. On a failed `ls-remote`, `fetch` or
+  `push`, at most the first 4 non-blank lines of git's stderr, each
+  prefixed `docs-mirror: git: `, come before the outcome line — the first,
+  not the last, because git ends every `ls-remote` and `fetch` failure with
+  the same fixed tail (`D13`, amended at plan check r2) — with the remote
+  replaced by `<remote>` as passed, without its `<user>@`, its path alone,
+  its `<user>@<host>` and its host
+  (`[docs-mirror/review-r1.md S-M1]`, `[docs-mirror/review-r2.md S2-L3]`);
+  every `GIT_TRACE*` name is unset and trace2's three targets set to 0, so
+  trace lines cannot take the four (`S2-L2`); the key is never printed.
+- **The rules** (`D4`, `D5`, `D7`, `D9`–`D12`, `D28`–`D30`). The mirror's
+  tree is exactly the tree object `HEAD:docs`, at its root, nothing added:
+  modes, symlinks, CRLF, deletions and renames carry. One commit per run
+  whose tree differs or that adopts, its parent the mirror's tip, subject
+  `docs: mirror <12 hex>`, last line `Source-Commit: <full sha>`, author
+  and committer `glab docs-mirror <docs-mirror@glab.invalid>` whatever the
+  caller's identity, `commit-tree --no-gpg-sign`; never a forced update,
+  a `+` refspec or a ref deletion; `push -q --no-verify --no-follow-tags`.
+  The source checkout is read, not written: the mirror's tip is fetched to
+  `FETCH_HEAD` with `--refmap=` (`[docs-mirror/review-r2.md S2-L1]`), so
+  its `.git` gains only `FETCH_HEAD`, the fetched objects and the mirror
+  commit. The last mirror commit `M` is the first on the tip's
+  first-parent line by that email whose last non-empty line is
+  `Source-Commit: ` and 40 or 64 hex; the commits above it are hand
+  commits, overwritten, not refused: the next commit stacks on them, names
+  them (`Replaces <n> commit(s) not made by the mirror: …`, at most 20,
+  then `and <k> more`) and warns once (`D10`, the case `glab:security`
+  *Detect and surface; do not auto-heal* allows: the tree is rebuilt from
+  the source and nothing is destroyed). Refused: no `docs/` tree at
+  `HEAD`; a branch with commits but none of the mirror's; `S` not in the
+  history and not adopted; a shallow checkout with `S` other than `H`; a
+  failed push; no retry, the next merge's run repairs it. Order: `S` = `H`
+  or an ancestor → mirror; `H` an ancestor of `S` → `skipped`, exit 0 (a
+  stale run; neither host promises order); diverged or unknown → refused
+  unless `DOCS_MIRROR_ADOPT` equals `S`, and an adopting run always
+  commits, an equal tree included, so the next run finds its source
+  (`D30`); `DOCS_MIRROR_ADOPT` non-empty and unused warns. An absent branch
+  — no `ls-remote` line ending in a TAB and `refs/heads/<branch>` exactly —
+  is created as a root commit (`D29`); the branch argument has no default
+  (`D28`).
+- **The credential** (`D6`, `D8`, `D25`, `D32`): one SSH deploy key with
+  write access per mirror, its private key the secret
+  `DOCS_MIRROR_SSH_KEY`; `DOCS_MIRROR_URL`, `DOCS_MIRROR_KNOWN_HOSTS` and
+  `DOCS_MIRROR_ADOPT` are Actions variables on GitHub, since the job reads
+  `vars.` and a URL saved as a secret skips every run silently. An empty
+  value is the same as unset. With a key, known hosts are required (no
+  `accept-new`: an ephemeral runner makes every connection a first use).
+  The key text is read into an unexported variable and
+  `DOCS_MIRROR_SSH_KEY` unset before the first git call
+  (`[docs-mirror/review-r1.md S-L3]`); under `umask 077` key and known
+  hosts go into a `mktemp -d` folder whose path must match
+  `^/[A-Za-z0-9/._-]+$` (git runs `GIT_SSH_COMMAND` through `sh -c`), and
+  ssh runs as `ssh -F /dev/null -i '<key>' -o IdentitiesOnly=yes -o
+  StrictHostKeyChecking=yes -o UserKnownHostsFile='<file>' -o
+  GlobalKnownHostsFile=/dev/null -o BatchMode=yes` (`S-L1`); the folder
+  is removed on exit, INT, TERM and HUP (130, 143, 129). The `GIT_*` names
+  of `tests/plan-gate.test.sh` are unset first; `GIT_TERMINAL_PROMPT=0`.
+  Rejected: `GITHUB_TOKEN`, GitLab deploy tokens, `CI_JOB_TOKEN`, a PAT, a
+  project access token, a GitHub App (FU-DM1).
+- **The callers** (`D16`, `D17`, `D31`, `D33`;
+  `[docs-mirror/decisions-2.md R1-3]`). GitHub: `on: push: branches:
+  [main]`, no `paths:` filter (every merge retries), job `if:
+  vars.DOCS_MIRROR_URL != ''`, `permissions: contents: read`,
+  `concurrency` group `glab-docs-mirror` with `cancel-in-progress: false`
+  (`[docs-mirror/review-r1.md C-L2]`: a group is shared across a repo's
+  workflows), `fetch-depth: 0`, `persist-credentials: false`, `TMPDIR:
+  ${{ runner.temp }}`, the run line passing `main`, the mirror's branch,
+  which stays when a repo replaces the trigger's `main` (`C-M1`). GitLab:
+  `stage: .post`, the `rules:` line on the default branch's push pipeline
+  with `$DOCS_MIRROR_URL` set, `resource_group: docs-mirror`, `environment:
+  {name: docs-mirror, action: access}`, the key variable scoped to that
+  environment so no other job gets it (`C-M2`), `GIT_DEPTH: "0"`,
+  `GIT_STRATEGY: clone`, the branch `"$CI_DEFAULT_BRANCH"`, no `image:`. A
+  `.post` job runs only with another job in the pipeline and after every
+  earlier one passed, so a merge whose pipeline failed is not mirrored
+  until the next.
+- **The setup** is the user's and lives once, in `README.md` *The docs
+  mirror* (`D18`, `D19`, `D21`, `D34`; `[docs-mirror/decisions-2.md
+  R1-2]`): the empty mirror, private unless the docs may be public; the
+  deploy key; on GitHub a ruleset with *Restrict deletions* and *Block
+  force pushes* only — not *Restrict updates*, since on GitHub's hosted
+  service a deploy key cannot be a bypass actor and every run would be refused, so read-only
+  rests on who holds write access and on the overwrite rule; on GitLab the
+  default branch, created by the first run, protected after it with the
+  deploy key alone allowed to push. The plan creates no mirror.
+- **The levels** (`D20`). Project level: a change's record is committed on
+  its branch before the merge (`glab:project-record`), so it reaches
+  `docs/` with its code and the mirror publishes both at the merge; setting
+  a mirror up is an ordinary change in the code repo, full tier there.
+  Product level: reads only the store, not the mirrors (FU-DM2). Support:
+  parked (FU-DM3).
+- **Two skill descriptions** (`cf511d4`, `fix(skills): …`, under the same
+  0.19.0; `[docs-mirror/decisions-2.md R1-9]`): on the user's pasted
+  warning that a `SKILL.md` description cannot contain XML tags,
+  `glab:product-plan`'s `<path to the business plan>` and
+  `glab:project-plan`'s `<task>` became `[path to the business plan]` and
+  `[task]`, square brackets as the `argument-hint` lines use; each file
+  keeps its size (4369 and 15575 bytes, `wc -c` at `0e5b38e` and
+  `cf511d4`). No other skill description holds `<` or `>`
+  (`/usr/bin/grep -ln '^description:.*[<>]' plugins/*/skills/*/SKILL.md` →
+  rc 1, re-run at this record); the agent `product-planner.md`'s
+  description keeps `docs/roadmap/<slug>.md`, the warning naming skills
+  only. So A4's no-skill-change holds for `6827075`, not for the pushed
+  branch.
 
 ### The store sync as of 0.18.0
 
@@ -2084,6 +2230,45 @@ and an owning file disagree, the owning file is right.
 - [lifecycle-hardening/plan.md D17] (`check.r2.md` N1) The automatic path also required `git merge-base --is-ancestor "<record-sha>" origin/<default>` to exit 1, so a squash or a commit merged unchanged asked; repos merging with merge commits or fast-forwards always asked. Proven: S1 rc=1, S5 rc=0. **Superseded by `D26`.**
 - [lifecycle-hardening/plan.md D24] (manager, `review.r1.md`) Findings 1–4 fixed as the reviewer specified: (1) the automatic path also required `<land-sha>` (`git log --reverse --format=%H -S'<line>' origin/<default> -- <record files> | head -1`) non-empty and `%at` of `<record-sha>` strictly less than `%ct` of `<land-sha>`, otherwise ask; (2) `project-record:11` "can remove … unasked", pointing at Rule 2; (3) the brief's precondition (`docs/specs/product.md`); (4) both safe cases named in Rule 2 (no `<ref>` and not on the default branch; a `git log` fatal hidden by `| head -1`). **Items 1 and 2 superseded by `D26`/`D27`**; item 4's `| head -1` sentence survives in the facts command's reason; item 3 binds.
 - [lifecycle-hardening/plan.md D25] (manager) After `D24`, three post-condition values changed as `result.md` *Review r1 fixes* explains (session-rules `--ancestry-path` → 1, `format=%ct` → 1, the brief's old phrase → 0). **Superseded by `D27`:** the values `D26` makes stale are in `result.md` *D26 rework*.
+- [docs-mirror/plan.md Request] **The user, 2026-11-19, as the dispatch relayed it:** each code repo of a product keeps `docs/` in the repo, changed in the same PR as the code; a CI action mirrors that `docs/` read-only to a separate `{repo}-docs` repository on each merge to `main`; not a submodule; per repo, not one central docs repo. The support-level scenario format is parked; no delivery or support skills.
+- [docs-mirror/plan.md D1] Both GitHub Actions and GitLab CI, each a thin caller of one host-neutral script: the payload and the store are host-neutral (`PR/MR`); two short callers cost little once the logic is in the script.
+- [docs-mirror/plan.md D2] Boundary B1: every decision in `docs-mirror.sh`; the CI files only check out, pass variables and call it (B2–B7 rejected in `evidence.md`).
+- [docs-mirror/plan.md D3] What ships and where: `plugins/glab/templates/docs-mirror/` holds `docs-mirror.sh` (mode 755), `github-docs-mirror.yml`, `gitlab-docs-mirror.yml`; a code repo vendors two files, the script at `.glab/docs-mirror.sh` and its host's CI file, because nothing of glab is fetched at CI time (the marketplace repo may be private), the copy is reviewed in the code repo's PR, and the plugin need not be installed there. No version stamp in the copies (one fact: the version lives in `plugin.json`). *Amended at plan check r1:* the cite is "This marketplace is a private repository" in `README.md`; only the pinned `actions/checkout` is fetched; two files, not three (`D34`).
+- [docs-mirror/plan.md D4] The mirror's tree is exactly `HEAD:docs`, the tree object, at the mirror's root, nothing added; files outside `docs/` never reach it.
+- [docs-mirror/plan.md D5] One mirror commit per run whose tree differs, parent the tip, subject `docs: mirror <12 hex of H>`, last line `Source-Commit: <full sha>`, author and committer `glab docs-mirror <docs-mirror@glab.invalid>` set by the script (the `plan-gate.sh` convention), `--no-gpg-sign`; never a force-push, a `+` refspec or a ref deletion; `push --no-verify --no-follow-tags`. *Amended at plan check r1:* no commit for an equal tree only when the run does not adopt (`D30`).
+- [docs-mirror/plan.md D6] One SSH deploy key with write access per mirror (single-repository scope on both hosts, no token in a URL). Rejected: `GITHUB_TOKEN` (cannot reach another repo), GitLab deploy tokens (no write scope), `CI_JOB_TOKEN` (cross-project push needs the triggering user's role on the mirror), a PAT (tied to a person), a project access token (paid on GitLab's hosted service, at most 365 days), a GitHub App (one app writing every mirror widens the blast radius, and adds an action fetched at CI time) → FU-DM1.
+- [docs-mirror/plan.md D7] The source checkout is read, not written: no ref, config, index or work-tree write; the mirror tip goes to `FETCH_HEAD` only.
+- [docs-mirror/plan.md D8] With a key, known hosts must be non-empty (exit 2: no `accept-new` on an ephemeral runner); both written under `umask 077` to a `mktemp -d` folder removed on every exit, INT, TERM and HUP; with no key the environment's own credential is used; `GIT_TERMINAL_PROMPT=0`. *Amended at plan check r1:* (a) an empty value is the same as unset; (b) no `printf %q` — git runs `GIT_SSH_COMMAND` through `sh -c` — so the folder's path must match `^/[A-Za-z0-9/._-]+$` and is single-quoted; (c) `DOCS_MIRROR_SSH_KEY` is unset once read, and the GitHub template sets `TMPDIR` to `runner.temp`, since a SIGKILL runs no trap.
+- [docs-mirror/plan.md D9] `M` is the first commit on the tip's first-parent line by `docs-mirror@glab.invalid` whose last non-empty line matches `^Source-Commit: ([0-9a-f]{40}|[0-9a-f]{64})$`, parsed from `%B` (no `%(trailers)`); its sha is `S`; the commits above `M` are hand commits.
+- [docs-mirror/plan.md D10] A hand edit is overwritten, not refused: the next commit stacks on the hand commits, names them, warns, exit 0 — the right tree is reconstructible from the source and nothing is destroyed, while a refusal would leave readers on stale docs until a human acted.
+- [docs-mirror/plan.md D11] Refusals (exit 1, one line, the mirror unchanged): no `docs/` tree at `HEAD`; a branch with commits but no mirror commit (a misnamed target); `S` not in the history and not adopted; a shallow checkout with `S` ≠ `H`; the push rejected or failed. No retry.
+- [docs-mirror/plan.md D12] Order and adoption: `S` = `H` or an ancestor → mirror; `H` an ancestor of `S` → `skipped`, exit 0 (hosts do not promise order); neither, or `S` unknown → refused unless `DOCS_MIRROR_ADOPT` equals `S`, for one run after a deliberate rewrite, the commit adding `Adopts <S> after the source history changed.`; set and unused → a warning. *Amended at plan check r1:* "set" is non-empty; adopting always commits (`D30`); the adopting run is the next merge, neither template having a manual trigger.
+- [docs-mirror/plan.md D13] The contract lives in the script's header, not `AGENTS.md`; nothing on stdout; git's output captured and never printed, nor the remote nor the key. *Amended at plan check r1:* on a failed `ls-remote`, `fetch` or `push`, a few of git's stderr lines, prefixed `docs-mirror: git: `, the remote replaced by `<remote>`. *Amended at plan check r2:* the first 4 non-blank lines, not the last, git's last lines being its fixed tail for every `ls-remote` and `fetch` failure (proven `check-r2-code.md`), and the remote's `<user>@`-less form replaced too.
+- [docs-mirror/plan.md D16] GitHub triggers: `push` to `main`, no `paths:` filter; job `if: vars.DOCS_MIRROR_URL != ''` (skipped in forks and before setup); `permissions: contents: read`; a `concurrency` group with `cancel-in-progress: false`; `actions/checkout` pinned by full sha, `fetch-depth: 0`, `persist-credentials: false`; secrets and variables only through `env:`.
+- [docs-mirror/plan.md D17] GitLab: the `rules:` line (default branch, push pipeline, `$DOCS_MIRROR_URL`), `resource_group: docs-mirror`, `GIT_DEPTH: "0"`, the branch `"$CI_DEFAULT_BRANCH"`, no `image:` (a comment names bash, git and ssh); the key variable Protected, type Variable, not masked (a multi-line key cannot be). *Amended at plan check r1:* `stage: .post` and `GIT_STRATEGY: clone` (`D31`). *Amended at plan check r2:* a pipeline of `.pre`/`.post` jobs only does not run, and after a failed job later stages do not start, so a merge whose pipeline failed is not mirrored (the README says both).
+- [docs-mirror/plan.md D18] The mirror's protection is the user's setup, said in the README. *Amended at plan check r1 (`D33`):* on GitLab the protected branch is the code repo's default branch, created by the first run and protected after it. **Amended by `[docs-mirror/decisions-2.md R1-2]`:** on GitHub's hosted service no *Restrict updates* and no bypass (a deploy key cannot be a bypass actor there).
+- [docs-mirror/plan.md D19] Every file under `docs/` becomes readable to whoever can read the mirror; the README says to create it private unless the docs may be public; each mirror and its visibility is the user's act.
+- [docs-mirror/plan.md D20] No skill changes: the record already reaches `docs/` before the merge; setting a mirror up is an ordinary change in that repo, full tier there; the product level does not read mirrors (FU-DM2); support parked.
+- [docs-mirror/plan.md D24] The checkout pin: the highest `v7.x.y` tag by `sort -V` from `git ls-remote --tags` of `actions/checkout`, its peeled sha if annotated, command and output recorded; no network → blocked, never a guessed sha (`v7.0.1`, `[docs-mirror/result-code.md]` B2).
+- [docs-mirror/plan.md D25] The script unsets the `GIT_*` names `tests/plan-gate.test.sh` lists before its first git call, then sets its identity.
+- [docs-mirror/plan.md D28] The branch argument is required: the GitHub template passes `main` beside its trigger, GitLab `$CI_DEFAULT_BRANCH`.
+- [docs-mirror/plan.md D29] The first run creates the absent branch as a root commit; absent means no `ls-remote` line ending in a TAB and `refs/heads/<branch>` exactly, patterns tail-matching (proven `check-r1-code.md`); other branches are never read or written.
+- [docs-mirror/plan.md D30] (manager, plan check r1) An adopting run always commits, an equal tree included: a code-only rewrite leaves `HEAD:docs` equal, and without a commit every later run is refused.
+- [docs-mirror/plan.md D31] (manager, plan check r1) GitLab `stage: .post` (always defined, while `test` may be missing from a repo's `stages:`) and `GIT_STRATEGY: clone` (a reused shallow copy stays shallow).
+- [docs-mirror/plan.md D32] (manager, plan check r1) On GitHub only `DOCS_MIRROR_SSH_KEY` is a secret; the URL, known hosts and adopt values are Actions variables, since the job reads `vars.`.
+- [docs-mirror/plan.md D33] (manager, plan check r1) On GitLab the protected mirror branch is the code repo's default branch, protected after the first run creates it.
+- [docs-mirror/plan.md D34] (manager, plan check r1) The README says where the templates are copied from: a checkout of this repo at the installed `version`; no skill fills a plugin path for the user. *Amended at plan check r2:* the newest commit on `main` with that `version`, the repo having no tags and one version spanning several commits.
+- [docs-mirror/plan.md D37] **Approved by the user, 2026-11-20: "Approve, build it"**, after both plan-check rounds, with the GitHub paid-plan point and the budget note shown.
+- [docs-mirror/plan.md D38] (manager, after develop) The developer's unplanned behaviours are kept for conformance and review to judge: extra exit-2 lines for git failures the step list does not name, a commit-less repo refused as "no docs/ tree at HEAD", the `DOCS_MIRROR_ADOPT` warning on a first run onto a new branch, hand commits named by 12 hex.
+- [docs-mirror/plan.md D39] (manager) Conformance round 1 (`DIVERGES` on B1 and A7, records only) closed with no code change: `result.md` holds the B1 baseline and the reasons for the three changes no case covers; `D38` also covers the `mktemp -d` failure's exit 2 and the test harness's own choices.
+- [docs-mirror/decisions-2.md R1-1] Every review-round-1 finding fixed in one developer round, except where a ruling says otherwise.
+- [docs-mirror/decisions-2.md R1-3] GitLab: the job declares an environment and the README scopes the key variable to it, with the `environment:action` GitLab's docs prove still receives environment-scoped variables — `access` (`[docs-mirror/result-fix-r1.md]` C-M2); the URL stays unscoped, `rules:` reading it.
+- [docs-mirror/decisions-2.md R1-4] A mirror argument `git remote` lists is refused with one `REFUSED` line; the contract says the argument is a URL.
+- [docs-mirror/decisions-2.md R1-5] A SIGKILL on a GitLab shell executor leaving the key file in `TMPDIR` is not fixed in the template: FU-DM-R1, and the job's comment names the risk; the header's exit-2 list gains the four missing causes.
+- [docs-mirror/decisions-2.md R1-9] (manager, 2026-11-20, on the user's pasted warning) The two skill descriptions' `<…>` placeholders → `[…]`, its own `fix(skills): …` commit on this branch under the 0.19.0 this push already raises (`cf511d4`).
+- [docs-mirror/decisions-2.md R2-1] One developer fixes review round 2's script and CI findings S2-L1–L3 and the test findings as `review-r2.md` says.
+- [docs-mirror/decisions-2.md R2-3] No behaviour change beyond the round-2 fixes; round 3 is the last review round, so every fix is proven by a mutation that now fails a case, or by a run.
+- [docs-mirror/decisions-2.md R2-4] FU-DM-R3 accepted as a follow-up: a push through a legacy remote name still moves its tracking ref (`git push` has no `--refmap`); a fresh CI clone never holds such a file.
 
 ## Known limits and not verified
 
@@ -2164,6 +2349,14 @@ and an owning file disagree, the owning file is right.
 - [lifecycle-hardening/review.r3.md Not checked] Not checked by review round 3: bind mounts inside a plan folder (`rm -r` has no `--one-file-system`; also `review.r1.md`'s mount points), `<record files>` paths with spaces (the facts command leaves them unquoted), the window between the re-check and `rm`, and clock skew between machines (`review.r1.md`, `review.r2.md`).
 - [level-guard/result.md Live test (S10)] The project-level edge, as of `632dcb0`: the refusals were shown live from a product repo only (LV1, LV3, LV4: `glab:project-plan` refused, on Linux, Claude Code 2.1.325 `-p`, haiku and opus); a project session refusing a `glab:product-*` skill is shown offline only, by LG2 (`tests/level-guard.test.sh`; LG1 is the product level's). UNVERIFIED: whether Claude makes a Skill call in turn after a typed skill (`[level-guard/follow-ups.md FU-LG5]`), case-insensitive name resolution (FU-LG6), and that a live session follows the new paragraph of *The level boundary* rather than meeting the refusal, as for every prose rule; the rest in `docs/specs/product.md` *Known limits*.
 - [remote-store/plan.md Not verified] The project side of a store clone, as of `0634bd5`, is text: that a live planner runs `sync` before it reads a brief, that `glab:project-plan-report` syncs and stops on anything but exit 0 on resuming, and that a project session reads Rule 3's store-push exception as its own permission to let `plan-gate.sh` push the store, is UNVERIFIED — no live session ran a store clone (LP7, FU-RS4, `docs/specs/product.md` *Known limits*). The start prompt's literal "Commit only through /glab:commit" would forbid `plan-gate.sh report`'s store commit (inferred, `[remote-store/plan.md D19]`); `glab:project-plan-report` *Run* states the exception for that reason.
+- [docs-mirror/plan.md Not verified] UNVERIFIED, as of `cf511d4`: a hosted run on GitHub Actions or GitLab CI — the deploy key's push, a ruleset or protected branch refusing a human push, `vars`/`secrets` reaching the step, `concurrency` and `resource_group` under real merges, the runner's git and ssh (`[docs-mirror/evidence.md]` I1–I4); the user's, in their own accounts. A real `ssh` client (a stub stands in; I6). bash other than 5.3.9, git other than 2.53.0, SHA-256 repositories, macOS (unsupported). Rulesets' plan availability for a private mirror (inferred from GitHub's plans page). *Added at plan check r1:* that a deploy key's first push into an empty GitLab project is accepted under its default-branch protection; that `GIT_STRATEGY: clone` keeps a reused shallow copy from being used; that GitLab errors on a job whose stage is missing from `stages:` (inferred); whether a re-run of a refused job sees a variable set after the first attempt; `runner.temp` cleanup on a self-hosted runner; a TERM during the push may still publish the commit, bash running the trap after the git call in flight returns (proven for an earlier git call, `check-r1-code.md`).
+- [docs-mirror/result-fix-r1.md Not done] UNVERIFIED: a hosted GitLab run with the environment-scoped key, the claim resting on GitLab's docs (`action: access` gives access to environment-scoped variables), and that the job creates the `docs-mirror` environment on its first run (`README.md` *Not verified*); that a shell executor's `/tmp` outlives the job (inferred, FU-DM-R1).
+- [docs-mirror/result-fix-r2.md Not done] UNVERIFIED: that a real git server prints the mirror's path in the form the redaction extracts (the test's server is `git upload-pack` run by the stub; FU-DM-R4); that `GIT_TRACE2_EVENT=0` and `GIT_TRACE2_PERF=0` behave the same on git other than 2.53.0.
+- [docs-mirror/plan.md S1] Known limits the script's header names (`plugins/glab/templates/docs-mirror/docs-mirror.sh`): LFS pointers and gitlinks under `docs/` are carried as they are, not resolved; a symlink under `docs/` pointing outside it dangles in the mirror; the path and host are redacted wherever they occur in a line, so a short one may also replace part of a word.
+- [docs-mirror/plan.md D34] UNVERIFIED: the installed-cache layout of a plugin; the README names a checkout of this repo, not the installed copy, as the templates' source.
+- [docs-mirror/result.md Coverage reasons] Accepted without a case (`D39`): a commit-less repo refused as "no docs/ tree at HEAD" (a CI merge always has a commit); the `DOCS_MIRROR_ADOPT` warning on a first run onto a new branch (stderr only, no exit code or push changes); `mktemp -d` failing, exit 2 (faking it needs a coreutils stub the gates rely on). Also read in review, not run: INT and HUP (the TERM trap's lines); no git on `PATH`; a fetch failing after `ls-remote` succeeded except through a failing-git wrapper (`[docs-mirror/plan-tests.md]` *Coverage*, `[docs-mirror/result-fix-r2.md]` T2-L4).
+- [docs-mirror/result-fix-r1.md T-L1] Mutations that still pass `PASS 25/25`, accepted: dropping `--first-parent` (it differs only when a hand merge brings a side line with a newer mirror commit); dropping `GIT_TERMINAL_PROMPT=0` (no local transport prompts); `--follow-tags` for `--no-follow-tags` (no tag in any case's history); any-length hex in `Source-Commit` (only a forged commit with the mirror's email would tell); dropping only `GIT_INDEX_FILE` from the unset (the script never touches an index); dropping `--no-gpg-sign` — git 2.53's `commit-tree` ignores `commit.gpgsign` (probed: rc 0 without the flag), so the `commit.gpgsign=true` variant guards only a git that honours it. `[docs-mirror/result-fix-r2.md]` T2-L4 adds: dropping `--no-tags` (one ref fetched by full name, no tag in any mirror), the hand-equal "nothing to mirror (…)" text (a message only), the second `unset ssh_key` (never exported); `[docs-mirror/review-r3.md]`: the bare-form regex narrowed to `[^@/:]+@` (host and path redaction still cover it); `[docs-mirror/result-fix-r2.md Not done]`: whether DM21 catches removing the GitHub template's `DOCS_MIRROR_URL:` env line was not checked.
+- [docs-mirror/decisions-2.md R1-9] UNVERIFIED: that the `[…]` descriptions clear the warning where it appeared — `claude plugin validate --strict --profile directory` does not report it on either tree.
 
 ## Open follow-ups
 
@@ -2229,6 +2422,13 @@ and an owning file disagree, the owning file is right.
 - [level-guard/follow-ups.md FU-LG5] A skill a typed other-level skill calls in turn is judged; whether Claude makes such a call is UNVERIFIED — open, in `docs/specs/product.md`.
 - [remote-store/follow-ups.md FU-RS2] The user's standing rule — agents commit, push, open PRs and merge below `main` on their own; the merge to `main` and release merges stay the user's — across `glab:session-rules`, `glab:push` and the start prompt (`[remote-store/plan.md D19]`): `remote-store` exempts only the store's commits and pushes — open.
 - [remote-store/follow-ups.md FU-RS11] `glab:project-manager` `SKILL.md:68` and `glab:session-rules` `SKILL.md:138` say "push waits for the user" without pointing at Rule 3's store-push exception; safe direction; blocked by the session-start caps, with `[level-guard/follow-ups.md FU-LG4]` (`[remote-store/review-r3.md]` *Follow-ups*) — open.
+- [docs-mirror/plan.md FU-DM1] An HTTPS path with a short-lived token (a GitHub App through `actions/create-github-app-token`; a GitLab project access token) for teams that cannot use deploy keys (`D6`) — open.
+- [docs-mirror/plan.md FU-DM2] The product level reading the mirrors — briefs written against a project's current specs — once a consumer is designed; it needs a line in `glab:product-manager`, session-start text, so a byte budget first (`[level-guard/follow-ups.md FU-LG4]`, in `docs/specs/product.md`) — open.
+- [docs-mirror/plan.md FU-DM3] The support level's use of the mirrors (scenarios, OTel): parked by the user — open.
+- [docs-mirror/plan.md FU-DM5] A one-command setup helper for many repos (creating mirrors and keys through a host API); it would hold credentials and create repositories, the user's kind of step — open.
+- [docs-mirror/follow-ups.md FU-DM-R1] On a GitLab shell executor the job sets no `TMPDIR`, so the key file's folder is made under `/tmp`; a SIGKILL runs no trap and leaves it there, on a host whose `/tmp` outlives the job (inferred). The GitLab template's comment names the risk (`[docs-mirror/decisions-2.md R1-5]`); a fix — a per-job folder the runner removes, as GitHub's `runner.temp` — is open.
+- [docs-mirror/follow-ups.md FU-DM-R3] A legacy `.git/remotes/<name>` remote is not listed by `git remote`, so not refused: `--refmap=` keeps the fetch from moving `refs/remotes/<name>/<branch>`, but the push through it still creates or moves that ref (`git push` has no `--refmap`; shown on git 2.53.0, `[docs-mirror/result-fix-r2.md]` S2-L1). **Amended by review round 3:** a legacy `.git/branches/<name>` file is not listed either, and pushing through it wrote `refs/heads/<name>` into the source checkout. A CI clone never has one, and the contract says the argument is a URL (`[docs-mirror/decisions-2.md R2-4]`). Fix later: refuse a name with a `.git/remotes/` or `.git/branches/` file and name both in the header — open.
+- [docs-mirror/follow-ups.md FU-DM-R4] (review round 3) The mirror's path is redacted only exactly as passed; a server message quoting it without `.git` (a ruleset rejection's link to the repository's rules, for example) prints it. On GitHub the URL is an Actions variable and shows in the step's env in the run log anyway (inferred). Fix later: also redact the path without `.git`, or a README line that the URL shows in the run log — open.
 
 ## Closed follow-ups
 
@@ -2291,6 +2491,8 @@ and an owning file disagree, the owning file is right.
 - [docs-lifecycle/review.r2.md session-rules:87] (low) `plugins/glab/skills/session-rules/SKILL.md:87`: `ct=…` and `find … "@$ct"` work only in one shell, and the manager's Bash tool keeps no variables between calls; run apart, `find` exits 1 and nothing is removed (fails safe). Suggested: add "in one shell command" after the `ct=` clause — open. **Closed by `lifecycle-hardening` (`bf9c73f`, `glab` 0.16.2; `[lifecycle-hardening/plan.md D4]`):** the `ct=` clause is gone (`D26`); its successor, the facts command, is "its facts, in one shell command" (`session-rules/SKILL.md:87`).
 - [docs-lifecycle/review.r2.md session-rules:91,93] (low) `plugins/glab/skills/session-rules/SKILL.md:91` and `:93`: a tracked folder whose record has not landed matches two outcomes, "without a word" and "named in one line"; both keep the folder. Suggested: say which comes first, for example "tracked is checked before landed" — open. **Closed by `lifecycle-hardening` (`bf9c73f`, `glab` 0.16.2; `[lifecycle-hardening/plan.md D4]`):** the outcomes open "The outcomes, the first that applies:" (`session-rules/SKILL.md:89`), tracked (`:91`) before not landed (`:92`).
 - [docs-lifecycle/review.r2.md project-record:12] (low) `plugins/glab/skills/project-record/SKILL.md:12` hard-codes `docs/` (`git status --short -uall -- docs/`) where specs may live "where `AGENTS.md` puts them", and restates the analyzer's untracked-page rule of `project-analyzer.md:90`. Suggested: "under the spec and feature-page paths", the full rule kept only in the analyzer — open. **Closed by `lifecycle-hardening` (`bf9c73f`, `glab` 0.16.2; `[lifecycle-hardening/plan.md D4]`):** `project-record/SKILL.md:14` dispatches the analyzer with "the spec and feature-page paths — its record check says how it reads them —", and `project-analyzer.md:90` lists untracked pages with "`git status --short -uall --` on the spec and feature-page paths the dispatch names", the one place the rule is stated.
+- [docs-mirror/result-code.md Follow-ups] DM19 never reached the 4-line cut: git printed at most 4 non-blank lines in each local failure, and a copy with the cap at 99 still passed (also `[docs-mirror/plan.md D38]`) — closed in the same change by fix round 1 (`[docs-mirror/review-r1.md T-M3]`): the hook prints six numbered lines and DM19 asserts lines 1–4 exactly; cut 999, cut 1 and reversed order each fail it (`[docs-mirror/result-fix-r1.md]`).
+- [docs-mirror/result-code.md Follow-ups] No case for a first run onto an absent branch with `DOCS_MIRROR_ADOPT` set, nor for a commit-less repository — closed, accepted without a case by `[docs-mirror/plan.md D39]`, its reasons in `[docs-mirror/result.md]` (*Known limits* above).
 
 ## Incidents
 
@@ -2330,6 +2532,11 @@ and an owning file disagree, the owning file is right.
   - **Review round 2, an amended squash or a rewritten main** (`[lifecycle-hardening/review.r2.md]`, medium; verdict `FIX`, the last round, the reviewer's decision `SHIP WITH SCOPE CUT`): a squash whose committer date is later than its author date passed `D24`'s guard — amended before the push, `O1-REMOVE rec=S-squash-amended at=1794989013 land=S-squash-amended at=1794989013 ct=1794989073`; `origin/main` rewritten and force-pushed after the cherry-pick, `O1-REMOVE rec=S-squash at=1794989017 land=S-squash ct=1794989049` — and `plan/s/written-after-record` (written 2 s before the squash) was not newer than `$at`, so `rm -r` would have deleted it. The reviewer's `%at`-of-`<land-sha>` variant closed both but made a genuine rebase-merge ask, and left a `--reset-author-date` rewrite open; "the date guard grows faster than it converges".
   - **Outcome:** asked "Drop automatic removal and ask once per folder, or keep it for squash merges only?", the user answered "Ask once per folder" (`D26`), superseding their "Build it as planned" (`D23`). Review round 3 then returned `SHIP`: nothing is removed without the user naming it. Lesson: no git fact tells a record commit from a squash or a rewritten copy of it, so a removal of untracked, unrecoverable files is put to the user with the facts, not decided from dates.
 - **Review round 3's helper wrote outside the temp root** (`lifecycle-hardening`; `[lifecycle-hardening/review.r3.md]`, process note): one file went to `/tmp/.x`, outside `/data/tmp/claude`; the reviewer removed it by its exact path, and `/data/tmp/claude/rv-rule2-c5uvw6` too; the repo kept the same 16 modified files and no new one. Told in `docs/specs/marketplace.md` *Incidents* beside the host's temp-file rule.
+- **Plan check round 1: an adoption with an unchanged `docs/` was never recorded** (`docs-mirror`, 2026-11-19; `[docs-mirror/check-r1-code.md]` H, verdict `NOT BUILDABLE`): step 10 made no commit for an equal tree, adopting or not, so after a code-only rewrite (a `filter-repo` of a secret in the code, the common reason to adopt) the mirror's `Source-Commit` stayed the rewritten-away sha and every later run was refused until one both adopted and changed `docs/`. Inferred from the plan's own step order; fixed as `[docs-mirror/plan.md D30]` and DM12's 4th run. The same round found DM18 waiting on a grandchild (`D36`, `docs/specs/marketplace.md` *Incidents*).
+- **Plan check round 2: the amended output rule printed the wrong lines** (`docs-mirror`, 2026-11-20; `[docs-mirror/check-r2-code.md]` M-a): round 1's `D13` amendment printed git's *last* 3 stderr lines, but every `ls-remote` and `fetch` failure ends with git's fixed `Could not read from remote repository` / `Please make sure …` tail, so the cause would never have been shown (proven there); `D13` now prints the first 4 non-blank lines. Round 1: code `NOT BUILDABLE`, 1 H, 7 M, 9 L; text `BUILDABLE`, 10 M, 5 L. Round 2, the last: both `BUILDABLE`, code 3 M and 5 L, text 3 M and 7 L (its verdict line says 6). Every finding was applied or merged as `[docs-mirror/apply-r1.md]` and `apply-r2.md` list, round 2's mechanically, each old string checked once with `grep -cF`.
+- **Review round 1: the README's GitHub protection would have refused every run after the first** (`docs-mirror`; `[docs-mirror/review-r1.md C-H1]`, high): step 4 told the user to set *Restrict updates* with the deploy key as a bypass actor, but on GitHub's hosted service a deploy key cannot be one (GitHub's docs list deploy keys as bypass actors for Enterprise Server only), and *Restrict updates* lets only bypass actors push. Fixed by `[docs-mirror/decisions-2.md R1-2]`. The same round found `GIT_TRACE=1` filling the four git lines with trace lines carrying host and path in ssh's split form, which the redaction missed (`S-M1`), and a configured remote name moving `refs/remotes/<name>/main` in the source checkout against `D7` (`S-L2`, `R1-4`); review round 2 found the legacy-name path (`S2-L1`), and round 3 its `.git/branches/` form (FU-DM-R3, open).
+- **Two skill files changed under a developer round** (`docs-mirror`, fix round 1, 2026-11-20; `[docs-mirror/result-fix-r1.md]` *Not done*): the developer saw `plugins/glab/skills/product-plan/SKILL.md` and `project-plan/SKILL.md` modified during its round, not by it, and left them; they were the manager's `[docs-mirror/decisions-2.md R1-9]` edit, committed apart as `cf511d4`. A working tree shared by the manager and a developer: the developer's report named it rather than reverting it.
+- **A subagent's Write of `findings.md` is refused** (`docs-mirror`, planning; `[docs-mirror/plan.md]` header): the planner named its findings `evidence.md`, the name `glab:project-plan` uses. A tool behaviour, not a rule of this repo.
 
 ## Records
 
@@ -2468,3 +2675,12 @@ and an owning file disagree, the owning file is right.
   - Follow-ups → open: `[remote-store/follow-ups.md FU-RS2]` and `FU-RS11` above; the others in `docs/specs/product.md` and `docs/specs/marketplace.md`; `[level-guard/follow-ups.md FU-LG4]` amended in `docs/specs/product.md`.
   - Incidents → none at the workflow level; the change's are in `docs/specs/product.md` *Incidents*.
   - Record → this record, in this file, `docs/specs/product.md`, `docs/specs/marketplace.md` and `docs/features/remote-store.md`; no audit file.
+- 2026-11-20 · docs-mirror · 6827075 · cf511d4 · docs-mirror · skills-marketplace#1
+  - PR #1 on glab-services/skills-marketplace, the private repo every change is delivered to first from 2026-11-20 (PRs up to #25 were on glab-services/skills, so the number restarted); as of this record glab-services/skills stays the public install source that `README.md`, `host.example.md` and both `plugin.json` `repository` fields name, and a change reaches it only when the user merges it there (FU-DM-R5), open, not merged at this record (`gh pr view 1`: state `OPEN`, head `docs-mirror`, commits `6827075`, `cf511d4`); `glab` 0.19.0. Recorded here, its primary area (`[docs-mirror/plan.md D35]`): the docs mirror — the script, its two CI callers, their contract and rules, the setup the README owns, what the project level's record reaches through it — and `cf511d4`'s two skill descriptions; in `docs/specs/marketplace.md`: the version, the layout, the gates and the test, `AGENTS.md`'s size, *One fact*, the README rows. Not in `docs/specs/product.md`: the product level does not read the mirrors (FU-DM2), and no follow-up there changed.
+  - [docs-mirror/plan.md Decisions] Decisions → the request, `D1`–`D13`, `D16`–`D20`, `D24`, `D25`, `D28`–`D34` and `D37`–`D39`, and `[docs-mirror/decisions-2.md R1-1]`, `R1-3`–`R1-5`, `R1-9`, `R2-1`, `R2-3`, `R2-4` above under *Decisions that still bind* (`R1-2` as `D18`'s amendment); `D14`, `D15`, `D21`–`D23`, `D26`, `D27`, `D35`, `D36`, `R1-6`–`R1-8` and `R2-2` in `docs/specs/marketplace.md`.
+  - Not verified → the hosted runs on either host, a real ssh client, bash and git other than 5.3.9 and 2.53.0, SHA-256, macOS, GitLab's first push, environment and executor `/tmp`, the server's path form, the accepted mutation survivors and the R1-9 warning, above under *Known limits*.
+  - Follow-ups → open: FU-DM1, FU-DM2, FU-DM3, FU-DM5, FU-DM-R1, FU-DM-R3 (amended by review round 3) and FU-DM-R4 above; FU-DM4, FU-DM6, FU-DM-R2 and FU-DM-R5 in `docs/specs/marketplace.md`; closed: the two `[docs-mirror/result-code.md Follow-ups]` items, above. `[level-guard/follow-ups.md FU-LG4]` is pointed at by FU-DM2, not amended.
+  - Gates → as the manager ran them on the pushed branch: `bash tests/gates.sh` → `PASS 39/39`, and `bash tests/docs-mirror.test.sh plugins/glab/templates/docs-mirror/docs-mirror.sh` → `PASS 25/25`; review round 3 ran the test 3× `PASS 25/25` and the gates `PASS 39/39` (`[docs-mirror/review-r3.md]`); this record's run is in `docs/specs/marketplace.md` *Records*.
+  - Security → full tier (a push credential in CI); no secret, host or key in any file; no URL added (A3: 7, the baseline); the key is never printed and no git child inherits its text (DM16); no hook or script contract of `AGENTS.md` changed — the script's contract lives in its header (`D13`).
+  - Incidents → the plan-check, review and process items above under *Incidents*; DM18's grandchild wait, the tests that passed broken scripts in review round 1, a comment that broke a gate, and the plan's size cap in `docs/specs/marketplace.md` *Incidents*.
+  - Record → this record, in this file, `docs/specs/marketplace.md` and `docs/features/docs-mirror.md`; no audit file.
