@@ -1,6 +1,6 @@
 ---
 name: product-plan
-description: Product level — The procedure glab:product-planner follows, and that a user runs by typing /glab:product-plan <path to the business plan>: turn a business plan into a product plan — goals, one project per brief, the product rules to add, decisions — and, after the user's approval, write the briefs and the approved rule files to the shared store. Stops there: checks, approvals and verdicts are the product manager's.
+description: Product level — The procedure glab:product-planner follows, and that a user runs by typing /glab:product-plan [path to the business plan]: turn a business plan into a product plan — goals, one project per brief, the product rules to add, decisions — and, after the user's approval, write the briefs and the approved rule files to the shared store. Stops there: checks, approvals and verdicts are the product manager's.
 argument-hint: "[path to the business plan]"
 ---
 

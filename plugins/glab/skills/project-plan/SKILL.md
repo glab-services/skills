@@ -1,6 +1,6 @@
 ---
 name: project-plan
-description: Project level — The analyze-then-plan procedure (size, analyze, decide, plan) before any code exists, that glab:project-planner follows and a user runs by typing /glab:project-plan <task>. Any other build, fix or investigation goes to glab:project-planner. Writes findings, decisions and a plan to plan/{slug}/ and stops. Skip only for trivial changes (glab:session-rules Rule 1).
+description: Project level — The analyze-then-plan procedure (size, analyze, decide, plan) before any code exists, that glab:project-planner follows and a user runs by typing /glab:project-plan [task]. Any other build, fix or investigation goes to glab:project-planner. Writes findings, decisions and a plan to plan/{slug}/ and stops. Skip only for trivial changes (glab:session-rules Rule 1).
 argument-hint: "[what to build or fix]"
 ---
 
