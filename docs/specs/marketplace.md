@@ -52,12 +52,68 @@ this record), and its `level-guard` lines (the version, the layout, the
 hook events, the gates at 35, the hook contract of `level-guard.sh` and
 `manager-bootstrap.sh`'s fallback, the size of `AGENTS.md`, the *One fact*
 entries, the `README.md` row and *Requirements*) as of `632dcb0` (`glab`
-`0.17.0`, PR #24, not merged at this record), whose first bullet below
-supersedes every count and line below it where they disagree; where this
+`0.17.0`, PR #24, not merged at this record), and its `remote-store`
+lines (the version, the `plan-gate.sh` contract and the size of
+`AGENTS.md`, the test count, the *One fact* entry *The git store*,
+`README.md` *The shared store* and *Requirements*, `host.example.md`) as
+of `0634bd5` (`glab` `0.18.0`, PR #25, not merged at this record); the
+first bullet below, `remote-store`'s, and the second, `level-guard`'s,
+supersede every count and line below them where they disagree; where this
 file and an owning file disagree, the
 owning file is right and this spec is out of date.
 
 ## How it works now
+
+- **The repo after `remote-store`, as of 0.18.0** (`0634bd5`; the owners
+  `AGENTS.md`, `docs/one-fact.md`, `README.md`, `host.example.md`,
+  `tests/gates.sh` and `plugins/glab/.claude-plugin/plugin.json`;
+  `[remote-store/plan.md D21]`–`D23`, `D32`, `D37`, `D38`). This bullet
+  supersedes the next one where they disagree. **Version:** `glab` 0.17.0
+  → 0.18.0, a minor step for a new mode and a new store kind, raised once
+  in the change's one commit; `memory-sync` stays `0.1.0` (`D22`).
+  **Layout** unchanged: `AGENTS.md` *Layout* already names `plan-gate.sh`.
+  **The gates** (`D21`): `tests/gates.sh` still runs 35 checks, no new
+  script, and fixes no case count; G17 now prints
+  `tests/plan-gate.test.sh 86/86` (`56/56` before), the test having gained
+  T57–T86 and a preflight that exits 2 below `git` 2.28. Green:
+  `PASS 35/35`, exit 0 (`[remote-store/result-fix-r3b.md]` *Gates*; this
+  record's run). **The `plan-gate.sh` contract** (`AGENTS.md` *Rules*;
+  `D32`, `[remote-store/review-r1.md B1]`, `[remote-store/review-r2.md
+  B7]`) now reads: "`plan-gate.sh`, not a hook, likewise: modes `digest`,
+  `report`, `verdict`, `check`, `sync`; exit 0 done, 1 refused, 2 usage, a
+  failed write or fetch; every refusal one `REFUSED:` line on stderr; on 1
+  or 2 no write but taking over a provably dead run's claim and temporary
+  file, a clone's sync, and what it wrote and undoes (header); no `.git`,
+  no git." It replaced "One script is not a hook, and its contract holds
+  the same way — … the mode names `digest`, `report`, `verdict` and
+  `check`; exit 0 done, 1 refused, 2 usage or a failed write …". The git
+  half of the contract lives in the script's header, *A store clone*, the
+  file of the role that acts on it (`D32`). `AGENTS.md` is 8794 bytes
+  (`wc -c`; 8789 before), under its 8800 cap
+  (`[slim-agents-md/plan.md D17]`). **One fact:** `docs/one-fact.md` has 41
+  entries (`grep -c '^## '`; 40 before), one new — *The git store*, after
+  *The shared store line* and before *The store layout*: a clone whose top
+  holds `.git` with `glab.store` `true`, the fetch before a read, the
+  commit and push of what a run writes, the identity `glab plan-gate
+  <plan-gate@glab.invalid>`, the subjects `store(report|verdict|sync): …`,
+  at most 5 pushes per run, `sync` before a read and after the planner's
+  briefs and rules; eleven files, `AGENTS.md` *Rules*,
+  `glab:session-rules` Rule 3 and `agents/project-planner.md` added by
+  review round 2 (`[remote-store/review-r2.md B8]`); *The shared store
+  line* unchanged (`D23`). **`README.md`:** *The shared store* names "one
+  shared folder or a clone of the product's store repository", with the
+  placeholder `<path to the store folder or clone>`
+  (`[remote-store/review-r1.md B4]`), and gains *A store clone*: the empty
+  repository on the git host, `git clone -c core.autocrlf=false -c
+  glab.store=true <store repo URL> <path to the clone>`, the first commit on
+  a machine where git has a name and email, the store line best in
+  `~/.claude/host.md` (`B5`; `[remote-store/review-r3.md B10]`); *Try the
+  product loop* step 1 "Make a store folder, or a clone, as above.", "from
+  pushing its repo" twice, and the live test LP7; *Requirements* "A store
+  clone (*The shared store*) needs `git`." **`host.example.md`** *glab
+  shared store*: the folder, or a clone set up as `README.md` *The shared
+  store* says. No URL was added: PC11's URL count stayed at its baseline,
+  6 (`plan.md` PC11, each result file).
 
 - **The repo after `level-guard`, as of 0.17.0** (`632dcb0`; the owners
   `tests/gates.sh`, `AGENTS.md`, `docs/one-fact.md`, `README.md` and
@@ -1098,6 +1154,11 @@ owning file is right and this spec is out of date.
 - [level-guard/plan.md D16] `glab` 0.16.3 → 0.17.0, a new hook being a minor step; `memory-sync` unchanged.
 - [level-guard/plan.md D17] One commit, `feat(skills): …`, holding the plan's whole diff with the version bump (`632dcb0`).
 - [level-guard/plan.md D27] (its `AGENTS.md` half) `AGENTS.md` keeps "missing" for `manager-bootstrap.sh`'s fallback, while the script's warning says "missing or unreadable": adding "or unreadable" would take `AGENTS.md` to 8804 bytes, over its 8800 cap (`[slim-agents-md/plan.md D17]`); the sentence is true, narrower than the code (FU-LG10).
+- [remote-store/plan.md D21] The gates stay at 35 checks: no new script, and G15–G20 fix no case count (`tests/gates.sh` comment); `tests/plan-gate.test.sh` goes from 56 to 86 cases (T57–T86: T57–T72 the plan's, T73–T77 review round 1's, `D37`, T78–T81 round 2's, `D38`, T82–T86 round 3's and its verification's, `D39`) and gains a preflight, `git` 2.28 or newer (`init -b`), else exit 2.
+- [remote-store/plan.md D22] `glab` 0.17.0 → 0.18.0 in `plugins/glab/.claude-plugin/plugin.json`: a new mode and a new store kind, a minor step; `memory-sync` unchanged.
+- [remote-store/plan.md D23] `docs/one-fact.md` gains *The git store*, right after *The shared store line* and before *The store layout* (41 entries); *The shared store line* is not touched, since its files do not say what the path names. The record's clauses — `[docs-lifecycle/plan.md M2]`'s "`plan-gate.sh` runs no git command" superseded, FU-P3 kept open with its premise amended, LP7 added — are in `docs/specs/product.md`.
+- [remote-store/plan.md D32] (its `AGENTS.md` half) The contract sentence must be true and fit 8800 bytes: measured on a copy at 8796 as planned (`evidence.md` E4; a longer wording measured 8806 and was not taken), 8790 after review round 1's B1, 8794 after round 2's B7, as shipped. "2 usage, a failed write or fetch" names the new failed fetch; a clone git cannot use or whose setup is incomplete is a `REFUSED:` line, a state of the store; the git half lives in the script's header.
+- [remote-store/plan.md Steps] One commit for the change with the version raise (`0634bd5`, `feat(skills): let the plan gate's shared store be a git clone (glab 0.18.0)`; the plan named the subject `… keep the shared store in a git repository …`), then this record on the same branch, in PR #25.
 
 ## Known limits and not verified
 
@@ -1123,6 +1184,7 @@ owning file is right and this spec is out of date.
 - [docs-lifecycle/result.md Tests] The Markdown has no runtime: P1–P22 are shown by the post-conditions PC1–PC28 (each at its expected value but PC12, which waits for this record and the folder's removal) and the gates, the text there, not a live session following it — UNVERIFIED, as for every prose rule. No script or test changed (PC11 printed nothing).
 - [script-hardening/plan.md Coverage] UNVERIFIED, as of `64b4e57`: a real bash older than 4.4 running `tests/gates.sh` — none was at hand (`plan.md` F9), and only the version-substituted copies ran the refusal; bash 5.3.9 ran the gates, and bash 5.2.37 and 5.1.16 ran the plan-gate suite and passed (the manager, this record's dispatch; `docs/specs/product.md` *Incidents*); bash 4.4 and 5.0 were not run; macOS was not checked (`[script-hardening/review.r1.md]`, `review.r2.md` *Not checked*). The `plan-gate.sh` items — real ENOSPC or EDQUOT, the code 1 after a failed open in a real race, the re-create under the lock — are in `docs/specs/product.md` *Known limits*.
 - [level-guard/plan.md Coverage] The gates show the scripts, not a session: `tests/level-guard.test.sh` runs the hook on made-up inputs and a copy of the tree, and G20 and G26 prove neither that the matchers fire nor what Claude Code does with `deny` and `ask`. That is the live test S10, run by the manager and the user outside the gates (`docs/specs/product.md` *How it works now* and *Known limits*), on Linux only. `plugin details` still labels the new hook "harness-only — no model context cost", which the deny reason Claude reads contradicts, as for the context hook above.
+- [remote-store/plan.md Not verified] The gates prove `plan-gate.sh` against a local bare repository by path only, on bash 5.3.9 and git 2.53.0: no network remote, hosted service or Platform clone ran, and no older bash or git (`docs/specs/product.md` *Known limits*). The Markdown of the change has no runtime: its sentences are shown by the plan's post-condition greps, not by a live session.
 
 ## Open follow-ups
 
@@ -1132,6 +1194,7 @@ owning file is right and this spec is out of date.
 - [feature-docs-specs/follow-ups.md 8] The *Records* lines of every spec, the transcript citations of `docs/specs/external-agents.md` *Profiles* and *Live runs* and its rev2-build line under *Incidents*, and the list form of `AGENTS.md`'s `plan/` rule: `git ls-tree -r --name-only <sha> -- plan/<slug>/` prints nothing, with exit 0, when run from a subdirectory. Suggested: add `--full-tree`, in the specs and `AGENTS.md` in the same commit — open. Re-read at `467b7c4`: `AGENTS.md`'s list form still has no `--full-tree`, and the `docs/specs/external-agents.md` citations stay, that spec being kept as a record — still open. Re-read at `3ed6746`: `AGENTS.md`'s list form is gone (`ls-tree` → `0` there), so only the older *Records* lines of the specs and the `docs/specs/external-agents.md` citations hold it, all kept as records — still open, for those.
 - [script-hardening/plan.md FU-SH2] `tests/gates.sh` checks only its own bash: the tests it runs use the `bash` on `PATH`, which may be another, older one (`plan.md` F9; `tests/gates.sh:28-29`). Opened by `script-hardening` (0.16.3) — open.
 - [level-guard/follow-ups.md FU-LG10] `AGENTS.md` *Rules* says `manager-bootstrap.sh` warns "when `glab-level.sh` is missing beside it"; the warning now says "missing or unreadable", and both cases give the project text. Adding "or unreadable" would take `AGENTS.md` to 8804 bytes, over its 8800 target (`[slim-agents-md/plan.md D17]`), so it was left as it is (`[level-guard/plan.md D27]`) — open, for a pass that frees bytes there.
+- [remote-store/follow-ups.md FU-RS10] `AGENTS.md` *Rules*, the `plan-gate.sh` sentence: when a push fails and the fetch after it fails too, the run exits 2 with a write whose landing is unknown — its message says "run sync" — and the contract clause does not name this path; `AGENTS.md` has about 6 bytes of room under its 8800 cap (`[remote-store/review-r3.md]` *Follow-ups*) — open.
 
 ## Closed follow-ups
 
@@ -1172,6 +1235,7 @@ owning file is right and this spec is out of date.
 - **Review round 3's helper wrote outside the temp root** (`lifecycle-hardening`, 2026-11-18; `[lifecycle-hardening/review.r3.md]`, process note): the reviewer's check helper wrote one file to `/tmp/.x`, outside the allowed temp root `/data/tmp/claude` (the host file's temp directory, *Host and tool hazards* above); the reviewer removed it by its exact path, and `/data/tmp/claude/rv-rule2-c5uvw6` too, and the repo kept the same 16 modified files and no new one. Nothing else is known to have been written there. The rule it broke is the same as *A wildcard `rm` in the shared temp directory*'s: temp files only in the host file's temp directory, removed by exact path.
 - **`script-hardening`'s incidents, pointed at, told in full in `docs/specs/product.md` *Incidents*** (2026-11-18): review round 1 found that a failed `exec 9>` redirection ends bash silently in posix mode, hence `command exec` (`[script-hardening/review.r1.md]`); review round 2 found that T56 failed on bash 4.4–5.2, the function name `[` being rejected in posix mode (`[script-hardening/review.r2.md]`); the planner's background run of the FU-SH1 hang had to be stopped (the manager, this record's dispatch); and plan check round 2, the plan-check cap (`[script-hardening/plan.md D20]`), and review round 2 were the caps, their fixes verified by the manager, review round 2's verified on bash 5.2 (`D23`); the suite ran on bash 5.2.37 and 5.1.16 in local container images with `--network none` and the repo mounted read-only (the manager, this record's dispatch).
 - **`level-guard`'s incidents, pointed at, told in full in `docs/specs/product.md` *Incidents*** (2026-11-18 and 2026-11-19): a plan checker sent stderr to `/tmp/x_unused_never` once, removed by its exact path (`[level-guard/plan.md IN-LG1]`), the second slip of the kind after *A wildcard `rm` in the shared temp directory*; the scripts reviewer of review round 2 ran `claude --version` once without `CLAUDE_CONFIG_DIR`, against `AGENTS.md` *Gates* (`[level-guard/plan.md IN-LG2]`); and the plan-check cap was reached, its last 40 replacements checked by the manager's `grep -cF` (`[level-guard/plan.md D24]`).
+- **`remote-store`'s incidents, pointed at, told in full in `docs/specs/product.md` *Incidents*** (2026-11-19): the plan-check cap was reached, its last replacements applied by the manager and proven by `grep -cF`, 43 of 43 (`[remote-store/plan.md D36]`, `apply-r2.md`); and review round 3's fix for A12 was broken on two paths, found by its verification and fixed as A12a and A12b without a fourth review round (`[remote-store/plan.md D39]`, `result-fix-r3b.md`).
 
 ## Records
 
@@ -1254,3 +1318,11 @@ owning file is right and this spec is out of date.
   - Security → no secrets; the hook-contract rule of `AGENTS.md` gains `level-guard.sh`'s contract under that change's plan, as its *Rules* require; `plan-gate.sh`'s contract unchanged.
   - Incidents → pointed at under *Incidents*, told in full in `docs/specs/product.md`.
   - Record → this record, in this file, `docs/specs/product.md`, `docs/specs/workflow.md` and `docs/features/level-guard.md`; no audit file.
+- 2026-11-19 · remote-store · 0634bd5 · 0634bd5 · remote-store · #25
+  - PR #25 (glab-services/skills), not merged at this record; recorded in `docs/specs/product.md`, its primary area (the store clone, `plan-gate.sh`'s git path and `sync`, T57–T86); here: `glab` 0.18.0 (`memory-sync` 0.1.0), the `plan-gate.sh` contract in `AGENTS.md` *Rules* (8794 bytes), `tests/gates.sh` unchanged at 35 checks with G17 at `86/86`, `PASS 35/35`, *The git store* (41 entries), `README.md` *The shared store* (*A store clone*), *Try the product loop* and *Requirements*, `host.example.md`. The plan folder was not kept in git.
+  - [remote-store/plan.md Decisions] Decisions → `D21`–`D23`, `D32`'s `AGENTS.md` half and the one commit above under *Decisions that still bind*; the others in `docs/specs/product.md` and, for the project side, `docs/specs/workflow.md`.
+  - Not verified → the local bare remote only, bash 5.3.9 and git 2.53.0 only, the Markdown's lack of a runtime, above under *Known limits*; the rest in `docs/specs/product.md`.
+  - Follow-ups → open: `[remote-store/follow-ups.md FU-RS10]` above; the others in `docs/specs/product.md` and `docs/specs/workflow.md`; `[level-guard/follow-ups.md FU-LG10]` re-read, still open (inferred: its 15 bytes, measured by `[level-guard/plan.md D27]` as 8789 → 8804, would take `AGENTS.md` from 8794 past 8800).
+  - Security → no secrets and no URL added (PC11: 6, the baseline); the contract of `plan-gate.sh` in `AGENTS.md` *Rules* changed under the change's own plan, *The contract*, as its *Rules* require; no hook contract changed.
+  - Incidents → pointed at under *Incidents*, told in full in `docs/specs/product.md`.
+  - Record → this record, in this file, `docs/specs/product.md`, `docs/specs/workflow.md` and `docs/features/remote-store.md`; no audit file.

@@ -83,10 +83,58 @@ disagree, and its `level-guard` lines (the level boundary held by the
 PR #24, not merged at this record), whose subsection *The level guard as
 of 0.17.0* supersedes every line below it that calls the main session's
 boundary text only, and whose hook is recorded in full in
+`docs/specs/product.md`, and its `remote-store` lines (the planner's
+`sync` before it reads a brief and its write boundary,
+`glab:project-plan-report`'s store push and its sync on resuming,
+`glab:session-rules` Rule 3's store-push exception, the `project-planner`
+set re-measured) as of `0634bd5` (`glab` `0.18.0`, PR #25, not merged at
+this record), whose subsection *The store sync as of 0.18.0* supersedes
+every line below it that has the project side read the store without a
+sync or confirm every push, and whose store clone is recorded in full in
 `docs/specs/product.md`; where this file
 and an owning file disagree, the owning file is right.
 
 ## How it works now
+
+### The store sync as of 0.18.0
+
+- **The project-level edge of the store clone** (`glab` 0.18.0,
+  `0634bd5`, `remote-store`; the owners `glab:project-plan` *The task*,
+  `glab:project-plan-report` *Run* and *On resuming*,
+  `plugins/glab/agents/project-planner.md` *Where you write* and
+  `glab:session-rules` Rule 3; `[remote-store/plan.md D19]`, `D28`,
+  `D34`, `D37`, `D38`, their text in `docs/specs/product.md` *Decisions
+  that still bind*). The store may be a clone of the product's store
+  repository, which `plan-gate.sh` fetches, commits and pushes itself
+  (`docs/specs/product.md` *How it works now*); the project side reads it
+  only after a sync. The planner reads a brief only after
+  `"${CLAUDE_PLUGIN_ROOT}/scripts/plan-gate.sh" sync <store>` — "anything
+  but exit 0 → stop and show its stderr line" (`project-plan/SKILL.md:11`,
+  `[remote-store/review-r2.md B6]`; the planner has `Bash`). Its write
+  boundary allows that sync: "Only the plan folder your dispatch names, and
+  the store's `sync` that `glab:project-plan` *The task* has you run."
+  (`project-planner.md:27`), and its description now says it "never edits
+  outside the plan folder its dispatch names but the store's sync" (`:3`,
+  `[remote-store/review-r2.md B9]`). `glab:project-plan-report` *Run*: "In
+  a store clone it also commits and pushes them itself: the store's commit
+  and push, not this repo's (`glab:session-rules` Rule 3)." (`:20`); *On
+  resuming* syncs before it reads the latest verdict, with the same stop
+  (`:36`). `glab:project-develop` is unchanged: `check` syncs itself.
+  `glab:session-rules` Rule 3's last bullet now ends "and before every
+  push (`glab:push`, any level), bar `plan-gate.sh`'s store push." — the
+  exception stated once, the sentence tightened so the file shrinks by one
+  byte, 18394 → 18393, its session-start cap already exceeded
+  (`[remote-store/review-r1.md B2]`, `D28`); the project session's start
+  prompt says "push this repo only after the user's explicit go-ahead"
+  (`glab:product-manager`). `glab:push`, Stage 7 and
+  `glab:project-manager` are unchanged (10016 bytes);
+  `project-manager/SKILL.md:68` and `session-rules/SKILL.md:138` still say
+  the push waits for the user without pointing at the exception
+  (`[remote-store/follow-ups.md FU-RS11]`), and the wider rule — agents
+  push and merge below `main` on their own — is
+  `[remote-store/follow-ups.md FU-RS2]`. The level guard asks for no
+  `sync` command, its `bash` mode needing the word `verdict` (inferred;
+  `tests/level-guard.test.sh` unchanged, `PASS 29/29`).
 
 ### The level guard as of 0.17.0
 
@@ -380,6 +428,14 @@ and an owning file disagree, the owning file is right.
   | `project-reviewer` set | 30973 | 27750 | 3000 lower |
   | `product-analyzer` set | 19657 | 16508 | 3000 lower |
   | `project-planner` set | 31168 | 30484 | no higher |
+
+  **Re-measured by `remote-store`** (`0634bd5`, `glab` 0.18.0;
+  `[remote-store/plan.md]` PC15): the `project-planner` set
+  (`agents/project-planner.md`, `project-plan/SKILL.md`,
+  `security/SKILL.md`, `cat … | wc -c`) is 31430, 31193 at `9f0c9bc`,
+  already past 31168 at that base; its "no higher" measured
+  `flow-project-level` against its own before, not a standing cap
+  (`[level-guard/follow-ups.md FU-LG4]` as amended, `docs/specs/product.md`).
 
 ### The lines of earlier records
 
@@ -2107,6 +2163,7 @@ and an owning file disagree, the owning file is right.
 - [lifecycle-hardening/plan.md D11] Known limit, stated in Rule 2's reason: a rebase with `--ignore-date` or `--reset-author-date` resets `%at` to its run time, so a file written between the record and that rebase is not listed as newer (proven in `check.r1.md` M4: a default rebase kept `at=01-03`, either option set it to the run day; not re-run). A rewrite of the default branch with `--reset-author-date` is reasoned, not run (`review.r2.md`).
 - [lifecycle-hardening/review.r3.md Not checked] Not checked by review round 3: bind mounts inside a plan folder (`rm -r` has no `--one-file-system`; also `review.r1.md`'s mount points), `<record files>` paths with spaces (the facts command leaves them unquoted), the window between the re-check and `rm`, and clock skew between machines (`review.r1.md`, `review.r2.md`).
 - [level-guard/result.md Live test (S10)] The project-level edge, as of `632dcb0`: the refusals were shown live from a product repo only (LV1, LV3, LV4: `glab:project-plan` refused, on Linux, Claude Code 2.1.325 `-p`, haiku and opus); a project session refusing a `glab:product-*` skill is shown offline only, by LG2 (`tests/level-guard.test.sh`; LG1 is the product level's). UNVERIFIED: whether Claude makes a Skill call in turn after a typed skill (`[level-guard/follow-ups.md FU-LG5]`), case-insensitive name resolution (FU-LG6), and that a live session follows the new paragraph of *The level boundary* rather than meeting the refusal, as for every prose rule; the rest in `docs/specs/product.md` *Known limits*.
+- [remote-store/plan.md Not verified] The project side of a store clone, as of `0634bd5`, is text: that a live planner runs `sync` before it reads a brief, that `glab:project-plan-report` syncs and stops on anything but exit 0 on resuming, and that a project session reads Rule 3's store-push exception as its own permission to let `plan-gate.sh` push the store, is UNVERIFIED — no live session ran a store clone (LP7, FU-RS4, `docs/specs/product.md` *Known limits*). The start prompt's literal "Commit only through /glab:commit" would forbid `plan-gate.sh report`'s store commit (inferred, `[remote-store/plan.md D19]`); `glab:project-plan-report` *Run* states the exception for that reason.
 
 ## Open follow-ups
 
@@ -2170,6 +2227,8 @@ and an owning file disagree, the owning file is right.
 - [lifecycle-hardening/review.r3.md 6] `glab:product-manager:60` omits "on the user's word" — open, in `docs/specs/product.md`.
 - [level-guard/follow-ups.md FU-LG1] The boundary's agent half, an `Agent` matcher refusing a `subagent_type` of another level — open, in `docs/specs/product.md`.
 - [level-guard/follow-ups.md FU-LG5] A skill a typed other-level skill calls in turn is judged; whether Claude makes such a call is UNVERIFIED — open, in `docs/specs/product.md`.
+- [remote-store/follow-ups.md FU-RS2] The user's standing rule — agents commit, push, open PRs and merge below `main` on their own; the merge to `main` and release merges stay the user's — across `glab:session-rules`, `glab:push` and the start prompt (`[remote-store/plan.md D19]`): `remote-store` exempts only the store's commits and pushes — open.
+- [remote-store/follow-ups.md FU-RS11] `glab:project-manager` `SKILL.md:68` and `glab:session-rules` `SKILL.md:138` say "push waits for the user" without pointing at Rule 3's store-push exception; safe direction; blocked by the session-start caps, with `[level-guard/follow-ups.md FU-LG4]` (`[remote-store/review-r3.md]` *Follow-ups*) — open.
 
 ## Closed follow-ups
 
@@ -2402,3 +2461,10 @@ and an owning file disagree, the owning file is right.
   - Follow-ups → `[flow-product-level/plan.md FU-P2]` closed in `docs/specs/product.md`; FU-LG1 and FU-LG5 pointed at above, open; the others in `docs/specs/product.md` and `docs/specs/marketplace.md`.
   - Incidents → none at the workflow level; the change's are in `docs/specs/product.md` *Incidents*.
   - Record → this record, in this file, `docs/specs/product.md`, `docs/specs/marketplace.md` and `docs/features/level-guard.md`; no audit file.
+- 2026-11-19 · remote-store · 0634bd5 · 0634bd5 · remote-store · #25
+  - PR #25 (glab-services/skills), not merged at this record; `glab` 0.18.0. Recorded in `docs/specs/product.md`, its primary area (the store clone, `plan-gate.sh`'s git path and `sync`, the tests); here, the project-level edge: the planner syncs before it reads a brief and may run that sync, `glab:project-plan-report` commits and pushes the store through `plan-gate.sh` and syncs on resuming, `glab:session-rules` Rule 3 bars the store push from the confirmation before every push, and the `project-planner` set re-measured (*The store sync as of 0.18.0*, the G5 table); the version, the contract and the gates in `docs/specs/marketplace.md`. The plan folder was not kept in git.
+  - [remote-store/plan.md Decisions] Decisions → `D19`, `D28`, `D34`, `D37` and `D38` named in *The store sync as of 0.18.0*, their text in `docs/specs/product.md` *Decisions that still bind*.
+  - Not verified → the project side of a store clone, shown by the text only, above under *Known limits*.
+  - Follow-ups → open: `[remote-store/follow-ups.md FU-RS2]` and `FU-RS11` above; the others in `docs/specs/product.md` and `docs/specs/marketplace.md`; `[level-guard/follow-ups.md FU-LG4]` amended in `docs/specs/product.md`.
+  - Incidents → none at the workflow level; the change's are in `docs/specs/product.md` *Incidents*.
+  - Record → this record, in this file, `docs/specs/product.md`, `docs/specs/marketplace.md` and `docs/features/remote-store.md`; no audit file.
