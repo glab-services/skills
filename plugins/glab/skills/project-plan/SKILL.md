@@ -8,7 +8,7 @@ argument-hint: "[what to build or fix]"
 
 Analyze, then plan. No implementation without a plan.
 
-**The task** is what follows `/glab:project-plan` when a person types it — $ARGUMENTS — or, when nothing does, as when `glab:project-planner` preloads this skill, the task its dispatch or the user names.
+**The task** is what follows `/glab:project-plan` when a person types it — $ARGUMENTS — or, when nothing does, as when `glab:project-planner` preloads this skill, the task its dispatch or the user names. A brief is read only after `"${CLAUDE_PLUGIN_ROOT}/scripts/plan-gate.sh" sync <store>` (anything but exit 0 → stop and show its stderr line).
 
 ```
 size → analyze → decide → plan → verify

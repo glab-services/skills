@@ -68,9 +68,9 @@ On the user's go-ahead, once per batch of briefs — each session costs money (`
 
 One session per brief, in the project's repo, named `<project>`, given the start prompt:
 
-    take the brief at <store>/briefs/<project>/brief.md. Commit only through /glab:commit, and push only after the user's explicit go-ahead.
+    take the brief at <store>/briefs/<project>/brief.md. Commit only through /glab:commit, and push this repo only after the user's explicit go-ahead.
 
-The second sentence is there because a background session that moved into a worktree commits and pushes its branch without asking, unless its task says git is handled otherwise, and the task's words take precedence over that default. Record each session's name and id in the handoff file.
+The second sentence is there because a background session that moved into a worktree commits and pushes its branch without asking, unless its task says git is handled otherwise; the task's words override that default. Record each session's name and id in the handoff file.
 
 By host:
 
@@ -88,7 +88,7 @@ What no live run has shown is UNVERIFIED (LP4): that a session's Bash tool can r
 
 ## Waiting for reports
 
-A report arrives as `report.r<n>.md` in the brief's folder of the store. A project session this session started is watched — `notify_when_idle` in the CLI, `wake_when_done` in the desktop app — and each notice is the cue to look in the store. Both are one-shot: a notice with no new report is followed by a new subscription. This session ends its turn with the briefs it waits on in the handoff file. A report from a session it did not start arrives with a message, from the user or from that session's `SendMessage`.
+A report arrives as `report.r<n>.md` in the brief's folder of the store. A project session this session started is watched — `notify_when_idle` in the CLI, `wake_when_done` in the desktop app — and each notice is the cue for P4. Both are one-shot: a notice with no new report is followed by a new subscription. This session ends its turn with the briefs it waits on in the handoff file. A report from a session it did not start arrives with a message, from the user or from that session's `SendMessage`.
 
 ## The cap
 

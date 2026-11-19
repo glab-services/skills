@@ -88,11 +88,11 @@ repo and to nothing else.
   nothing, messages on stderr;
   `skill` decides only `deny`, `bash` only `ask`, never `allow`; the level
   from `glab-level.sh`, which `manager-bootstrap.sh` sources too.
-  One script is not a hook, and its contract holds the same way —
-  `plan-gate.sh`: the mode names `digest`, `report`, `verdict` and `check`;
-  exit 0 done, 1 refused, 2 usage or a failed write; every refusal one `REFUSED:` line on stderr, and no
-  write but the takeover before it of a claim, and its temporary file, whose
-  run provably no longer runs.
+  `plan-gate.sh`, not a hook, likewise: modes `digest`, `report`,
+  `verdict`, `check`, `sync`; exit 0 done, 1 refused, 2 usage, a failed
+  write or fetch; every refusal one `REFUSED:` line on stderr; on 1 or 2 no
+  write but taking over a provably dead run's claim and temporary file, a
+  clone's sync, and what it wrote and undoes (header); no `.git`, no git.
 - **One fact, one value.** A number or name stated in more than one file
   changes in all of them in the same commit. A rule lives in the file of the
   role that acts on it; every other file points at it without restating it.

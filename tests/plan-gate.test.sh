@@ -1,9 +1,35 @@
 #!/usr/bin/env bash
 # Exercises plan-gate.sh against plan folders and stores written here, under $TMPDIR; it never
 # touches a real shared store. Each case builds its own store and plan folder, so no case depends on
-# another case's files. T22 is judged last, over every store the cases wrote.
+# another case's files. T22 is judged last, over every store the cases wrote, git dirs included.
+# T57 to T77 run the store as a git clone [remote-store/plan-tests.md]: T57 the plain paths beside a
+# repository, T58 to T61 each mode on a clone, T62 to T65 two clones racing one remote, T66 a remote
+# that refuses, T67 each precondition, T68 a TERM between commit and push, T69 a push that landed
+# yet failed, T70 real concurrency, T71 a hostile git config and environment, T72 the clone claim;
+# T73 to T77 the review's fixes [remote-store/review-r1.md]: T73 the store's own .gitignore, T74 a
+# reader waiting on the clone claim, T75 GIT_CONFIG, T76 a path with a newline or a tab, T77 a
+# symlink given to sync; T78 to T81 those of review round 2 [remote-store/review-r2.md]: T78 the
+# other config and pathspec names in the environment, T79 an ignored file a killed verdict run left,
+# T80 a TERM after the push landed, T81 a newline in the store path; T82 to T84 those of round 3
+# [remote-store/review-r3.md]: T82 a rule file named as a glob, and a literal pathspec, T83 an
+# ignored local file the remote adds, T84 a TERM after a push another push built on; T85 and T86
+# the verification's [remote-store/review-r3.md A12a, A12b]: T85 a clone with no commit yet, T86 an
+# ignored file at a parent folder of a path the remote brings.
+# Their remote is a bare repository by path under the case folder, never a network one, and git
+# reads no config of the host: the test's own GIT_CONFIG_GLOBAL, HOME and XDG_CONFIG_HOME, and no
+# system file [remote-store/plan.md D24].
 set -uo pipefail
 [ -f "${1:-}" ] || { echo "usage: $(basename "$0") <path to plan-gate.sh>" >&2; exit 2; }
+# git 2.28 or newer: the cases make their remotes with `git init -b`.
+gv=$(git --version 2>/dev/null) || gv=''
+gv=${gv#git version }
+gmaj=${gv%%.*} gmin=${gv#*.}
+gmin=${gmin%%.*}
+case $gmaj.$gmin in *[!0-9.]* | .* | *.) gmaj=0 gmin=0 ;; esac
+if ! { [ "$gmaj" -gt 2 ] || { [ "$gmaj" -eq 2 ] && [ "$gmin" -ge 28 ]; }; }; then
+	echo 'plan-gate.test.sh: git 2.28 or newer is required' >&2
+	exit 2
+fi
 # Absolute, because every run below starts from the work directory.
 SCRIPT=$(cd "$(dirname "$1")" && pwd)/$(basename "$1")
 W=$(mktemp -d "${TMPDIR:?set TMPDIR to the temp directory your host file names}/plan-gate-test.XXXXXX") || exit 1
@@ -11,11 +37,21 @@ W=$(mktemp -d "${TMPDIR:?set TMPDIR to the temp directory your host file names}/
 # keeps a zombie; BG holds those PIDs while they may run. In T47 a stub starts a second run in the
 # background and records its PID in $C/pid2, which joins BG only once the first run is back: a test
 # killed while the first run waits in that stub, up to 10 s, does not kill the second, which ends on
-# its own once its date stub stops waiting, 10 s at most. The trap kills only the PIDs in BG, should
-# the test end first, then removes the work directory.
+# its own once its date stub stops waiting, 10 s at most. T70 starts two runs in the background in
+# each of its rounds, T72 a sleep whose pid it writes into a claim, and T74 such sleeps, a subshell
+# that removes one claim and a run that waits on another; each joins BG and is waited on by its PID. The trap kills only the PIDs in BG, should the test end first, then removes the
+# work directory.
 BG=''
 trap 'for p in $BG; do kill "$p" 2>/dev/null; done; rm -rf "$W"' EXIT
 cd "$W" || exit 1
+# For the whole test, the test's own git commands included: an empty global config, no system one,
+# and a HOME and XDG_CONFIG_HOME of the test's, so that no setting of the host - an autocrlf, a
+# signing key, an attributes or ignore file - reaches a case; and none of the GIT_* names that
+# plan-gate.sh unsets [remote-store/plan.md D24].
+mkdir -p "$W/xdg" "$W/home" && : >"$W/gitconfig" || exit 1
+export GIT_CONFIG_GLOBAL=$W/gitconfig GIT_CONFIG_NOSYSTEM=1 XDG_CONFIG_HOME=$W/xdg HOME=$W/home
+unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_OBJECT_DIRECTORY GIT_ALTERNATE_OBJECT_DIRECTORIES GIT_COMMON_DIR GIT_NAMESPACE GIT_AUTHOR_DATE GIT_COMMITTER_DATE GIT_CONFIG
+unset GIT_CONFIG_PARAMETERS GIT_CONFIG_COUNT GIT_LITERAL_PATHSPECS GIT_GLOB_PATHSPECS GIT_NOGLOB_PATHSPECS GIT_ICASE_PATHSPECS
 
 pass=0 fail=0 n=0
 reason='' # why the current case failed; empty while it holds
@@ -84,6 +120,15 @@ plan_for() {
 # loop_case <id> <project>: a case with a brief and a plan made from it.
 loop_case() { newcase "$1" && brief "$2" 'Store notes.' && plan_for "$2"; }
 B=briefs/notes-api
+# The takeover of a stale claim needs /proc (plan-gate.sh, whoami): PROC is set where /proc is this
+# test's pid namespace's, as the script requires. Elsewhere T38 and T43 expect the refusal instead,
+# and T45 to T48 say "skipped: no /proc". Set here, before T33, which live reads.
+PROC=''
+if { read -r s </proc/self/stat; } 2>/dev/null && [ "${s%% *}" = "$$" ]; then PROC=1; fi
+# live <refusal> <claim>: the refusal of a claim whose run is alive. With PROC the script proves it
+# alive and says no more, since that claim must not be removed by hand [remote-store/review-r1.md
+# A2]; without /proc it cannot tell, and says to remove the claim when no run is writing.
+live() { if [ -n "$PROC" ]; then printf '%s' "$1"; else printf '%s; when no run is writing, remove %s by hand' "$1" "$2"; fi; }
 # round <verdict> <by> <reason file>: report the plan, then decide it.
 round() { ran report "$P" "$S" && ran verdict "$S" notes-api "$1" "$2" "$3"; }
 
@@ -437,7 +482,7 @@ case "$r1 $r2" in
 *) won='' lost='' && bad "the two runs exited $r1 and $r2, not one 0 and one 1: [$(cat "$C/e1" "$C/e2")]" ;;
 esac
 if [ -n "$won" ]; then
-	[ "$(cat "$C/e$lost")" = "REFUSED: another run is writing verdict r1; when no run is writing, remove $S/$B/.plan-gate.claim.verdict.r1 by hand" ] || bad "the losing run said [$(cat "$C/e$lost")]"
+	[ "$(cat "$C/e$lost")" = "REFUSED: $(live 'another run is writing verdict r1' "$S/$B/.plan-gate.claim.verdict.r1")" ] || bad "the losing run said [$(cat "$C/e$lost")]"
 	[ -z "$(cat "$C/o$lost")" ] || bad "the losing run printed [$(cat "$C/o$lost")]"
 	grep -qx "verdict: $won" "$S/$B/verdict.r1.md" || bad "verdict.r1.md is not the winning run's $won"
 fi
@@ -495,7 +540,7 @@ case "$r1 $r2" in
 *) won='' lost='' && bad "the two runs exited $r1 and $r2, not one 0 and one 1: [$(cat "$C/e1" "$C/e2")]" ;;
 esac
 if [ -n "$won" ]; then
-	[ "$(cat "$C/e$lost")" = "REFUSED: another run is writing report r1; when no run is writing, remove $S/$B/.plan-gate.claim.report.r1 by hand" ] || bad "the losing run said [$(cat "$C/e$lost")]"
+	[ "$(cat "$C/e$lost")" = "REFUSED: $(live 'another run is writing report r1' "$S/$B/.plan-gate.claim.report.r1")" ] || bad "the losing run said [$(cat "$C/e$lost")]"
 	[ -z "$(cat "$C/o$lost")" ] || bad "the losing run printed [$(cat "$C/o$lost")]"
 	[ "$(cat "$C/o$won")" = "$S/$B/report.r1.md" ] || bad "the winning run printed [$(cat "$C/o$won")]"
 fi
@@ -530,11 +575,6 @@ launched() {
 	RC=$?
 	ERR=$(cat "$W/err")
 }
-# The takeover of a stale claim needs /proc (plan-gate.sh, whoami): PROC is set where /proc is this
-# test's pid namespace's, as the script requires. Elsewhere T38 and T43 expect the refusal instead,
-# and T45 to T48 say "skipped: no /proc".
-PROC=''
-if { read -r s </proc/self/stat; } 2>/dev/null && [ "${s%% *}" = "$$" ]; then PROC=1; fi
 # owner <pid> <start>: the claim line of a run on this host with that pid and start time, made here
 # from uname, the boot id and the pid namespace, independently of the script.
 owner() { printf '%s %s %s %s %s\n' "$(uname -n)" "$(cat /proc/sys/kernel/random/boot_id)" "$(readlink /proc/self/ns/pid)" "$1" "$2"; }
@@ -597,7 +637,7 @@ stub date '! (set -C && : >"$STUB_C/fired") 2>/dev/null || { PATH=${PATH#"$STUB_
 launched report "$P" "$S"
 [ "$RC" -eq 0 ] && [ "$OUT" = "$S/$B/report.r1.md" ] || bad "the first run: rc=$RC [$OUT] [$ERR]"
 [ "$(cat "$C/r2" 2>/dev/null)" = 1 ] || bad "the second run exited [$(cat "$C/r2" 2>/dev/null)], not 1"
-[ "$(cat "$C/e2" 2>/dev/null)" = "REFUSED: another run is writing report r1; when no run is writing, remove $S/$B/.plan-gate.claim.report.r1 by hand" ] || bad "the second run said [$(cat "$C/e2" 2>/dev/null)]"
+[ "$(cat "$C/e2" 2>/dev/null)" = "REFUSED: $(live 'another run is writing report r1' "$S/$B/.plan-gate.claim.report.r1")" ] || bad "the second run said [$(cat "$C/e2" 2>/dev/null)]"
 [ -z "$(cat "$C/o2" 2>/dev/null)" ] || bad "the second run printed [$(cat "$C/o2")]"
 done_case T40 "a report while another run holds the claim and fills plan.r1/ is told another run is writing, not to remove plan.r1/"
 
@@ -669,7 +709,8 @@ boot=$(cat /proc/sys/kernel/random/boot_id 2>/dev/null)
 # from another host; one from another pid namespace; and the line of a run that is alive, this
 # test's own bash; and one from another boot. Cases 2, 3 and 5 name a dead pid and differ from this
 # host's line in that one field only, so that field alone refuses them. The refusal names the
-# temporary file too, unless the claim's run is alive.
+# temporary file too, unless the claim's run is alive; then it names nothing to remove, since a live
+# run's claim must not be removed by hand [remote-store/review-r1.md A2].
 for k in 1 2 3 4 5; do
 	rm -f "$claim" "$tmp"
 	case $k in
@@ -684,18 +725,18 @@ for k in 1 2 3 4 5; do
 		;;
 	4)
 		[ -n "$PROC" ] || continue
-		owner "$$" "$(started "$$")" >"$claim" && : >"$tmp" && want="remove $claim by hand"
+		owner "$$" "$(started "$$")" >"$claim" && : >"$tmp" && want=''
 		;;
 	5)
 		[ -n "$PROC" ] || continue
 		printf '%s 00000000-0000-0000-0000-000000000000 %s %s 1\n' "$(uname -n)" "$(readlink /proc/self/ns/pid)" "$(dead_pid)" >"$claim" && : >"$tmp" && want="remove $claim and $tmp by hand"
 		;;
 	esac
-	refused "another run is writing verdict r1; when no run is writing, $want" verdict "$S" notes-api ACCEPTED product-manager "$C/ok"
+	refused "another run is writing verdict r1${want:+; when no run is writing, $want}" verdict "$S" notes-api ACCEPTED product-manager "$C/ok"
 done
 rm -f "$claim" "$tmp"
 ran verdict "$S" notes-api ACCEPTED product-manager "$C/ok"
-done_case T44 "a claim no run can prove stale is refused and kept - empty, from another host, from another pid namespace, alive, or from another boot - naming the temporary file too unless its run is alive"
+done_case T44 "a claim no run can prove stale is refused and kept - empty, from another host, from another pid namespace, alive, or from another boot - naming the temporary file too, and naming nothing to remove when its run is alive"
 
 # T45
 loop_case t45 notes-api
@@ -1078,7 +1119,766 @@ else
 	done_case T56 "under POSIXLY_CORRECT a failed open still ends in one line: exit 2 in a folder it cannot write, REFUSED for a claim race lost"
 fi
 
-# T22 last: judged over every store the cases above wrote
+# T57 to T72: the store as a git clone [remote-store/plan-tests.md]. A case's remote is the bare
+# repository $C/remote.git, by path; $C/seed made its first commit; $S and $S2 are two store clones
+# of it, made as the user makes them, with core.autocrlf=false and glab.store=true. "Clean" (gclean)
+# is: git status prints nothing, no .plan-gate.* is left under the case, and HEAD is the value given.
+# tgit <args...>: git as the test's own author, t <t@t.invalid>, for the commits a case makes by hand.
+tgit() { git -c user.name=t -c user.email=t@t.invalid "$@"; }
+# gitcase <id> [<project>...]: newcase, a bare remote, a seed clone committing each project's brief -
+# the text brief writes - and docs/product-rules/index.md, then $S and $S2.
+gitcase() {
+	local pr
+	newcase "$1"
+	shift
+	S2=$C/store2
+	{ git init -q --bare -b main "$C/remote.git" && git clone -q "$C/remote.git" "$C/seed"; } >/dev/null 2>&1 || bad "gitcase: no remote or seed"
+	for pr in "$@"; do
+		mkdir -p "$C/seed/briefs/$pr" && printf '# Brief — %s\n\n## Goal\n\n%s\n' "$pr" 'Store notes.' >"$C/seed/briefs/$pr/brief.md"
+	done
+	mkdir -p "$C/seed/docs/product-rules" && printf '# Product rules\n\n- data-retention.md\n' >"$C/seed/docs/product-rules/index.md"
+	{ git -C "$C/seed" add -A && tgit -C "$C/seed" commit -q -m seed && git -C "$C/seed" push -q origin HEAD:main; } >/dev/null 2>&1 || bad "gitcase: the seed commit failed"
+	rmdir "$S"
+	{ git clone -q -c core.autocrlf=false -c glab.store=true "$C/remote.git" "$S" && git clone -q -c core.autocrlf=false -c glab.store=true "$C/remote.git" "$S2"; } >/dev/null 2>&1 ||
+		bad "gitcase: a store clone failed"
+}
+# plan_in <dir> <project>: plan_for into another plan folder, $C/plan2 for a second project.
+plan_in() {
+	# shellcheck disable=SC2034 # read by plan_for
+	local P=$1
+	mkdir -p "$1" && plan_for "$2"
+}
+# gsnap: snap of the case with every .git and the remote pruned, then HEAD of each clone and main of
+# the remote - a fetch may change the clones' remote-tracking refs, nothing else.
+gsnap() {
+	local d
+	(cd "$C" && find . \( -name .git -o -name remote.git \) -prune -o -print | LC_ALL=C sort &&
+		find . \( -name .git -o -name remote.git \) -prune -o -type f -exec cksum {} + | LC_ALL=C sort)
+	for d in "$C/store" "$C/store2" "$C/seed"; do git -C "$d" rev-parse HEAD 2>/dev/null; done
+	git -C "$C/remote.git" rev-parse main 2>/dev/null
+}
+# grefused <line> <args...>: refused, over gsnap.
+grefused() {
+	local line=$1 before
+	shift
+	before=$(gsnap)
+	gate "$@"
+	[ "$RC" -eq 1 ] || bad "rc=$RC, not 1, for [$*]: [$ERR]"
+	[ -z "$OUT" ] || bad "stdout not empty: [$OUT]"
+	[ "$ERR" = "REFUSED: $line" ] || bad "stderr [$ERR] is not [REFUSED: $line]"
+	[ "$before" = "$(gsnap)" ] || bad "the refusal of [$*] wrote something"
+}
+# tip: main of the case's remote.
+tip() { git -C "$C/remote.git" rev-parse main 2>/dev/null; }
+# gclean <clone> <commit>: the clone is clean, at <commit>.
+gclean() {
+	local st left
+	st=$(git -C "$1" status --porcelain --untracked-files=all)
+	[ -z "$st" ] || bad "$1 is not clean: [$st]"
+	left=$(find "$C" -name '.plan-gate.*')
+	[ -z "$left" ] || bad "left under the case: $left"
+	[ "$(git -C "$1" rev-parse HEAD 2>/dev/null)" = "$2" ] || bad "HEAD of $1 is not $2"
+}
+# who <repo> <rev>: "<author name> <email>|<committer name> <email>" of the commit.
+who() { git -C "$1" log -1 --format='%an <%ae>|%cn <%ce>' "$2"; }
+PG='glab plan-gate <plan-gate@glab.invalid>'
+# one_line <text>: the text is one line.
+one_line() { [ -n "$1" ] && [ "$(printf '%s\n' "$1" | wc -l)" -eq 1 ]; }
+
+# T57
+newcase t57a
+before=$(snap "$C")
+ran sync "$S"
+[ "$OUT" = folder ] || bad "a: sync of a folder with no .git printed [$OUT]"
+[ "$before" = "$(snap "$C")" ] || bad "a: sync of a folder with no .git wrote something"
+for k in b c; do
+	gitcase "t57$k" notes-api
+	if [ "$k" = b ]; then git -C "$S" config --unset glab.store; else git -C "$S" config glab.store false; fi
+	plan_for notes-api
+	ran report "$P" "$S"
+	[ "$OUT" = "$S/$B/report.r1.md" ] || bad "$k: report printed [$OUT]"
+	ran verdict "$S" notes-api ACCEPTED product-manager "$C/ok"
+	[ "$OUT" = "$S/$B/verdict.r1.md" ] || bad "$k: verdict printed [$OUT]"
+	[ "$(git -C "$S" rev-list --count HEAD)" = 1 ] || bad "$k: a commit was made"
+	st=$(git -C "$S" status --porcelain --untracked-files=all)
+	[ "$st" = "$(printf '?? %s\n' "$B/plan.r1/master.md" "$B/plan.r1/plan.md" "$B/report.r1.md" "$B/verdict.r1.md")" ] || bad "$k: status is [$st]"
+	ran sync "$S"
+	[ "$OUT" = folder ] || bad "$k: sync printed [$OUT]"
+done
+gitcase t57d notes-api
+git -C "$S" config glab.store maybe
+plan_for notes-api
+grefused "glab.store of $S cannot be read (git exit 128); look at its .git/config" report "$P" "$S"
+done_case T57 "a plain folder, and a repository whose glab.store is unset or false, run as 0.17.0 with no commit; glab.store maybe is refused"
+
+# T58
+gitcase t58 notes-api
+plan_for notes-api
+ran report "$P" "$S"
+[ "$OUT" = "$S/$B/report.r1.md" ] || bad "stdout [$OUT] is not the report's path"
+[ "$(tip)" = "$(git -C "$S" rev-parse HEAD)" ] || bad "the remote's main is not the clone's HEAD"
+got=$(git -C "$S" diff --name-only main^ main)
+[ "$got" = "$(printf '%s\n' "$B/plan.r1/master.md" "$B/plan.r1/plan.md" "$B/report.r1.md")" ] || bad "the commit holds [$got]"
+[ "$(git -C "$S" log -1 --format=%s)" = 'store(report): notes-api r1 by notes-api' ] || bad "subject [$(git -C "$S" log -1 --format=%s)]"
+[ "$(who "$S" HEAD)" = "$PG|$PG" ] || bad "author and committer [$(who "$S" HEAD)]"
+got=$(git -C "$S" log -1 --format=%b)
+[ "$got" = "$(printf '%s\n' "$B/report.r1.md" "$B/plan.r1/")" ] || bad "body [$got]"
+for f in plan.r1/master.md plan.r1/plan.md report.r1.md; do
+	[ "$(git -C "$S" cat-file blob "main:$B/$f" | h256)" = "$(h256 <"$S/$B/$f")" ] || bad "the blob of $f is not the file's bytes"
+done
+gclean "$S" "$(tip)"
+gitcase t58b notes-api
+plan_for notes-api
+ran report "$P" "${S#"$W/"}"
+[ "$OUT" = "${S#"$W/"}/$B/report.r1.md" ] || bad "relative: stdout [$OUT]"
+[ "$(tip)" = "$(git -C "$S" rev-parse HEAD)" ] || bad "relative: the remote's main is not the clone's HEAD"
+gclean "$S" "$(tip)"
+done_case T58 "report on a clone commits exactly its files as glab plan-gate and pushes them, the store given absolute or relative"
+
+# T59
+gitcase t59 notes-api
+plan_for notes-api
+ran report "$P" "$S"
+ran verdict "$S" notes-api ACCEPTED product-manager "$C/ok"
+[ "$OUT" = "$S/$B/verdict.r1.md" ] || bad "stdout [$OUT] is not the verdict's path"
+[ "$(git -C "$S" log -1 --format=%s)" = 'store(verdict): notes-api r1 ACCEPTED by product-manager' ] || bad "subject [$(git -C "$S" log -1 --format=%s)]"
+[ "$(git -C "$S" diff --name-only HEAD^ HEAD)" = "$B/verdict.r1.md" ] || bad "the commit holds [$(git -C "$S" diff --name-only HEAD^ HEAD)]"
+gclean "$S" "$(tip)"
+gitcase t59b notes-api
+plan_for notes-api
+round REJECTED product-manager "$C/no"
+printf 'amended\n' >>"$P/plan.md"
+round REJECTED product-manager "$C/no"
+printf 'amended again\n' >>"$P/plan.md"
+ran report "$P" "$S"
+ran verdict "$S" notes-api REJECTED user "$C/user"
+[ "$(git -C "$S" log -1 --format=%s)" = 'store(verdict): notes-api r3 REJECTED by user' ] || bad "subject at the cap [$(git -C "$S" log -1 --format=%s)]"
+gclean "$S" "$(tip)"
+done_case T59 "verdict on a clone commits its one file, ACCEPTED by product-manager and, at the cap, REJECTED by user"
+
+# T60
+gitcase t60 notes-api
+plan_for notes-api
+ran report "$P" "$S2"
+ran verdict "$S2" notes-api ACCEPTED product-manager "$C/ok"
+gate digest "$P"
+d=$OUT
+ran check "$P" "$S"
+[ "$OUT" = "ACCEPTED r1 $d" ] || bad "check from the clone behind printed [$OUT]"
+[ "$(git -C "$S" rev-parse HEAD)" = "$(tip)" ] || bad "check did not bring the clone to the remote's main"
+mv "$C/remote.git" "$C/remote.away"
+gate check "$P" "$S"
+[ "$RC" -eq 2 ] && [ -z "$OUT" ] || bad "with no remote: rc=$RC [$OUT]"
+one_line "$ERR" || bad "with no remote: stderr is not one line: [$ERR]"
+case $ERR in 'plan-gate.sh: fetching the store from its remote origin failed'*) ;; *) bad "with no remote: stderr [$ERR]" ;; esac
+case $ERR in *"$C/remote"*) bad "stderr names the remote's path: [$ERR]" ;; esac
+mv "$C/remote.away" "$C/remote.git"
+done_case T60 "check brings a clone behind up to date and passes; with its remote gone it exits 2, one line naming the remote by name"
+
+# T61
+gitcase t61 notes-api other-api
+mkdir -p "$C/seed/releases" && printf 'r1\n' >"$C/seed/releases/r1.md"
+{ git -C "$C/seed" add releases && tgit -C "$C/seed" commit -q -m r1 && git -C "$C/seed" push -q origin HEAD:main; } >/dev/null 2>&1 || bad "the seed's second commit failed"
+printf 'a local edit\n' >>"$S/briefs/other-api/brief.md"
+ran sync "$S"
+[ "$OUT" = "git $(tip)" ] || bad "sync printed [$OUT], not [git $(tip)]"
+[ "$(git -C "$S" rev-parse HEAD)" = "$(tip)" ] || bad "sync did not fast-forward the clone"
+if ! { [ "$(git -C "$S" status --porcelain --untracked-files=all)" = ' M briefs/other-api/brief.md' ] && grep -qx 'a local edit' "$S/briefs/other-api/brief.md"; }; then
+	bad "the local edit was not kept"
+fi
+git -C "$S" checkout -q -- briefs/other-api/brief.md
+mkdir -p "$S/briefs/web-app" && printf '# Brief — web-app\n\n## Goal\n\nShow notes.\n' >"$S/briefs/web-app/brief.md"
+printf -- '- notes.md\n' >>"$S/docs/product-rules/index.md"
+base=$(tip)
+ran sync "$S" product-manager
+[ "$OUT" = "git $(tip)" ] || bad "sync product-manager printed [$OUT], not [git $(tip)]"
+[ "$(git -C "$C/remote.git" rev-parse main^)" = "$base" ] || bad "not one commit on the remote"
+[ "$(git -C "$C/remote.git" log -1 --format=%s main)" = 'store(sync): 2 files by product-manager' ] || bad "subject [$(git -C "$C/remote.git" log -1 --format=%s main)]"
+got=$(git -C "$C/remote.git" log -1 --format=%b main | grep -v '^$' | LC_ALL=C sort)
+[ "$got" = "$(printf '%s\n' briefs/web-app/brief.md docs/product-rules/index.md)" ] || bad "body [$got]"
+[ "$(who "$C/remote.git" main)" = "$PG|$PG" ] || bad "author and committer [$(who "$C/remote.git" main)]"
+gclean "$S" "$(tip)"
+mkdir -p "$S/releases" && printf 'x\n' >"$S/releases/x.md"
+grefused 'the store clone has a change plan-gate.sh does not commit: releases/x.md; look at it' sync "$S" product-manager
+gate sync "$S" user
+usage_ok 'sync <store> user'
+done_case T61 "sync fast-forwards and keeps local edits; with product-manager it commits a brief and a rule file, refuses any other change; a bad word is usage"
+
+# T62 to T66 and T68 put a git stub first on PATH (stub, launched); it acts on a push alone and
+# runs every other git command as the real one. A stub that runs git itself strips $STUB_C/bin: from
+# PATH first, as T40 does.
+# T62
+gitcase t62 notes-api other-api
+plan_for notes-api
+plan_in "$C/plan2" other-api
+# shellcheck disable=SC2016 # expanded when the stub runs
+stub git 'case " $* " in *" push "*) if (set -C && : >"$STUB_C/fired") 2>/dev/null; then PATH=${PATH#"$STUB_C/bin:"} bash "$STUB_SCRIPT" report "$STUB_C/plan2" "$STUB_C/store" >"$STUB_C/o2" 2>"$STUB_C/e2"; echo $? >"$STUB_C/r2"; fi ;; esac'
+launched report "$P" "$S2"
+[ "$RC" -eq 0 ] && [ "$OUT" = "$S2/$B/report.r1.md" ] && [ -z "$ERR" ] || bad "S2: rc=$RC [$OUT] [$ERR]"
+[ "$(cat "$C/r2" 2>/dev/null)" = 0 ] || bad "the report from S exited [$(cat "$C/r2" 2>/dev/null)]: [$(cat "$C/e2" 2>/dev/null)]"
+if ! { git -C "$C/remote.git" cat-file -e "main:$B/report.r1.md" && git -C "$C/remote.git" cat-file -e main:briefs/other-api/report.r1.md; }; then
+	bad "the remote lacks a report"
+fi
+[ "$(git -C "$C/remote.git" rev-parse main^)" = "$(git -C "$S" rev-parse HEAD)" ] || bad "S2's commit does not sit on S's"
+got=$(git -C "$C/remote.git" diff --name-only main^ main | grep -v "^$B/")
+[ -z "$got" ] || bad "S2's commit touches [$got]"
+ran sync "$S"
+ran sync "$S2"
+gclean "$S" "$(tip)"
+gclean "$S2" "$(tip)"
+done_case T62 "two projects' reports interleaved on one remote: the second is replayed on the first, both land"
+
+# T63
+gitcase t63 notes-api
+plan_for notes-api
+printf 'from S\n' >"$C/note"
+base=$(tip)
+# shellcheck disable=SC2016 # expanded when the stub runs
+stub git 'case " $* " in *" push "*) if (set -C && : >"$STUB_C/fired") 2>/dev/null; then PATH=${PATH#"$STUB_C/bin:"} bash "$STUB_SCRIPT" report "$STUB_C/plan" "$STUB_C/store" "$STUB_C/note" >"$STUB_C/o2" 2>"$STUB_C/e2"; echo $? >"$STUB_C/r2"; fi ;; esac'
+launched report "$P" "$S2"
+[ "$RC" -eq 1 ] && [ -z "$OUT" ] && [ "$ERR" = "REFUSED: the store's remote changed $B/ while this run wrote r1; run it again" ] || bad "S2: rc=$RC [$OUT] [$ERR]"
+[ "$(cat "$C/r2" 2>/dev/null)" = 0 ] || bad "the report from S exited [$(cat "$C/r2" 2>/dev/null)]"
+git -C "$C/remote.git" show "main:$B/report.r1.md" | grep -qx 'from S' || bad "the remote's report.r1.md is not S's"
+[ "$(git -C "$S2" rev-parse HEAD)" = "$base" ] || bad "S2's HEAD is not its base"
+[ -z "$(git -C "$S2" status --porcelain --untracked-files=all)" ] || bad "S2 kept [$(git -C "$S2" status --porcelain --untracked-files=all)]"
+ran sync "$S2"
+gclean "$S2" "$(tip)"
+done_case T63 "two writers of one r<n> on one remote: the second is refused and undone"
+
+# T64
+gitcase t64a notes-api
+plan_for notes-api
+ran report "$P" "$S"
+# shellcheck disable=SC2016 # expanded when the stub runs
+stub git 'case " $* " in *" push "*) if (set -C && : >"$STUB_C/fired") 2>/dev/null; then printf "and tags\n" >>"$STUB_C/store/briefs/notes-api/brief.md"; PATH=${PATH#"$STUB_C/bin:"} bash "$STUB_SCRIPT" sync "$STUB_C/store" product-manager >"$STUB_C/o2" 2>"$STUB_C/e2"; echo $? >"$STUB_C/r2"; fi ;; esac'
+launched verdict "$S2" notes-api ACCEPTED product-manager "$C/ok"
+[ "$RC" -eq 1 ] && [ -z "$OUT" ] && [ "$ERR" = "REFUSED: the store's remote changed $B/ while this run wrote r1; run it again" ] || bad "a: rc=$RC [$OUT] [$ERR]"
+[ "$(cat "$C/r2" 2>/dev/null)" = 0 ] || bad "a: the brief's sync exited [$(cat "$C/r2" 2>/dev/null)]: [$(cat "$C/e2" 2>/dev/null)]"
+! git -C "$C/remote.git" cat-file -e "main:$B/verdict.r1.md" 2>/dev/null || bad "a: a verdict on the old brief landed"
+gitcase t64b notes-api
+plan_for notes-api
+ran report "$P" "$S"
+# shellcheck disable=SC2016 # expanded when the stub runs
+stub git 'case " $* " in *" push "*) if (set -C && : >"$STUB_C/fired") 2>/dev/null; then PATH=${PATH#"$STUB_C/bin:"} bash "$STUB_SCRIPT" verdict "$STUB_C/store" notes-api REJECTED product-manager "$STUB_C/no" >"$STUB_C/o2" 2>"$STUB_C/e2"; echo $? >"$STUB_C/r2"; fi ;; esac'
+launched verdict "$S2" notes-api ACCEPTED product-manager "$C/ok"
+[ "$RC" -eq 1 ] && [ -z "$OUT" ] && [ "$ERR" = "REFUSED: the store's remote changed $B/ while this run wrote r1; run it again" ] || bad "b: rc=$RC [$OUT] [$ERR]"
+git -C "$C/remote.git" show "main:$B/verdict.r1.md" 2>/dev/null | grep -qx 'verdict: REJECTED' || bad "b: the remote's verdict.r1.md is not S's REJECTED"
+gitcase t64c notes-api other-api
+plan_for notes-api
+plan_in "$C/plan2" other-api
+round REJECTED product-manager "$C/no"
+printf 'amended\n' >>"$P/plan.md"
+ran report "$P" "$S"
+base=$(tip)
+# shellcheck disable=SC2016 # expanded when the stub runs
+stub git 'case " $* " in *" push "*) if (set -C && : >"$STUB_C/fired") 2>/dev/null; then PATH=${PATH#"$STUB_C/bin:"} bash "$STUB_SCRIPT" report "$STUB_C/plan2" "$STUB_C/store" >"$STUB_C/o2" 2>"$STUB_C/e2"; echo $? >"$STUB_C/r2"; fi ;; esac'
+launched verdict "$S2" notes-api ACCEPTED product-manager "$C/ok"
+[ "$RC" -eq 0 ] && [ "$OUT" = "$S2/$B/verdict.r2.md" ] && [ -z "$ERR" ] || bad "c: rc=$RC [$OUT] [$ERR]"
+[ "$(git -C "$C/remote.git" rev-parse main^)" != "$base" ] || bad "c: the verdict was not replayed"
+got=$(git -C "$C/remote.git" diff --name-only "$base" main^ -- "$B/")
+[ -z "$got" ] || bad "c: the state it landed on differs under $B/: [$got]"
+done_case T64 "no verdict lands on a state it did not read: a brief or a verdict landed first is refused; another project's report is replayed over"
+
+# T65
+for k in 5 4; do
+	gitcase "t65-$k" notes-api
+	plan_for notes-api
+	git clone -q "$C/remote.git" "$C/third" 2>/dev/null
+	# shellcheck disable=SC2016 # expanded when the stub runs
+	stub git 'case " $* " in *" push "*) k=$(($(cat "$STUB_C/count" 2>/dev/null || echo 0) + 1)); echo "$k" >"$STUB_C/count"; if [ "$k" -le "$STUB_MOVES" ]; then (PATH=${PATH#"$STUB_C/bin:"} && cd "$STUB_C/third" && git pull -q --ff-only origin main && mkdir -p releases && echo "$k" >"releases/n$k.md" && git add releases && git -c user.name=t -c user.email=t@t.invalid commit -q -m "n$k" && git push -q origin HEAD:main) >/dev/null 2>&1; fi ;; esac'
+	STUB_MOVES=$k launched report "$P" "$S"
+	[ "$(cat "$C/count" 2>/dev/null)" = 5 ] || bad "$k moves: [$(cat "$C/count" 2>/dev/null)] pushes, not 5"
+	if [ "$k" = 5 ]; then
+		[ "$RC" -eq 1 ] && [ -z "$OUT" ] && [ "$ERR" = "REFUSED: the store's remote moved 5 times while this run pushed; run it again" ] || bad "5 moves: rc=$RC [$OUT] [$ERR]"
+		got=$(git -C "$C/remote.git" ls-tree -r --name-only main -- "$B/")
+		[ "$got" = "$B/brief.md" ] || bad "5 moves: the remote holds [$got]"
+		gclean "$S" "$(git -C "$C/remote.git" rev-parse main^)"
+	else
+		[ "$RC" -eq 0 ] && [ "$OUT" = "$S/$B/report.r1.md" ] && [ -z "$ERR" ] || bad "4 moves: rc=$RC [$OUT] [$ERR]"
+		gclean "$S" "$(tip)"
+	fi
+done
+done_case T65 "a remote that moves before each of 5 pushes is refused, undone at the last base; one that moves 4 times takes the 5th"
+
+# T66
+gitcase t66a notes-api
+plan_for notes-api
+printf '#!/bin/sh\nexit 1\n' >"$C/remote.git/hooks/pre-receive" && chmod +x "$C/remote.git/hooks/pre-receive"
+base=$(tip)
+gate report "$P" "$S"
+[ "$RC" -eq 2 ] && [ -z "$OUT" ] || bad "a: rc=$RC [$OUT]"
+one_line "$ERR" || bad "a: stderr is not one line: [$ERR]"
+case $ERR in 'plan-gate.sh: pushing the store to its remote origin failed (git exit 1), and the remote did not move'*) ;; *) bad "a: stderr [$ERR]" ;; esac
+case $ERR in *"$C/remote.git"*) bad "a: stderr names the remote's path" ;; esac
+[ "$(tip)" = "$base" ] || bad "a: the remote moved"
+[ "$(git -C "$S" rev-parse HEAD)" = "$base" ] && [ ! -e "$S/$B/report.r1.md" ] && [ ! -e "$S/$B/plan.r1" ] || bad "a: not undone"
+gclean "$S" "$base"
+gitcase t66b notes-api
+plan_for notes-api
+base=$(tip)
+# shellcheck disable=SC2016 # expanded when the stub runs
+stub git 'case " $* " in *" push "*) : >"$STUB_C/pushed"; exit 1 ;; *" fetch "*) [ ! -e "$STUB_C/pushed" ] || exit 1 ;; esac'
+launched report "$P" "$S"
+[ "$RC" -eq 2 ] && [ -z "$OUT" ] || bad "b: rc=$RC [$OUT]"
+one_line "$ERR" || bad "b: stderr is not one line: [$ERR]"
+case $ERR in "plan-gate.sh: pushing the store to its remote origin failed, and fetching it again failed (git exit 1); whether this run's commit "*" landed is unknown - run sync") ;; *) bad "b: stderr [$ERR]" ;; esac
+[ "$(git -C "$S" rev-parse HEAD)" = "$base" ] && [ ! -e "$S/$B/report.r1.md" ] && [ ! -e "$S/$B/plan.r1" ] || bad "b: not undone"
+gclean "$S" "$base"
+done_case T66 "a remote that refuses the push, or a fetch that fails after it: exit 2, one line naming the remote by name, the run undone"
+
+# T67
+r4() { printf "the store clone has a change under %s/ that is not committed: %s; look at it, and commit, push or remove it by hand" "$B" "$1"; }
+gitcase t67a notes-api
+plan_for notes-api
+printf 'edited\n' >>"$S/$B/brief.md"
+grefused "$(r4 "$B/brief.md")" report "$P" "$S"
+gitcase t67b notes-api
+plan_for notes-api
+printf 'x\n' >"$S/$B/report.r9.md"
+grefused "$(r4 "$B/report.r9.md")" report "$P" "$S"
+gitcase t67c notes-api
+plan_for notes-api
+mkdir -p "$S/docs/x" && printf 'x\n' >"$S/docs/x/a.md" && git -C "$S" add docs/x && tgit -C "$S" commit -q -m ahead
+grefused "the store clone has commit $(git -C "$S" rev-parse HEAD) that its remote does not have; push it or remove it by hand" report "$P" "$S"
+gitcase t67d notes-api
+plan_for notes-api
+printf 'y\n' >"$S/y.md" && git -C "$S" add y.md
+grefused 'the store clone has staged changes; unstage them by hand' report "$P" "$S"
+gitcase t67e notes-api
+plan_for notes-api
+printf -- '- from the remote\n' >>"$C/seed/docs/product-rules/index.md"
+{ tgit -C "$C/seed" commit -q -am rules && git -C "$C/seed" push -q origin HEAD:main; } >/dev/null 2>&1
+printf -- '- from the clone\n' >>"$S/docs/product-rules/index.md"
+grefused "the store's remote changed docs/product-rules/index.md, which the store clone has changed too; look at both" report "$P" "$S"
+gitcase t67f notes-api
+plan_for notes-api
+git -C "$S" checkout -q -b local
+grefused "the store clone's branch local has no upstream on a remote" report "$P" "$S"
+gitcase t67g notes-api
+plan_for notes-api
+mkdir -p "$C/nogit"
+for t in bash cat chmod cp cut date dirname find grep head awk mkdir mktemp mv rm sort tr wc sha256sum shasum uname readlink ln; do
+	p=$(command -v "$t") && ln -s "$p" "$C/nogit/$t"
+done
+[ -z "$(PATH=$C/nogit command -v git)" ] || bad "g: git is still on the test PATH"
+before=$(gsnap)
+OUT=$(PATH=$C/nogit "$C/nogit/bash" "$SCRIPT" report "$P" "$S" 2>"$W/err")
+RC=$?
+ERR=$(cat "$W/err")
+[ "$RC" -eq 1 ] && [ -z "$OUT" ] && [ "$ERR" = "REFUSED: $S holds .git and git is not on PATH, so plan-gate.sh cannot tell whether it is a store clone" ] || bad "g: rc=$RC [$OUT] [$ERR]"
+[ "$before" = "$(gsnap)" ] || bad "g: the refusal wrote something"
+gitcase t67h notes-api
+plan_for notes-api
+base=$(tip)
+# shellcheck disable=SC2016 # expanded when the stub runs
+stub git 'case " $* " in *" push "*) if (set -C && : >"$STUB_C/fired") 2>/dev/null; then (PATH=${PATH#"$STUB_C/bin:"} && git init -q -b main "$STUB_C/third" && cd "$STUB_C/third" && echo root >root.md && git add root.md && git -c user.name=t -c user.email=t@t.invalid commit -q -m root && git push -q -f "$STUB_C/remote.git" HEAD:main) >/dev/null 2>&1; fi ;; esac'
+launched report "$P" "$S"
+[ "$RC" -eq 1 ] && [ -z "$OUT" ] && [ "$ERR" = "REFUSED: the store's remote no longer holds this clone's commit $base; look at its history" ] || bad "h: rc=$RC [$OUT] [$ERR]"
+[ "$(git -C "$S" rev-parse HEAD)" = "$base" ] && [ ! -e "$S/$B/report.r1.md" ] && [ ! -e "$S/$B/plan.r1" ] || bad "h: the run's commit is not undone"
+gitcase t67i notes-api
+plan_for notes-api
+git -C "$S" checkout -q --detach
+grefused "the store clone $S is on no branch" report "$P" "$S"
+newcase t67j
+{ git init -q --bare -b main "$C/remote.git" && rmdir "$S" && git clone -q -c core.autocrlf=false -c glab.store=true "$C/remote.git" "$S"; } >/dev/null 2>&1 || bad "j: no empty remote and clone"
+grefused "the store's remote branch has no commit; make its first commit by hand" sync "$S"
+gitcase t67k notes-api
+plan_for notes-api
+seed=$(git -C "$C/seed" rev-parse HEAD; git -C "$C/seed" for-each-ref)
+GIT_DIR=$C/seed/.git gate report "$P" "$S"
+[ "$RC" -eq 0 ] && [ "$OUT" = "$S/$B/report.r1.md" ] && [ -z "$ERR" ] || bad "k: rc=$RC [$OUT] [$ERR]"
+git -C "$C/remote.git" cat-file -e "main:$B/report.r1.md" || bad "k: the report is not on S's remote"
+[ "$seed" = "$(git -C "$C/seed" rev-parse HEAD; git -C "$C/seed" for-each-ref)" ] || bad "k: the seed's HEAD or refs moved"
+gitcase t67l notes-api
+plan_for notes-api
+base=$(tip)
+printf '#!/bin/sh\nexit 1\n' >"$S/.git/hooks/pre-commit" && chmod +x "$S/.git/hooks/pre-commit"
+gate report "$P" "$S"
+[ "$RC" -eq 2 ] && [ -z "$OUT" ] && [ "$ERR" = 'plan-gate.sh: committing to the store failed (git exit 1)' ] || bad "l: rc=$RC [$OUT] [$ERR]"
+gclean "$S" "$base"
+gitcase t67m notes-api
+plan_for notes-api
+before=$(gsnap)
+GIT_TEST_ASSUME_DIFFERENT_OWNER=1 gate report "$P" "$S"
+[ "$RC" -eq 1 ] && [ -z "$OUT" ] && [ "$ERR" = "REFUSED: git refuses the store clone $S (git exit 128); if another account owns it, see git's safe.directory" ] || bad "m: rc=$RC [$OUT] [$ERR]"
+[ "$before" = "$(gsnap)" ] || bad "m: the refusal wrote something"
+done_case T67 "each precondition of a clone is refused writing nothing: a change under the brief's folder, a commit ahead, a staged file, an overlap, no upstream, no git, a rewritten remote, no branch, an empty remote, a pre-commit hook, another owner; a GIT_DIR of the caller is ignored"
+
+# T68
+gitcase t68 notes-api
+plan_for notes-api
+base=$(tip)
+# shellcheck disable=SC2016 # expanded when the stub runs
+stub git 'case " $* " in *" push "*) kill -TERM "$(cat "$STUB_C/pid")"; exit 1 ;; esac'
+launched report "$P" "$S"
+[ "$RC" -eq 143 ] || bad "the run exited $RC, not 143: [$ERR]"
+[ "$(git -C "$S" rev-parse HEAD)" = "$base" ] || bad "HEAD is not the base"
+git -C "$S" diff --cached --quiet || bad "something is staged"
+[ ! -e "$S/$B/report.r1.md" ] && [ ! -e "$S/$B/plan.r1" ] || bad "the report or plan.r1/ was left"
+[ "$(tip)" = "$base" ] || bad "the remote moved"
+gclean "$S" "$base"
+done_case T68 "a TERM between commit and push undoes the commit, unstages, removes the report and plan.r1/, and leaves no .plan-gate.*"
+
+# T69
+gitcase t69 notes-api
+plan_for notes-api
+# shellcheck disable=SC2016 # expanded when the stub runs
+stub git 'case " $* " in *" push "*) PATH=${PATH#"$STUB_C/bin:"} git "$@" >/dev/null 2>&1; exit 1 ;; esac'
+launched report "$P" "$S"
+[ "$RC" -eq 0 ] && [ "$OUT" = "$S/$B/report.r1.md" ] && [ -z "$ERR" ] || bad "rc=$RC [$OUT] [$ERR]"
+git -C "$C/remote.git" cat-file -e "main:$B/report.r1.md" || bad "the report is not on the remote"
+gclean "$S" "$(tip)"
+done_case T69 "a push that landed and then failed is told by the remote's tip: exit 0, nothing undone"
+
+# T70
+for i in 1 2 3 4 5 6 7 8 9 10; do
+	gitcase "t70a-$i" notes-api
+	plan_for notes-api
+	# Two notes, so that the two reports differ: two runs that write the same bytes in the same second
+	# make one commit, the same sha, and the remote's tip is then each run's own commit - both land,
+	# rightly, and the race is not one (plan-gate.sh, store_push).
+	printf 'from S\n' >"$C/n1" && printf 'from S2\n' >"$C/n2"
+	bash "$SCRIPT" report "$P" "$S" "$C/n1" >"$C/o1" 2>"$C/e1" &
+	p1=$!
+	BG=$p1
+	bash "$SCRIPT" report "$P" "$S2" "$C/n2" >"$C/o2" 2>"$C/e2" &
+	p2=$!
+	BG="$p1 $p2"
+	wait "$p1"
+	r1=$?
+	wait "$p2"
+	r2=$?
+	BG=''
+	case "$r1 $r2" in
+	'0 1') lost=2 ;;
+	'1 0') lost=1 ;;
+	*) lost='' && bad "a$i: the runs exited $r1 and $r2: [$(cat "$C/e1" "$C/e2")]" ;;
+	esac
+	if [ -n "$lost" ]; then
+		case $(cat "$C/e$lost") in
+		"REFUSED: the store's remote changed $B/ while this run wrote r1; run it again" | 'REFUSED: report r1 has no verdict yet') ;;
+		*) bad "a$i: the losing run said [$(cat "$C/e$lost")]" ;;
+		esac
+	fi
+	got=$(git -C "$C/remote.git" ls-tree -r --name-only main -- "$B/" | grep -c 'report\.r[0-9]*\.md$')
+	[ "$got" = 1 ] || bad "a$i: the remote holds $got reports"
+	gitcase "t70b-$i" notes-api other-api
+	plan_for notes-api
+	plan_in "$C/plan2" other-api
+	bash "$SCRIPT" report "$P" "$S" >"$C/o1" 2>"$C/e1" &
+	p1=$!
+	BG=$p1
+	bash "$SCRIPT" report "$C/plan2" "$S2" >"$C/o2" 2>"$C/e2" &
+	p2=$!
+	BG="$p1 $p2"
+	wait "$p1"
+	r1=$?
+	wait "$p2"
+	r2=$?
+	BG=''
+	[ "$r1 $r2" = '0 0' ] || bad "b$i: the runs exited $r1 and $r2: [$(cat "$C/e1" "$C/e2")]"
+	if ! { git -C "$C/remote.git" cat-file -e "main:$B/report.r1.md" && git -C "$C/remote.git" cat-file -e main:briefs/other-api/report.r1.md; }; then
+		bad "b$i: the remote lacks a report"
+	fi
+done
+done_case T70 "10 rounds of two clones at once: one r1 of one project lands once, the other refused; two projects both land"
+
+# T71
+gitcase t71 notes-api
+plan_for notes-api
+mkdir -p "$C/xdg/git"
+printf '[core]\n\tautocrlf = true\n[commit]\n\tgpgSign = true\n[push]\n\tgpgSign = true\n[merge]\n\tverifySignatures = true\n[gc]\n\tauto = 1\n[author]\n\tname = hostile author\n[committer]\n\temail = hostile-committer@glab.invalid\n' >"$C/gitconfig"
+printf '*.md text eol=crlf\n' >"$C/xdg/git/attributes"
+printf 'report.r*.md\n' >"$C/xdg/git/ignore"
+# The clones' own core.autocrlf=false, set by gitcase as the user sets it, is unset: else it hid the
+# hostile autocrlf=true and this case passed without plan-gate.sh's own -c settings
+# [remote-store/review-r1.md A3].
+{ git -C "$S" config --unset core.autocrlf && git -C "$S2" config --unset core.autocrlf; } || bad "unsetting the clones' core.autocrlf failed"
+# Prefixes on the two runs alone, never exported: $W/xdg is every case's, and hostile files there
+# would turn the next case's brief.md CRLF and hide an untracked report from the clean check
+# [remote-store/check-r2-code.md N3].
+GIT_CONFIG_GLOBAL=$C/gitconfig XDG_CONFIG_HOME=$C/xdg GIT_AUTHOR_NAME='hostile author env' GIT_COMMITTER_EMAIL=hostile-env@glab.invalid ran report "$P" "$S"
+GIT_CONFIG_GLOBAL=$C/gitconfig XDG_CONFIG_HOME=$C/xdg GIT_AUTHOR_NAME='hostile author env' GIT_COMMITTER_EMAIL=hostile-env@glab.invalid ran verdict "$S2" notes-api ACCEPTED product-manager "$C/ok"
+[ "$(who "$C/remote.git" main^)" = "$PG|$PG" ] || bad "the report's author and committer [$(who "$C/remote.git" main^)]"
+[ "$(who "$C/remote.git" main)" = "$PG|$PG" ] || bad "the verdict's author and committer [$(who "$C/remote.git" main)]"
+[ "$(git -C "$C/remote.git" cat-file blob "main:$B/plan.r1/plan.md" | h256)" = "$(h256 <"$P/plan.md")" ] || bad "the remote's plan.r1/plan.md is not the plan's bytes"
+[ "$(h256 <"$S2/$B/brief.md")" = "$(h256 <"$S/$B/brief.md")" ] || bad "S2 reads brief.md with other bytes"
+done_case T71 "a hostile git config, attributes, ignore file and identity in the environment change no byte and no author"
+
+# T72
+gitcase t72 notes-api
+plan_for notes-api
+if [ -n "$PROC" ]; then
+	claim=$(git -C "$S" rev-parse --absolute-git-dir)/.plan-gate.claim.store
+	sleep 30 &
+	sp=$!
+	BG=$sp
+	owner "$sp" "$(started "$sp")" >"$claim"
+	grefused 'another run is using the store clone' report "$P" "$S"
+	kill "$sp" 2>/dev/null
+	wait "$sp" 2>/dev/null
+	BG=''
+	owner "$(dead_pid)" 1 >"$claim"
+	ran report "$P" "$S"
+	[ "$OUT" = "$S/$B/report.r1.md" ] || bad "the run that took the clone claim over printed [$OUT]"
+	gclean "$S" "$(tip)"
+	done_case T72 "a live run's clone claim is refused at once, naming nothing to remove; a dead run's is taken over and nothing is left"
+else
+	done_case T72 "a live run's clone claim is refused, a dead run's taken over (skipped: no /proc)"
+fi
+
+# T73
+gitcase t73 notes-api
+plan_for notes-api
+printf '# Questions\n\nnone\n' >"$P/questions.md"
+# The store's own .gitignore, committed: it names a file of the copy folder, the verdict and every
+# brief. A report and a verdict commit their files all the same; sync refuses a new brief it would
+# not commit [remote-store/review-r1.md A1].
+printf 'questions.md\nverdict.r*.md\nbrief.md\n' >"$C/seed/.gitignore"
+{ git -C "$C/seed" add .gitignore && tgit -C "$C/seed" commit -q -m ignore && git -C "$C/seed" push -q origin HEAD:main; } >/dev/null 2>&1 || bad "the seed's .gitignore commit failed"
+ran report "$P" "$S"
+git -C "$C/remote.git" cat-file -e "main:$B/plan.r1/questions.md" 2>/dev/null || bad "the remote's plan.r1/ lacks questions.md"
+gclean "$S" "$(tip)"
+ran verdict "$S2" notes-api ACCEPTED product-manager "$C/ok"
+git -C "$C/remote.git" cat-file -e "main:$B/verdict.r1.md" 2>/dev/null || bad "the remote lacks verdict.r1.md"
+gclean "$S2" "$(tip)"
+ran check "$P" "$S"
+[ "${OUT%% *}" = ACCEPTED ] || bad "check on the first clone printed [$OUT]"
+mkdir -p "$S/briefs/web-app" && printf '# Brief — web-app\n\n## Goal\n\nShow notes.\n' >"$S/briefs/web-app/brief.md"
+grefused "the store clone ignores briefs/web-app/brief.md, so sync does not commit it; look at the store's .gitignore" sync "$S" product-manager
+done_case T73 "the store's own .gitignore drops no file a report or verdict wrote; sync refuses a brief it ignores"
+
+# T74
+if [ -n "$PROC" ]; then
+	# (b) first, in the background: a check on a clone whose claim's run stays alive is refused once
+	# the wait is over, about 30 s later, naming nothing to remove. (a) runs meanwhile: a sync on a
+	# clone whose live run's claim goes after 2 s takes the claim then and runs [remote-store/review-r1.md A2].
+	gitcase t74b notes-api
+	plan_for notes-api
+	cb=$C claimb=$(git -C "$S" rev-parse --absolute-git-dir)/.plan-gate.claim.store
+	sleep 60 &
+	hb=$!
+	BG=$hb
+	owner "$hb" "$(started "$hb")" >"$claimb"
+	lineb=$(cat "$claimb")
+	tb=$(date +%s)
+	bash "$SCRIPT" check "$P" "$S" >"$cb/ob" 2>"$cb/eb" &
+	rb=$!
+	BG="$hb $rb"
+	gitcase t74a notes-api
+	claima=$(git -C "$S" rev-parse --absolute-git-dir)/.plan-gate.claim.store
+	sleep 60 &
+	ha=$!
+	BG="$hb $rb $ha"
+	owner "$ha" "$(started "$ha")" >"$claima"
+	(sleep 2 && rm -f -- "$claima") &
+	ga=$!
+	BG="$hb $rb $ha $ga"
+	ta=$(date +%s)
+	gate sync "$S"
+	ta=$(($(date +%s) - ta))
+	[ "$RC" -eq 0 ] && [ "$OUT" = "git $(tip)" ] && [ -z "$ERR" ] || bad "a: the sync that waited: rc=$RC [$OUT] [$ERR]"
+	[ "$ta" -ge 1 ] || bad "a: the sync did not wait, ${ta} s"
+	wait "$ga"
+	kill "$ha" 2>/dev/null
+	wait "$ha" 2>/dev/null
+	BG="$hb $rb"
+	gclean "$S" "$(tip)"
+	wait "$rb"
+	r=$?
+	tb=$(($(date +%s) - tb))
+	BG=$hb
+	[ "$r" -eq 1 ] && [ -z "$(cat "$cb/ob")" ] && [ "$(cat "$cb/eb")" = 'REFUSED: another run is using the store clone' ] ||
+		bad "b: the check on a live claim: rc=$r [$(cat "$cb/ob")] [$(cat "$cb/eb")]"
+	[ "$tb" -ge 29 ] || bad "b: the check was refused after ${tb} s, not after its wait"
+	[ "$(cat "$claimb" 2>/dev/null)" = "$lineb" ] || bad "b: the live run's claim changed or went"
+	kill "$hb" 2>/dev/null
+	wait "$hb" 2>/dev/null
+	BG=''
+	rm -f -- "$claimb"
+	done_case T74 "a reader waits on a live run's clone claim: it runs once the claim goes, and is refused after 30 s, naming nothing to remove"
+else
+	done_case T74 "a reader waits on a live run's clone claim (skipped: no /proc)"
+fi
+
+# T75
+gitcase t75 notes-api
+plan_for notes-api
+# A GIT_CONFIG naming another upstream ref: git config reads it as its --file, so the push went
+# there. plan-gate.sh unsets it [remote-store/review-r1.md A4]. A prefix on the run alone.
+printf '[branch "main"]\n\tremote = origin\n\tmerge = refs/heads/hostile\n[remote "origin"]\n\turl = %s\n' "$C/remote.git" >"$C/hostile"
+GIT_CONFIG=$C/hostile ran report "$P" "$S"
+[ "$(git -C "$S" rev-parse HEAD)" = "$(tip)" ] || bad "the report did not land on the remote's main"
+if git -C "$C/remote.git" rev-parse -q --verify refs/heads/hostile >/dev/null; then bad "the report was pushed to the ref GIT_CONFIG names"; fi
+gclean "$S" "$(tip)"
+done_case T75 "a GIT_CONFIG of the caller is ignored: the report lands on the clone's own upstream"
+
+# T76
+gitcase t76 notes-api
+plan_for notes-api
+# One REFUSED line for a path with a newline or a tab: each is written \n or \t
+# [remote-store/review-r1.md A5].
+printf 'a\n' >"$S/$B/x"$'\n'"y.md"
+grefused "$(r4 "$B/x\\ny.md")" report "$P" "$S"
+rm -f -- "$S/$B/x"$'\n'"y.md"
+printf 'a\n' >"$S/docs/product-rules/x"$'\t'"y.md"
+grefused 'the store clone has a change plan-gate.sh does not commit: docs/product-rules/x\ty.md; look at it' sync "$S" product-manager
+rm -f -- "$S/docs/product-rules/x"$'\t'"y.md"
+done_case T76 "a path with a newline or a tab is refused in one line, written \\n or \\t"
+
+# T77
+gitcase t77 notes-api
+# sync product-manager refuses a brief or rule file that is a symlink: git would commit the link
+# [remote-store/review-r1.md A6].
+printf '# Brief — web-app\n\n## Goal\n\nShow notes.\n' >"$C/elsewhere.md"
+mkdir -p "$S/briefs/web-app" && ln -s "$C/elsewhere.md" "$S/briefs/web-app/brief.md"
+grefused 'the store clone has a change plan-gate.sh does not commit: briefs/web-app/brief.md, not a regular file; replace it with the file' sync "$S" product-manager
+rm -f -- "$S/briefs/web-app/brief.md"
+ln -s index.md "$S/docs/product-rules/links.md"
+grefused 'the store clone has a change plan-gate.sh does not commit: docs/product-rules/links.md, not a regular file; replace it with the file' sync "$S" product-manager
+rm -f -- "$S/docs/product-rules/links.md"
+[ "$(tip)" = "$(git -C "$S" rev-parse HEAD)" ] || bad "a commit landed"
+done_case T77 "sync product-manager refuses a brief or rule file that is a symlink, committing nothing"
+
+# T78
+gitcase t78a notes-api
+plan_for notes-api
+# The config names git reads from the environment, each a prefix on one run alone: a pushurl by
+# GIT_CONFIG_COUNT and an upstream ref by GIT_CONFIG_PARAMETERS each redirected the push; then
+# GIT_LITERAL_PATHSPECS undid sync's refusal of an ignored brief [remote-store/review-r2.md A7].
+git init -q --bare -b main "$C/elsewhere.git" || bad "no second remote"
+GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=remote.origin.pushurl GIT_CONFIG_VALUE_0=$C/elsewhere.git ran report "$P" "$S"
+[ "$(git -C "$S" rev-parse HEAD)" = "$(tip)" ] || bad "the report did not land on the remote's main"
+[ -z "$(git -C "$C/elsewhere.git" for-each-ref)" ] || bad "the report was pushed to the pushurl GIT_CONFIG_COUNT names"
+GIT_CONFIG_PARAMETERS="'branch.main.merge'='refs/heads/hostile'" ran verdict "$S" notes-api ACCEPTED product-manager "$C/ok"
+[ "$(git -C "$S" rev-parse HEAD)" = "$(tip)" ] || bad "the verdict did not land on the remote's main"
+if git -C "$C/remote.git" rev-parse -q --verify refs/heads/hostile >/dev/null; then bad "the verdict was pushed to the ref GIT_CONFIG_PARAMETERS names"; fi
+gclean "$S" "$(tip)"
+gitcase t78b notes-api
+printf 'brief.md\n' >"$C/seed/.gitignore"
+{ git -C "$C/seed" add .gitignore && tgit -C "$C/seed" commit -q -m ignore && git -C "$C/seed" push -q origin HEAD:main; } >/dev/null 2>&1 || bad "the seed's .gitignore commit failed"
+ran sync "$S"
+mkdir -p "$S/briefs/web-app" && printf '# Brief — web-app\n\n## Goal\n\nShow notes.\n' >"$S/briefs/web-app/brief.md"
+GIT_LITERAL_PATHSPECS=1 grefused "the store clone ignores briefs/web-app/brief.md, so sync does not commit it; look at the store's .gitignore" sync "$S" product-manager
+done_case T78 "GIT_CONFIG_COUNT, GIT_CONFIG_PARAMETERS and GIT_LITERAL_PATHSPECS of the caller are ignored"
+
+# T79
+if [ -n "$PROC" ]; then
+	gitcase t79 notes-api
+	plan_for notes-api
+	# A verdict run killed by SIGKILL after it published verdict.r1.md, which the store's .gitignore
+	# hides from git status: the next check takes the dead run's clone claim over and must refuse on
+	# that file, not read it as the verdict [remote-store/review-r2.md A8].
+	printf 'verdict.r*.md\n' >"$C/seed/.gitignore"
+	{ git -C "$C/seed" add .gitignore && tgit -C "$C/seed" commit -q -m ignore && git -C "$C/seed" push -q origin HEAD:main; } >/dev/null 2>&1 || bad "the seed's .gitignore commit failed"
+	ran report "$P" "$S"
+	# shellcheck disable=SC2016 # expanded when the stub runs
+	stub git 'case " $* " in *" add "*) kill -KILL "$(cat "$STUB_C/pid")"; exit 1 ;; esac'
+	launched verdict "$S" notes-api ACCEPTED product-manager "$C/ok"
+	rm -f -- "$C/bin/git"
+	[ "$RC" -eq 137 ] && [ -f "$S/$B/verdict.r1.md" ] || bad "the killed verdict run: rc=$RC, verdict.r1.md left: $([ -f "$S/$B/verdict.r1.md" ] && echo yes || echo no)"
+	grefused "$(r4 "$B/verdict.r1.md")" check "$P" "$S"
+	rm -f -- "$S/$B/.plan-gate.claim.verdict.r1" "$S/$B/verdict.r1.md"
+	done_case T79 "an ignored verdict.r1.md a killed verdict run left is refused by the next check, not read as the verdict"
+else
+	done_case T79 "an ignored verdict.r1.md a killed verdict run left is refused (skipped: no /proc)"
+fi
+
+# T80
+gitcase t80 notes-api
+plan_for notes-api
+base=$(tip)
+# A git stub whose push runs the real push, then sends TERM to the run: the push landed, and the
+# trap must not undo it [remote-store/review-r2.md A9].
+# shellcheck disable=SC2016 # expanded when the stub runs
+stub git 'case " $* " in *" push "*) PATH=${PATH#"$STUB_C/bin:"} git "$@" >/dev/null 2>&1; kill -TERM "$(cat "$STUB_C/pid")"; exit 0 ;; esac'
+launched report "$P" "$S"
+[ "$RC" -eq 143 ] || bad "the run exited $RC, not 143: [$ERR]"
+{ [ "$(tip)" != "$base" ] && git -C "$C/remote.git" cat-file -e "main:$B/report.r1.md" 2>/dev/null; } || bad "the report is not on the remote"
+[ -f "$S/$B/report.r1.md" ] && [ -d "$S/$B/plan.r1" ] || bad "the clone lost report.r1.md or plan.r1/"
+gclean "$S" "$(tip)"
+done_case T80 "a TERM after the push landed undoes nothing: the report stays on the remote and in the clone"
+
+# T81
+gitcase t81 notes-api
+# A store clone whose path holds a newline: the refusal naming it is one line, the newline written
+# \n [remote-store/review-r2.md A10].
+nl=$C/st$'\n'ore
+{ git clone -q -c core.autocrlf=false -c glab.store=true "$C/remote.git" "$nl" && git -C "$nl" checkout -q --detach; } >/dev/null 2>&1 || bad "no clone at a path with a newline"
+grefused "the store clone $C/st\\nore is on no branch" sync "$nl"
+done_case T81 "a store path with a newline is printed in one line, written \\n"
+
+# T82
+gitcase t82 notes-api
+# (a) An untracked rule file named docs/product-rules/*.md beside an excluded private/secret.md:
+# sync refuses the name, and nothing reaches the remote. (b) A remote path read as a glob would match
+# an ignored local file of another name; as a literal pathspec it does not, and sync runs
+# [remote-store/review-r3.md A11].
+printf 'private/\na.md\n' >>"$S/.git/info/exclude"
+mkdir -p "$S/docs/product-rules/private" && printf 'secret\n' >"$S/docs/product-rules/private/secret.md"
+printf -- '- a rule\n' >"$S/docs/product-rules/*.md"
+grefused 'the store clone has a change plan-gate.sh does not commit: docs/product-rules/*.md; look at it' sync "$S" product-manager
+if git -C "$C/remote.git" log --all --format=%H -- docs/product-rules/private | grep -q .; then bad "a: secret.md reached the remote"; fi
+rm -f -- "$S/docs/product-rules/*.md"
+printf 'mine\n' >"$S/docs/product-rules/a.md"
+printf 'theirs\n' >"$C/seed/docs/product-rules/[a].md"
+{ git -C "$C/seed" add -A && tgit -C "$C/seed" commit -q -m bracket && git -C "$C/seed" push -q origin HEAD:main; } >/dev/null 2>&1 || bad "the seed's second commit failed"
+ran sync "$S"
+[ "$OUT" = "git $(tip)" ] || bad "b: sync printed [$OUT], not [git $(tip)]"
+[ "$(cat "$S/docs/product-rules/a.md")" = mine ] || bad "b: the ignored a.md changed"
+done_case T82 "a rule file named as a glob is refused and no excluded file is pushed; a remote path is a literal pathspec"
+
+# T83
+gitcase t83 notes-api
+# An ignored local file at a path the remote then adds: the fast-forward would overwrite it without
+# a word, and is refused instead [remote-store/review-r3.md A12].
+printf 'local.md\n' >>"$S/.git/info/exclude"
+printf 'mine\n' >"$S/docs/product-rules/local.md"
+printf 'theirs\n' >"$C/seed/docs/product-rules/local.md"
+{ git -C "$C/seed" add -A && tgit -C "$C/seed" commit -q -m local && git -C "$C/seed" push -q origin HEAD:main; } >/dev/null 2>&1 || bad "the seed's second commit failed"
+grefused "the store's remote changed docs/product-rules/local.md, which the store clone holds as an ignored file; look at both" sync "$S"
+done_case T83 "a fast-forward that would overwrite an ignored local file is refused, the file kept"
+
+# T84
+gitcase t84 notes-api
+plan_for notes-api
+# The push lands, a third clone pushes on top of it, then TERM: the trap's fetch finds the run's
+# commit under the remote's tip, so it landed and is not undone [remote-store/review-r3.md A13].
+# shellcheck disable=SC2016 # expanded when the stub runs
+stub git 'case " $* " in *" push "*) PATH=${PATH#"$STUB_C/bin:"}; git "$@" >/dev/null 2>&1; (git clone -q "$STUB_C/remote.git" "$STUB_C/third" && cd "$STUB_C/third" && echo n >n.md && git add n.md && git -c user.name=t -c user.email=t@t.invalid commit -q -m n && git push -q origin HEAD:main) >/dev/null 2>&1; kill -TERM "$(cat "$STUB_C/pid")"; exit 0 ;; esac'
+launched report "$P" "$S"
+[ "$RC" -eq 143 ] || bad "the run exited $RC, not 143: [$ERR]"
+git -C "$C/remote.git" cat-file -e "main:n.md" 2>/dev/null || bad "the third clone's commit is not on the remote"
+[ "$(git -C "$S" rev-parse HEAD)" = "$(git -C "$C/remote.git" rev-parse main^)" ] || bad "the clone's commit was undone"
+[ -f "$S/$B/report.r1.md" ] && [ -d "$S/$B/plan.r1" ] || bad "the clone lost report.r1.md or plan.r1/"
+gclean "$S" "$(git -C "$C/remote.git" rev-parse main^)"
+done_case T84 "a TERM after a push that another push already built on undoes nothing"
+
+# T85
+newcase t85
+# A clone made before the store's first push, as README.md sets one up, holding an excluded
+# docs/product-rules/index.md; the first push then brings that path. The commit-less fast-forward
+# would overwrite it, and is refused instead [remote-store/review-r3.md A12a].
+{ git init -q --bare -b main "$C/remote.git" && rmdir "$S" && git clone -q -c core.autocrlf=false -c glab.store=true "$C/remote.git" "$S"; } >/dev/null 2>&1 || bad "no empty remote and clone"
+printf 'index.md\n' >>"$S/.git/info/exclude"
+mkdir -p "$S/docs/product-rules" && printf 'mine\n' >"$S/docs/product-rules/index.md"
+{ git clone -q "$C/remote.git" "$C/seed" && mkdir -p "$C/seed/docs/product-rules" && printf 'theirs\n' >"$C/seed/docs/product-rules/index.md" &&
+	git -C "$C/seed" add -A && tgit -C "$C/seed" commit -q -m first && git -C "$C/seed" push -q origin HEAD:main; } >/dev/null 2>&1 || bad "the first push failed"
+grefused "the store's remote changed docs/product-rules/index.md, which the store clone holds as an ignored file; look at both" sync "$S"
+done_case T85 "a clone with no commit yet refuses a first fast-forward that would overwrite an ignored file"
+
+# T86
+gitcase t86 notes-api
+# An excluded local file docs/x; the remote then brings docs/x/y.md. The fast-forward would delete
+# docs/x to make the folder, and is refused instead [remote-store/review-r3.md A12b].
+printf 'x\n' >>"$S/.git/info/exclude"
+printf 'mine\n' >"$S/docs/x"
+mkdir -p "$C/seed/docs/x" && printf 'theirs\n' >"$C/seed/docs/x/y.md"
+{ git -C "$C/seed" add -A && tgit -C "$C/seed" commit -q -m x && git -C "$C/seed" push -q origin HEAD:main; } >/dev/null 2>&1 || bad "the seed's second commit failed"
+grefused "the store's remote changed docs/x/y.md, under docs/x, which the store clone holds as an untracked file; look at both" sync "$S"
+done_case T86 "a fast-forward that would delete an ignored file at a parent folder of a path it brings is refused"
+
+# T22 last: judged over every store the cases above wrote, and every git dir in them
 left=$(find "$W" -name '.plan-gate.*')
 [ -z "$left" ] || bad "temporary files left: $left"
 done_case T22 "no temporary file is left in any store after any run"
