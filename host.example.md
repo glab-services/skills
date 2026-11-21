@@ -30,6 +30,11 @@ each time rather than keeping an old one. The plugin gates of the
 `glab-services/skills` repository read it from `CLAUDE_BIN`: export that
 variable as this path before running them.
 
+Node.js 24 or newer is `<path to its bin directory on this host, or delete
+this paragraph when the default node is 24 or newer>`. The gates of this
+marketplace repository (`tests/gates.sh`) need it as the `node` first on
+`PATH`: put that directory first on `PATH` before running them.
+
 ## glab shared store
 
 glab-shared-store: <path to the store folder or clone>

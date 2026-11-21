@@ -487,3 +487,17 @@ agents' — and refuses a Skill call to a `glab:` skill not on it
 - the `description:` of every `plugins/glab/skills/*/SKILL.md` and
   `plugins/glab/agents/*.md`
 - `README.md`
+
+## The team messaging source and its toolchain
+
+the team messaging source at `src/glab-team/`, and what its suites need —
+Node.js 24 or newer as the `node` first on `PATH`, pnpm 10 or newer, and
+`pnpm install --frozen-lockfile` run in it
+
+- `tests/gates.sh` (the preflight and G40–G41)
+- `AGENTS.md` *Layout* and *Gates*
+- `README.md` *Working on this repo*
+- `host.example.md` *Tool paths* (where Node.js 24 is on a host)
+- and, for Node.js 24, the source's own files: `src/glab-team/package.json`,
+  `channel/package.json` and `plugin/package.json` (`engines`), `AGENTS.md`,
+  `README.md`, `broker/README.md`, `channel/README.md` and `docs/setup.md`

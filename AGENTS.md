@@ -17,9 +17,10 @@ and this file disagree about how to work *in this repo*, this file wins.
 - `tests/` (the scripts' tests, `tests/gates.sh`, which runs every gate, and
   `tests/fixtures/product-loop/`, the walkthrough's sample product), `plan/`
   (the working area of changes in progress), `docs/`, `docs/one-fact.md` (the
-  *One fact* registry), `host.example.md`, `README.md`, `.gitignore`
-  (it holds `/plan/`, the working area, handoff files included) and this file
-  belong to the repo and not to the plugin.
+  *One fact* registry), `src/glab-team/` (its `AGENTS.md` yields to this
+  file), `host.example.md`, `README.md`, `.gitignore` (it holds `/plan/`, the
+  working area, handoff files included) and this file belong to the repo and
+  not to the plugin.
 
 ## Gates
 
@@ -30,6 +31,8 @@ line names the check and why. Each check's expected value and the reason for
 it are in the script: the values in its arrays, the reasons in its comments.
 `claude` is the Claude Code CLI: `claude` on `PATH`, or `CLAUDE_BIN` set to
 the path your host file names; without one the script stops before any check.
+It also stops, exit 2, without Node.js 24 or newer first on `PATH`, pnpm 10
+or newer, or `src/glab-team` installed from its lockfile (`README.md`).
 **Every `claude` command run in this repo has
 `CLAUDE_CONFIG_DIR` set to a new, empty directory under that temp directory.**
 The CLI writes into its config directory even for `plugin validate`, and

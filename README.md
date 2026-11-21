@@ -509,6 +509,7 @@ running keeps what it loaded until it is restarted.
 | `AGENTS.md` | Working agreement for changes to this repo, and the gates |
 | `.claude-plugin/marketplace.json` | The marketplace: lists the plugin |
 | `plugins/` | The plugin. Payload: written for the sessions of whoever installs them |
+| `src/glab-team/` | The team messaging source — plugin, channel, broker, shared code, `scripts/build-plugin.mjs` and their Node.js tests — brought from glab-services/claude-plugins at `441887c` and maintained here, with no upstream. Its `AGENTS.md` holds the area's notes; this repo's `AGENTS.md` wins where they differ |
 | `host.example.md` | Template for the per-machine `~/.claude/host.md` |
 | `tests/` | The scripts' tests — the hooks, `plan-gate.sh`, `docs-mirror.sh` — and the product-loop walkthrough with its fixtures, `tests/fixtures/product-loop/`, and `tests/gates.sh`, every gate with its expected result |
 | `plan/` | Working area: the files of changes in progress, removed on your word once each change is recorded |
@@ -520,3 +521,7 @@ To try a change without installing anything, load the plugin for one session:
 `claude --plugin-dir ./plugins/glab`. Do not pass the repo root: the CLI does not read `marketplace.json` from a
 `--plugin-dir`, so the plugin does not load — at most an empty plugin named after
 the directory.
+
+### The team messaging source
+
+`src/glab-team/` is a pnpm workspace of its own. `tests/gates.sh` runs its two Node.js suites, `pnpm -s broker:test` and `pnpm -s channel:test`. Before any check the script needs Node.js 24 or newer as the `node` first on `PATH`, pnpm 10 or newer on `PATH`, and the workspace installed from its lockfile. Without any of them it stops with one line on stderr and exit 2. A host whose default `node` is older puts Node.js 24's `bin` first on `PATH`, as its host file says. Run `pnpm install --frozen-lockfile` in `src/glab-team` once, and again after `src/glab-team/pnpm-lock.yaml` changes; the install needs the npm registry, the gates do not, and `src/glab-team/.gitignore` ignores `node_modules/`. The suites take about one and two minutes and run with umask `0002`, because some tests make a group-writable directory and expect it to stay so. Each is `ok` when every failed or cancelled test is in its host list in `tests/gates.sh` — the tests that fail on the reference host, which has no IPv6 and runs as root, each with its reason — and its `ok` line names the known ones it saw; a failure outside the list is a `FAIL` that names it. The suites run with an empty home and Claude Code config directory of their own under the gates' work directory, never yours. With `TMPDIR` under `/tmp` the tests keep their temp files in `src/glab-team/.tmp/`, ignored too, and leave it empty.
