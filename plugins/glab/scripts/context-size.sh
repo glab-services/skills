@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 #
 # The glab context hook: tells a session how large its context is, and tells the user when a turn
-# crosses a size worth a /compact. One script, three events, chosen by the mode argument as
-# memory-sync.sh chooses by its modes (plugins/glab/hooks/hooks.json wires them):
+# crosses a size worth a /compact. One script, three events, chosen by the mode argument
+# (plugins/glab/hooks/hooks.json wires them):
 #
 #   context-size.sh prompt   # UserPromptSubmit: adds one line to the model's context with every
 #                            # message the user sends
@@ -31,7 +31,7 @@
 # /compact or /clear, and `glab:session-rules` Rule 2 ("Your own context") makes the model act on the
 # number the other two modes give it. Neither /compact nor /clear can be run by the model.
 #
-# Contract, like memory-sync.sh's (AGENTS.md *Rules*): exit 0 on every path; on stdout either
+# Contract (AGENTS.md *Rules*): exit 0 on every path; on stdout either
 # exactly one JSON object or nothing; every failure is one line on stderr, `glab context-size:
 # <reason>`, and no JSON.
 # The one stderr line that is not a failure is the GLAB_COMPACT_AT warning: the run goes on with the default

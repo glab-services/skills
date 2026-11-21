@@ -1,19 +1,16 @@
 # Working agreement
 
-This repo is a Claude Code plugin marketplace, `glab-services`, holding two
-plugins. Everything under `plugins/` is **payload**: it is written for the
+This repo is a Claude Code plugin marketplace, `glab-services`, holding one plugin, `glab`. Everything under `plugins/` is **payload**: it is written for the
 sessions of whoever installs a plugin, not for this repo. When payload text
 and this file disagree about how to work *in this repo*, this file wins.
 
 ## Layout
 
-- `.claude-plugin/marketplace.json` — the marketplace. It lists both plugins.
+- `.claude-plugin/marketplace.json` — the marketplace. It lists the plugin.
 - `plugins/glab/` — the workflow plugin: its skills and agents,
   `hooks/hooks.json`, `scripts/` (`manager-bootstrap.sh`,
   `context-size.sh`, `level-guard.sh`, `glab-level.sh` — the level
   rule both hooks source — and `plan-gate.sh`) and `templates/`.
-- `plugins/memory-sync/` — the memory sync plugin: its one skill,
-  `hooks/hooks.json`, `scripts/memory-sync.sh` and `settings.example.json`.
 - `docs/specs/` — one spec per area: how it works now, why, what is not
   verified, what is open (*Rules*, the `plan/` rule).
 - `docs/features/` — one page per feature: what it does, how to use it.
@@ -22,7 +19,7 @@ and this file disagree about how to work *in this repo*, this file wins.
   (the working area of changes in progress), `docs/`, `docs/one-fact.md` (the
   *One fact* registry), `host.example.md`, `README.md`, `.gitignore`
   (it holds `/plan/`, the working area, handoff files included) and this file
-  belong to the repo and to neither plugin.
+  belong to the repo and not to the plugin.
 
 ## Gates
 
@@ -49,7 +46,7 @@ fakes and to any coverage percentage. It applies to the shell scripts in this
 repo and to nothing else.
 
 - **A stub executable placed first on `PATH` is the allowed way to fake an
-  external CLI** such as `aws`. `tests/memory-sync.test.sh` does this.
+  external CLI** such as `ssh`. `tests/docs-mirror.test.sh` does this.
   `tests/context-size.test.sh` fakes a missing `jq` the other way round, with
   a `PATH` that lacks it.
 - **Coverage is reported as a list, not a number.** No tool measures it for
@@ -61,19 +58,16 @@ repo and to nothing else.
 - **No secrets.** No bucket name, endpoint, profile name or environment value
   in any file, commit message or report. Use `<bucket>`, `<prefix>`,
   `<profile, or delete this key>`.
-- **Never run `memory-sync.sh` against a real backend from this repo.** Use
-  the stub in `tests/memory-sync.test.sh`.
 - **Nothing is copied into `~/.claude` or removed from it by an agent, and no
   agent installs a plugin.** No agent runs `claude plugin install`, `claude plugin marketplace
   add`, `claude plugin enable` or `claude plugin configure`, in a shell or
   through `/plugin`. Installing is the user's step. An agent tests with
   `claude plugin validate` and `--plugin-dir`, under the `CLAUDE_CONFIG_DIR`
   rule in *Gates*.
-- **The hook contracts do not change without a plan.** `memory-sync.sh`: the
-  mode names, exit 0 on every path, nothing on stdout, messages on stderr.
-  `context-size.sh`: the mode names, exit 0 on every path, on stdout one
-  JSON object or nothing, messages on stderr, and in mode `stop` no key but
-  `systemMessage` — it never blocks a turn or continues one.
+- **The hook contracts do not change without a plan.** `context-size.sh`: the
+  mode names, exit 0 on every path, on stdout one JSON object or nothing,
+  messages on stderr, and in mode `stop` no key but `systemMessage` — it
+  never blocks a turn or continues one.
   `manager-bootstrap.sh`: exit 0 on every path, on stdout one JSON object
   whose only key is `hookSpecificOutput`, or the plain text when `jq` fails,
   messages on stderr, and the level read from the first `glab-level:` line of
@@ -107,7 +101,7 @@ repo and to nothing else.
   each area it touched —
   `marketplace.md` (the marketplace, this repo's layout, gates and rules),
   `workflow.md` (the `glab` workflow), `product.md` (the product level and the
-  product ⇄ project loop), `memory-sync.md`,
+  product ⇄ project loop), `memory-sync.md` (the plugin removed, a record only),
   `external-agents.md` (removed in 0.8.0, a record only): how the area works
   now, the decisions that still
   bind, what is not verified, every follow-up — open or closed, each tagged
@@ -143,4 +137,4 @@ repo and to nothing else.
 Conventional Commits: `type(scope): subject`, imperative subject, optional
 body of short bullets. Types `feat`, `fix`, `refactor`, `perf`, `test`,
 `docs`, `build`, `ci`, `chore`. Scope is optional; when used it is the area —
-`sync`, `agents`, `skills`, `repo`. One logical change per commit.
+`agents`, `skills`, `repo`. One logical change per commit.

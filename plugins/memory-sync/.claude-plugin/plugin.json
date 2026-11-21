@@ -1,9 +1,0 @@
-{
-  "name": "memory-sync",
-  "version": "0.1.0",
-  "description": "Syncs Claude Code memories to and from S3 or an S3-compatible store on session hooks, with a skill for doing it by hand",
-  "author": {
-    "name": "glab-services"
-  },
-  "repository": "https://github.com/glab-services/skills"
-}
