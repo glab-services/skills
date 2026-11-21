@@ -749,9 +749,12 @@ if [ -n "$PROC" ]; then
 	[ -f "$S/$B/verdict.r1.md" ] || bad "no verdict r1 after the takeover of a reused pid's claim"
 	printf 'amended\n' >>"$P/plan.md"
 	ran report "$P" "$S"
-	# A zombie: sleep 0 exits under a parent that became sleep 5, which never reaps it.
+	# A zombie: sleep 0 exits under a parent that became sleep 60, which never reaps it. The parent
+	# was sleep 5 until 2026-11-21: G16 failed once in 3 gate runs with `awk: cannot open
+	# "/proc/<pid>/stat"` from started below — inferred, not reproduced, to be this zombie reaped
+	# once a 5 s parent exited under load. The parent is killed by its PID after the case.
 	# shellcheck disable=SC2016 # $! and $1 are the child shell's
-	bash -c 'sleep 0 & echo $! >"$1"; exec sleep 5' _ "$C/z" &
+	bash -c 'sleep 0 & echo $! >"$1"; exec sleep 60' _ "$C/z" &
 	BG=$!
 	z=''
 	for _ in $(seq 50); do
@@ -759,6 +762,7 @@ if [ -n "$PROC" ]; then
 		if [ -n "$z" ] && [ "$(awk '{ sub(/.*\) /, ""); print $1 }' "/proc/$z/stat" 2>/dev/null)" = Z ]; then break; fi
 		sleep 0.1
 	done
+	[ "$(awk '{ sub(/.*\) /, ""); print $1 }' "/proc/$z/stat" 2>/dev/null)" = Z ] || bad "no zombie to claim: pid [$z]"
 	owner "$z" "$(started "$z")" >"$S/$B/.plan-gate.claim.verdict.r2"
 	ran verdict "$S" notes-api ACCEPTED product-manager "$C/ok"
 	[ -f "$S/$B/verdict.r2.md" ] || bad "no verdict r2 after the takeover of a zombie's claim"
