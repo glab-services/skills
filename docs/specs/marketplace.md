@@ -1551,7 +1551,7 @@ the records that wrote them.
   - Incidents → DM18's grandchild wait, the tests that passed broken scripts, a comment that broke G39, the plan's size cap, above under *Incidents*; the plan-check and review findings of the script and README in `docs/specs/workflow.md` *Incidents*.
   - Feature page → `docs/features/docs-mirror.md`, 1895 bytes (`wc -c`, ≤ 2048); the plan's record-time search for the *One fact* values on it prints `0`.
   - Record → this record, in this file, `docs/specs/workflow.md` and `docs/features/docs-mirror.md`; no audit file.
-- 2026-11-21 · remove-memory-sync · e73185e · e73185e · claude/bold-tesla-11sx3v · pushed without a PR
+- 2026-11-21 · remove-memory-sync · e73185e · e73185e · claude/bold-tesla-11sx3v · https://github.com/glab-services/skills-marketplace/pull/2
   - PR → none at this record, a PR to `main` follows and this line's PR field is edited when it exists; the push landed as `* [new branch] claude/bold-tesla-11sx3v -> claude/bold-tesla-11sx3v`; recorded here (the primary area), in `docs/specs/memory-sync.md` (now a record only) and in `docs/specs/workflow.md` (one comment-only edit of `context-size.sh`); no feature page.
   - [remove-memory-sync/plan.md Decisions] Decisions → `D1`–`D13`, `M1`–`M6` above under *Decisions that still bind*.
   - [remove-memory-sync/plan.md Evidence] Not verified → `E6` (an installed copy's behaviour), the host-related reds, the Markdown's lack of a runtime and the bash < 4.4 refusal, above under *Known limits*.
