@@ -1,5 +1,34 @@
 # Memory sync — spec
 
+**Removed: this spec is a historical record.** The `memory-sync` plugin was
+removed by `e73185e` (`feat(repo)!: remove the memory-sync plugin`, `glab`
+0.19.1, the `remove-memory-sync` change), because the user asked for it:
+"we need to remove [memory-sync](https://github.com/glab-services/skills-marketplace/tree/main/plugins/memory-sync) plugin"
+(2026-11-21). The last commit that has the code is `346d286`:
+`git rev-parse --short e73185e^` prints `346d286`, and
+`git ls-tree -r --name-only 346d286 -- plugins/memory-sync tests/memory-sync.test.sh`
+lists its six files, which `e73185e` no longer holds. Read them back without
+touching the tree: `git show 346d286:plugins/memory-sync/scripts/memory-sync.sh`,
+`git show 346d286:plugins/memory-sync/skills/sync-memory/SKILL.md`,
+`git show 346d286:plugins/memory-sync/hooks/hooks.json`,
+`git show 346d286:plugins/memory-sync/settings.example.json`,
+`git show 346d286:tests/memory-sync.test.sh`. Everything below this note is
+kept as it stood at `6838133` (`memory-sync` `0.1.0`), except what this
+record added or moved: this note, *Open follow-ups* and *Closed follow-ups*
+(every follow-up still open at `346d286` is `closed — area removed` under its
+own tag, its text kept), and *Records*. *How it works now* and every later
+section describe the code there, not the tree: the plugin, its hooks, its
+skill, its settings example and its test are gone, and `README.md` and
+`AGENTS.md` no longer hold that text. The decisions below no longer bind:
+what they governed was removed. *Known limits and not verified* and
+*Incidents* are unchanged; the two smoke-test parts under *Known limits* will
+not run, since there is no plugin to run them on. What a person who installed
+`memory-sync@glab-services` has to do is in `README.md` *Removed:
+`memory-sync`*; what an installed copy does once the marketplace drops it is
+UNVERIFIED (`[remove-memory-sync/plan.md E6]`). What the removal changed in
+the gates, the rules and the *One fact* list is in `docs/specs/marketplace.md`;
+the one `glab` file it touched is in `docs/specs/workflow.md`.
+
 The `memory-sync` plugin: `memory-sync.sh`, which mirrors Claude Code
 memories to S3 or an S3-compatible store, the four hooks that run it, the
 `memory-sync:sync-memory` skill for running it by hand, and the settings it
@@ -154,36 +183,34 @@ Afterwards: `echo "$S" "$CLAUDE_CONFIG_DIR"`, check both are under
 
 ## Open follow-ups
 
-Statuses are as recorded in `bug-reviewer-findings` (2026-10-05) unless a
-line says it was re-read at `6838133`.
-
-- [bug-reviewer-findings/follow-ups.md 1] **First.** `pull`'s `rsync -a` copies the stage's directory modes and times onto `projects/`, each project directory and, through a kept symlink, a directory outside the tree; a tightened `projects/` is loosened on every pull. Suggested: `rsync -rt --omit-dir-times --update --keep-dirlinks`, plus a mode assertion in T26 — open: re-read at `6838133`, the pull still runs `rsync -a --update --keep-dirlinks`.
-- [bug-reviewer-findings/follow-ups.md 2] **First.** The cap of 17 s leaves no margin under the 20 s hook timeout (a TERM-ignoring child ended at 19.0 s; the stated worst case, 20 s, ties with the kill). Suggested: cap 16, changed in the script, T29 and `README.md` together — open: `MAX_TIMEOUT=17` at `6838133`. A configurable cap is a design choice (`result-review1-script.md`).
-- [bug-reviewer-findings/follow-ups.md 3] Design: a machine holding an older copy uploads it whenever its size differs, and other machines then pull it; the pull side is stated truthfully, the push side in the skill's *Conflicts* only. Needs compare-before-upload, content timestamps or tombstone-style metadata — a plan of its own. Open; reasoned, not reproduced.
-- [bug-reviewer-findings/follow-ups.md 4] A `find` error on an unreadable root reads as "nothing changed" in `push-if-changed`, and nothing says so; the fix is a choice between "push anyway" and "log and skip" — open: `changed()` still sends `find`'s errors to `/dev/null`.
-- [bug-reviewer-findings/follow-ups.md 5] The "worst case TIMEOUT + 3 s for any mode" claim does not hold after a backward clock step: the clamp in `left()` bounds each call, not the run. Suggested: say so in the comment, or use a monotonic clock — open: re-read at `6838133`, the comment above `now_ms` still states the bound for any mode, and the comment of `left()` (the lines the findings pointed at) describes only the per-call clamp.
-- [bug-reviewer-findings/follow-ups.md 6] `aws s3 rm` killed by a signal while budget remains is reported as "remote copy not removed", though the outcome is as unknown as on a timeout. Suggested: any exit above 128 in `delete` is "not confirmed" — open: `CUT_OFF` is set only for 124, or 137 once the budget is spent.
-- [bug-reviewer-findings/follow-ups.md 7] `--keep-dirlinks` applies at every level, so `pull` and `delete` act through any directory symlink under `projects/`, while the comment names only the `memory` case — open.
-- [bug-reviewer-findings/follow-ups.md 8] No test for the "limit spent, command never started" branch: removing its `CUT_OFF=1` still passes 35/35 — open, not re-checked.
-- [bug-reviewer-findings/follow-ups.md 9] An invalid `delete` path still creates `projects/` before it is rejected — open: re-read at `6838133`, `mkdir -p "$ROOT"` runs before the mode's path check.
-- [bug-reviewer-findings/follow-ups.md 10] `.memory-sync-pushed.next` is left behind when the stamp cannot be moved; harmless — open: `push` still writes it.
-- [bug-reviewer-findings/follow-ups.md 11] `push-if-changed` may not notice edits under a symlinked `memory` directory, because the change scan does not follow links; documented in the skill as a "may", not reproduced — open.
-- [bug-reviewer-findings/follow-ups.md 12] A detached descendant of a killed transfer can outlive the script; it no longer holds the lock (`9>&-` in `bounded`) — open, reasoned.
-- [bug-reviewer-findings/follow-ups.md 13] The test harness's stub guard does not fire when the stub exists but is not executable and no real `aws` is on the test `PATH`; the run then fails with exit 126 without reaching a backend — open, reproduced on one host, the real-`aws` half unverified.
-- [bug-reviewer-findings/follow-ups.md 14] Tombstones for deletes across machines (Q2's deferred half) — open, a planned follow-up; a plan of its own.
-- [bug-reviewer-findings/plan.md memory-index] `delete` does not update a project's `MEMORY.md` index (`plan.md:1325`) — open.
-- [bug-reviewer-findings/plan.md pull-race] Two concurrent pulls are now serialised by the lock, but the pull race of findings A6 was never reproduced; T18 proves the lock is taken, not that the race existed (`plan.md:1326-1328`) — open.
-- [bug-reviewer-findings/result-slice1.md nested-delete] `delete` accepts nested paths such as `p/memory/sub/x.md`, since `*` in the path pattern spans `/` (`result-slice1.md:247`); built as specified, noted in case it was not meant — open: the pattern `/*/memory/*/` is unchanged at `6838133`.
-- [bug-reviewer-findings/result-review1-script.md nested-delete] The same, carried over by the script review round (`result-review1-script.md:240`) — open, one item with the line above.
-- [bug-reviewer-findings/result-slice1.md L220] *Known undiscriminated* (a), (b), (c): pull's `rsync` and `delete`'s `aws s3 rm` run inside `bounded`, and no case tells that from a bare call; the "no `$SECONDS`" rule has no deterministic case — open: tests for (a) and (b) were asked for in `result-slice1.md` *Follow-ups* and never got a number.
-- [feature-plugin-marketplace/result-slice-D.md 2] The smoke test's two fixes: clear `AWS_PROFILE` and `CLAUDE_MEMORY_S3_ARGS` with `env -u` in the stub parts, and run A, B and C once, in that order — open: part 3 below is copied as recorded, without them.
-- [feature-plugin-marketplace/result-slice-D.md 4] When the smoke test settles Q4, the hedge goes from `README.md`, the skill and the script comment, and the gate line and its bullet in `AGENTS.md` go with it — open: part 3 has not run.
-- [feature-plugin-marketplace/result-slice-S.md 2] Smoke test row 10's *Pass* text should name the third outcome, several copies found → ask the user — open.
-- [feature-plugin-marketplace/result-slice-S.md 3] Once an install exists: confirm the plugin cache layout and the `.orphaned_at` marker, then drop the "may" in the skill's fallback (`SKILL.md:12` then, the first item of the fallback list at `6838133`) — open.
+None. The 23 follow-ups that were open at `346d286` were closed by the `remove-memory-sync` record, each `closed — area removed`, and moved to the end of *Closed follow-ups* under their own tags, their text unchanged.
 
 ## Closed follow-ups
 
 - [feature-plugin-marketplace/result-slice-D.md 1] Decide the hedge gate for the script, whose phrase was wrapped over two lines — closed: the comment was re-wrapped, and the gate line `command grep -c -F 'not yet confirmed' …` counts the script, the skill and `README.md` (`AGENTS.md` *Gates*).
+- [bug-reviewer-findings/follow-ups.md 1] **First.** `pull`'s `rsync -a` copies the stage's directory modes and times onto `projects/`, each project directory and, through a kept symlink, a directory outside the tree; a tightened `projects/` is loosened on every pull. Suggested: `rsync -rt --omit-dir-times --update --keep-dirlinks`, plus a mode assertion in T26 — open: re-read at `6838133`, the pull still runs `rsync -a --update --keep-dirlinks`. Closed: area removed by `remove-memory-sync` (`e73185e`); the question went with the plugin.
+- [bug-reviewer-findings/follow-ups.md 2] **First.** The cap of 17 s leaves no margin under the 20 s hook timeout (a TERM-ignoring child ended at 19.0 s; the stated worst case, 20 s, ties with the kill). Suggested: cap 16, changed in the script, T29 and `README.md` together — open: `MAX_TIMEOUT=17` at `6838133`. A configurable cap is a design choice (`result-review1-script.md`). Closed: area removed by `remove-memory-sync` (`e73185e`); the question went with the plugin.
+- [bug-reviewer-findings/follow-ups.md 3] Design: a machine holding an older copy uploads it whenever its size differs, and other machines then pull it; the pull side is stated truthfully, the push side in the skill's *Conflicts* only. Needs compare-before-upload, content timestamps or tombstone-style metadata — a plan of its own. Open; reasoned, not reproduced. Closed: area removed by `remove-memory-sync` (`e73185e`); the question went with the plugin.
+- [bug-reviewer-findings/follow-ups.md 4] A `find` error on an unreadable root reads as "nothing changed" in `push-if-changed`, and nothing says so; the fix is a choice between "push anyway" and "log and skip" — open: `changed()` still sends `find`'s errors to `/dev/null`. Closed: area removed by `remove-memory-sync` (`e73185e`); the question went with the plugin.
+- [bug-reviewer-findings/follow-ups.md 5] The "worst case TIMEOUT + 3 s for any mode" claim does not hold after a backward clock step: the clamp in `left()` bounds each call, not the run. Suggested: say so in the comment, or use a monotonic clock — open: re-read at `6838133`, the comment above `now_ms` still states the bound for any mode, and the comment of `left()` (the lines the findings pointed at) describes only the per-call clamp. Closed: area removed by `remove-memory-sync` (`e73185e`); the question went with the plugin.
+- [bug-reviewer-findings/follow-ups.md 6] `aws s3 rm` killed by a signal while budget remains is reported as "remote copy not removed", though the outcome is as unknown as on a timeout. Suggested: any exit above 128 in `delete` is "not confirmed" — open: `CUT_OFF` is set only for 124, or 137 once the budget is spent. Closed: area removed by `remove-memory-sync` (`e73185e`); the question went with the plugin.
+- [bug-reviewer-findings/follow-ups.md 7] `--keep-dirlinks` applies at every level, so `pull` and `delete` act through any directory symlink under `projects/`, while the comment names only the `memory` case — open. Closed: area removed by `remove-memory-sync` (`e73185e`); the question went with the plugin.
+- [bug-reviewer-findings/follow-ups.md 8] No test for the "limit spent, command never started" branch: removing its `CUT_OFF=1` still passes 35/35 — open, not re-checked. Closed: area removed by `remove-memory-sync` (`e73185e`); the question went with the plugin.
+- [bug-reviewer-findings/follow-ups.md 9] An invalid `delete` path still creates `projects/` before it is rejected — open: re-read at `6838133`, `mkdir -p "$ROOT"` runs before the mode's path check. Closed: area removed by `remove-memory-sync` (`e73185e`); the question went with the plugin.
+- [bug-reviewer-findings/follow-ups.md 10] `.memory-sync-pushed.next` is left behind when the stamp cannot be moved; harmless — open: `push` still writes it. Closed: area removed by `remove-memory-sync` (`e73185e`); the question went with the plugin.
+- [bug-reviewer-findings/follow-ups.md 11] `push-if-changed` may not notice edits under a symlinked `memory` directory, because the change scan does not follow links; documented in the skill as a "may", not reproduced — open. Closed: area removed by `remove-memory-sync` (`e73185e`); the question went with the plugin.
+- [bug-reviewer-findings/follow-ups.md 12] A detached descendant of a killed transfer can outlive the script; it no longer holds the lock (`9>&-` in `bounded`) — open, reasoned. Closed: area removed by `remove-memory-sync` (`e73185e`); the question went with the plugin.
+- [bug-reviewer-findings/follow-ups.md 13] The test harness's stub guard does not fire when the stub exists but is not executable and no real `aws` is on the test `PATH`; the run then fails with exit 126 without reaching a backend — open, reproduced on one host, the real-`aws` half unverified. Closed: area removed by `remove-memory-sync` (`e73185e`); the question went with the plugin.
+- [bug-reviewer-findings/follow-ups.md 14] Tombstones for deletes across machines (Q2's deferred half) — open, a planned follow-up; a plan of its own. Closed: area removed by `remove-memory-sync` (`e73185e`); the question went with the plugin.
+- [bug-reviewer-findings/plan.md memory-index] `delete` does not update a project's `MEMORY.md` index (`plan.md:1325`) — open. Closed: area removed by `remove-memory-sync` (`e73185e`); the question went with the plugin.
+- [bug-reviewer-findings/plan.md pull-race] Two concurrent pulls are now serialised by the lock, but the pull race of findings A6 was never reproduced; T18 proves the lock is taken, not that the race existed (`plan.md:1326-1328`) — open. Closed: area removed by `remove-memory-sync` (`e73185e`); the question went with the plugin.
+- [bug-reviewer-findings/result-slice1.md nested-delete] `delete` accepts nested paths such as `p/memory/sub/x.md`, since `*` in the path pattern spans `/` (`result-slice1.md:247`); built as specified, noted in case it was not meant — open: the pattern `/*/memory/*/` is unchanged at `6838133`. Closed: area removed by `remove-memory-sync` (`e73185e`); the question went with the plugin.
+- [bug-reviewer-findings/result-review1-script.md nested-delete] The same, carried over by the script review round (`result-review1-script.md:240`) — open, one item with the line above. Closed: area removed by `remove-memory-sync` (`e73185e`); the question went with the plugin.
+- [bug-reviewer-findings/result-slice1.md L220] *Known undiscriminated* (a), (b), (c): pull's `rsync` and `delete`'s `aws s3 rm` run inside `bounded`, and no case tells that from a bare call; the "no `$SECONDS`" rule has no deterministic case — open: tests for (a) and (b) were asked for in `result-slice1.md` *Follow-ups* and never got a number. Closed: area removed by `remove-memory-sync` (`e73185e`); the question went with the plugin.
+- [feature-plugin-marketplace/result-slice-D.md 2] The smoke test's two fixes: clear `AWS_PROFILE` and `CLAUDE_MEMORY_S3_ARGS` with `env -u` in the stub parts, and run A, B and C once, in that order — open: part 3 below is copied as recorded, without them. Closed: area removed by `remove-memory-sync` (`e73185e`); the question went with the plugin.
+- [feature-plugin-marketplace/result-slice-D.md 4] When the smoke test settles Q4, the hedge goes from `README.md`, the skill and the script comment, and the gate line and its bullet in `AGENTS.md` go with it — open: part 3 has not run. Closed: area removed by `remove-memory-sync` (`e73185e`); the question went with the plugin.
+- [feature-plugin-marketplace/result-slice-S.md 2] Smoke test row 10's *Pass* text should name the third outcome, several copies found → ask the user — open. Closed: area removed by `remove-memory-sync` (`e73185e`); the question went with the plugin.
+- [feature-plugin-marketplace/result-slice-S.md 3] Once an install exists: confirm the plugin cache layout and the `.orphaned_at` marker, then drop the "may" in the skill's fallback (`SKILL.md:12` then, the first item of the fallback list at `6838133`) — open. Closed: area removed by `remove-memory-sync` (`e73185e`); the question went with the plugin.
 
 ## Incidents
 
@@ -212,3 +239,9 @@ line says it was re-read at `6838133`.
   - [bug-reviewer-findings/result-slice2.md L109] Not done → the unchecked claim that manager and bootstrap state three review rounds: closed, `glab:manager` says "Maximum 3 review rounds at full tier" and `AGENTS.md` *One fact* lists the cap.
   - [bug-reviewer-findings/result-slice3-4.md L207] Follow-ups → the plan's own list: L1319 above; `A5` citing folded steps and the missing positive probes for S3.4 and S3.12: nothing open (plan text); the gates depending on a host file: `[bug-reviewer-findings/follow-ups.md before-adopting]`; slice 2's cosmetic items `[bug-reviewer-findings/follow-ups.md 18]`.
   - [bug-reviewer-findings/result-slice3-4.md L220] Not done → A3.3 and A4, the user's steps on the live machine `[bug-reviewer-findings/plan.md A4]`; A6 and `/integrate`: nothing open.
+- 2026-11-21 · remove-memory-sync · e73185e · e73185e · claude/bold-tesla-11sx3v · pushed without a PR · the plugin, its test and its marketplace entry removed at the user's request; `glab` 0.19.1 · change e73185e · plan: `git ls-tree -r --name-only e73185e -- plan/remove-memory-sync/` prints nothing (`/plan/` is ignored by git); the folder is `plan/remove-memory-sync/` on disk until the user lets the manager remove it (`AGENTS.md` *`plan/` rule*)
+  - Decisions → `[remove-memory-sync/plan.md D2]` (`git rm`, no archive copy, readable at `346d286`), `D7`, `D8` and `M3` (the README notice, with an untried uninstall step) are under *Decisions that still bind* in `docs/specs/marketplace.md`.
+  - Follow-ups → the 23 open ones above closed `area removed`, each under its tag; none opened for this area.
+  - Not verified → `[remove-memory-sync/plan.md E6]`: what an installed `memory-sync@glab-services` does after the marketplace drops it, and `claude plugin uninstall` of it, were not tried (`AGENTS.md` forbids installing here); in `docs/specs/marketplace.md` *Known limits*.
+  - Incidents → this area's *Incidents* above are unchanged.
+  - Record → this record, `docs/specs/marketplace.md` and `docs/specs/workflow.md`; no feature page (`[remove-memory-sync/plan.md E1]`: no page in `docs/features/` described the plugin); no audit file.
