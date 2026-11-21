@@ -1,13 +1,11 @@
 # skills
 
-A Claude Code plugin marketplace, `glab-services`, with two plugins: the
-workflow we run in every session, and the hooks that sync Claude Code memories
-to S3.
+A Claude Code plugin marketplace, `glab-services`, with one plugin: the
+workflow we run in every session.
 
 | Plugin | What it adds |
 |---|---|
 | `glab` | Skills `glab:bootstrap`, `glab:project-manager`, `glab:session-rules`, `glab:security`, `glab:comments`, `glab:audit`, `glab:severity` · agents `glab:project-planner`, `glab:project-plan-analyzer`, `glab:project-analyzer`, `glab:project-developer`, `glab:project-integrator`, `glab:project-reviewer`, `glab:committer` · stage skills `/glab:project-plan-accept`, `/glab:project-plan-analyze`, `/glab:project-develop`, `/glab:project-analyze`, `/glab:project-integrate`, `/glab:project-review`, `/glab:commit`, `/glab:push`, `/glab:project-ship`, `/glab:project-plan-report`, `/glab:project-record`, which `glab:project-manager` runs itself and you can type to step in · `/glab:project-plan <task>`, the planning procedure `glab:project-planner` follows, which you can type to plan in your own session · a `SessionStart` hook that injects the session bootstrap rules · a context hook on `UserPromptSubmit`, `PostToolUse` (`Agent`) and `Stop` that tells the session its context size and tells you when a turn crosses 300k or a further 100k · a `PreToolUse` hook on `Skill` and on `Bash`, `PowerShell` and `Monitor` that refuses another level's skill and asks you before a verdict by `user` · the product level (*Levels*): skills `glab:product-manager`, `glab:product-plan`, `glab:product-plan-analyze`, `glab:product-project-brief`, `glab:product-project-plan-analyze`, `glab:product-project-plan-verdict` · agents `glab:product-planner`, `glab:product-analyzer` · templates under `templates/docs-mirror/` for a CI job that mirrors a code repo's `docs/` to a read-only `{repo}-docs` repository (*The docs mirror*) |
-| `memory-sync` | Skill `memory-sync:sync-memory` · hooks on four events that run `memory-sync.sh` |
 
 In `glab` the skills and agents are one set: `glab:project-manager` runs each stage
 through its stage skill, which dispatches the agents, and dispatches
@@ -15,8 +13,7 @@ through its stage skill, which dispatches the agents, and dispatches
 list in its definition, the `glab` skills its role uses — `glab:security` in
 all nine, `glab:project-plan` in the planner and `glab:product-plan` in the product
 planner — and runs at the session's effort level,
-which the manager passes on every dispatch. The two plugins do not depend on
-each other; install either alone.
+which the manager passes on every dispatch.
 
 Each `glab` agent runs on the model its definition names: the planner, the
 plan check, the product planner and the product analyzer on Opus; the analyzer, developer, reviewer and integrator on
@@ -352,8 +349,7 @@ falls back to plain text, the level guard reads its input as plain text, and
 the context hook says nothing — the session's manager then counts dispatches
 instead (`glab:session-rules` Rule 2). A store clone (*The shared store*) needs `git`.
 The docs mirror's CI job needs bash 4.4 or newer, git 2.28 or newer and an ssh
-client on its runner. `memory-sync` also needs GNU coreutils (`timeout`, `stat`,
-`date`), util-linux `flock`, `rsync` and the AWS CLI. macOS is not supported.
+client on its runner. macOS is not supported.
 
 ## Install
 
@@ -375,15 +371,13 @@ Set `CLAUDE_CODE_PLUGIN_PREFER_HTTPS=1` to skip the SSH attempt.
    this repository. Facts about one machine — the temp directory, tool paths —
    live there and nowhere in these files. Without it a `glab` session has no
    temp-directory rule and falls back to `$TMPDIR` or its scratchpad, which may
-   be a small `/tmp`. `memory-sync` does not read it.
-2. Add the marketplace and install the plugins you want:
+   be a small `/tmp`.
+2. Add the marketplace and install the plugin:
 
    ```bash
    claude plugin marketplace add glab-services/skills
    claude plugin install glab@glab-services
-   claude plugin install memory-sync@glab-services
    ```
-3. For `memory-sync`, set its environment, below.
 
 Each plugin carries a `version`. `claude plugin update glab@glab-services`
 fetches a newer one; a change that did not raise the version is not delivered.
@@ -399,7 +393,7 @@ from the Claude Code docs, "Host and maintain a marketplace"
 
 ### Rolling out to a team
 
-To register the marketplace and enable both plugins from settings instead of
+To register the marketplace and enable the plugin from settings instead of
 by hand, set these two keys — in managed settings for every machine, or in one
 repository's `.claude/settings.json` for the people who work in it:
 
@@ -411,8 +405,7 @@ repository's `.claude/settings.json` for the people who work in it:
     }
   },
   "enabledPlugins": {
-    "glab@glab-services": true,
-    "memory-sync@glab-services": true
+    "glab@glab-services": true
   }
 }
 ```
@@ -454,29 +447,48 @@ product level. Once it has, the hashed files are frozen
 renamed line into `after-verdict.md`, where Stage 1c puts every record line
 after a report.
 
+## Removed: `memory-sync`
+
+The `memory-sync` plugin is no longer in this marketplace. If you installed it,
+these steps are yours:
+
+- run `claude plugin uninstall memory-sync@glab-services`, and remove
+  `memory-sync@glab-services` from any `enabledPlugins`;
+- remove from your `env` block the keys you merged for it:
+  `CLAUDE_MEMORY_S3_URI`, `CLAUDE_MEMORY_S3_TIMEOUT`, `CLAUDE_MEMORY_S3_ARGS`,
+  `AWS_PROFILE` (if you set it only for this) and
+  `CLAUDE_CODE_SESSIONEND_HOOKS_TIMEOUT_MS`;
+- the `~/.claude/.memory-sync-*` files and the objects in your bucket are left
+  as they are.
+
+Its last version is readable from this repository's history at `346d286`:
+`git show 346d286:plugins/memory-sync/scripts/memory-sync.sh`.
+
+Uninstalling a plugin that its marketplace no longer lists was not tried here:
+the command above was not run, and what an installed copy does once the
+marketplace drops it — stays and keeps firing, or goes on the next update — is
+unverified. If the command does not remove it, remove it through `/plugin`, or
+delete its key from `enabledPlugins` and the marketplace's cached entry by hand.
+
 ## Coming from the copy install
 
-Before the plugins, this setup was copied into `~/.claude` by hand. On a
-machine that still has that copy, installing the plugins on top of it runs
-everything twice: each skill, agent and command exists under two names, the
-session rules are injected twice, and every memory sync runs twice — once from
-a script copy that no plugin update ever reaches. Remove the old copy by hand.
+Before the plugin, this setup was copied into `~/.claude` by hand. On a
+machine that still has that copy, installing the plugin on top of it runs
+everything twice: each skill, agent and command exists under two names and the
+session rules are injected twice. Remove the old copy by hand.
 
-The steps below assume you install both plugins. If you install only
-`memory-sync`, remove only the four `memory-sync.sh` hook entries,
-`~/.claude/memory-sync.sh` and `~/.claude/skills/sync-memory/`, and keep the rest.
-Do it when no session is in the middle of work; a session that is already
+The copy's memory sync — the four `memory-sync.sh` hook entries,
+`~/.claude/memory-sync.sh`, `~/.claude/skills/sync-memory/` and the
+`~/.claude/.memory-sync-*` files — is no longer part of this marketplace, so
+these steps leave it alone; keep or remove it as you choose. Do it when no session is in the middle of work; a session that is already
 running keeps what it loaded until it is restarted.
 
-1. In `~/.claude/settings.json`, remove the `hooks` entries that call
-   `memory-sync.sh` (four: `SessionStart`, `SessionEnd`, `PostToolUse`, `Stop`)
-   and the `SessionStart` entry that calls `manager-bootstrap.sh`. Keep the
-   `env` block, and add `CLAUDE_CODE_SESSIONEND_HOOKS_TIMEOUT_MS` to it — see
-   the next section.
+1. In `~/.claude/settings.json`, remove the `SessionStart` entry that calls
+   `manager-bootstrap.sh`. Keep the `env` block.
 2. In `~/.claude`, delete what was copied:
-   - the two scripts, `memory-sync.sh` and `manager-bootstrap.sh`;
-   - seven skill directories under `skills/`: `bootstrap`, `manager`,
-     `security`, `comments`, `plan-first`, `audit`, `sync-memory`;
+   - the script, `manager-bootstrap.sh`;
+   - six skill directories under `skills/`: `bootstrap`, `manager`,
+     `security`, `comments`, `plan-first`, `audit`;
    - five agents under `agents/`: `developer.md`, `analyzer.md`,
      `integrator.md`, `reviewer.md`, `committer.md`;
    - eight commands under `commands/`: `commands/plan.md`,
@@ -488,71 +500,23 @@ running keeps what it loaded until it is restarted.
 3. In `~/.claude/CLAUDE.md`, remove the rules that came from this repo: the
    `glab` hook now delivers them, and the old text names the skills without
    their prefix. Keep whatever you wrote there yourself.
-4. Leave `~/.claude/host.md` and the `~/.claude/.memory-sync-*` files alone.
-   The plugin's script uses the same state files and the same lock.
-
-Until step 1 is done the two copies of the sync share that lock, so they
-queue or skip rather than run at once — but each sync is still attempted
-twice.
-
-## Configuring `memory-sync`
-
-The hooks ship in the plugin. Its settings do not, because a plugin cannot set
-environment variables: merge the `env` block of
-`plugins/memory-sync/settings.example.json` into `~/.claude/settings.json` and
-replace every `<…>` placeholder.
-
-| Event | Runs |
-|---|---|
-| `SessionStart` | `memory-sync.sh pull` |
-| `SessionEnd` | `memory-sync.sh push` |
-| `PostToolUse` | `memory-sync.sh push-if-changed` |
-| `Stop` | `memory-sync.sh push-if-changed` |
-
-`CLAUDE_MEMORY_S3_TIMEOUT` is optional and defaults to 12 seconds. A run can
-last up to 3 seconds longer than that, and the plugin gives each hook 20
-seconds. The largest value accepted is 17, because 17 + 3 seconds is that
-20-second hook timeout; a larger value is rejected — the script says so on
-stderr and uses 12.
-
-Keep `CLAUDE_CODE_SESSIONEND_HOOKS_TIMEOUT_MS` in the `env` block. All
-`SessionEnd` hooks share a 1.5-second budget, and the timeout a plugin sets on
-its own hook does not raise it. Claude Code documents this variable as the
-override for that budget; whether it also covers a hook that a plugin provides
-is not yet confirmed. Until it is, treat the push at session end as best
-effort: it can be cut off with no log line. Edits made during the session are
-not affected: `push-if-changed` has already sent them.
-
-`AWS_PROFILE` is optional. In the `env` block it sets the profile for every
-`aws` command any agent runs in every session, not only for `memory-sync.sh` —
-delete the key if you do not want that.
-
-`memory-sync.sh delete <project>/memory/<file>` is run by hand, never from a
-hook. It is the only way to remove a memory for good — see the
-`memory-sync:sync-memory` skill, which also gives the script's installed path.
-
-The script keeps its stage copy, its stamps and its lock in `~/.claude`
-(`.memory-sync-*`), not in the plugin's data directory, so hooks and hand runs
-share one lock. Uninstalling the plugin leaves those files in place.
+4. Leave `~/.claude/host.md` alone.
 
 ## Working on this repo
 
 | Path | What it is |
 |---|---|
 | `AGENTS.md` | Working agreement for changes to this repo, and the gates |
-| `.claude-plugin/marketplace.json` | The marketplace: lists both plugins |
-| `plugins/` | The two plugins. Payload: written for the sessions of whoever installs them |
+| `.claude-plugin/marketplace.json` | The marketplace: lists the plugin |
+| `plugins/` | The plugin. Payload: written for the sessions of whoever installs them |
 | `host.example.md` | Template for the per-machine `~/.claude/host.md` |
-| `tests/` | The scripts' tests — `memory-sync.sh` against a stub, the hooks, `plan-gate.sh`, `docs-mirror.sh` — and the product-loop walkthrough with its fixtures, `tests/fixtures/product-loop/`, and `tests/gates.sh`, every gate with its expected result |
+| `tests/` | The scripts' tests — the hooks, `plan-gate.sh`, `docs-mirror.sh` — and the product-loop walkthrough with its fixtures, `tests/fixtures/product-loop/`, and `tests/gates.sh`, every gate with its expected result |
 | `plan/` | Working area: the files of changes in progress, removed on your word once each change is recorded |
 | `docs/specs/` | One spec per area: how it works now, why, what is not verified, what is open |
 | `docs/features/` | One page per feature: what it does and how to use it |
 | `docs/one-fact.md` | The *One fact, one value* registry: each fact more than one file states, and the files that state it |
 
-To try a change without installing anything, load the plugins for one session:
-`claude --plugin-dir ./plugins` loads both, `claude --plugin-dir ./plugins/glab`
-loads one. Do not pass the repo root: the CLI does not read `marketplace.json` from a
-`--plugin-dir`, so neither plugin loads — at most an empty plugin named after
-the directory. Loading
-`memory-sync` this way runs its hooks against whatever `CLAUDE_MEMORY_S3_URI`
-that session has.
+To try a change without installing anything, load the plugin for one session:
+`claude --plugin-dir ./plugins/glab`. Do not pass the repo root: the CLI does not read `marketplace.json` from a
+`--plugin-dir`, so the plugin does not load — at most an empty plugin named after
+the directory.

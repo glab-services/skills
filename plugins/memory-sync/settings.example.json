@@ -1,8 +1,0 @@
-{
-  "env": {
-    "CLAUDE_MEMORY_S3_URI": "s3://<bucket>/<prefix>",
-    "AWS_PROFILE": "<profile, or delete this key>",
-    "CLAUDE_MEMORY_S3_ARGS": "<extra aws arguments, or delete this key>",
-    "CLAUDE_CODE_SESSIONEND_HOOKS_TIMEOUT_MS": "20000"
-  }
-}

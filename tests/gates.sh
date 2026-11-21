@@ -1,10 +1,14 @@
 #!/usr/bin/env bash
 # Runs every gate of this repo and compares each result with its expected value: the syntax and
-# execute-bit check and shellcheck on the scripts, the seven script tests, `claude plugin validate
+# execute-bit check and shellcheck on the scripts, the six script tests, `claude plugin validate
 # --strict`, the component lines of `claude plugin details`, and the searches that nothing else
 # catches. G36-G39, appended last, are the same three kinds of check and the test for the docs
 # mirror's script. It prints one line per check, `ok G<n> <name>` or `FAIL G<n> <name>: <reason>`,
 # then `PASS n/n` or `FAIL f/n`.
+#
+# Ids: the loop blocks number their checks by position, so removing the `memory-sync` plugin in
+# this change shifted G1-G11, G15-G19 and G21-G22 and left G12, G13, G20 and G23 unused; the
+# hard-coded ids (G14, G24-G26, G30, G31, G33-G39) did not move.
 #
 # Call it as `bash tests/gates.sh`, with no arguments, from anywhere: it changes to the repo root
 # before any check. It changes no file in the repo; its work directory under `$TMPDIR` is removed
@@ -24,7 +28,8 @@ set -uo pipefail
 # aborts only its own line and the rest still ran; a script stops instead. `:?` is not used here
 # either: it prints a bash-formatted `...: line n: ...` message and exits 1, not 2.
 # The bash line is first: this script is known to have run on bash 5.3.9 only, and an older bash -
-# before 4.4 an empty array under `set -u` is an error (the guard at G28 below) - could fail
+# before 4.4 an empty array under `set -u` is an error (the guard for it left with G28 and the
+# `memory-sync` plugin; bash 4.4 stays required for the docs mirror's script) - could fail
 # part-way with its own message; this line stops it with one line instead
 # [slim-agents-md/follow-ups.md FU2] [script-hardening/plan.md D4]. Only this bash is checked; the
 # tests below run under the `bash` on `PATH`, which may be another [script-hardening/plan.md FU-SH2].
@@ -77,13 +82,11 @@ cfg=$W/claude-config
 # Expected values. These arrays are the one copy of them in this repo's tooling; `README.md` and
 # each plugin's `hooks/hooks.json` state them too (docs/one-fact.md).
 SCRIPTS=(
-	plugins/memory-sync/scripts/memory-sync.sh
 	plugins/glab/scripts/manager-bootstrap.sh
 	plugins/glab/scripts/context-size.sh
 	plugins/glab/scripts/plan-gate.sh
 	plugins/glab/scripts/glab-level.sh
 	plugins/glab/scripts/level-guard.sh
-	tests/memory-sync.test.sh
 	tests/context-size.test.sh
 	tests/plan-gate.test.sh
 	tests/manager-bootstrap.test.sh
@@ -92,7 +95,6 @@ SCRIPTS=(
 	tests/gates.sh
 )
 TESTS=(
-	'bash tests/memory-sync.test.sh plugins/memory-sync/scripts/memory-sync.sh'
 	'bash tests/context-size.test.sh plugins/glab/scripts/context-size.sh'
 	'bash tests/plan-gate.test.sh plugins/glab/scripts/plan-gate.sh'
 	'bash tests/manager-bootstrap.test.sh plugins/glab/scripts/manager-bootstrap.sh'
@@ -118,11 +120,7 @@ GLAB_AGENTS=(
 	project-integrator project-plan-analyzer project-planner project-reviewer
 )
 GLAB_HOOKS='Hooks (5)  SessionStart, UserPromptSubmit, PreToolUse, PostToolUse, Stop  (harness-only — no model context cost)'
-MS_SKILLS=(sync-memory)
-# Count 0, so its line is `Agents (0)` with no names.
-MS_AGENTS=()
-MS_HOOKS='Hooks (4)  SessionStart, SessionEnd, PostToolUse, Stop  (harness-only — no model context cost)'
-MARKET=('glab = glab' 'memory-sync = memory-sync')
+MARKET=('glab = glab')
 MODEL_LINES=(
 	'plugins/glab/agents/project-analyzer.md:model: sonnet'
 	'plugins/glab/agents/committer.md:model: haiku'
@@ -207,7 +205,7 @@ component() {
 	same_set "${names//, /$'\n'}" "$@"
 }
 
-# G1-G13. `bash -n` and `test -x` on each script. The `test -x` is there because a hook script
+# G1-G11. `bash -n` and `test -x` on each script. The `test -x` is there because a hook script
 # that has lost its execute bit passes every other gate and then fails when the hook runs. It is
 # joined to `bash -n` with `&&` so that the rc is the syntax check's when that fails; with `;` a
 # syntax error printed `rc=0`. The file list includes this script, which is checked here and in
@@ -228,7 +226,7 @@ rc=$?
 [ -z "$out" ] || bad "findings: $(lines "$out" | head -n 1)"
 done_case G14 "shellcheck on ${#SCRIPTS[@]} scripts"
 
-# G15-G20. The six tests. The tests create their work directories under `$TMPDIR`. Each test is
+# G15-G19. The five tests. The tests create their work directories under `$TMPDIR`. Each test is
 # green when its rc is 0, every line but the last is `ok`, and its last line is `PASS n/n`. On
 # FAIL, the reason carries the first non-ok line. The tests' own case counts are not fixed here,
 # as the old gate did not fix them either.
@@ -259,19 +257,18 @@ done
 	[ -d "$cfg" ] || exit 1
 	export CLAUDE_CONFIG_DIR="$cfg"
 	k=0
-	for p in plugins/glab plugins/memory-sync .; do
+	for p in plugins/glab .; do
 		k=$((k + 1))
 		"$claude" plugin validate --strict "$p" >"$W/validate.$k" 2>&1
 		echo $? >"$W/validate.$k.rc"
 	done
 	"$claude" --plugin-dir ./plugins plugin details glab >"$W/details.glab" 2>"$W/details.glab.err"
-	"$claude" --plugin-dir ./plugins plugin details memory-sync >"$W/details.ms" 2>"$W/details.ms.err"
 )
 
-# G21-G23. `plugin validate --strict` on each plugin and on the marketplace: its last line is
+# G21-G22. `plugin validate --strict` on the plugin and on the marketplace: its last line is
 # `✔ Validation passed`, with rc 0.
 i=20 k=0
-for p in plugins/glab plugins/memory-sync .; do
+for p in plugins/glab .; do
 	i=$((i + 1)) k=$((k + 1))
 	if [ -f "$W/validate.$k" ]; then
 		last=$(tail -n 1 "$W/validate.$k")
@@ -284,9 +281,9 @@ for p in plugins/glab plugins/memory-sync .; do
 	done_case "G$i" "plugin validate --strict $p"
 done
 
-# G24/G25 and G27/G28. Skills and Agents are compared as sets, with their count: the CLI lists
+# G24/G25. Skills and Agents are compared as sets, with their count: the CLI lists
 # them in directory read order, which is not stable.
-# G26/G29. The Hooks line is compared as an exact string. The CLI prints the suffix
+# G26. The Hooks line is compared as an exact string. The CLI prints the suffix
 # `  (harness-only — no model context cost)` after it on the same line; it prints that suffix, and
 # it is expected.
 component "$W/details.glab" Skills "${GLAB_SKILLS[@]}"
@@ -296,16 +293,8 @@ done_case G25 "glab Agents (${#GLAB_AGENTS[@]})"
 line=$(command grep -E '^  Hooks ' "$W/details.glab")
 [ "$line" = "  $GLAB_HOOKS" ] || bad "line [$line]"
 done_case G26 "glab $GLAB_HOOKS"
-component "$W/details.ms" Skills "${MS_SKILLS[@]}"
-done_case G27 "memory-sync Skills (${#MS_SKILLS[@]})"
-# The `+` expansion: an empty array under `set -u` is an unbound-variable error before bash 4.4.
-# The preflight refuses such a bash, but the guard stays: that refusal never ran on a real bash
-# older than 4.4 (UNVERIFIED), and the guard costs nothing.
-component "$W/details.ms" Agents ${MS_AGENTS[@]+"${MS_AGENTS[@]}"}
-done_case G28 "memory-sync Agents (${#MS_AGENTS[@]})"
-line=$(command grep -E '^  Hooks ' "$W/details.ms")
-[ "$line" = "  $MS_HOOKS" ] || bad "line [$line]"
-done_case G29 "memory-sync $MS_HOOKS"
+# G27-G29 were the `memory-sync` plugin's Skills, Agents and Hooks checks and left with it; their
+# numbers stay unused because G24-G39 are hard-coded (the loop blocks above number by position).
 
 # G30. Each marketplace entry's name equals the name in the `plugin.json` its source points at.
 # Validation does not compare a marketplace entry with the plugin it points at; it passes with a
@@ -319,27 +308,17 @@ done_case G30 "marketplace names match plugin.json"
 # G31. No `user_config` in any `hooks.json`: expected `:0` after each `hooks.json`, then rc 1.
 # `grep -c` exits 1 when it counts nothing, and nothing is the green result here. A
 # `${user_config.…}` in a hook command passes validation and fails when the hook runs.
-out=$(command grep -c user_config plugins/*/hooks/hooks.json)
+# `-H` keeps the `<file>:` prefix, which `grep -c` drops when the glob matches one file,
+# so `exp` matches for any number of plugins.
+out=$(command grep -cH user_config plugins/*/hooks/hooks.json)
 rc=$?
 exp=$(for f in plugins/*/hooks/hooks.json; do echo "$f:0"; done)
 [ "$out" = "$exp" ] || bad "got [$(lines "$out" | paste -sd, -)]"
 [ "$rc" -eq 1 ] || bad "rc=$rc, expected 1"
 done_case G31 "no user_config in hooks.json"
 
-# G32. A count of 1 or more after each of the three files, then rc 0. Read the counts, not the
-# rc: `grep -c` exits 0 as soon as one file matches. The phrase is the hedge on
-# `CLAUDE_CODE_SESSIONEND_HOOKS_TIMEOUT_MS` - documented as the override for the `SessionEnd`
-# budget, not yet shown to cover a hook that a plugin provides - and no other gate notices when
-# the script comment, the skill or the README starts stating it as fact.
-hedge=(plugins/memory-sync/scripts/memory-sync.sh plugins/memory-sync/skills/sync-memory/SKILL.md README.md)
-out=$(command grep -c -F 'not yet confirmed' "${hedge[@]}")
-rc=$?
-[ "$rc" -eq 0 ] || bad "rc=$rc"
-for f in "${hedge[@]}"; do
-	c=$(lines "$out" | command grep -F "$f:" | sed 's/.*://')
-	[[ $c =~ ^[0-9]+$ ]] && [ "$c" -ge 1 ] || bad "$f count [${c}]"
-done
-done_case G32 "'not yet confirmed' hedge in ${#hedge[@]} files"
+# G32, the check of the `not yet confirmed` hedge, left with the `memory-sync` plugin, whose files
+# it read; its number stays unused.
 
 # G33. The model of each agent, exactly these lines (compared after sorting both sides: grep
 # prints them in glob order), then rc 0. `plugin validate --strict` passes an unknown model value
@@ -368,7 +347,7 @@ rc=$?
 [ "$rc" -eq 1 ] || bad "rc=$rc, expected 1"
 done_case G35 "no prefixed name: in plugins"
 
-# G36-G37. `bash -n` and `test -x` on the docs mirror's script and test, as G1-G13: a code repo
+# G36-G37. `bash -n` and `test -x` on the docs mirror's script and test, as G1-G11: a code repo
 # runs its copy with `bash`, but the README has it copied with mode 755 from this file.
 i=35
 for s in "${MIRROR[@]}"; do
@@ -387,7 +366,7 @@ rc=$?
 [ -z "$out" ] || bad "findings: $(lines "$out" | command grep -m 1 '[^[:space:]]')"
 done_case G38 "shellcheck on ${#MIRROR[@]} docs-mirror scripts"
 
-# G39. The docs mirror's test, judged as G15-G20.
+# G39. The docs mirror's test, judged as G15-G19.
 cmd=(bash "${MIRROR[1]}" "${MIRROR[0]}")
 out=$("${cmd[@]}" 2>&1)
 rc=$?

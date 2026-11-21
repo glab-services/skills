@@ -34,29 +34,12 @@ the missing-`AGENTS.md` fallback
 - every agent
 - and the session-start text in `plugins/glab/scripts/manager-bootstrap.sh`
 
-## The `memory-sync` hook events
-
-the hook events
-
-- `plugins/memory-sync/hooks/hooks.json`
-- `README.md`
-- `plugins/memory-sync/skills/sync-memory/SKILL.md`
-- the header of `plugins/memory-sync/scripts/memory-sync.sh`
-
-## The default time limit of `memory-sync.sh`
-
-the default time limit of `memory-sync.sh`
-
-- the script
-- its test
-- `README.md`
-
 ## The marketplace and plugin names
 
 the marketplace and plugin names
 
 - `.claude-plugin/marketplace.json`
-- both `plugin.json`
+- `plugins/glab/.claude-plugin/plugin.json`
 - `README.md`
 - `tests/gates.sh`
 
@@ -67,33 +50,6 @@ what each plugin holds — its component counts and its hook events
 - `tests/gates.sh`
 - `README.md`
 - each plugin's `hooks/hooks.json`
-
-## The 20-second hook timeout of `memory-sync`
-
-the 20-second hook timeout of `memory-sync`
-
-- every `timeout` in `plugins/memory-sync/hooks/hooks.json`
-- the comments in the script that reason from it
-- `README.md`
-
-## The largest time limit, 17
-
-the largest time limit the script accepts, 17
-
-- the script
-- its test
-- `README.md`
-
-## The `SessionEnd` budget and its hedge
-
-the 1.5-second `SessionEnd` budget and the hedged sentence about its override
-
-- the script comment
-- the `memory-sync:sync-memory` skill
-- `README.md`
-- `tests/gates.sh`
-- and the `CLAUDE_CODE_SESSIONEND_HOOKS_TIMEOUT_MS` key in the plugin's
-  settings example
 
 ## The model per role
 

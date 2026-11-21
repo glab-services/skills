@@ -67,9 +67,83 @@ supersede every count and line below them where they disagree
 (*amended by `docs-mirror`:* they are now the second and third bullets,
 and the first, `docs-mirror`'s, supersedes both where they disagree); where this
 file and an owning file disagree, the
-owning file is right and this spec is out of date.
+owning file is right and this spec is out of date. *Amended by
+`remove-memory-sync` (`e73185e`, `glab` 0.19.1, 2026-11-21):* the marketplace
+lists one plugin, `glab`; its lines as of `e73185e` are the first bullet
+below, which supersedes every other line of this file that names
+`memory-sync`, two plugins, the gate ids G12, G13, G20, G23, G27-G29 and
+G32, the 39 checks and `tests/memory-sync.test.sh`, those lines being as of
+the records that wrote them.
 
 ## How it works now
+
+- **The repo after `remove-memory-sync`, as of 0.19.1** (`e73185e`, base
+  `346d286`; the owners `.claude-plugin/marketplace.json`, `AGENTS.md`,
+  `docs/one-fact.md`, `README.md`, `tests/gates.sh` and
+  `plugins/glab/.claude-plugin/plugin.json`). **One plugin:**
+  `marketplace.json` lists `glab` alone (`jq -r '.plugins[].name'` prints
+  `glab`) and its top `description` reads "The glab workflow for Claude
+  Code"; `plugins/memory-sync/` and `tests/memory-sync.test.sh` are gone,
+  six tracked files removed with `git rm`, no archive copy
+  (`[remove-memory-sync/plan.md D2]`, `P1`, `P2`). **Version:** `glab`
+  0.19.0 → 0.19.1, a patch: two comments of
+  `plugins/glab/scripts/context-size.sh` stopped citing `memory-sync.sh`,
+  no behaviour changed (`D6`); `memory-sync` has no version, the plugin
+  being gone. **The gates** (`D3`, `D4`, `D5`, `M2`, `M5`): `tests/gates.sh`
+  runs 31 checks, not 39. The loop blocks number their checks by position, so
+  removing the plugin shifted G1–G11 (the scripts and the script tests),
+  G15–G19 (the tests) and G21–G22 (validate on `plugins/glab` and on `.`)
+  and left G12, G13, G20 and G23 unused; the hard-coded ids G14, G24–G26,
+  G30, G31 and G33–G39 did not move, so `docs/one-fact.md`'s G33 and G34
+  stand; G27–G29 (the `memory-sync` skill, agent and hook counts) and G32
+  (the `not yet confirmed` hedge) went with the plugin, their numbers unused
+  (the script's header says so; it never says "retired, not reused"). The
+  bash 4.4 preflight stays, its comment rewritten: its stated reason, the
+  empty-array guard of G28, left with G28, but the docs mirror's script needs
+  bash 4.4 too (`D5`). G31 is now `command grep -cH user_config
+  plugins/*/hooks/hooks.json`: with one `hooks.json` plain `grep -c` drops the
+  `<file>:` prefix and the gate read `got [0]` (`M5`, `E12`; *Incidents*).
+  **The rules** (`AGENTS.md`, 8461 bytes as of `e73185e`; `wc -c`): it says
+  "holding one plugin, `glab`"; *Layout* lost the `plugins/memory-sync/`
+  bullet; *Tests* names `tests/docs-mirror.test.sh` and its `ssh` stub as
+  the example of a stub first on `PATH` (`D11`); *Rules* lost the rule
+  against running `memory-sync.sh` against a real backend and the
+  `memory-sync.sh` hook contract, so the hook-contract rule opens on
+  `context-size.sh`; the `plan/` rule keeps `memory-sync.md` as "the plugin
+  removed, a record only"; *Commits* lost the `sync` scope (`M4`, harmless
+  either way: no area named `sync` remains; that `sync` named `memory-sync`
+  is UNVERIFIED, the history being shallow); *No secrets* is kept word for
+  word (`D9`). **One fact** (`docs/one-fact.md`): the five entries that
+  stated only `memory-sync` facts are removed — the `memory-sync` hook
+  events, the default time limit of `memory-sync.sh`, the 20-second hook
+  timeout, the largest time limit 17, the `SessionEnd` budget and its
+  hedge — and *The marketplace and plugin names* names
+  `plugins/glab/.claude-plugin/plugin.json` alone. **`README.md`:** one
+  plugin throughout; *Requirements* keeps "Linux with bash" and "macOS is not
+  supported." (`D10`); *Configuring `memory-sync`* is deleted; a section
+  *Removed: `memory-sync`* tells a person who installed
+  `memory-sync@glab-services` to run `claude plugin uninstall
+  memory-sync@glab-services` themselves, to remove the key from any
+  `enabledPlugins` and the `CLAUDE_MEMORY_S3_*`, `AWS_PROFILE` (if set only
+  for it) and `CLAUDE_CODE_SESSIONEND_HOOKS_TIMEOUT_MS` keys it merged into
+  `env`, says the `~/.claude/.memory-sync-*` files and the objects in the
+  bucket are left as they are, points at `346d286` to read the plugin back,
+  says uninstalling a plugin its marketplace no longer lists was not tried
+  here, and gives the fallback — remove it through `/plugin`, or drop its
+  `enabledPlugins` key and the marketplace's cached entry by hand (`D7`,
+  `M3`, goal G3); *Coming from the copy install* keeps only the `glab` half
+  and leaves the copy's memory sync to the user in one sentence (`D8`).
+  **Gates as run:** the manager's run on the committed tree ended `FAIL
+  5/31`, exit 1, the expected host set (`plan/remove-memory-sync/gates-final.log`
+  on disk): FAIL G14, G19, G21, G22 and G38, the other 26 ids `ok` (G1–G11,
+  G15–G18, G24–G26, G30, G31, G33–G37, G39); the reds are the host-related
+  ones of *Known limits*, identical to the baseline run on `346d286`
+  (`gates-baseline.log`, `FAIL 7/39`) but for the checks that left with the
+  plugin. The change's one commit also followed the plan's recommended
+  subject, breaking for anyone who installed the plugin (`D13`). Review
+  round 1 — three reviewers (correctness, `AGENTS.md` conformance, test
+  quality), all `SHIP`, low findings only, listed under *Open follow-ups*
+  (`M6`); the final check `CONFORMS`.
 
 - **The repo after `docs-mirror`, as of 0.19.0** (`6827075` and
   `cf511d4`; the owners `AGENTS.md`, `docs/one-fact.md`, `README.md`,
@@ -242,7 +316,8 @@ owning file is right and this spec is out of date.
   plain text"; *Levels* *The boundary* and *Known limits* are in
   `docs/specs/product.md`.
 
-- **One marketplace, two plugins.** `.claude-plugin/marketplace.json` names
+- **One marketplace, two plugins** (*amended by `remove-memory-sync`: one
+  plugin, `glab`, since `e73185e`; the first bullet above*)**.** `.claude-plugin/marketplace.json` names
   the marketplace `glab-services` and lists `glab` (`source`
   `./plugins/glab`) and `memory-sync` (`source` `./plugins/memory-sync`).
   The two plugins do not reference each other and install alone
@@ -1250,6 +1325,28 @@ owning file is right and this spec is out of date.
 - [docs-mirror/decisions-2.md R1-8] The three facts several files state — the 4 git lines, `stage: .post`, `main` as the GitHub branch — join the one-fact entry, each with its files; `AGENTS.md` stays at 8788 bytes.
 - [docs-mirror/decisions-2.md R2-2] Round 2's surviving mutations that guard a refusal or a leak get variants inside existing cases (`PASS 25/25` stays): the redaction forms, the `merge-base` other-rc guard (a git wrapper at rc 128), the fetch-failure path, the `commit-tree` rc check, the branch `-` guard; the rest may stay survivors, each with its reason.
 
+- [remove-memory-sync/master.md Request] The user's words, 2026-11-21: "we need to remove [memory-sync](https://github.com/glab-services/skills-marketplace/tree/main/plugins/memory-sync) plugin". Goals G1 (the marketplace lists `glab` alone and the directory is gone), G2 (nothing that stays describes, tests or gates `memory-sync`; no new red against the host baseline) and G3 (an installer reads in `README.md` that it is gone and what is theirs to do). No scope was left out.
+- [remove-memory-sync/plan.md effort] Effort medium, the user's words "level of agents medium", for the session; tier normal (deletes one plugin and the text that names it; no schema, format, permission, secret-handling or money code changes).
+- [remove-memory-sync/plan.md D1] One plan, one commit: the directory, its test, `tests/gates.sh`, the marketplace and every file naming the plugin change together, or the gates go red between commits and *One fact* breaks.
+- [remove-memory-sync/plan.md D2] `plugins/memory-sync/` and `tests/memory-sync.test.sh` are deleted with `git rm`, no archive copy in the tree; `git show 346d286:<path>` reads each back, as the external-agents removal did.
+- [remove-memory-sync/plan.md D3] `tests/gates.sh` keeps every hard-coded id (G14, G24–G26, G30, G31, G33–G39) and drops G27–G29 and G32 with their code; the loop blocks keep numbering by position, so G1–G11, G15–G19 and G21–G22 shift and G12, G13, G20 and G23 fall out. Every comment, the coverage and the record say this shift, never "retired, not reused"; hard-coded G33 and G34, named in `docs/one-fact.md`, do not move (`[docs-mirror/plan.md D14]`).
+- [remove-memory-sync/plan.md D4] G32 (the `not yet confirmed` hedge) goes whole: all three of its files were `memory-sync`'s or the README section that left.
+- [remove-memory-sync/plan.md D5] The bash 4.4 preflight stays, its comment rewritten: the docs mirror's script needs bash 4.4 too and dropping a check is outside the request.
+- [remove-memory-sync/plan.md D6] `plugins/glab/scripts/context-size.sh` lines 4–5 and 34 stop leaning on `memory-sync.sh`, so `glab` 0.19.0 → 0.19.1, a patch (comments only, no behaviour); `memory-sync` gets no version.
+- [remove-memory-sync/plan.md D7] `README.md` gains *Removed: `memory-sync`* beside *Renamed in 0.15.0*: uninstalling is the user's step and what an installed copy does once the marketplace drops it is UNVERIFIED, so the text tells them to uninstall, says the command was not tried here and gives the fallback.
+- [remove-memory-sync/plan.md D8] *Coming from the copy install* keeps only the `glab` half; the copy's memory-sync hook entries, script, `skills/sync-memory/` and `.memory-sync-*` files are left to the user, said in one sentence.
+- [remove-memory-sync/plan.md D9] The `AGENTS.md` *No secrets* rule is kept word for word: it binds every file and its placeholders are examples.
+- [remove-memory-sync/plan.md D10] `README.md` *Requirements* keeps "Linux with bash" and "macOS is not supported."; only the `memory-sync also needs …` clause went.
+- [remove-memory-sync/plan.md D11] `AGENTS.md` *Tests* names `tests/docs-mirror.test.sh` and its `ssh` stub as the example of a stub first on `PATH`, so the exception keeps a live example.
+- [remove-memory-sync/plan.md D12] `docs/specs/*.md` are not edited by the build: they are the record's.
+- [remove-memory-sync/plan.md D13] Commit subject: `feat(repo)!: remove the memory-sync plugin`, breaking for anyone who installed it, on the pattern of `467b7c4`.
+- [remove-memory-sync/plan.md M1] (the manager) The gate goal is no new red against the stated baseline on this host (`gates-baseline.log`, `FAIL 7/39`: shellcheck 0.9.0, the validate glyph `√`, LG8 unicode under an empty `LANG`), not `PASS 31/31`; the exact expected set is pinned, the glyph-red validate reasons included so a real validate failure is still caught. Fixing the host-related reds is out of scope.
+- [remove-memory-sync/plan.md M2] (the manager) Gate ids: keep the loop renumbering and say so truthfully; comments, coverage and the record follow `D3`.
+- [remove-memory-sync/plan.md M3] (the manager) The README uninstall instruction is marked untried, with a fallback, in the README's existing "not tried here" manner.
+- [remove-memory-sync/plan.md M4] (the manager) The `sync` commit scope leaves `AGENTS.md` *Commits*: its area left with the plugin.
+- [remove-memory-sync/plan.md M5] (the manager) G31's grep gains `-H`, so its output keeps the `<file>:<n>` form for any number of plugins; its comment says why (`E12`).
+- [remove-memory-sync/plan.md M6] (the manager, after review round 1, all three `SHIP`) The low findings go to the record, not a fix round; they are the follow-ups tagged `[remove-memory-sync/plan.md M6-1]` to `M6-8` under *Open follow-ups*.
+
 ## Known limits and not verified
 
 - [feature-plugin-marketplace/plan.md unverified] Not shown in a live session, as of the record: prefixed names resolve (`/glab:plan`, the Skill tool with `glab:manager`, the Agent tool with `glab:developer`); the bootstrap hook fires from a plugin and its text reaches the model; `${CLAUDE_PLUGIN_ROOT}` is substituted in the `sync-memory` skill body, and the skill's fallback for when it is not; everything the README says about credentials, SSH then HTTPS, `CLAUDE_CODE_PLUGIN_PREFER_HTTPS`, background auto-update and the `extraKnownMarketplaces` / `enabledPlugins` keys (it restates the Claude Code docs); `CLAUDE_CODE_SESSIONEND_HOOKS_TIMEOUT_MS` for a plugin's `SessionEnd` hook; `claude plugin marketplace add glab-services/skills` on a teammate's machine; `claude plugin update glab@glab-services` delivering a raised version.
@@ -1277,6 +1374,11 @@ owning file is right and this spec is out of date.
 - [remote-store/plan.md Not verified] The gates prove `plan-gate.sh` against a local bare repository by path only, on bash 5.3.9 and git 2.53.0: no network remote, hosted service or Platform clone ran, and no older bash or git (`docs/specs/product.md` *Known limits*). The Markdown of the change has no runtime: its sentences are shown by the plan's post-condition greps, not by a live session.
 - [docs-mirror/plan.md Not verified] The gates prove `docs-mirror.sh` against local bare repositories and a stub `ssh` only, on bash 5.3.9 and git 2.53.0; no hosted CI run, real ssh, older bash or git ran (`docs/specs/workflow.md` *Known limits*). DM24 and DM25 run copies whose version test asks 6.0 and 99.0, so they prove the line, not a real old bash or git. The templates' YAML has no gate: one PyYAML parse of their structure (`[docs-mirror/result-code.md]`), FU-DM4. The Markdown of the change has no runtime: `README.md`'s and `docs/one-fact.md`'s text is shown by the plan's searches and by reading (`[docs-mirror/result-text.md]`, `[docs-mirror/result-fix-r2.md]` T2-L1), not by a hosted run.
 
+- [remove-memory-sync/plan.md E6] UNVERIFIED: what an installed `memory-sync@glab-services` does after the marketplace drops it (kept and still firing, or removed on update), and `claude plugin uninstall` of it — `claude plugin uninstall --help` (CLI 2.1.330) prints `Usage: claude plugin uninstall|remove [options] <plugin>`, but no installed copy may be made here (`AGENTS.md` *Rules*). `README.md` *Removed: `memory-sync`* says the step was not tried here and gives a fallback.
+- [remove-memory-sync/plan.md M1] The gates' reds on this host, not fixed by `remove-memory-sync` and identical before and after (`gates-baseline.log` on `346d286`, the manager's run on `e73185e`): G14 `shellcheck on 11 scripts: rc=1; findings: ` — the reason is empty because shellcheck's output starts with a blank line (`[docs-mirror/follow-ups.md FU-DM-R2]`), and the findings are `52` in `tests/plan-gate.test.sh` and `3` in `tests/product-loop.test.sh` (`shellcheck tests/gates.sh` is rc 0); G19 `tests/level-guard.test.sh`, case LG8 (a unicode case under an empty `LANG`), `FAIL 1/29`; G21 and G22 `plugin validate --strict`, the reason exactly `last line [√ Validation passed]` with no `; rc=` part, because this CLI prints U+221A where the gate expects U+2714 (any other reason is a real validate failure); G38 `shellcheck on 2 docs-mirror scripts` with its finding at `docs-mirror.sh` line 164. Host tools: shellcheck 0.9.0, `/usr/bin/jq`, the CLI at `/opt/node22/bin/claude`. A host with another shellcheck, CLI or locale may print a different set.
+- [remove-memory-sync/plan.md E11] `tests/gates.sh` untested on a bash older than 4.4: the refusal was never run on a real old bash, and the plan's `tests/gates.sh` header dropped the note saying so (`[remove-memory-sync/plan.md M6-5]`); `[slim-agents-md/follow-ups.md FU2]` and `[script-hardening/plan.md Coverage]` above still hold, the `${MS_AGENTS[@]+…}` expansion they name having left with G28.
+- [remove-memory-sync/plan.md M6] The README text of the change is Markdown, no gate: it was checked only by the plan's searches (the absence search printed only the *Removed* section, one copy-install sentence, four `tests/gates.sh` comments naming what left and the `AGENTS.md` `plan/`-rule line) and the `git diff --stat HEAD` list of 13 files; the per-line P6 verifications were not re-run at integration (`integration.md` *Not exercised*).
+
 ## Open follow-ups
 
 - [bug-reviewer-findings/follow-ups.md 17] `AGENTS.md` *No secrets* names the placeholder as `<profile, or delete this key>`, which reads oddly outside the JSON example — open: `AGENTS.md` at `6838133` still reads so; a cleaner wording is the user's call.
@@ -1290,6 +1392,17 @@ owning file is right and this spec is out of date.
 - [docs-mirror/plan.md FU-DM6] `.claude-plugin/marketplace.json`'s `glab` description names neither the level-guard hook nor `templates/`; a wording change with its own version raise (pre-existing, plan check r1) — open.
 - [docs-mirror/follow-ups.md FU-DM-R2] G14 in `tests/gates.sh` prints an empty reason (`findings: `) on a shellcheck finding, shellcheck's output starting with a blank line; G38 has the fix (the first line that is not blank); `G1`–`G35` stayed unchanged in `docs-mirror` (`[docs-mirror/decisions-2.md R1-7]`) — open.
 - [docs-mirror/record FU-DM-R5] The install source: `README.md:365`, `:382` and `:410`, `host.example.md:30` and the `repository` field of both `plugin.json` files (`plugins/glab/.claude-plugin/plugin.json:8`, `plugins/memory-sync/.claude-plugin/plugin.json:8`) name glab-services/skills, the public repo, while changes are delivered to the private glab-services/skills-marketplace first and reach the public repo only when the user merges them there; if the user moves the install source, those six lines change in one commit, the user's call — open.
+
+- [remove-memory-sync/plan.md M6-1] `docs/one-fact.md`: the entry *What each plugin holds* still speaks in the plural, though one plugin is left — open (review round 1, low; not fixed in a round, `M6`).
+- [remove-memory-sync/plan.md M6-2] `README.md`: "Each plugin carries a `version`" still speaks in the plural — open (review round 1, low).
+- [remove-memory-sync/plan.md M6-3] Two long unwrapped lines: `AGENTS.md:3` ("holding one plugin, `glab`." joined to its line) and `README.md` about line 483 — open (review round 1, low).
+- [remove-memory-sync/plan.md M6-4] `README.md` pins the sha `346d286`; prefer "the last commit before the removal" plus the *Records* line, since a squash or rebase merge can give commits new shas — open (review round 1, low). Meanwhile `346d286` is checked: `git rev-parse --short e73185e^` prints it.
+- [remove-memory-sync/plan.md M6-5] The `tests/gates.sh` header dropped the old UNVERIFIED note that the bash < 4.4 refusal never ran on a real old bash; the fact is kept under *Known limits* — open: restore the note in the header, or leave it to this spec (review round 1, low).
+- [remove-memory-sync/plan.md M6-6] `AGENTS.md` *No secrets* names the placeholders `<bucket>`, `<prefix>` and `<profile, or delete this key>`, which now serve only text that is history (`D9` kept the rule word for word because it binds every file) — open (review round 1, low); the oddness of the third placeholder is `[bug-reviewer-findings/follow-ups.md 17]`, above.
+- [remove-memory-sync/plan.md M6-7] `tests/plan-gate.test.sh` T45 (a claim whose pid was reused) failed once during integration: the whole gate printed `FAIL 6/31` with `FAIL G16 … awk: cannot open "/proc/1138/stat"` and `FAIL T22` (a leftover temporary file), then `PASS 86/86` in 10 further runs on the working tree and in the gate's second run, and 8 of 8 on a `git archive HEAD` copy; neither the test nor `plan-gate.sh` is touched by this change (`git diff HEAD --stat` over them printed nothing). The cause is inferred from the awk message (a `/proc` entry vanishing between check and read), not read from the script; whether it flakes on the unchanged tree is UNVERIFIED (1 failure in 11 working-tree runs, 0 in 8 on HEAD) — open, for the area that owns the test (`docs/specs/product.md`).
+- [remove-memory-sync/plan.md M6-8] The text of `docs/specs/marketplace.md`, `docs/specs/workflow.md` and `docs/specs/product.md` that names old gate ids, 39 checks, `PASS 35/35` or "two plugins" is as of the records that wrote it; this record added superseding bullets and notes rather than rewriting each line (`grep -c` for `memory-sync` or `two plugins` in `product.md` prints 0 at this record, so it needs nothing; `marketplace.md` and `workflow.md` keep the historical lines) — open: rewrite the historical lines if a reader is misled.
+- [docs-mirror/record FU-DM-R5] re-read at `e73185e`: `plugins/memory-sync/.claude-plugin/plugin.json:8` is gone with the plugin, so five lines now name the public repo as the install source (`README.md:365`, `:382`, `:410`, `host.example.md:30` and `plugins/glab/.claude-plugin/plugin.json:8`), line numbers as of `cf511d4` — still open.
+- [docs-mirror/follow-ups.md FU-DM-R2] re-read at `e73185e`: G14's empty reason shows in every gate run on this host (`FAIL G14 … findings: `), the reason of *Known limits* above — still open.
 
 ## Closed follow-ups
 
@@ -1335,6 +1448,9 @@ owning file is right and this spec is out of date.
 - **Review round 1: the tests passed broken scripts** (`docs-mirror`; `[docs-mirror/review-r1.md]` T-M1–T-M3, medium): with the refusal a fresh CI clone hits after a rewrite turned into `:`, the test still printed `PASS 25/25` and the copy published; DM22's search for `\+refs/` never matched `"+$c:refs/heads/…"`, a forced push; DM19 passed with the 4-line cut at 999, at 1 and in reversed order. Each now fails its case (`[docs-mirror/result-fix-r1.md]`). Review round 2's mutation sweep caught 70 of 88 (`[docs-mirror/review-r2.md]`); the survivors guarding a refusal or a leak got variants (`[docs-mirror/decisions-2.md R2-2]`), the rest are listed in `docs/specs/workflow.md` *Known limits*. Lesson: a case that never runs the failing branch passes every mutation of it.
 - **A comment broke a gate** (`docs-mirror`, fix round 2; `[docs-mirror/result-fix-r2.md]` *Unplanned / own*): a new script comment containing the words `git push` made DM22's one-`git push`-line check fail (`FAIL G39 … git push lines`); the comment now says "a push". The gate caught it before the review.
 - **The plan reached its size cap** (`docs-mirror`, after develop; `[docs-mirror/decisions-2.md]` header): `plan.md` reached 49152 bytes (`wc -c`), its 48 KiB budget (`docs/one-fact.md` *The plan size budget*), with `D1`–`D39`; the later decisions went to `decisions-2.md`, which binds the same way, and the review rounds' follow-ups to `follow-ups.md`.
+
+- [remove-memory-sync/plan.md E12] **The first build of the removal went red on a check the plan never ran.** After `plugins/memory-sync/` was gone, `tests/gates.sh` ended `FAIL 6/31` with `FAIL G31 no user_config in hooks.json: got [0]`: G31 ran `grep -c user_config plugins/*/hooks/hooks.json` and, with one `hooks.json`, `grep` drops the filename prefix and prints `0`, while the expectation was `plugins/glab/hooks/hooks.json:0`. The plan's boundary proof (`E4`) ran validate, details and the G30 `jq` on a one-plugin copy but never G31. The developer stopped, the plan was amended (`M5`: `-H`), and the gate was `FAIL 5/31` afterwards (`gates-dev-r1.log`, `gates-dev-r2.log` on disk). Lesson: a proof that a tree "still works" without one of its parts has to run the whole gate on it, not the checks that seemed to bear on the part.
+- [remove-memory-sync/integration.md] **A pid-reuse test flaked once under integration** (`tests/plan-gate.test.sh` T45, `FAIL G16`, `FAIL 2/86`): see `[remove-memory-sync/plan.md M6-7]` under *Open follow-ups*. Classified as an environment flake, not a regression: the change touches neither the test nor the script, and the next run and eight runs on `HEAD` passed.
 
 ## Records
 
@@ -1435,3 +1551,13 @@ owning file is right and this spec is out of date.
   - Incidents → DM18's grandchild wait, the tests that passed broken scripts, a comment that broke G39, the plan's size cap, above under *Incidents*; the plan-check and review findings of the script and README in `docs/specs/workflow.md` *Incidents*.
   - Feature page → `docs/features/docs-mirror.md`, 1895 bytes (`wc -c`, ≤ 2048); the plan's record-time search for the *One fact* values on it prints `0`.
   - Record → this record, in this file, `docs/specs/workflow.md` and `docs/features/docs-mirror.md`; no audit file.
+- 2026-11-21 · remove-memory-sync · e73185e · e73185e · claude/bold-tesla-11sx3v · https://github.com/glab-services/skills-marketplace/pull/2
+  - PR → none at this record, a PR to `main` follows and this line's PR field is edited when it exists; the push landed as `* [new branch] claude/bold-tesla-11sx3v -> claude/bold-tesla-11sx3v`; recorded here (the primary area), in `docs/specs/memory-sync.md` (now a record only) and in `docs/specs/workflow.md` (one comment-only edit of `context-size.sh`); no feature page.
+  - [remove-memory-sync/plan.md Decisions] Decisions → `D1`–`D13`, `M1`–`M6` above under *Decisions that still bind*.
+  - [remove-memory-sync/plan.md Evidence] Not verified → `E6` (an installed copy's behaviour), the host-related reds, the Markdown's lack of a runtime and the bash < 4.4 refusal, above under *Known limits*.
+  - Follow-ups → open: `[remove-memory-sync/plan.md M6-1]` to `M6-8` above; `[docs-mirror/record FU-DM-R5]` and `[docs-mirror/follow-ups.md FU-DM-R2]` re-read, still open; the 23 `memory-sync` follow-ups closed `area removed` in `docs/specs/memory-sync.md`; `[flow-cheaper-rounds/plan.md FU18]` re-read in `docs/specs/workflow.md`, still open.
+  - Gates → the developer's run after `M5`: `FAIL 5/31`, `ok G31` (`result.md` *Re-dispatch*); the integrator's runs: `FAIL 6/31` once (G16, the T45 flake, `[remove-memory-sync/plan.md M6-7]`), then `FAIL 5/31`, the ids in order `ok G1`–`G11`, `FAIL G14`, `ok G15`–`G18`, `FAIL G19`, `FAIL G21`, `FAIL G22`, `ok G24`–`G26`, `ok G30`, `ok G31`, `ok G33`–`G37`, `FAIL G38`, `ok G39`; the manager's run on the committed tree `e73185e` (`TMPDIR=/tmp`, `CLAUDE_CONFIG_DIR` a new empty directory): `FAIL 5/31`, the expected host set. This record ran no gate: it changed only `docs/specs/*.md`, which no gate reads.
+  - Security → no secret and no URL added; `AGENTS.md` *No secrets* unchanged; the hook contract of `memory-sync.sh` left `AGENTS.md` *Rules* with the script; no other hook contract changed.
+  - Incidents → `[remove-memory-sync/plan.md E12]` and the T45 flake, above under *Incidents*; this area's old incidents in `docs/specs/memory-sync.md`.
+  - Review → round 1, three reviewers (correctness, `AGENTS.md` conformance, test quality), all `SHIP`, low findings only, carried as `M6-1` to `M6-8`; the final check `CONFORMS`.
+  - Record → this record, in this file, `docs/specs/memory-sync.md` and `docs/specs/workflow.md`; no audit file; the plan folder holds `master.md`, `plan.md` with round copies `plan.r1.md`–`plan.r3.md` and `master.r1.md`, `master.r2.md` (history; the items are taken from the current files), `result.md`, `integration.md` and four gate logs.
