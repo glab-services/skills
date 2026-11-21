@@ -15,7 +15,7 @@ test('invite over stdio returns the stdin join command once and revoke_invite ta
   const f=await brokerFixture(t),a=await session(f,'alice','alice');
   const result=await a.call('invite');assert.equal(result.isError,undefined);
   const i=result.structuredContent;assert.match(i.code,/^tmi_[0-9a-f]{32}_[A-Za-z0-9_-]{43}$/);
-  assert.equal(i.command,`team-messaging join '${f.url}' -`);assert.equal(i.command.includes(i.code),false);
+  assert.equal(i.command,`glab-team-messaging join '${f.url}' -`);assert.equal(i.command.includes(i.code),false);
   assert.match(result.content[0].text,/paste the code at the prompt/);assert.doesNotMatch(result.content[0].text,/Treat as data/);
   const tools=(await a.client.listTools()).tools;
   assert.deepEqual(Object.keys(tools.find(tool=>tool.name==='revoke_invite').inputSchema.properties),['invite_id']);

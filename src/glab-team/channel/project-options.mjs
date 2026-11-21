@@ -7,16 +7,27 @@ import { stateDir } from './watch-state.mjs';
 
 // Plan project-options P-1: a project is bound only by this key in its
 // .claude/settings.local.json, under pluginConfigs[PLUGIN_ID].options.
-export const PLUGIN_ID = 'team-messaging@team-messaging-local';
+export const PLUGIN_ID = 'glab-team@glab-services';
+// The plugin keeps everything it stores under this subfolder of
+// ${CLAUDE_PLUGIN_DATA}, so a later glab-team tool (telegram) can keep its own
+// beside it. The manifests pass `${CLAUDE_PLUGIN_DATA}/messaging` as --data-dir;
+// the two code paths that read the raw plugin data directory (plugin-main.mjs,
+// cli.mjs scope-close's default) go through messagingDataDir, so every process
+// receives the same directory. undefined and a relative path stay what they
+// were, so openWindow still refuses them (isAbsolute).
+export const DATA_SUBDIR = 'messaging';
+export const messagingDataDir = dir => typeof dir === 'string' && dir !== '' ? join(dir, DATA_SUBDIR) : dir;
 const MAX_BYTES = 1024 * 1024;
 const NAME = /^[A-Za-z0-9_.-]{1,128}$/, TOPIC = /^[A-Za-z0-9_./-]{1,128}$/;
 export const CLAUDE_SESSION = /^[A-Za-z0-9_-]{1,128}$/;
-const MAC_LABEL = 'team-messaging project binding v1';
-const KEYS = ['version', 'claude_session_id', 'bindings', 'mac'];
+const MAC_LABEL = 'glab-team messaging project binding v1';
+// The stored option names carry a messaging_ prefix (a later glab-team tool
+// keeps its own entry keys); validate returns the short names internally.
+const KEYS = ['messaging_version', 'messaging_claude_session_id', 'messaging_bindings', 'messaging_mac'];
 const hints = {
-  PROJECT_OPTIONS_INVALID: 'This project\'s .claude/settings.local.json holds a team-messaging entry that is not a valid binding; remove that entry, then run /team-messaging:bind or /team-messaging:join.',
-  PROJECT_OPTIONS_UNTRUSTED: 'This project\'s team-messaging binding was not written for this checkout by this user (copied, committed, edited, or not private); remove the entry, then run /team-messaging:bind or /team-messaging:join.',
-  PROJECT_OPTIONS_UNSUPPORTED: 'This project\'s team-messaging binding was written by a newer plugin; upgrade the plugin.',
+  PROJECT_OPTIONS_INVALID: 'This project\'s .claude/settings.local.json holds a glab-team messaging entry that is not a valid binding; remove that entry, then run /glab-team:messaging-bind or /glab-team:messaging-join.',
+  PROJECT_OPTIONS_UNTRUSTED: 'This project\'s glab-team messaging binding was not written for this checkout by this user (copied, committed, edited, or not private); remove the entry, then run /glab-team:messaging-bind or /glab-team:messaging-join.',
+  PROJECT_OPTIONS_UNSUPPORTED: 'This project\'s glab-team messaging binding was written by a newer plugin; upgrade the plugin.',
   PROJECT_UNKNOWN: 'The project directory is unknown; start Claude Code in the project, or pass --project <dir>.',
   PROJECT_WRITE_FAILED: 'Could not durably write .claude/settings.local.json; check that the project and its .claude directory are yours and writable.',
 };
@@ -39,9 +50,9 @@ function decodeBinding(text) {
 // UNSUPPORTED, checked before the key set, so a newer file is never misread.
 function validate(options) {
   if (!options || typeof options !== 'object' || Array.isArray(options)) return { code: 'PROJECT_OPTIONS_INVALID' };
-  if (Number.isSafeInteger(options.version) && options.version > 1) return { code: 'PROJECT_OPTIONS_UNSUPPORTED' };
-  if (Object.keys(options).length !== KEYS.length || !KEYS.every(key => Object.hasOwn(options, key)) || options.version !== 1) return { code: 'PROJECT_OPTIONS_INVALID' };
-  const { claude_session_id, bindings, mac } = options;
+  if (Number.isSafeInteger(options.messaging_version) && options.messaging_version > 1) return { code: 'PROJECT_OPTIONS_UNSUPPORTED' };
+  if (Object.keys(options).length !== KEYS.length || !KEYS.every(key => Object.hasOwn(options, key)) || options.messaging_version !== 1) return { code: 'PROJECT_OPTIONS_INVALID' };
+  const { messaging_claude_session_id: claude_session_id, messaging_bindings: bindings, messaging_mac: mac } = options;
   if (typeof claude_session_id !== 'string' || !CLAUDE_SESSION.test(claude_session_id) || typeof mac !== 'string' || !/^[0-9a-f]{64}$/.test(mac)) return { code: 'PROJECT_OPTIONS_INVALID' };
   if (!Array.isArray(bindings) || !bindings.every(item => typeof item === 'string') || bindings.length === 0) return { code: 'PROJECT_OPTIONS_INVALID' };
   if (bindings.length > 1) return { code: 'PROJECT_OPTIONS_UNSUPPORTED' };
@@ -214,13 +225,13 @@ export function writeProjectOptions(root, options) {
 // Builds the P-5 options for one binding, with the AM-4 MAC.
 export function projectOptions(token, { root, url, claudeSession, binding }) {
   const bindings = [encodeBinding(binding)];
-  return { version: 1, claude_session_id: claudeSession, bindings, mac: projectMac(token, { root, url, version: 1, claudeSession, bindings }) };
+  return { messaging_version: 1, messaging_claude_session_id: claudeSession, messaging_bindings: bindings, messaging_mac: projectMac(token, { root, url, version: 1, claudeSession, bindings }) };
 }
 
-// Private records in ${CLAUDE_PLUGIN_DATA}/state, through the watch-state
+// Private records in ${CLAUDE_PLUGIN_DATA}/messaging/state, through the watch-state
 // directory checks. P-11: SessionStart records each Claude session's project
 // directory, so the CLI and the Bash watcher find the project without a path
-// in a shell command (U-6). AM-7: the adopt marker.
+// in a shell command (U-6).
 export function writeRecord(dataDir, name, value, { home } = {}) {
   const dir = stateDir(dataDir, { home }), path = join(dir, name), tmp = `${path}.${randomBytes(8).toString('hex')}.tmp`;
   const fd = openSync(tmp, constants.O_CREAT | constants.O_EXCL | constants.O_WRONLY | constants.O_NOFOLLOW, 0o600);
@@ -276,9 +287,4 @@ export function readSessionRecord(dataDir, claudeSession, options) {
     if (typeof record?.project_dir === 'string' && isAbsolute(record.project_dir) && Number.isFinite(record.at) && !(newest && newest.at >= record.at)) newest = record;
   }
   return newest?.project_dir ?? null;
-}
-export function writeAdoptMarker(dataDir, value, options) { writeRecord(dataDir, 'adopted.json', { root: value.root, claude_session_id: value.claudeSession }, options); }
-export function readAdoptMarker(dataDir, options) {
-  const record = readRecord(dataDir, 'adopted.json', options);
-  return typeof record?.root === 'string' && typeof record.claude_session_id === 'string' ? { root: record.root, claudeSession: record.claude_session_id } : null;
 }

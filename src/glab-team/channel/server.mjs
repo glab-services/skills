@@ -71,7 +71,7 @@ const definitions = [
 // happens once, in place (0.11.1 D6): the inert server of plugin-main.mjs
 // passes itself as `server` and calls the returned `start`.
 const ACTIVE_CHECK_MS = 5000;
-const NOT_AGENT = { error: 'NOT_AGENT_SESSION', hint: 'This Claude session is no longer the agent session of this project; the tools stopped. Use the agent session, or run /team-messaging:claim here and reconnect the MCP server.' };
+const NOT_AGENT = { error: 'NOT_AGENT_SESSION', hint: 'This Claude session is no longer the agent session of this project; the tools stopped. Use the agent session, or run /glab-team:messaging-claim here and reconnect the MCP server.' };
 // Project-scoped sharing D-3: the field class of each argument the guard
 // scans. Free text and paths also get the path rules; every other string
 // (to, topic, name, since, workstream, user, invite_id, topics[]) is a name.
@@ -81,7 +81,7 @@ const fieldClass = (tool, key) => FREE_TEXT.has(key) ? 'free' : tool === 'regist
 // another user. ack and claim open on success; check_overlap names owners.
 const TEAMMATE_RESULTS = new Set(['inbox', 'wait', 'pins', 'dead_letters', 'queue_item', 'list_decisions']);
 const MEMBERS_TTL_MS = 60000;
-// The messaging rules every team-messaging server sends at initialize. Shared
+// The messaging rules every glab-team messaging server sends at initialize. Shared
 // with the inert server (plugin-main.mjs, 0.11.1 D3), whose instructions
 // cannot change after initialize, so a server promoted in place still carries
 // them. The last line is 0.11.1 F4 (D8): acceptance saw an agent ack an
@@ -106,7 +106,7 @@ After you read an answer to a question you asked, tell your user what it said.`;
 export function createChannelServer(settings, log, { onIdle, plugin = false, isActive, scope, server: given } = {}) {
   const bindingDefinitions=definitions.map(([name,description,schema,annotations])=>[name,description,settings.topic==null&&['send','ask'].includes(name)?schema.extend({topic:topicName.optional()}).strict():schema,annotations]);
   // This capability and notification shape follow the Claude channels reference and peer server.
-  const server = given ?? new Server({ name: 'team-messaging', version: VERSION }, {
+  const server = given ?? new Server({ name: 'messaging', version: VERSION }, {
     // listChanged: Claude Code re-fetches the list after tools/list_changed
     // only when this is advertised (findings 0.5); demotion relies on it.
     capabilities: { experimental: { 'claude/channel': {} }, tools: { listChanged: true } },
@@ -159,7 +159,7 @@ ${SCOPE_INSTRUCTIONS}`,
       if (!listed) {
         if (!pushWarned) { pushWarned = true; channel.log({ event: 'push_before_tools' }); }
         heldBack.add(Number(params.meta.message_id));
-        throw new ChannelError('TOOLS_NOT_LOADED', 'The host has not listed the team-messaging tools yet; the message stays in inbox.');
+        throw new ChannelError('TOOLS_NOT_LOADED', 'The host has not listed the glab-team messaging tools yet; the message stays in inbox.');
       }
       try { open(); } catch (error) { channel.log({ event: 'scope_window_unavailable' }); throw error; }
     }
@@ -270,9 +270,9 @@ ${SCOPE_INSTRUCTIONS}`,
         case 'leave_topic': result = await channel.api('/topics/leave',args); break;
         case 'close_topic': result = await channel.api('/topics/close',args); break;
         case 'invite': {
-          result = { ...await channel.api('/invites', args), command: plugin ? '/team-messaging:join' : `team-messaging join '${settings.url}' -` };
+          result = { ...await channel.api('/invites', args), command: plugin ? '/glab-team:messaging-join' : `glab-team-messaging join '${settings.url}' -` };
           result.hint = plugin
-            ? `Give the person the broker URL ${settings.url} and the code. They save the code in a private file, run /team-messaging:join with that file, delete the file and restart Claude Code. Single-use, expires at ${result.expires}.`
+            ? `Give the person the broker URL ${settings.url} and the code. They save the code in a private file, run /glab-team:messaging-join with that file, delete the file and restart Claude Code. Single-use, expires at ${result.expires}.`
             : `Give the person this command and the code; they run the command and paste the code at the prompt (stdin). Single-use, expires at ${result.expires}.`;
           break;
         }
@@ -287,7 +287,7 @@ ${SCOPE_INSTRUCTIONS}`,
           const created = await channel.api('/workspaces', args);
           result = { ...created, current_workspace: settings.workspace,
             hint: plugin
-              ? `This session stays bound to ${settings.workspace}; run /team-messaging:bind for workspace ${args.name}, then restart Claude Code to work in it.`
+              ? `This session stays bound to ${settings.workspace}; run /glab-team:messaging-bind for workspace ${args.name}, then restart Claude Code to work in it.`
               : `This session stays bound to ${settings.workspace}; start a separate channel with CHANNEL_WORKSPACE=${args.name} and a distinct CHANNEL_SESSION_ID to work in it.` };
           break;
         }

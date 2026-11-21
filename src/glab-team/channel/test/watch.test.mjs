@@ -103,7 +103,7 @@ async function revoked(t) {
   const { code } = await response.json();
   const joined = await join({ url: f.url, code, name: 'newbie', client: 'none' }, { env: { HOME: s.home } });
   const token = readFileSync(joined.credential_path, 'utf8');
-  const env = { CLAUDE_PLUGIN_OPTION_TOKEN_FILE: joined.credential_path }, tmEnv = { TM_TOKEN_FILE: joined.credential_path }, binding = { topic: FIXTURE_TOPIC, session: 'newbie-s', token };
+  const env = { CLAUDE_PLUGIN_OPTION_MESSAGING_TOKEN_FILE: joined.credential_path }, tmEnv = { TM_TOKEN_FILE: joined.credential_path }, binding = { topic: FIXTURE_TOPIC, session: 'newbie-s', token };
   const revoke = await fetch(f.url + '/credentials/revoke', { method: 'POST', headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }, body: '{}' });
   assert.equal(revoke.status, 200);
   return { f, s, env, tmEnv, binding, token, secrets: [token, code] };
@@ -112,7 +112,7 @@ async function revoked(t) {
 test('a revoked minted credential wakes once with its terminal code, then stays silent', async t => {
   const { f, s, env, tmEnv, binding, secrets } = await revoked(t);
   const first = await rewake(s, f, 'ended', [], env, binding).result;
-  assert.equal(first.code, 2); assert.match(first.stderr, /^team-messaging ended UNAUTHORIZED: /);
+  assert.equal(first.code, 2); assert.match(first.stderr, /^glab-team messaging ended UNAUTHORIZED: /);
   const second = await rewake(s, f, 'ended', [], env, binding).result;
   assert.equal(second.code, 0); assert.equal(second.stderr, '');
   const manual = await bash(s, f, 'ended', [], tmEnv, binding).result;
@@ -135,7 +135,7 @@ test('the watcher lock is released after a thrown error', async t => {
   t.after(() => { proxy.closeAllConnections(); return new Promise(resolve => proxy.close(resolve)); });
   // AM-2: the token is used only from the join path for the URL in use.
   const via = { url: `http://127.0.0.1:${proxy.address().port}` }, tokenFile = credentialScratch(s, via.url, { name: 'newbie', token });
-  const run = runChannel('watch.mjs', ['--mode', 'rewake', ...s.hook(via, 'thrown', binding), '--poll-s', '1'], s.env(via, { CLAUDE_PLUGIN_OPTION_TOKEN_FILE: tokenFile }), stopInput('thrown'));
+  const run = runChannel('watch.mjs', ['--mode', 'rewake', ...s.hook(via, 'thrown', binding), '--poll-s', '1'], s.env(via, { CLAUDE_PLUGIN_OPTION_MESSAGING_TOKEN_FILE: tokenFile }), stopInput('thrown'));
   await eventually(() => existsSync(watchLock), 4000);
   const hold = setInterval(() => writeFileSync(stateLock, JSON.stringify({ pid: process.pid, created: Date.now() }), { mode: 0o600 }), 200);
   writeFileSync(stateLock, JSON.stringify({ pid: process.pid, created: Date.now() }), { mode: 0o600 });
@@ -181,9 +181,9 @@ test('an unbound watcher exits 5 in bash mode and silently in rewake mode, like 
   const inert = await runChannel('watch.mjs', ['--mode', 'bash', '--session-key', 'k2', '--claude-session', 'k2', '--data-dir', s.data], s.tmEnv(f)).result;
   assert.equal(inert.code, 5, 'the bash watcher names its refusal'); assert.equal(JSON.parse(inert.stderr).error, 'NOT_AGENT_SESSION');
   // Review r2 item 2: the hint matches in-place promotion.
-  assert.equal(JSON.parse(inert.stderr).hint, 'This Claude session is not the agent session of this project; run /team-messaging:claim here; the tools load within a few seconds, reconnect if they do not.');
+  assert.equal(JSON.parse(inert.stderr).hint, 'This Claude session is not the agent session of this project; run /glab-team:messaging-claim here; the tools load within a few seconds, reconnect if they do not.');
   for (const args of [['--project-dir', unbound, '--data-dir', s.data], [...s.hook(f, 'k'), '--claude-session', 'not-the-agent'], s.hook(f, 'k')]) {
-    const env = args.includes('not-the-agent') || args.includes(unbound) ? s.env(f) : s.env(f, { CLAUDE_PLUGIN_OPTION_ARM: 'off' });
+    const env = args.includes('not-the-agent') || args.includes(unbound) ? s.env(f) : s.env(f, { CLAUDE_PLUGIN_OPTION_MESSAGING_ARM: 'off' });
     const quiet = await runChannel('watch.mjs', ['--mode', 'rewake', ...args], env, stopInput('k')).result;
     assert.deepEqual([quiet.code, quiet.stdout, quiet.stderr], [0, '', ''], JSON.stringify(args));
   }
@@ -264,7 +264,7 @@ test('broker error codes and hints never reach wake or diagnostic text', async t
   assert.equal(b1.code, 0); assert.equal(JSON.parse(b1.stderr.split('\n')[0]).error, 'UNKNOWN_ERROR');
   assert.equal(r1.code, 0, 'an invalid code is not terminal and never wakes');
   assert.equal(b2.code, 4); assert.equal(b2.stdout, 'WATCH_ENDED SESSION_ENDED\n');
-  assert.equal(r2.code, 2); assert.equal(r2.stderr, 'team-messaging ended SESSION_ENDED: This plugin binding ended; run /team-messaging:status, then /team-messaging:join or /team-messaging:bind.\n');
+  assert.equal(r2.code, 2); assert.equal(r2.stderr, 'glab-team messaging ended SESSION_ENDED: This plugin binding ended; run /glab-team:messaging-status, then /glab-team:messaging-join or /glab-team:messaging-bind.\n');
   assert.deepEqual(JSON.parse(b3.stderr.split('\n')[0]), { event: 'watch_retry', error: 'MAINTENANCE', hint: 'Check the plugin binding and broker availability.' });
 });
 

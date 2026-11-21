@@ -32,7 +32,7 @@ test('the build succeeds, validates and refuses unsafe output directories', t =>
     }
   }
   const script = fileURLToPath(new URL('../../scripts/build-plugin.mjs', import.meta.url));
-  for (const target of [out, '/tmp/team-messaging-plugin', resolve('/var/team-messaging-plugin')]) {
+  for (const target of [out, '/tmp/glab-team-plugin', resolve('/var/glab-team-plugin')]) {
     const refused = spawnSync(process.execPath, [script, '--out', target], { encoding: 'utf8', env: { ...process.env, TMPDIR: dirname(out) } });
     assert.equal(refused.status, 1, target); assert.match(refused.stderr, /not empty|refusing \/tmp|must be under/);
   }
@@ -51,7 +51,7 @@ test('the build succeeds, validates and refuses unsafe output directories', t =>
 // its first turn to end. The built bundle is checked, not the source.
 test('SessionStart arms the rewake watcher with the Stop watcher\'s command and timeout', () => {
   const hooks = JSON.parse(readFileSync(join(plugin, 'hooks', 'hooks.json'), 'utf8')).hooks;
-  const watcher = { type: 'command', command: 'node', args: ['--use-system-ca', '${CLAUDE_PLUGIN_ROOT}/runtime/channel/watch.mjs', '--mode', 'rewake', '--data-dir', '${CLAUDE_PLUGIN_DATA}', '--project-dir', '${CLAUDE_PROJECT_DIR}'], asyncRewake: true, timeout: HOOK_TIMEOUT_S };
+  const watcher = { type: 'command', command: 'node', args: ['--use-system-ca', '${CLAUDE_PLUGIN_ROOT}/runtime/channel/watch.mjs', '--mode', 'rewake', '--data-dir', '${CLAUDE_PLUGIN_DATA}/messaging', '--project-dir', '${CLAUDE_PROJECT_DIR}'], asyncRewake: true, timeout: HOOK_TIMEOUT_S };
   assert.equal(hooks.SessionStart.length, 1);
   assert.equal(hooks.SessionStart[0].matcher, 'startup|resume|clear|compact|fork');
   assert.deepEqual(hooks.SessionStart[0].hooks.filter(hook => hook.args.some(arg => arg.endsWith('/watch.mjs'))), [watcher]);
@@ -62,8 +62,8 @@ test('SessionStart arms the rewake watcher with the Stop watcher\'s command and 
   // only the project and data directories and reads options from env.
   assert.ok(!readFileSync(join(plugin, 'hooks', 'hooks.json'), 'utf8').includes('${user_config.'), 'no ${user_config.*} in hooks.json');
   for (const hook of Object.values(hooks).flat().flatMap(entry => entry.hooks)) for (const arg of hook.args.filter(value => value.includes('${')))
-    assert.ok(arg.startsWith('${CLAUDE_PLUGIN_ROOT}/runtime/') || ['${CLAUDE_PROJECT_DIR}', '${CLAUDE_PLUGIN_DATA}'].includes(arg), arg);
-  assert.deepEqual(Object.keys(JSON.parse(readFileSync(join(plugin, '.mcp.json'), 'utf8')).mcpServers['team-messaging'].env), ['TM_BROKER_URL', 'TM_TOKEN_FILE', 'TM_MODE', 'TM_ARM']);
+    assert.ok(arg.startsWith('${CLAUDE_PLUGIN_ROOT}/runtime/') || ['${CLAUDE_PROJECT_DIR}', '${CLAUDE_PLUGIN_DATA}/messaging'].includes(arg), arg);
+  assert.deepEqual(Object.keys(JSON.parse(readFileSync(join(plugin, '.mcp.json'), 'utf8')).mcpServers.messaging.env), ['TM_BROKER_URL', 'TM_TOKEN_FILE', 'TM_MODE', 'TM_ARM']);
 });
 
 // 0.11.1 D1 (F2): hooks.md documents the SessionStart sources startup, resume,
@@ -86,7 +86,7 @@ test('every path the manifests and skills name exists, and no runtime import lea
   for (const skill of readdirSync(join(plugin, 'skills'))) {
     const text = readFileSync(join(plugin, 'skills', skill, 'SKILL.md'), 'utf8');
     assert.match(text, new RegExp(`^---\\nname: ${skill}\\n`));
-    for (const command of ['team-messaging-watch', 'team-messaging']) if (new RegExp(`(^|[\\s'])${command} `, 'm').test(text)) accessSync(join(plugin, 'bin', command), constants.X_OK);
+    for (const command of ['glab-team-messaging-watch', 'glab-team-messaging']) if (new RegExp(`(^|[\\s'])${command} `, 'm').test(text)) accessSync(join(plugin, 'bin', command), constants.X_OK);
   }
   const runtime = join(plugin, 'runtime');
   for (const dir of ['channel', 'shared']) for (const file of readdirSync(join(runtime, dir))) {
@@ -105,7 +105,7 @@ test('every path the manifests and skills name exists, and no runtime import lea
 // (manager decision on R-7). The built bundle is checked, not the source.
 test('the scope hook runs on PreToolUse, Stop and StopFailure with --event, --project-dir and --data-dir only', () => {
   const hooks = JSON.parse(readFileSync(join(plugin, 'hooks', 'hooks.json'), 'utf8')).hooks;
-  const scope = event => ({ type: 'command', command: 'node', args: ['--use-system-ca', '${CLAUDE_PLUGIN_ROOT}/runtime/channel/scope-hook.mjs', '--event', event, '--project-dir', '${CLAUDE_PROJECT_DIR}', '--data-dir', '${CLAUDE_PLUGIN_DATA}'], timeout: 10 });
+  const scope = event => ({ type: 'command', command: 'node', args: ['--use-system-ca', '${CLAUDE_PLUGIN_ROOT}/runtime/channel/scope-hook.mjs', '--event', event, '--project-dir', '${CLAUDE_PROJECT_DIR}', '--data-dir', '${CLAUDE_PLUGIN_DATA}/messaging'], timeout: 10 });
   assert.deepEqual(hooks.PreToolUse, [{ matcher: '*', hooks: [scope('pre')] }]);
   assert.equal(Object.hasOwn(hooks.PreToolUse[0].hooks[0], 'onFailure'), false);
   assert.equal(hooks.Stop.length, 1); assert.equal(hooks.Stop[0].hooks.length, 3);
@@ -137,7 +137,7 @@ test('the bundled MCP server answers over stdio in poll mode with plugin hints',
   const create = await b.client.callTool({ name: 'create_topic', arguments: { name: 'bundle' } });
   assert.equal(create.isError, undefined);
   const invite = (await b.client.callTool({ name: 'invite', arguments: { topics: ['bundle'] } })).structuredContent;
-  assert.equal(invite.command, '/team-messaging:join');
+  assert.equal(invite.command, '/glab-team:messaging-join');
   topicHeartbeat(f.broker, 'alice', 'a');
   const sent = f.broker.send('alice', 'a', { to: 'user:bob', body: 'poll only' });
   // The channel polls about once a second; wait for a poll after the send.

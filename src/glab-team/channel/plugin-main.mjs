@@ -2,13 +2,14 @@
 import { realpathSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { agentCheck, resolveBinding, tmOptions } from './plugin-env.mjs';
+import { messagingDataDir } from './project-options.mjs';
 
 // Review r1 R2: importing this module (a test driver, as watch.test.mjs does
 // for watch.mjs) must not start a server; only the entrypoint runs below.
 const entry = process.argv[1] && realpathSync(process.argv[1]) === fileURLToPath(import.meta.url);
 // Checked before importing the server: an older Node cannot load the SDK.
 if (entry && Number(process.versions.node.split('.')[0]) < 24) {
-  console.error(JSON.stringify({ error: 'NODE_VERSION_UNSUPPORTED', hint: 'Install Node.js 24 or later for the team-messaging plugin.' }));
+  console.error(JSON.stringify({ error: 'NODE_VERSION_UNSUPPORTED', hint: 'Install Node.js 24 or later for the glab-team messaging plugin.' }));
   process.exit(1);
 }
 // Plan project-options P-8, P-10. The MCP server is active only in the
@@ -21,10 +22,10 @@ const plugin = entry ? resolveBinding({ options: tmOptions(process.env), claudeS
 if (entry && plugin.state === 'active') {
   const { runStdio } = await import('./main.mjs');
   // Project-scoped sharing P3a: the team-message window marker lives in the
-  // plugin data directory and is keyed by the project root. A missing or
+  // plugin data directory (its messaging/ subfolder) and is keyed by the project root. A missing or
   // relative CLAUDE_PLUGIN_DATA makes every teammate-bearing result
   // SCOPE_WINDOW_UNAVAILABLE (openWindow refuses it), which fails closed.
-  const scope = { dataDir: process.env.CLAUDE_PLUGIN_DATA, session: process.env.CLAUDE_CODE_SESSION_ID, root: plugin.root, user: plugin.user };
+  const scope = { dataDir: messagingDataDir(process.env.CLAUDE_PLUGIN_DATA), session: process.env.CLAUDE_CODE_SESSION_ID, root: plugin.root, user: plugin.user };
   await runStdio(plugin.env, { plugin: true, isActive: agentCheck(plugin, { projectDir: process.env.CLAUDE_PROJECT_DIR, env: process.env }), scope });
 } else if (entry) await runInert(plugin);
 
@@ -50,8 +51,8 @@ export async function runInert(state, { afterStart } = {}) {
   const { Server } = await import('@modelcontextprotocol/sdk/server/index.js');
   const { StdioServerTransport } = await import('@modelcontextprotocol/sdk/server/stdio.js');
   const { CallToolRequestSchema, ListToolsRequestSchema } = await import('@modelcontextprotocol/sdk/types.js');
-  const hint = state.state === 'idle' ? 'This project has no team-messaging binding; run /team-messaging:bind or /team-messaging:join in the session that should be the agent; the tools load within a few seconds, reconnect the MCP server if they do not.'
-    : state.state === 'inert' ? 'This Claude session is not the agent session of this project; only the user can move the agent here with /team-messaging:claim; the tools load within a few seconds, reconnect the MCP server if they do not.'
+  const hint = state.state === 'idle' ? 'This project has no glab-team messaging binding; run /glab-team:messaging-bind or /glab-team:messaging-join in the session that should be the agent; the tools load within a few seconds, reconnect the MCP server if they do not.'
+    : state.state === 'inert' ? 'This Claude session is not the agent session of this project; only the user can move the agent here with /glab-team:messaging-claim; the tools load within a few seconds, reconnect the MCP server if they do not.'
       : `The project binding was refused (${state.code}): ${state.hint}`;
   // Only a fixed code and local text reach stderr, never a path or a token.
   console.error(JSON.stringify({ event: 'plugin_inert', state: state.state, ...(state.code ? { code: state.code } : {}) }));
@@ -62,13 +63,13 @@ export async function runInert(state, { afterStart } = {}) {
   // server that later serves tools in this session.
   const { MESSAGING_RULES } = await import('./server.mjs');
   const { SCOPE_INSTRUCTIONS } = await import('./outbound-scope.mjs');
-  const stateLine = state.state === 'idle' ? 'team-messaging is idle in this project: this session has no team-messaging tools until the user runs /team-messaging:bind or /team-messaging:join here.'
-    : state.state === 'inert' ? 'This Claude session is not the team-messaging agent of this project, so it has no team-messaging tools. Only /team-messaging:claim, bind or join run in this session makes it the agent (a model-run Bash command can do this when Bash is auto-approved; see docs/setup.md).'
-      : `The team-messaging binding of this project was refused (${state.code}): ${state.hint}`;
-  const instructions = stateLine + '\nIf team-messaging tools appear later in this session, these rules apply:\n' + MESSAGING_RULES + '\n' + SCOPE_INSTRUCTIONS;
+  const stateLine = state.state === 'idle' ? 'glab-team messaging is idle in this project: this session has no glab-team messaging tools until the user runs /glab-team:messaging-bind or /glab-team:messaging-join here.'
+    : state.state === 'inert' ? 'This Claude session is not the glab-team messaging agent of this project, so it has no glab-team messaging tools. Only /glab-team:messaging-claim, bind or join run in this session makes it the agent (a model-run Bash command can do this when Bash is auto-approved; see docs/setup.md).'
+      : `The glab-team messaging binding of this project was refused (${state.code}): ${state.hint}`;
+  const instructions = stateLine + '\nIf glab-team messaging tools appear later in this session, these rules apply:\n' + MESSAGING_RULES + '\n' + SCOPE_INSTRUCTIONS;
   // D6: the active capability set, because capabilities cannot be added
   // after connect (SDK server/index.js registerCapabilities).
-  const server = new Server({ name: 'team-messaging', version: VERSION }, { capabilities: { experimental: { 'claude/channel': {} }, tools: { listChanged: true } }, instructions });
+  const server = new Server({ name: 'messaging', version: VERSION }, { capabilities: { experimental: { 'claude/channel': {} }, tools: { listChanged: true } }, instructions });
   // An idle project has its own code; inert and refused bindings share NOT_AGENT_SESSION.
   const refused = { error: state.state === 'idle' ? 'PROJECT_NOT_BOUND' : 'NOT_AGENT_SESSION', hint };
   server.setRequestHandler(ListToolsRequestSchema, () => ({ tools: [] }));
@@ -114,7 +115,7 @@ export async function runInert(state, { afterStart } = {}) {
 async function promote(next, server, { created: onCreated, afterStart } = {}) {
   const { createChannelServer } = await import('./server.mjs');
   const { config } = await import('./config.mjs');
-  const scope = { dataDir: process.env.CLAUDE_PLUGIN_DATA, session: process.env.CLAUDE_CODE_SESSION_ID, root: next.root, user: next.user };
+  const scope = { dataDir: messagingDataDir(process.env.CLAUDE_PLUGIN_DATA), session: process.env.CLAUDE_CODE_SESSION_ID, root: next.root, user: next.user };
   let stopping, channel;
   const stop = () => stopping ??= (async () => { await channel.stop(); await server.close(); })();
   const created = createChannelServer(config(next.env), undefined, { plugin: true, isActive: agentCheck(next, { projectDir: process.env.CLAUDE_PROJECT_DIR, env: process.env }), scope, server, onIdle: stop });

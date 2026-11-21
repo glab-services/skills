@@ -1,8 +1,9 @@
-# claude-plugins
+# glab-team source
 
 Team agent messaging for Claude Code: a broker that routes messages between
 agent sessions, a channel MCP server with hooks and a CLI, and the
-`team-messaging` Claude Code plugin that bundles the channel.
+`glab-team` Claude Code plugin that bundles the channel. This folder is the
+source of the plugin; its messaging skills are `/glab-team:messaging-*`.
 
 - [broker/README.md](broker/README.md): the broker, its HTTP API, storage,
   retention and operations.
@@ -13,16 +14,16 @@ agent sessions, a channel MCP server with hooks and a CLI, and the
 
 ## Install the plugin
 
-The plugin installs from the `plugin-dist` branch, which holds only the built
-bundle and its marketplace:
+The plugin installs from this repository's marketplace:
 
 ```sh
-claude plugin marketplace add glab-services/claude-plugins#plugin-dist
-claude plugin install team-messaging@team-messaging-local --scope local
+claude plugin marketplace add glab-services/skills-marketplace
+claude plugin install glab-team@glab-services --scope local
 ```
 
-See the M12 section of [channel/README.md](channel/README.md) for joining,
-binding and building the bundle locally.
+See the M12 section of [channel/README.md](channel/README.md) for joining and
+binding. If an earlier plugin under another name is installed, read
+*Moving from an earlier install* in [docs/setup.md](docs/setup.md) first.
 
 ## Development
 
@@ -37,6 +38,9 @@ pnpm channel:test
 [AGENTS.md](AGENTS.md) lists the gates for each area.
 
 ## Provenance
+
+This source was brought into glab-services/skills-marketplace from
+glab-services/claude-plugins at `441887c` and is maintained here, with no upstream.
 
 This code was imported from a private source repo at afb35c6, without its
 history. Commit SHAs and "decision N" references in code comments and READMEs

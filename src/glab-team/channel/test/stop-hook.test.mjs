@@ -36,13 +36,13 @@ test('pending messages block the stop once, naming exactly their IDs, without ac
 
 // 0.11.1 F5 (D4, D5): right after a claim the session's MCP server can still
 // be inert. Blocking then opened the strict window for a session with no
-// team-messaging tools, so it could not read or ack the messages. Without a
+// glab-team messaging tools, so it could not read or ack the messages. Without a
 // serving record the hook only tells the user; a stale record (dead pid)
 // counts as not serving.
 test('F5: without a serving MCP server the Stop hook neither blocks, claims nor opens the window, and tells the user to reconnect', async t => {
   const { f } = await pending(t), s = pluginScratch(t), project = s.project(f, 'unserved');
   const window = join(s.data, 'state', `scope-${createHash('sha256').update(realpathSync(project)).digest('hex')}.json`);
-  const notLoaded = JSON.stringify({ systemMessage: "team-messaging: TOOLS_NOT_LOADED: 2 team messages are pending, but this session's team-messaging tools are not loaded, so it was not woken. Wait a few seconds; if the tools do not appear, reconnect the team-messaging MCP server (/mcp, then team-messaging, then Reconnect)." }) + '\n';
+  const notLoaded = JSON.stringify({ systemMessage: "glab-team messaging: TOOLS_NOT_LOADED: 2 team messages are pending, but this session's glab-team messaging tools are not loaded, so it was not woken. Wait a few seconds; if the tools do not appear, reconnect the glab-team messaging MCP server (/mcp, then plugin:glab-team:messaging, then Reconnect)." }) + '\n';
   for (const label of ['no record', 'stale record']) {
     if (label === 'stale record') {
       const child = spawn(process.execPath, ['-e', '0'], { stdio: 'ignore' });
@@ -63,7 +63,7 @@ test('F5: without a serving MCP server the Stop hook neither blocks, claims nor 
 // session (inert) are silent at Stop as well.
 test('stop_hook_active, arm=off, an unbound project and a non-agent session never block', async t => {
   const { f } = await pending(t), s = pluginScratch(t);
-  for (const [key, options] of [['active', { active: true }], ['off', { env: { CLAUDE_PLUGIN_OPTION_ARM: 'off' } }], ['unset', { args: ['--project-dir', s.unbound(), '--data-dir', s.data] }],
+  for (const [key, options] of [['active', { active: true }], ['off', { env: { CLAUDE_PLUGIN_OPTION_MESSAGING_ARM: 'off' } }], ['unset', { args: ['--project-dir', s.unbound(), '--data-dir', s.data] }],
     ['inert', { args: s.hook(f, 'the-agent') }]]) {
     const result = await stop(s, f, key, options).result;
     assert.deepEqual([result.code, result.stdout, result.stderr], [0, '', ''], key);
@@ -160,7 +160,7 @@ test('an insecure state directory gives a systemMessage naming the directory and
   for (const key of ['first', 'second']) {
     const result = await stop(s, f, key).result;
     assert.equal(result.code, 0);
-    assert.deepEqual(JSON.parse(result.stdout), { systemMessage: `team-messaging: INSECURE_CREDENTIAL_DIR: ${hint}` });
+    assert.deepEqual(JSON.parse(result.stdout), { systemMessage: `glab-team messaging: INSECURE_CREDENTIAL_DIR: ${hint}` });
     assert.equal(result.stdout.split('\n').length, 2, 'exactly one JSON line');
     assert.ok(!result.stdout.includes('decision'), 'never blocks');
     assert.deepEqual(JSON.parse(result.stderr), { event: 'stop_hook_unavailable', error: 'INSECURE_CREDENTIAL_DIR', hint });

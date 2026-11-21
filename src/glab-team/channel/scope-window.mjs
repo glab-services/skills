@@ -4,12 +4,12 @@
 // returns teammate content (server.mjs); SessionStart opens it when pending
 // messages go into the context (plugin-session-start.mjs), and the watcher
 // and Stop hook before they wake a turn for teammate messages. It closes at
-// Stop and StopFailure once nothing is pending, through `team-messaging
+// Stop and StopFailure once nothing is pending, through `glab-team-messaging
 // scope-close`, or 2 h after the last teammate content opened it.
 //
 // FD-1: the marker is keyed by the project root, not the Claude session, so a
 // /clear or a second session in the same checkout cannot step outside it:
-// ${CLAUDE_PLUGIN_DATA}/state/scope-<sha256(realpath root)>.json, mode 0600,
+// ${CLAUDE_PLUGIN_DATA}/messaging/state/scope-<sha256(realpath root)>.json, mode 0600,
 // {v:1, since, opened, root, claude_session_id}. The session id is kept for
 // diagnostics only; the hook never uses it to skip a check.
 import { closeSync, constants, fsyncSync, linkSync, lstatSync, openSync, readFileSync, readdirSync, realpathSync, renameSync, unlinkSync, writeFileSync } from 'node:fs';

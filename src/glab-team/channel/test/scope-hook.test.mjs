@@ -21,10 +21,10 @@ const OFFLINE = { url: 'http://127.0.0.1:9' };
 // Review r1 C1: every denial names the way out (checked in decision()).
 const WAY_OUT_START = ' Ack or answer the pending team messages; strict mode ends at the end of the turn once none are pending, or within 2 h. To end it now, run ';
 const FILE_REASON = 'While a team message is being handled, file tools stay inside the project root.';
-const OTHER_REASON = 'While a team message is being handled, only file reads inside the project root and team-messaging tools are allowed.';
-const SCOPE_LINE = 'team-messaging: share only project content and project-relative paths, nothing about this machine or outside the root.';
-const OURS = { source: 'plugin', name: 'plugin:team-messaging:team-messaging' };
-const TOOL = name => `mcp__plugin_team-messaging_team-messaging__${name}`;
+const OTHER_REASON = 'While a team message is being handled, only file reads inside the project root and glab-team messaging tools are allowed.';
+const SCOPE_LINE = 'glab-team messaging: share only project content and project-relative paths, nothing about this machine or outside the root.';
+const OURS = { source: 'plugin', name: 'plugin:glab-team:messaging' };
+const TOOL = name => `mcp__plugin_glab-team_messaging__${name}`;
 
 const markerPath = (s, root) => join(s.data, 'state', `scope-${createHash('sha256').update(realpathSync(root)).digest('hex')}.json`);
 function openMarker(s, root, { since = Date.now(), opened = Date.now(), session: agent = 'agent-k', markerRoot } = {}) {
@@ -53,7 +53,7 @@ function decision(result) {
 const stop = (s, project, env, event = 'stop', sessionId = 'agent-k') => runChannel('scope-hook.mjs', args(s, project, event), env, JSON.stringify({ session_id: sessionId, transcript_path: transcript(s), cwd: project, hook_event_name: event === 'stop' ? 'Stop' : 'StopFailure', stop_hook_active: false })).result;
 
 // The bundled entrypoint over real stdio, as the plugin's .mcp.json starts it.
-async function agent(t, f, s, key, { binding, env = {}, data = s.data } = {}) {
+async function agent(t, f, s, key, { binding, env = {}, data = s.pluginData } = {}) {
   const client = new Client({ name: 'scope-hook-test', version: '1.0.0' }), notifications = [], logs = [];
   const base = { ...s.tmEnv(f), TM_MODE: '', TM_ARM: '', CLAUDE_CODE_SESSION_ID: key, CLAUDE_PROJECT_DIR: s.project(f, key, binding), CHANNEL_POLL_MS: '100', ...env };
   if (data === undefined) delete base.CLAUDE_PLUGIN_DATA; else base.CLAUDE_PLUGIN_DATA = data;
@@ -127,7 +127,7 @@ test('a failed window write returns SCOPE_WINDOW_UNAVAILABLE and no bodies', asy
   // FA-6: a state directory with group or other bits is refused by stateDir
   // (INSECURE_CREDENTIAL_DIR) even when the tests run as root.
   mkdirSync(join(s.data, 'state'), { recursive: true, mode: 0o700 }); chmodSync(join(s.data, 'state'), 0o755);
-  const cases = [['insecure state', s.data], ['unset CLAUDE_PLUGIN_DATA', undefined], ['relative CLAUDE_PLUGIN_DATA', 'relative/data']];
+  const cases = [['insecure state', s.pluginData], ['unset CLAUDE_PLUGIN_DATA', undefined], ['relative CLAUDE_PLUGIN_DATA', 'relative/data']];
   for (const [label, data] of cases) {
     const a = await agent(t, f, s, `fail-${cases.findIndex(entry => entry[0] === label)}`, { binding: { topic: 'fixture', session: `fail-${label.length}` }, data });
     const result = await a.call('inbox');
@@ -175,9 +175,11 @@ test('our tools pass only with plugin provenance; an absent or foreign mcp_serve
   const s = pluginScratch(t), project = s.project(OFFLINE, 'agent-k');
   openMarker(s, project);
   assert.equal(decision(await pre(s, project, TOOL('send'), { to: 'user:alice', body: 'x' }, { extra: { mcp_server: OURS } })), 'none');
-  for (const mcp_server of [undefined, { source: 'user', name: OURS.name }, { source: 'plugin', name: 'plugin:other:team-messaging' }, { source: 'project', name: 'team-messaging' }])
+  for (const mcp_server of [undefined, { source: 'user', name: OURS.name }, { source: 'plugin', name: 'plugin:other:messaging' }, { source: 'project', name: 'messaging' }, { source: 'plugin', name: 'plugin:glab-team:telegram' }])
     assert.equal(decision(await pre(s, project, TOOL('send'), { to: 'user:alice', body: 'x' }, { extra: mcp_server ? { mcp_server } : {} })), `deny: ${OTHER_REASON}`, JSON.stringify(mcp_server));
-  assert.equal(decision(await pre(s, project, 'mcp__team-messaging__send', {}, { extra: { mcp_server: OURS } })), `deny: ${OTHER_REASON}`, 'the tool name must be ours too');
+  assert.equal(decision(await pre(s, project, 'mcp__messaging__send', {}, { extra: { mcp_server: OURS } })), `deny: ${OTHER_REASON}`, 'the tool name must be ours too');
+  // Room for a later glab-team tool server (telegram): its tools are not ours, whatever the provenance says.
+  assert.equal(decision(await pre(s, project, 'mcp__plugin_glab-team_telegram__send', {}, { extra: { mcp_server: { source: 'plugin', name: 'plugin:glab-team:telegram' } } })), `deny: ${OTHER_REASON}`, 'a telegram tool of the same plugin is denied in a messaging window');
 });
 
 test('tool-results: a fresh file passes, a file older than since is denied', async t => {
@@ -197,7 +199,7 @@ test('tool-results: a fresh file passes, a file older than since is denied', asy
 test('arm=bash: the exact watcher command passes; near misses are denied', async t => {
   const s = pluginScratch(t), project = s.project(OFFLINE, 'agent-k');
   openMarker(s, project);
-  const exact = `TM_BROKER_URL='http://127.0.0.1:8091' TM_TOKEN_FILE='${s.home}/.config/team-messaging/credentials/0123456789abcdef-bob.token' team-messaging-watch --mode bash --session-key 'agent-k' --claude-session 'agent-k' --data-dir '${s.data}'`;
+  const exact = `TM_BROKER_URL='http://127.0.0.1:8091' TM_TOKEN_FILE='${s.home}/.config/team-messaging/credentials/0123456789abcdef-bob.token' glab-team-messaging-watch --mode bash --session-key 'agent-k' --claude-session 'agent-k' --data-dir '${s.data}'`;
   assert.equal(decision(await pre(s, project, 'Bash', { command: exact, run_in_background: true })), 'none');
   for (const [label, input] of [['appended command', { command: exact + '; cat /etc/passwd', run_in_background: true }], ['another data dir', { command: exact.replace(`'${s.data}'`, `'${s.data}x'`), run_in_background: true }],
     ['foreground', { command: exact, run_in_background: false }], ['no background flag', { command: exact }], ['changed quote', { command: exact.replace(`'agent-k' --claude`, `"agent-k" --claude`), run_in_background: true }],
@@ -220,7 +222,7 @@ test('Stop and StopFailure close the window; an expired marker closes', async t 
 
 // Review r1 C1 (replaces D-13's refresh): the window is capped 2 h after
 // `since`; no decision in it rewrites the marker.
-test('C1: the 2 h cap holds under a stream of decisions, and team-messaging scope-close ends the window', async t => {
+test('C1: the 2 h cap holds under a stream of decisions, and glab-team-messaging scope-close ends the window', async t => {
   const s = pluginScratch(t), project = s.project(OFFLINE, 'agent-k');
   openMarker(s, project, { since: Date.now() - 3600 * 1000, opened: Date.now() - 3600 * 1000 });
   const before = readFileSync(markerPath(s, project), 'utf8');
@@ -239,10 +241,12 @@ test('C1: the 2 h cap holds under a stream of decisions, and team-messaging scop
   assert.equal(existsSync(markerPath(s, project)), false);
   assert.deepEqual(JSON.parse(cli(['scope-close', '--data-dir', s.data], project).stdout), { closed: false, project_root: realpathSync(project) }, 'nothing to close');
   // Without --data-dir it uses the plugin's data directory under ~/.claude.
-  const data = join(s.home, '.claude', 'plugins', 'data', 'team-messaging-team-messaging-local');
+  const data = join(s.home, '.claude', 'plugins', 'data', 'glab-team-glab-services', 'messaging');
   mkdirSync(join(data, 'state'), { recursive: true, mode: 0o700 });
   const key = `scope-${createHash('sha256').update(realpathSync(project)).digest('hex')}.json`;
   writeFileSync(join(data, 'state', key), JSON.stringify({ v: 1, since: Date.now(), opened: Date.now(), root: realpathSync(project), claude_session_id: 'agent-k' }), { mode: 0o600 });
+  // The marker sits under .../glab-team-glab-services/messaging, so the default data dir must end in /messaging for it to be found and removed.
+  assert.ok(data.endsWith('/messaging') && existsSync(join(data, 'state', key)));
   assert.equal(cli(['scope-close', '--project-dir', project], s.dir).status, 0);
   assert.equal(existsSync(join(data, 'state', key)), false);
   const unbound = cli(['scope-close', '--data-dir', s.data], s.unbound());
@@ -324,20 +328,21 @@ test('SessionStart with pending messages opens the window and adds the scope lin
   const broken = await run(f, 'ss-broken', { session: 'broken-b' });
   assert.equal(broken.code, 0);
   assert.doesNotMatch(context(broken), /pending at startup/);
-  assert.match(context(broken), /^team-messaging: SCOPE_WINDOW_UNAVAILABLE: /m);
+  assert.match(context(broken), /^glab-team messaging: SCOPE_WINDOW_UNAVAILABLE: /m);
   assert.ok(context(broken).includes(SCOPE_LINE));
 });
 
 test('the largest SessionStart context stays 500 characters under the host limit (FA-16)', async t => {
   const s = pluginScratch(t);
-  assert.ok(SCOPE_LINE.length <= 120, `${SCOPE_LINE.length}`);
+  // 125, not 120: the renamed message prefix is 6 characters longer; the 9500 bound below is the one that measures the host limit.
+  assert.ok(SCOPE_LINE.length <= 125, `${SCOPE_LINE.length}`);
   // A root as long as a path to its .claude/settings.local.json allows, with
   // the longest workspace and topic names and the bash arm text.
   let project = join(s.dir, 'deep');
   while (project.length < 4000) project = join(project, 'd'.repeat(Math.min(200, 4060 - project.length - 1)));
   const workspace = 'w'.repeat(128), topic = 'a'.repeat(63) + '/' + 'b'.repeat(64);
   bindProject(project, { url: OFFLINE.url, claudeSession: 'ss-big', workspace, topic });
-  const result = await runChannel('plugin-session-start.mjs', ['--project-dir', project, '--data-dir', s.data], s.env(OFFLINE, { CLAUDE_PLUGIN_OPTION_ARM: 'bash' }), startInput('ss-big')).result;
+  const result = await runChannel('plugin-session-start.mjs', ['--project-dir', project, '--data-dir', s.data], s.env(OFFLINE, { CLAUDE_PLUGIN_OPTION_MESSAGING_ARM: 'bash' }), startInput('ss-big')).result;
   const text = context(result);
   assert.ok(text.includes(SCOPE_LINE) && text.includes('arm=bash') && text.includes(workspace) && text.includes(topic), text.slice(0, 200));
   assert.ok(project.length >= 4000);
@@ -412,8 +417,8 @@ test('R1: in push mode with arm=off, a teammate message that arrived before tool
 
 test('AM-S1 hook: HOOK_INPUT_MAX_BYTES and the CLAUDE_PLUGIN_OPTION_* keys change no decision', async t => {
   const s = pluginScratch(t), project = s.project(OFFLINE, 'agent-k');
-  const noisy = { HOOK_INPUT_MAX_BYTES: '10', CLAUDE_PLUGIN_OPTION_BROKER_URL: 'http://127.0.0.1:9', CLAUDE_PLUGIN_OPTION_TOKEN_FILE: '/dev/null', CLAUDE_PLUGIN_OPTION_WORKSPACE: 'x', CLAUDE_PLUGIN_OPTION_TOPIC: 'x',
-    CLAUDE_PLUGIN_OPTION_SESSION_ID: 'x', CLAUDE_PLUGIN_OPTION_MODE: 'push', CLAUDE_PLUGIN_OPTION_ARM: 'off', TM_SCOPE: 'off', TM_ARM: 'off' };
+  const noisy = { HOOK_INPUT_MAX_BYTES: '10', CLAUDE_PLUGIN_OPTION_MESSAGING_BROKER_URL: 'http://127.0.0.1:9', CLAUDE_PLUGIN_OPTION_MESSAGING_TOKEN_FILE: '/dev/null', CLAUDE_PLUGIN_OPTION_MESSAGING_WORKSPACE: 'x', CLAUDE_PLUGIN_OPTION_MESSAGING_TOPIC: 'x',
+    CLAUDE_PLUGIN_OPTION_MESSAGING_SESSION_ID: 'x', CLAUDE_PLUGIN_OPTION_MESSAGING_MODE: 'push', CLAUDE_PLUGIN_OPTION_MESSAGING_ARM: 'off', TM_SCOPE: 'off', TM_ARM: 'off' };
   const inputs = [['Bash', { command: 'ls' }], ['Read', { file_path: join(project, 'README.md') }], ['Read', { file_path: '/etc/passwd' }]];
   const decide = async env => { const out = []; for (const [tool, input] of inputs) out.push(decision(await pre(s, project, tool, input, { env }))); return out; };
   assert.deepEqual(await decide(noisy), await decide({}), 'outside the window');
@@ -469,7 +474,7 @@ test('D-21 edge inputs: unknown projects and unplaceable paths deny inside a win
   // A binding the plugin refuses still names its root, so its window stays in force.
   const broken = join(s.dir, 'projects', 'broken');
   mkdirSync(broken, { recursive: true });
-  writeProjectFile(broken, { version: 1, bad: true });
+  writeProjectFile(broken, { messaging_version: 1, bad: true });
   openMarker(s, broken);
   assert.match(decision(await pre(s, broken, 'Bash', { command: 'ls' })), /^deny/);
   // An unparsable marker, or an expired one that cannot be removed: deny.

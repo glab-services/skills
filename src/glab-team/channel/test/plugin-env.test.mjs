@@ -4,10 +4,11 @@ import { spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { agentCheck, directoryProblem, hookArgs, localError, resolveBinding, unsafeOption } from '../plugin-env.mjs';
-import { normaliseUrl } from '../cli.mjs';
+import { PLUGIN_DATA_NAME, normaliseUrl } from '../cli.mjs';
 import { pluginAdapter } from '../plugin-config.mjs';
 import { ChannelError, config } from '../config.mjs';
-import { bindProject, credentialScratch, pluginScratch, writeProjectFile } from './helpers.mjs';
+import { bindProject, credentialScratch, pluginScratch, runChannel, writeProjectFile } from './helpers.mjs';
+import { DATA_SUBDIR, messagingDataDir } from '../project-options.mjs';
 import { credentialPath } from '../credentials.mjs';
 
 // Plan project-options P-17: resolveBinding replaced pluginEnv. The option
@@ -44,11 +45,11 @@ test('a broker URL or option that could leave the skills\' shell quotes is refus
 test('every skill shell command keeps the widest allowed option values inert', async t => {
   const s = pluginScratch(t), bin = join(s.dir, 'bin'), record = join(s.dir, 'calls.jsonl'), marker = join(s.dir, 'INJECTED-RAN');
   mkdirSync(bin, { mode: 0o700 });
-  for (const name of ['team-messaging', 'team-messaging-watch'])
+  for (const name of ['glab-team-messaging', 'glab-team-messaging-watch'])
     writeFileSync(join(bin, name), `#!${process.execPath}\nrequire('node:fs').appendFileSync(${JSON.stringify(record)}, JSON.stringify({ name: ${JSON.stringify(name)}, args: process.argv.slice(2), env: Object.fromEntries(Object.entries(process.env).filter(([k]) => k.startsWith('TM_'))) }) + '\\n');\n`, { mode: 0o700 });
-  const values = { broker_url: 'https://h.example:8443/a-b_c.d~e%20/[x]', token_file: '/home/u/.config/team-messaging/credentials/a-b_c.d~e%2F.token', workspace: 'w-1.x_', topic: 'a/b-c.d', session_id: 'claude-plugin-0_a.b-c', mode: 'push', arm: 'bash' };
-  assert.equal(unsafeOption(Object.fromEntries(Object.entries(values).map(([k, v]) => [k.toUpperCase(), v]))), null, 'these values pass the write and load checks');
-  const render = text => text.replace(/\$\{user_config\.([a-z_]+)\}/g, (_, key) => values[key]).replaceAll('${CLAUDE_SESSION_ID}', 'sess-1').replaceAll('${CLAUDE_PLUGIN_DATA}', s.data);
+  const values = { messaging_broker_url: 'https://h.example:8443/a-b_c.d~e%20/[x]', messaging_token_file: '/home/u/.config/team-messaging/credentials/a-b_c.d~e%2F.token', messaging_mode: 'push', messaging_arm: 'bash' };
+  assert.equal(unsafeOption(Object.fromEntries(Object.entries(values).map(([k, v]) => [k.replace(/^messaging_/, '').toUpperCase(), v]))), null, 'these values pass the write and load checks');
+  const render = text => text.replace(/\$\{user_config\.([a-z_]+)\}/g, (_, key) => values[key]).replaceAll('${CLAUDE_SESSION_ID}', 'sess-1').replaceAll('${CLAUDE_PLUGIN_DATA}', s.pluginData);
   let commands = 0;
   for (const skill of readdirSync(new URL('../../plugin/skills/', import.meta.url))) {
     const text = readFileSync(new URL(`../../plugin/skills/${skill}/SKILL.md`, import.meta.url), 'utf8');
@@ -62,11 +63,11 @@ test('every skill shell command keeps the widest allowed option values inert', a
   assert.equal(commands, 3, 'claim, status and watch interpolate options into shell commands');
   const calls = readFileSync(record, 'utf8').trim().split('\n').map(line => JSON.parse(line));
   // Plan project-options AM-1: only the credential options; the binding comes from the project file.
-  for (const call of calls) assert.deepEqual(call.env, { TM_BROKER_URL: values.broker_url, TM_TOKEN_FILE: values.token_file });
-  assert.deepEqual(calls.find(call => call.name === 'team-messaging-watch').args, ['--mode', 'bash', '--session-key', 'sess-1', '--claude-session', 'sess-1', '--data-dir', s.data]);
-  assert.deepEqual(calls.filter(call => call.name === 'team-messaging').map(call => call.args).sort(), [['claim', '--claude-session', 'sess-1', '--data-dir', s.data], ['status', '--claude-session', 'sess-1', '--data-dir', s.data]]);
+  for (const call of calls) assert.deepEqual(call.env, { TM_BROKER_URL: values.messaging_broker_url, TM_TOKEN_FILE: values.messaging_token_file });
+  assert.deepEqual(calls.find(call => call.name === 'glab-team-messaging-watch').args, ['--mode', 'bash', '--session-key', 'sess-1', '--claude-session', 'sess-1', '--data-dir', s.data]);
+  assert.deepEqual(calls.filter(call => call.name === 'glab-team-messaging').map(call => call.args).sort(), [['claim', '--claude-session', 'sess-1', '--data-dir', s.data], ['status', '--claude-session', 'sess-1', '--data-dir', s.data]]);
   // The reviewer's payload, if it ever reached a skill, would run: this is why it is refused above.
-  const unsafe = spawnSync('/bin/sh', ['-c', `TM_BROKER_URL='${payload.replace('>&2', `>${marker}`)}' team-messaging status`], { env: { PATH: bin }, cwd: s.dir });
+  const unsafe = spawnSync('/bin/sh', ['-c', `TM_BROKER_URL='${payload.replace('>&2', `>${marker}`)}' glab-team-messaging status`], { env: { PATH: bin }, cwd: s.dir });
   assert.equal(unsafe.status, 0); assert.ok(existsSync(marker), 'the control payload executes when not refused');
 });
 
@@ -77,18 +78,18 @@ test('every skill shell command keeps the widest allowed option values inert', a
 // the user can start claim.
 test('skills quote only the session id, the data dir and saved options, and claim is user-only', () => {
   const skills = readdirSync(new URL('../../plugin/skills/', import.meta.url));
-  assert.deepEqual(skills.sort(), ['bind', 'claim', 'join', 'status', 'watch']);
+  assert.deepEqual(skills.sort(), ['messaging-bind', 'messaging-claim', 'messaging-join', 'messaging-status', 'messaging-watch']);
   for (const skill of skills) {
     const text = readFileSync(new URL(`../../plugin/skills/${skill}/SKILL.md`, import.meta.url), 'utf8');
-    for (const [quoted] of text.matchAll(/'[^'\n]*'/g)) if (quoted.includes('$')) assert.match(quoted, /^'\$\{(CLAUDE_SESSION_ID|CLAUDE_PLUGIN_DATA|user_config\.[a-z_]+)\}'$/, `${skill}: ${quoted}`);
+    for (const [quoted] of text.matchAll(/'[^'\n]*'/g)) if (quoted.includes('$')) assert.match(quoted, /^'\$\{(CLAUDE_SESSION_ID|user_config\.[a-z_]+)\}'$|^'\$\{CLAUDE_PLUGIN_DATA\}\/messaging'$/, `${skill}: ${quoted}`);
     for (const forbidden of ['$(pwd', '`pwd', '${CLAUDE_PROJECT_DIR}', '$PWD']) assert.ok(!text.includes(forbidden), `${skill}: ${forbidden}`);
     // Every plugin command runs for this Claude session and finds its project itself.
-    for (const [, block] of text.matchAll(/```sh\n([\s\S]*?)```/g)) if (/(^|\s)team-messaging(-watch)? /.test(block))
-      assert.ok(block.includes("--claude-session '${CLAUDE_SESSION_ID}'") && block.includes("--data-dir '${CLAUDE_PLUGIN_DATA}'"), `${skill}: ${block}`);
+    for (const [, block] of text.matchAll(/```sh\n([\s\S]*?)```/g)) if (/(^|\s)glab-team-messaging(-watch)? /.test(block))
+      assert.ok(block.includes("--claude-session '${CLAUDE_SESSION_ID}'") && block.includes("--data-dir '${CLAUDE_PLUGIN_DATA}/messaging'"), `${skill}: ${block}`);
   }
-  const claim = readFileSync(new URL('../../plugin/skills/claim/SKILL.md', import.meta.url), 'utf8');
-  assert.match(claim, /^---\nname: claim\n[\s\S]*?\ndisable-model-invocation: true\n[\s\S]*?---\n/);
-  for (const skill of skills.filter(name => name !== 'claim')) assert.ok(!readFileSync(new URL(`../../plugin/skills/${skill}/SKILL.md`, import.meta.url), 'utf8').includes('disable-model-invocation'), skill);
+  const claim = readFileSync(new URL('../../plugin/skills/messaging-claim/SKILL.md', import.meta.url), 'utf8');
+  assert.match(claim, /^---\nname: messaging-claim\n[\s\S]*?\ndisable-model-invocation: true\n[\s\S]*?---\n/);
+  for (const skill of skills.filter(name => name !== 'messaging-claim')) assert.ok(!readFileSync(new URL(`../../plugin/skills/${skill}/SKILL.md`, import.meta.url), 'utf8').includes('disable-model-invocation'), skill);
 });
 
 // Decision 148: only the local writable-ancestor error, which carries `dir`,
@@ -98,19 +99,20 @@ test('localError passes through only the local directory hint, and directoryProb
   assert.deepEqual(localError(local, 'fallback'), { code: 'INSECURE_CREDENTIAL_DIR', hint: local.hint });
   assert.deepEqual(localError(new ChannelError('INSECURE_CREDENTIAL_DIR', 'broker text'), 'fallback'), { code: 'INSECURE_CREDENTIAL_DIR', hint: 'fallback' });
   assert.deepEqual(localError(Object.assign(new Error('x'), { code: 'INSECURE_CREDENTIAL_DIR', dir: '/x', hint: 'not local' }), 'fallback').hint, 'fallback');
-  assert.equal(directoryProblem(localError(local, 'fallback')), `team-messaging: INSECURE_CREDENTIAL_DIR: ${local.hint}`);
-  assert.equal(directoryProblem({ code: 'DATA_DIR_REQUIRED', hint: 'h' }), 'team-messaging: DATA_DIR_REQUIRED: h');
+  assert.equal(directoryProblem(localError(local, 'fallback')), `glab-team messaging: INSECURE_CREDENTIAL_DIR: ${local.hint}`);
+  assert.equal(directoryProblem({ code: 'DATA_DIR_REQUIRED', hint: 'h' }), 'glab-team messaging: DATA_DIR_REQUIRED: h');
   for (const code of ['BROKER_UNAVAILABLE', 'INSECURE_TOKEN_FILE', undefined]) assert.equal(directoryProblem({ code, hint: 'h' }), null);
 });
 
 // Plan project-options AM-1: the hook args carry only the project and data
 // directories; "" and an unsubstituted ${...} literal mean unset.
 test('hookArgs accepts only --project-dir and --data-dir, each once, and reads options only from CLAUDE_PLUGIN_OPTION_*', () => {
-  const env = { CLAUDE_PLUGIN_OPTION_BROKER_URL: 'https://b.example', CLAUDE_PLUGIN_OPTION_TOKEN_FILE: '${user_config.token_file}', CLAUDE_PLUGIN_OPTION_MODE: '', CLAUDE_PLUGIN_OPTION_WORKSPACE: 'old',
-    TM_TOKEN_FILE: '/leak.token', TM_ARM: 'off', TM_WORKSPACE: 'leak', CLAUDE_PLUGIN_OPTION_SESSION_ID: 'ignored', CLAUDE_PLUGIN_OPTION_TOPIC: 'ignored' };
-  assert.deepEqual(hookArgs(['--project-dir', '/p', '--data-dir', '/d'], env), { projectDir: '/p', dataDir: '/d', options: { broker_url: 'https://b.example', token_file: '', mode: '', arm: '', workspace: 'old' } });
-  assert.deepEqual(hookArgs(['--project-dir', '${CLAUDE_PROJECT_DIR}', '--data-dir', ''], {}), { projectDir: undefined, dataDir: undefined, options: { broker_url: '', token_file: '', mode: '', arm: '', workspace: '' } });
-  assert.deepEqual(hookArgs([], {}).options, { broker_url: '', token_file: '', mode: '', arm: '', workspace: '' });
+  const env = { CLAUDE_PLUGIN_OPTION_MESSAGING_BROKER_URL: 'https://b.example', CLAUDE_PLUGIN_OPTION_MESSAGING_TOKEN_FILE: '${user_config.messaging_token_file}', CLAUDE_PLUGIN_OPTION_MESSAGING_MODE: '', CLAUDE_PLUGIN_OPTION_MESSAGING_WORKSPACE: 'ignored',
+    TM_TOKEN_FILE: '/leak.token', TM_ARM: 'off', TM_WORKSPACE: 'leak', CLAUDE_PLUGIN_OPTION_MESSAGING_SESSION_ID: 'ignored', CLAUDE_PLUGIN_OPTION_MESSAGING_TOPIC: 'ignored' };
+  assert.deepEqual(hookArgs(['--project-dir', '/p', '--data-dir', '/d'], env), { projectDir: '/p', dataDir: '/d', options: { broker_url: 'https://b.example', token_file: '', mode: '', arm: '' } });
+  assert.deepEqual(hookArgs(['--project-dir', '${CLAUDE_PROJECT_DIR}', '--data-dir', ''], {}), { projectDir: undefined, dataDir: undefined, options: { broker_url: '', token_file: '', mode: '', arm: '' } });
+  assert.deepEqual(hookArgs([], {}).options, { broker_url: '', token_file: '', mode: '', arm: '' });
+  assert.equal(hookArgs(['--data-dir', '${CLAUDE_PLUGIN_DATA}/messaging'], {}).dataDir, undefined);
   for (const argv of [['--project-dir'], ['--project-dir', '/a', '--project-dir', '/b'], ['--opt-broker_url', 'x'], ['--mode', 'rewake'], ['/p']])
     assert.throws(() => hookArgs(argv, {}), { code: 'INVALID_HOOK_ARGS' }, JSON.stringify(argv));
 });
@@ -186,7 +188,7 @@ test('agentCheck demotes on another agent or a bad MAC at once, and on a missing
   clock = 0; still = check();
   bindProject(project, { url, claudeSession: 'agent', mac: 'b'.repeat(64) }); assert.equal(still(), false, 'a parsed file whose MAC fails');
   restore(); still = check();
-  writeProjectFile(project, JSON.parse(good).pluginConfigs['team-messaging@team-messaging-local'].options, { other: { permissions: {} } });
+  writeProjectFile(project, JSON.parse(good).pluginConfigs['glab-team@glab-services'].options, { other: { permissions: {} } });
   assert.equal(still(), true, 'a rewrite that keeps the binding and MAC');
 });
 
@@ -197,5 +199,36 @@ test('the reported server version is the plugin release', async () => {
   const json = path => JSON.parse(readFileSync(new URL(path, import.meta.url), 'utf8'));
   const lock = json('../../plugin/package-lock.json');
   assert.deepEqual([json('../../plugin/.claude-plugin/plugin.json').version, json('../../plugin/package.json').version, lock.version, lock.packages[''].version], [VERSION, VERSION, VERSION, VERSION]);
-  assert.equal(VERSION, '0.11.1');
+  assert.equal(VERSION, '0.12.0');
+});
+
+// The plugin's files live under <plugin data>/messaging so a later glab-team
+// tool (telegram) can keep its own folder beside it. Every manifest passes the
+// subfolder as --data-dir, and nothing may write beside it.
+test('the plugin keeps its data under messaging/: every hook and skill passes ${CLAUDE_PLUGIN_DATA}/messaging, and a SessionStart run writes nothing beside it', async t => {
+  const hooks = JSON.parse(readFileSync(new URL('../../plugin/hooks/hooks.json', import.meta.url), 'utf8')).hooks;
+  const commands = Object.values(hooks).flat().flatMap(entry => entry.hooks);
+  const dataArgs = commands.flatMap(hook => hook.args.flatMap((arg, i) => arg === '--data-dir' ? [hook.args[i + 1]] : []));
+  assert.equal(dataArgs.length, 7, 'every hook passes --data-dir');
+  for (const value of dataArgs) assert.equal(value, '${CLAUDE_PLUGIN_DATA}/' + DATA_SUBDIR);
+  let skillCommands = 0;
+  for (const skill of readdirSync(new URL('../../plugin/skills/', import.meta.url))) {
+    const text = readFileSync(new URL(`../../plugin/skills/${skill}/SKILL.md`, import.meta.url), 'utf8');
+    for (const [, block] of text.matchAll(/```sh\n([\s\S]*?)```/g)) if (block.includes('--data-dir')) {
+      skillCommands++;
+      assert.ok(block.includes("--data-dir '${CLAUDE_PLUGIN_DATA}/messaging'"), `${skill}: ${block}`);
+    }
+  }
+  assert.equal(skillCommands, 5, 'every skill command passes --data-dir');
+  assert.equal(PLUGIN_DATA_NAME, 'glab-team-glab-services', 'derived from PLUGIN_ID by replacing characters outside [A-Za-z0-9_-]');
+  assert.equal(messagingDataDir('/abs'), '/abs/messaging');
+  assert.equal(messagingDataDir(undefined), undefined);
+  assert.equal(messagingDataDir('rel'), 'rel/messaging');
+  // Run the SessionStart hook with its own manifest args, the host's substitutions applied.
+  const s = pluginScratch(t), start = commands.find(hook => hook.args.some(arg => arg.endsWith('/plugin-session-start.mjs')));
+  const args = start.args.slice(2).map(arg => arg.replaceAll('${CLAUDE_PLUGIN_DATA}', s.pluginData).replaceAll('${CLAUDE_PROJECT_DIR}', s.unbound()));
+  const input = JSON.stringify({ hook_event_name: 'SessionStart', session_id: 'sess-data', source: 'startup' });
+  const result = await runChannel('plugin-session-start.mjs', args, s.env({ url: 'http://127.0.0.1:9' }), input).result;
+  assert.equal(result.code, 0, result.stderr);
+  assert.deepEqual(readdirSync(s.pluginData), ['messaging'], 'nothing is written beside messaging/');
 });

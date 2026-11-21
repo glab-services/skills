@@ -28,7 +28,7 @@ const PENDING_DEADLINE_MS = 5000;
 const SESSION = /^[A-Za-z0-9_.-]{1,128}$/;
 const EVENTS = new Set(['pre', 'stop', 'stop-failure']);
 const FILE_REASON = 'While a team message is being handled, file tools stay inside the project root.';
-const OTHER_REASON = 'While a team message is being handled, only file reads inside the project root and team-messaging tools are allowed.';
+const OTHER_REASON = 'While a team message is being handled, only file reads inside the project root and glab-team messaging tools are allowed.';
 // Review r1 C1, r2 CC4: every denial names the way out of strict mode as a
 // command that runs from a plain terminal: this runtime's own cli.mjs (next
 // to this file, so no PATH entry is needed), the project root and the data
@@ -43,8 +43,11 @@ function wayOut(dataDir, root) {
 }
 // D-16: the tool-name prefix Claude Code gives a plugin server's tools, and
 // the provenance it reports for ours (findings 1.1, McpServerProvenance).
-const OUR_PREFIX = 'mcp__plugin_team-messaging_team-messaging__';
-const OUR_SERVER = 'plugin:team-messaging:team-messaging';
+// Only the `messaging` server's tools are ours: a window confines the agent to
+// messaging, so a later glab-team tool server (telegram) is denied in it until
+// these two constants are revised to admit it on purpose.
+const OUR_PREFIX = 'mcp__plugin_glab-team_messaging__';
+const OUR_SERVER = 'plugin:glab-team:messaging';
 // D-17: tools that touch nothing outside the session: tool search loads
 // schemas, the to-do list and plan mode are local, and AskUserQuestion talks
 // only to the local human.
@@ -130,7 +133,7 @@ const escape = text => text.replace(/[.*+?^${}()|[\]\\/-]/g, '\\$&');
 // D-19: the watch skill's command with the plugin's own values. The quoted
 // option values cannot contain `'`, so they stay inert; the session id and
 // data directory must be exactly this session's.
-const watcher = (session, dataDir) => new RegExp(`^TM_BROKER_URL='[A-Za-z0-9:/._~%\\[\\]-]*' TM_TOKEN_FILE='[A-Za-z0-9/._~%-]*' team-messaging-watch --mode bash --session-key '${escape(session)}' --claude-session '${escape(session)}' --data-dir '${escape(dataDir)}'$`);
+const watcher = (session, dataDir) => new RegExp(`^TM_BROKER_URL='[A-Za-z0-9:/._~%\\[\\]-]*' TM_TOKEN_FILE='[A-Za-z0-9/._~%-]*' glab-team-messaging-watch --mode bash --session-key '${escape(session)}' --claude-session '${escape(session)}' --data-dir '${escape(dataDir)}'$`);
 
 // D-17: the decision inside an open window. Returns null (allowed) or the
 // denial reason.
@@ -220,7 +223,7 @@ async function main(argv = process.argv.slice(2)) {
     input = JSON.parse(read.text);
   } catch { return code('INVALID_HOOK_INPUT', 'The scope hook input was not JSON.'); }
   if (!input || typeof input !== 'object' || typeof input.session_id !== 'string' || !SESSION.test(input.session_id)) return code('SESSION_ID_UNKNOWN', 'Claude Code did not pass a valid session id.');
-  if (typeof args.dataDir !== 'string' || !isAbsolute(args.dataDir)) return code('DATA_DIR_REQUIRED', 'Reinstall the plugin: the scope hook needs --data-dir ${CLAUDE_PLUGIN_DATA}.');
+  if (typeof args.dataDir !== 'string' || !isAbsolute(args.dataDir)) return code('DATA_DIR_REQUIRED', 'Reinstall the plugin: the scope hook needs --data-dir ${CLAUDE_PLUGIN_DATA}/messaging.');
   if (args.event === 'pre') {
     try { await pre(input, args, Date.now()); }
     catch { deny(OTHER_REASON, args.dataDir); }

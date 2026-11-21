@@ -12,20 +12,20 @@ const input = key => JSON.stringify({ hook_event_name: 'SessionStart', session_i
 const start = (s, f, key, env = {}, binding) => runChannel('plugin-session-start.mjs', s.hook(f, key, binding), s.env(f, env), input(key));
 const context = result => JSON.parse(result.stdout).hookSpecificOutput.additionalContext;
 // Plan project-options P-11: the agent session's line, ahead of the arm text.
-const agentLine = (s, f, key, binding) => `team-messaging: agent session for workspace default, project root ${s.project(f, key, binding)}`;
+const agentLine = (s, f, key, binding) => `glab-team messaging: agent session for workspace default, project root ${s.project(f, key, binding)}`;
 // Project-scoped sharing P4: the scope line follows the agent line in every active state.
-const scope = 'team-messaging: share only project content and project-relative paths, nothing about this machine or outside the root.';
+const scope = 'glab-team messaging: share only project content and project-relative paths, nothing about this machine or outside the root.';
 const arms = {
   rewake: 'The plugin re-arms its watcher at every Stop (arm=rewake).',
-  bash: 'Team messages arrive through a background watcher (arm=bash): run the /team-messaging:watch skill now and again after each watcher exit.',
+  bash: 'Team messages arrive through a background watcher (arm=bash): run the /glab-team:messaging-watch skill now and again after each watcher exit.',
 };
 
 // Plan project-options P-11: a project without a binding is idle and names
 // the join and bind skills; the old not-configured text is gone.
 test('an unbound project points to the join and bind skills', async t => {
-  const s = pluginScratch(t), result = await runChannel('plugin-session-start.mjs', ['--project-dir', s.unbound(), '--data-dir', s.data], s.env({ url: 'http://127.0.0.1:9' }, { CLAUDE_PLUGIN_OPTION_BROKER_URL: '' }), input('k')).result;
+  const s = pluginScratch(t), result = await runChannel('plugin-session-start.mjs', ['--project-dir', s.unbound(), '--data-dir', s.data], s.env({ url: 'http://127.0.0.1:9' }, { CLAUDE_PLUGIN_OPTION_MESSAGING_BROKER_URL: '' }), input('k')).result;
   assert.equal(result.code, 0); assert.equal(result.stderr, '');
-  assert.equal(context(result), 'team-messaging is idle in this project; run /team-messaging:bind or /team-messaging:join in the session that should be the agent');
+  assert.equal(context(result), 'glab-team messaging is idle in this project; run /glab-team:messaging-bind or /glab-team:messaging-join in the session that should be the agent');
 });
 
 // Inverted by decision 154: this test used to require that the messages
@@ -52,8 +52,8 @@ test('the messages selected into context are listed but none is marked reported'
 
 test('each arm appends its exact text and arm=off appends nothing', async t => {
   const f = await brokerFixture(t, { defaultOwner: 'bob' }), s = pluginScratch(t);
-  for (const arm of ['rewake', 'bash']) assert.equal(context(await start(s, f, arm, { CLAUDE_PLUGIN_OPTION_ARM: arm }).result), `${agentLine(s, f, arm)}\n\n${scope}\n\n${arms[arm]}`, arm);
-  const off = await start(s, f, 'off', { CLAUDE_PLUGIN_OPTION_ARM: 'off' }).result;
+  for (const arm of ['rewake', 'bash']) assert.equal(context(await start(s, f, arm, { CLAUDE_PLUGIN_OPTION_MESSAGING_ARM: arm }).result), `${agentLine(s, f, arm)}\n\n${scope}\n\n${arms[arm]}`, arm);
+  const off = await start(s, f, 'off', { CLAUDE_PLUGIN_OPTION_MESSAGING_ARM: 'off' }).result;
   assert.deepEqual([off.code, context(off), off.stderr], [0, `${agentLine(s, f, 'off')}\n\n${scope}`, ''], 'arm=off appends nothing after the scope line');
 });
 
@@ -107,7 +107,7 @@ test('an insecure state directory is reported in the SessionStart context', asyn
   const hint = `${s.data} is group- or world-writable; run chmod go-w '${s.data}'`;
   const result = await start(s, f, 'insecure').result;
   assert.equal(result.code, 0);
-  assert.equal(context(result), `team-messaging: INSECURE_CREDENTIAL_DIR: ${hint}\n\n${agentLine(s, f, 'insecure')}\n\n${scope}\n\n${arms.rewake}`);
+  assert.equal(context(result), `glab-team messaging: INSECURE_CREDENTIAL_DIR: ${hint}\n\n${agentLine(s, f, 'insecure')}\n\n${scope}\n\n${arms.rewake}`);
   assert.deepEqual(JSON.parse(result.stderr), { event: 'session_start_unavailable', error: 'INSECURE_CREDENTIAL_DIR', hint });
   assert.ok(!(result.stdout + result.stderr).includes(tokens.bob));
   assert.equal(f.requests.length, 0);
@@ -146,7 +146,7 @@ test('F5: SessionStart leaves pending messages out and opens no window until thi
   const sent = f.broker.send('alice', 'a', { to: 'user:bob', body: 'pending before tools' });
   const before = await start(s, f, 'unserved').result;
   assert.equal(before.code, 0, before.stderr);
-  assert.ok(context(before).startsWith("team-messaging: TOOLS_NOT_LOADED: team messages are pending but not shown, because this session's team-messaging tools are not loaded yet. Once they load, call inbox; if they do not appear, ask the user to reconnect the team-messaging MCP server.\n\n"), context(before));
+  assert.ok(context(before).startsWith("glab-team messaging: TOOLS_NOT_LOADED: team messages are pending but not shown, because this session's glab-team messaging tools are not loaded yet. Once they load, call inbox; if they do not appear, ask the user to reconnect the glab-team messaging MCP server.\n\n"), context(before));
   assert.ok(!context(before).includes(sent.thread_id), 'the message is left out');
   assert.equal(JSON.parse(before.stdout).systemMessage, undefined, 'context only: a startup race is normal');
   assert.equal(existsSync(window), false, 'no window');
@@ -166,7 +166,7 @@ test('F1: a forked or cleared session in a bound project tells the user, and the
     const result = await runChannel('plugin-session-start.mjs', s.hook(f, 'the-agent'), s.env(f), JSON.stringify({ hook_event_name: 'SessionStart', session_id: key, source })).result;
     assert.equal(result.code, 0, result.stderr);
     const output = JSON.parse(result.stdout);
-    assert.match(output.systemMessage ?? '', /run \/team-messaging:claim here/, source);
+    assert.match(output.systemMessage ?? '', /run \/glab-team:messaging-claim here/, source);
     assert.ok(output.systemMessage.includes('the-agent'), source);
     assert.ok(output.hookSpecificOutput.additionalContext.includes('A fork or /clear'), source);
   }
@@ -180,9 +180,9 @@ test('F1: a forked or cleared session in a bound project tells the user, and the
 test('no env value reaches a hook: exported TM_* and binding options are ignored', async t => {
   const f = await brokerFixture(t, { defaultOwner: 'bob' }), s = pluginScratch(t), seen = [];
   f.server.on('request', req => seen.push([req.headers['x-topic'] ?? null, req.headers['x-session-id'], req.headers['x-workspace']]));
-  const leak = { TM_TOPIC: 'dev', TM_WORKSPACE: 'leak', TM_SESSION_ID: 'leak-s', TM_BROKER_URL: 'http://127.0.0.1:9', CLAUDE_PLUGIN_OPTION_TOPIC: 'dev', CLAUDE_PLUGIN_OPTION_SESSION_ID: 'leak-s', CLAUDE_PLUGIN_OPTION_WORKSPACE: 'leak' };
+  const leak = { TM_TOPIC: 'dev', TM_WORKSPACE: 'leak', TM_SESSION_ID: 'leak-s', TM_BROKER_URL: 'http://127.0.0.1:9', CLAUDE_PLUGIN_OPTION_MESSAGING_TOPIC: 'dev', CLAUDE_PLUGIN_OPTION_MESSAGING_SESSION_ID: 'leak-s', CLAUDE_PLUGIN_OPTION_MESSAGING_WORKSPACE: 'leak' };
   for (const key of ['empty', 'absent']) {
-    const result = await start(s, f, key, key === 'empty' ? { ...leak, CLAUDE_PLUGIN_OPTION_TOPIC: '' } : leak, { session: `ws-${key}` }).result;
+    const result = await start(s, f, key, key === 'empty' ? { ...leak, CLAUDE_PLUGIN_OPTION_MESSAGING_TOPIC: '' } : leak, { session: `ws-${key}` }).result;
     assert.equal(result.code, 0, result.stderr);
   }
   assert.ok(seen.length > 0);

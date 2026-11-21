@@ -164,7 +164,7 @@ export async function watch(argv = process.argv.slice(2), env = process.env, { a
         if (terminal(safe.code)) {
           if (!rewake) { out(`WATCH_ENDED ${safe.code}`); return 4; }
           if (!await markEnded(dir, key, safe.code)) return 0;
-          out(`team-messaging ended ${safe.code}: ${safe.hint}`);
+          out(`glab-team messaging ended ${safe.code}: ${safe.hint}`);
           return 2;
         }
         if (!quiet.has(safe.code)) diagnostic('watch_retry', error);

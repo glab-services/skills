@@ -356,12 +356,12 @@ test('plugin mode points the invite and create_workspace hints to the skills, wi
     return { invite: await call('invite', { topics: [`hints-${id}`] }), created: await call('create_workspace', { name: `proj-${id}` }) };
   };
   const plugin = await hints({ plugin: true }, 'plugin-hints');
-  assert.equal(plugin.invite.command, '/team-messaging:join');
-  assert.match(plugin.invite.hint, /run \/team-messaging:join with that file, delete the file and restart Claude Code/);
+  assert.equal(plugin.invite.command, '/glab-team:messaging-join');
+  assert.match(plugin.invite.hint, /run \/glab-team:messaging-join with that file, delete the file and restart Claude Code/);
   assert.ok(plugin.invite.hint.includes(fixture.url) && !plugin.invite.hint.includes(plugin.invite.code));
-  assert.match(plugin.created.hint, /run \/team-messaging:bind for workspace proj-plugin-hints, then restart Claude Code/);
+  assert.match(plugin.created.hint, /run \/glab-team:messaging-bind for workspace proj-plugin-hints, then restart Claude Code/);
   const plain = await hints(undefined, 'plain-hints');
-  assert.equal(plain.invite.command, `team-messaging join '${fixture.url}' -`);
+  assert.equal(plain.invite.command, `glab-team-messaging join '${fixture.url}' -`);
   assert.match(plain.invite.hint, /paste the code at the prompt \(stdin\)/);
   assert.match(plain.created.hint, /CHANNEL_WORKSPACE=proj-plain-hints and a distinct CHANNEL_SESSION_ID/);
 });

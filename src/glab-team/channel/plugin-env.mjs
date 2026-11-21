@@ -25,8 +25,8 @@ export function unsafeOption(values) {
 // Wake and diagnostic text never carries broker-supplied strings: a code is
 // kept only in the stable upper-case form, and hints are fixed local text.
 const hints = {
-  UNAUTHORIZED: 'The plugin credential was rejected; ask the workspace owner for a new invite, then run /team-messaging:join.',
-  NOT_A_MEMBER: 'This workspace membership ended; ask the workspace owner for a new invite, then run /team-messaging:join.',
+  UNAUTHORIZED: 'The plugin credential was rejected; ask the workspace owner for a new invite, then run /glab-team:messaging-join.',
+  NOT_A_MEMBER: 'This workspace membership ended; ask the workspace owner for a new invite, then run /glab-team:messaging-join.',
   BROKER_UNAVAILABLE: 'The broker is unreachable; check the broker URL, TLS and availability.',
   RATE_LIMITED: 'The broker is rate limiting this session; it will retry.',
   INVALID_WATCH_ARGS: 'Use watch.mjs --mode rewake|bash [--session-key id] --data-dir dir [--deadline-s n] [--poll-s n>=1].',
@@ -37,12 +37,12 @@ const hints = {
   PROJECT_OPTIONS_UNTRUSTED: projectHint('PROJECT_OPTIONS_UNTRUSTED'),
   PROJECT_OPTIONS_UNSUPPORTED: projectHint('PROJECT_OPTIONS_UNSUPPORTED'),
   PROJECT_UNKNOWN: projectHint('PROJECT_UNKNOWN'),
-  TOKEN_FILE_MISMATCH: 'The saved token file is not the credential join saved for the saved broker URL; run /team-messaging:join or /team-messaging:bind again.',
+  TOKEN_FILE_MISMATCH: 'The saved token file is not the credential join saved for the saved broker URL; run /glab-team:messaging-join or /glab-team:messaging-bind again.',
   INVALID_HOOK_ARGS: 'Reinstall the plugin: its hooks pass only --project-dir and --data-dir.',
   SESSION_ID_UNKNOWN: 'Claude Code did not pass a valid session id, so this process stays inert.',
-  NOT_AGENT_SESSION: 'This Claude session is not the agent session of this project; run /team-messaging:claim here; the tools load within a few seconds, reconnect if they do not.',
-  PROJECT_NOT_BOUND: 'This project has no team-messaging binding; run /team-messaging:bind or /team-messaging:join in the session that should be the agent.',
-  PLUGIN_NOT_CONFIGURED: 'The plugin has no saved credential; run /team-messaging:join or /team-messaging:bind in the agent session.',
+  NOT_AGENT_SESSION: 'This Claude session is not the agent session of this project; run /glab-team:messaging-claim here; the tools load within a few seconds, reconnect if they do not.',
+  PROJECT_NOT_BOUND: 'This project has no glab-team messaging binding; run /glab-team:messaging-bind or /glab-team:messaging-join in the session that should be the agent.',
+  PLUGIN_NOT_CONFIGURED: 'The plugin has no saved credential; run /glab-team:messaging-join or /glab-team:messaging-bind in the agent session.',
   INVALID_ARM: 'Set the plugin option arm to rewake, bash or off.',
   UNSAFE_OPTION: 'A saved plugin option holds characters the plugin refuses; save it again with claude plugin configure.',
 };
@@ -52,7 +52,7 @@ export function localError(error, fallback) {
   // writable-ancestor error, and a broker-built ChannelError never has it, so
   // the text is still local. It names the directory and its fix (decision 148).
   if (code === 'INSECURE_CREDENTIAL_DIR' && error instanceof ChannelError && typeof error.dir === 'string') return { code, hint: error.hint };
-  return { code, hint: hints[code] ?? (/^SESSION_/.test(code ?? '') ? 'This plugin binding ended; run /team-messaging:status, then /team-messaging:join or /team-messaging:bind.' : fallback) };
+  return { code, hint: hints[code] ?? (/^SESSION_/.test(code ?? '') ? 'This plugin binding ended; run /glab-team:messaging-status, then /glab-team:messaging-join or /glab-team:messaging-bind.' : fallback) };
 }
 // Decision 148: when a hook cannot use its state or credential directory, it
 // says so in the session instead of failing silently at every Stop. Returns
@@ -62,7 +62,7 @@ export function localError(error, fallback) {
 // rather than leaving a bound project silently idle.
 const DIRECTORY_CODES = new Set(['INSECURE_CREDENTIAL_DIR', 'DATA_DIR_REQUIRED', 'PROJECT_OPTIONS_INVALID', 'PROJECT_OPTIONS_UNTRUSTED', 'PROJECT_OPTIONS_UNSUPPORTED', 'TOKEN_FILE_MISMATCH']);
 export function directoryProblem(safe) {
-  return DIRECTORY_CODES.has(safe.code) ? `team-messaging: ${safe.code}: ${safe.hint}` : null;
+  return DIRECTORY_CODES.has(safe.code) ? `glab-team messaging: ${safe.code}: ${safe.hint}` : null;
 }
 
 // Plan project-options AM-1. Claude Code leaves an unsaved option absent from
@@ -72,20 +72,24 @@ export function directoryProblem(safe) {
 // 0.2), and never TM_*, which closes J-7. The MCP server, the CLI and the Bash
 // watcher read only TM_*, which .mcp.json and the skills set from the saved
 // options. Neither source carries a binding: workspace, topic and session come
-// from the project file. WORKSPACE is read only to word the 0.9 upgrade hint.
+// from the project file. The plugin's options are stored as messaging_*, so a
+// hook sees them as CLAUDE_PLUGIN_OPTION_MESSAGING_*.
 const unset = value => typeof value !== 'string' || value === '' || /^\$\{[^}]*\}$/.test(value);
 const pick = (env, prefix, keys) => Object.fromEntries(keys.map(key => [key.toLowerCase(), unset(env[prefix + key]) ? '' : env[prefix + key]]));
-export const hookOptions = env => pick(env, 'CLAUDE_PLUGIN_OPTION_', ['BROKER_URL', 'TOKEN_FILE', 'MODE', 'ARM', 'WORKSPACE']);
+export const hookOptions = env => pick(env, 'CLAUDE_PLUGIN_OPTION_MESSAGING_', ['BROKER_URL', 'TOKEN_FILE', 'MODE', 'ARM']);
 export const tmOptions = env => pick(env, 'TM_', ['BROKER_URL', 'TOKEN_FILE', 'MODE', 'ARM']);
 // The hooks' exec-form args (AM-1): only --project-dir ${CLAUDE_PROJECT_DIR}
-// and --data-dir ${CLAUDE_PLUGIN_DATA}, each at most once.
+// and --data-dir ${CLAUDE_PLUGIN_DATA}/messaging, each at most once. A
+// --data-dir value that still starts with an unsubstituted ${...}/ is unset
+// too: otherwise it would be a relative data directory named after the
+// literal.
 export function hookArgs(argv, env = process.env) {
   const seen = {};
   for (let i = 0; i < argv.length; i += 2) {
     requireValue(['--project-dir', '--data-dir'].includes(argv[i]) && typeof argv[i + 1] === 'string' && !Object.hasOwn(seen, argv[i]), 'INVALID_HOOK_ARGS', hints.INVALID_HOOK_ARGS);
     seen[argv[i]] = argv[i + 1];
   }
-  const value = key => unset(seen[key]) ? undefined : seen[key];
+  const value = key => unset(seen[key]) || (key === '--data-dir' && /^\$\{[^}]*\}\//.test(seen[key])) ? undefined : seen[key];
   return { projectDir: value('--project-dir'), dataDir: value('--data-dir'), options: hookOptions(env) };
 }
 const refuse = (code, extra = {}) => ({ state: 'invalid', code, hint: hints[code] ?? 'Check the plugin configuration.', ...extra });

@@ -1,8 +1,8 @@
 {
   "mcpServers": {
-    "team-messaging": {
+    "messaging": {
       "command": "node",
-      "args": ["/absolute/path/to/claude-plugins/channel/main.mjs"],
+      "args": ["/absolute/path/to/src/glab-team/channel/main.mjs"],
       "env": {
         "BROKER_URL": "${BROKER_URL}",
         "BROKER_TOKEN": "${TEAM_BROKER_TOKEN}",

@@ -53,7 +53,7 @@ async function stopHook(env = process.env, argv = process.argv.slice(2)) {
     // (right after a claim): it cannot read or ack. Without a serving server
     // nothing is opened, claimed or blocked; the user is told instead.
     if (!serving(args.dataDir, event.session_id, plugin.root, { home: env.HOME })) {
-      if (messages.length) process.stdout.write(JSON.stringify({ systemMessage: `team-messaging: TOOLS_NOT_LOADED: ${messages.length} team messages are pending, but this session's team-messaging tools are not loaded, so it was not woken. Wait a few seconds; if the tools do not appear, reconnect the team-messaging MCP server (/mcp, then team-messaging, then Reconnect).` }) + '\n');
+      if (messages.length) process.stdout.write(JSON.stringify({ systemMessage: `glab-team messaging: TOOLS_NOT_LOADED: ${messages.length} team messages are pending, but this session's glab-team messaging tools are not loaded, so it was not woken. Wait a few seconds; if the tools do not appear, reconnect the glab-team messaging MCP server (/mcp, then plugin:glab-team:messaging, then Reconnect).` }) + '\n');
       return;
     }
     // Review r1 S5: blocking the Stop continues the turn for teammate

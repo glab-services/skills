@@ -15,8 +15,8 @@ import { findProject } from '../project-options.mjs';
 // (P-12), and the global options hold only the credential.
 const pinned = /^claude-project-[0-9a-f]{12}-[0-9a-f]{32}$/;
 const projectOf = dir => { const found = findProject(dir); return found.state === 'found' ? found : null; };
-const credentialOnly = (url, path, extra = {}) => ({ broker_url: url, token_file: path, workspace: '', topic: '', session_id: '', mode: 'poll', arm: 'rewake', ...extra });
-const unset = { broker_url: '', token_file: '', workspace: '', topic: '', session_id: '', mode: 'poll', arm: 'rewake' };
+const credentialOnly = (url, path, extra = {}) => ({ messaging_broker_url: url, messaging_token_file: path, messaging_mode: 'poll', messaging_arm: 'rewake', ...extra });
+const unset = { messaging_broker_url: '', messaging_token_file: '', messaging_mode: 'poll', messaging_arm: 'rewake' };
 // An injected spawn standing in for the claude CLI; its --json output has
 // the shape recorded from claude 2.1.309 (see plugin-config.mjs).
 // `then` answers every --json read after the first: join's pre-check is the
@@ -28,7 +28,7 @@ function claude({ inputs = {}, json, readStatus = 0, missing = false, then } = {
     calls.push({ command, args, input: options.input, env: Object.keys(options.env) });
     if (later && args.includes('--json') && reads++ > 0) return later.spawn(command, args, options);
     if (missing) return { error: { code: 'ENOENT' }, status: null };
-    if (args.includes('--json')) return { status: readStatus, stdout: json ?? JSON.stringify({ pluginId: 'team-messaging@team-messaging-local', displayName: 'team-messaging', schema: {}, inputs: { ...unset, ...inputs }, choices: {}, configured: [], unconfigured: [] }) };
+    if (args.includes('--json')) return { status: readStatus, stdout: json ?? JSON.stringify({ pluginId: 'glab-team@glab-services', displayName: 'glab-team', schema: {}, inputs: { ...unset, ...inputs }, choices: {}, configured: [], unconfigured: [] }) };
     return { status: 0, stdout: 'Configuration saved. Restart Claude Code to apply it.\n' };
   };
   return { spawn, calls, writes: () => calls.filter(call => call.args.includes('--values-stdin')).map(call => JSON.parse(call.input)) };
@@ -71,22 +71,22 @@ test('join --client claude-plugin saves the credential only and binds the projec
   assert.equal(bound.options.claude_session_id, 'agent-j'); assert.equal(adapter.project_root, project);
   assert.deepEqual({ ...bound.binding, session_id: pinned.test(bound.binding.session_id) }, { workspace: 'default', topic: FIXTURE_TOPIC, session_id: true });
   assert.equal(adapter.session_id, bound.binding.session_id);
-  assert.deepEqual(fake.calls.map(call => call.args), [['plugin', 'configure', 'team-messaging@team-messaging-local', '--json'], ['plugin', 'configure', 'team-messaging@team-messaging-local', '--json'], ['plugin', 'configure', 'team-messaging@team-messaging-local', '--values-stdin']], 'the pre-check read, the write-time read, then the write');
+  assert.deepEqual(fake.calls.map(call => call.args), [['plugin', 'configure', 'glab-team@glab-services', '--json'], ['plugin', 'configure', 'glab-team@glab-services', '--json'], ['plugin', 'configure', 'glab-team@glab-services', '--values-stdin']], 'the pre-check read, the write-time read, then the write');
   secretFree(fake, [token, code, env.BROKER_TOKEN, env.TEAM_BROKER_TOKEN]);
   assert.ok(!readFileSync(bound.path, 'utf8').includes(token), 'no token in the project file');
 });
 
 test('join keeps the saved mode and arm', async t => {
-  const fake = claude({ inputs: { mode: 'push', arm: 'bash' } });
+  const fake = claude({ inputs: { messaging_mode: 'push', messaging_arm: 'bash' } });
   await joined(t, fake);
-  assert.deepEqual([fake.writes()[0].mode, fake.writes()[0].arm], ['push', 'bash']);
+  assert.deepEqual([fake.writes()[0].messaging_mode, fake.writes()[0].messaging_arm], ['push', 'bash']);
 });
 
 // J-3, step 1e: the pre-check read an unbound plugin, and the binding changed
 // before the write. pluginAdapter's own checks still refuse after the redeem.
 test('a binding or --json shape that changes after the pre-check is a conflict and nothing is written', async t => {
-  for (const then of [{ inputs: { broker_url: 'https://other.example', token_file: '/x', workspace: 'default', topic: FIXTURE_TOPIC, session_id: 'claude-plugin-x' } },
-    { json: 'Plugin options:\n  broker_url = …' }, { json: JSON.stringify({ inputs: [] }) }, { json: JSON.stringify({ inputs: { broker_url: '' }, configured: [] }) }]) {
+  for (const then of [{ inputs: { messaging_broker_url: 'https://other.example', messaging_token_file: '/x' } },
+    { json: 'Plugin options:\n  messaging_broker_url = …' }, { json: JSON.stringify({ inputs: [] }) }, { json: JSON.stringify({ inputs: { messaging_broker_url: '' }, configured: [] }) }]) {
     const fake = claude({ then }), { result, project } = await joined(t, fake);
     assert.equal(result.adapters[0].status, 'conflict', JSON.stringify(then));
     assert.deepEqual(fake.writes(), []); assert.equal(projectOf(project), null, 'no project file');
@@ -105,10 +105,10 @@ test('a claude CLI or plugin that disappears after the pre-check is manual', asy
 // workspace binding, live or ended, no longer blocks join; only a bound
 // project or a credential for another broker or name does, before the
 // redeem (project-agent.test.mjs: "join on a bound project keeps the invite").
-test('join with a 0.9 global binding for the same credential redeems the invite and leaves the global binding alone', async t => {
+test('join with the same saved credential redeems the invite and writes nothing globally', async t => {
   const o = await invited(t), first = claude();
   const existing = await o.run(first);
-  const saved = { broker_url: o.f.url, token_file: existing.credential_path, workspace: 'old', topic: '', session_id: 'claude-plugin-old', mode: 'push', arm: 'bash' };
+  const saved = { messaging_broker_url: o.f.url, messaging_token_file: existing.credential_path, messaging_mode: 'push', messaging_arm: 'bash' };
   const created = await fetch(o.f.url + '/workspaces', { method: 'POST', headers: { Authorization: `Bearer ${tokens.alice}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ name: 'proj' }) });
   assert.equal(created.status, 201);
   const code = await issue(o.f, 'proj'), fake = claude({ inputs: saved }), other = pathJoin(o.s.dir, 'other'); mkdirSync(pathJoin(other, '.git'), { recursive: true });
@@ -121,7 +121,7 @@ test('join with a 0.9 global binding for the same credential redeems the invite 
 // Step 1c: no plugin, or a configuration that cannot be read, is refused
 // before the invite is redeemed.
 test('join refuses an uninstalled or unreadable plugin before redeeming the invite', async t => {
-  for (const options of [{ readStatus: 1 }, { missing: true }, { json: 'Plugin options:\n  broker_url = …' }]) {
+  for (const options of [{ readStatus: 1 }, { missing: true }, { json: 'Plugin options:\n  messaging_broker_url = …' }]) {
     const o = await invited(t), fake = claude(options);
     await assert.rejects(o.run(fake), error => error.code === 'PLUGIN_NOT_READY' && error.hint.includes('not used'), JSON.stringify(options));
     assert.deepEqual(fake.writes(), []); assert.ok(unredeemed(o.f, o.code)); assert.equal(joins(o.f), 0);
@@ -137,9 +137,9 @@ test('join refuses an uninstalled or unreadable plugin before redeeming the invi
 // saved value is probed or sent anywhere.
 test('join refuses a saved credential for another broker or name before the invite, with no request', async t => {
   const o = await invited(t), sent = [];
-  for (const inputs of [{ broker_url: 'https://attacker.example', token_file: o.s.tokenFile }, { broker_url: o.f.url, token_file: o.s.tokenFile }, { broker_url: o.f.url, token_file: '' }]) {
+  for (const inputs of [{ messaging_broker_url: 'https://attacker.example', messaging_token_file: o.s.tokenFile }, { messaging_broker_url: o.f.url, messaging_token_file: o.s.tokenFile }, { messaging_broker_url: o.f.url, messaging_token_file: '' }]) {
     const fake = claude({ inputs });
-    await assert.rejects(o.run(fake, {}, { fetch: (url, options) => { sent.push(url); return fetch(url, options); } }), error => error.code === 'PLUGIN_ALREADY_BOUND' && error.hint.includes('another broker or name') && error.hint.includes('not used') && !error.hint.includes(inputs.broker_url), JSON.stringify(inputs));
+    await assert.rejects(o.run(fake, {}, { fetch: (url, options) => { sent.push(url); return fetch(url, options); } }), error => error.code === 'PLUGIN_ALREADY_BOUND' && error.hint.includes('another broker or name') && error.hint.includes('not used') && !error.hint.includes(inputs.messaging_broker_url), JSON.stringify(inputs));
     assert.deepEqual(fake.writes(), []);
   }
   assert.deepEqual(sent, [], 'nothing was sent'); assert.ok(unredeemed(o.f, o.code)); assert.equal(joins(o.f), 0); assert.equal(projectOf(o.project), null);
@@ -206,13 +206,13 @@ test('an older user-scope registration for the same binding is reported as legac
 // Plan project-options P-12: pluginAdapter is now the credential-only writer.
 test('pluginAdapter writes the credential only when none is saved, keeps mode and arm, and reports failures', async t => {
   const o = await owner(t), binding = { url: o.f.url, workspace: 'proj', topic: null, path: o.result.credential_path }, deps = spawn => ({ spawn, env: o.env, cwd: o.s.home });
-  const empty = claude({ inputs: { mode: 'weird', arm: '' } }), written = await pluginAdapter(binding, deps(empty.spawn));
+  const empty = claude({ inputs: { messaging_mode: 'weird', messaging_arm: '' } }), written = await pluginAdapter(binding, deps(empty.spawn));
   assert.equal(written.status, 'registered'); assert.deepEqual(empty.writes(), [credentialOnly(o.f.url, o.result.credential_path)], 'invalid saved mode and arm fall back to the defaults');
-  const kept = claude({ inputs: { mode: 'push', arm: 'bash', workspace: 'stale', session_id: 'stale-s' } }); await pluginAdapter(binding, deps(kept.spawn));
-  assert.deepEqual(kept.writes(), [credentialOnly(o.f.url, o.result.credential_path, { mode: 'push', arm: 'bash' })], 'a stale binding without a credential is cleared');
-  const same = claude({ inputs: { ...o.saved, workspace: 'old', session_id: 'old-s' } });
-  assert.equal((await pluginAdapter(binding, deps(same.spawn))).status, 'skipped', 'a 0.9 global workspace never blocks'); assert.deepEqual(same.writes(), []);
-  for (const inputs of [{ broker_url: 'https://other.example', token_file: o.result.credential_path }, { broker_url: o.f.url, token_file: '/x.token' }, { token_file: o.result.credential_path }]) {
+  const kept = claude({ inputs: { messaging_mode: 'push', messaging_arm: 'bash' } }); await pluginAdapter(binding, deps(kept.spawn));
+  assert.deepEqual(kept.writes(), [credentialOnly(o.f.url, o.result.credential_path, { messaging_mode: 'push', messaging_arm: 'bash' })], 'a saved mode and arm are kept');
+  const same = claude({ inputs: { ...o.saved } });
+  assert.equal((await pluginAdapter(binding, deps(same.spawn))).status, 'skipped', 'a credential already saved is skipped'); assert.deepEqual(same.writes(), []);
+  for (const inputs of [{ messaging_broker_url: 'https://other.example', messaging_token_file: o.result.credential_path }, { messaging_broker_url: o.f.url, messaging_token_file: '/x.token' }, { messaging_token_file: o.result.credential_path }]) {
     const other = claude({ inputs }); assert.equal((await pluginAdapter(binding, deps(other.spawn))).status, 'conflict', JSON.stringify(inputs)); assert.deepEqual(other.writes(), []);
   }
   const failing = claude(), failed = (command, args, options) => args.includes('--values-stdin') ? { status: 1 } : failing.spawn(command, args, options);
@@ -260,7 +260,7 @@ test('the bind and status subcommands print only the result and session state', 
     const extra = await runChannel('cli.mjs', args, binding).result;
     assert.match(JSON.parse(extra.stderr).error, /^INVALID_(STATUS|CLAIM)_ARGS$/, JSON.stringify(args));
   }
-  for (const args of [['bind', o.f.url, '--name'], ['bind', '--adopt-global', o.f.url], ['bind', o.f.url, '--adopt-global', '--name', 'x']]) {
+  for (const args of [['bind', o.f.url, '--name'], ['bind', o.f.url, '--bogus'], ['bind', o.f.url, '--bogus', '--name', 'x']]) {
     const bad = await runChannel('cli.mjs', args, env).result;
     assert.equal(JSON.parse(bad.stderr).error, 'INVALID_BIND_ARGS', JSON.stringify(args));
   }

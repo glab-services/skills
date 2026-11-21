@@ -21,7 +21,7 @@ async function agent(t, f, s, key, { binding, env = {} } = {}) {
   client.fallbackNotificationHandler = async notification => { if (notification.method === 'notifications/claude/channel') notifications.push(notification.params); };
   const transport = new StdioClientTransport({
     command: process.execPath, args: [fileURLToPath(new URL('../plugin-main.mjs', import.meta.url))],
-    env: { ...s.tmEnv(f), TM_MODE: '', TM_ARM: '', CLAUDE_CODE_SESSION_ID: key, CLAUDE_PROJECT_DIR: s.project(f, key, binding), CLAUDE_PLUGIN_DATA: s.data, ...env },
+    env: { ...s.tmEnv(f), TM_MODE: '', TM_ARM: '', CLAUDE_CODE_SESSION_ID: key, CLAUDE_PROJECT_DIR: s.project(f, key, binding), CLAUDE_PLUGIN_DATA: s.pluginData, ...env },
     stderr: 'pipe',
   });
   transport.stderr.on('data', chunk => logs.push(chunk.toString()));
@@ -102,7 +102,7 @@ test('the server instructions carry the scope rule', async t => {
   assert.ok(instructions.includes("Share only what is inside this project's root, as project-relative paths. Never send anything about this machine or from outside the project"));
   assert.match(instructions, /Every outbound tool refuses such content with OUTBOUND_SCOPE; rewrite instead of retrying\./);
   assert.match(instructions, /While a teammate message is handled, only file reads inside the project root and these tools work\./);
-  assert.match(instructions, /re-arm the watcher only with the exact \/team-messaging:watch command, and read messages with inbox/);
+  assert.match(instructions, /re-arm the watcher only with the exact \/glab-team:messaging-watch command, and read messages with inbox/);
 });
 
 // 0.11.1 F4 (D8): acceptance saw an agent ack an answer and never tell its
@@ -131,8 +131,8 @@ test('F4: the instructions, the Stop block and the SessionStart prefix tell the 
 // must also leave the accepted send unchanged.
 test('AM-S1 stdio: options and environment change no decision', async t => {
   const f = await brokerFixture(t, { defaultOwner: 'bob' }), s = pluginScratch(t);
-  const refusedOnly = { CLAUDE_PLUGIN_OPTION_BROKER_URL: 'http://127.0.0.1:9', CLAUDE_PLUGIN_OPTION_TOKEN_FILE: '/dev/null', CLAUDE_PLUGIN_OPTION_WORKSPACE: 'other', CLAUDE_PLUGIN_OPTION_TOPIC: 'other' };
-  const identical = { CLAUDE_PLUGIN_OPTION_SESSION_ID: 'other-s', CLAUDE_PLUGIN_OPTION_MODE: 'push', CLAUDE_PLUGIN_OPTION_ARM: 'off', TM_OUTBOUND_SCOPE: 'off', TM_SCOPE: '0', TM_ARM: 'bash' };
+  const refusedOnly = { CLAUDE_PLUGIN_OPTION_MESSAGING_BROKER_URL: 'http://127.0.0.1:9', CLAUDE_PLUGIN_OPTION_MESSAGING_TOKEN_FILE: '/dev/null', CLAUDE_PLUGIN_OPTION_MESSAGING_WORKSPACE: 'other', CLAUDE_PLUGIN_OPTION_MESSAGING_TOPIC: 'other' };
+  const identical = { CLAUDE_PLUGIN_OPTION_MESSAGING_SESSION_ID: 'other-s', CLAUDE_PLUGIN_OPTION_MESSAGING_MODE: 'push', CLAUDE_PLUGIN_OPTION_MESSAGING_ARM: 'off', TM_OUTBOUND_SCOPE: 'off', TM_SCOPE: '0', TM_ARM: 'bash' };
   let n = 0;
   for (const [key, value] of [...Object.entries(refusedOnly), ...Object.entries(identical)]) {
     const id = `am-${n++}`, a = await agent(t, f, s, id, { binding: { topic: 'fixture', session: `${id}-b` }, env: { [key]: value } });

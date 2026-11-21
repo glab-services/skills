@@ -27,8 +27,10 @@ another project, or use the scripts in `scripts/ops/`.
 The scripts in `scripts/ops` read `TM_URL`, `TM_TOKENS`, `TM_SESSION`,
 `TM_WORKSPACE` and `TM_TOPIC` from your shell. The plugin reads none of
 those. Its global options hold only the credential (broker URL and token
-file, plus `mode` and `arm`): the hooks read them as
-`CLAUDE_PLUGIN_OPTION_BROKER_URL`, `_TOKEN_FILE`, `_MODE` and `_ARM`, and the
+file, plus mode and arm, stored as `messaging_broker_url`,
+`messaging_token_file`, `messaging_mode` and `messaging_arm`): the hooks read
+them as `CLAUDE_PLUGIN_OPTION_MESSAGING_BROKER_URL`, `_TOKEN_FILE`, `_MODE` and
+`_ARM`, and the
 MCP server and the skills' commands as `TM_BROKER_URL`, `TM_TOKEN_FILE`,
 `TM_MODE` and `TM_ARM` from `plugin/.mcp.json` and the skill text
 (`channel/plugin-env.mjs:68-90`). No hook reads a `TM_*` value, and no
@@ -45,20 +47,20 @@ hook").
   plus a checkout of this repository:
 
   ```sh
-  git clone https://github.com/glab-services/claude-plugins.git
-  cd claude-plugins
+  git clone https://github.com/glab-services/skills-marketplace.git
+  cd skills-marketplace/src/glab-team
   pnpm install --frozen-lockfile
   ```
 
 - The operator helpers in `scripts/ops/` need **bash, curl and jq**.
-- The Claude Code plugin, installed from the `plugin-dist` branch:
+- The Claude Code plugin, installed from this repository's marketplace:
 
   ```sh
-  claude plugin marketplace add glab-services/claude-plugins#plugin-dist
-  claude plugin install team-messaging@team-messaging-local --scope local
+  claude plugin marketplace add glab-services/skills-marketplace
+  claude plugin install glab-team@glab-services --scope local
   ```
 
-Inside Claude Code the plugin's skills run its bundled `team-messaging`
+Inside Claude Code the plugin's skills run its bundled `glab-team-messaging`
 command. From a terminal the same CLI is `node channel/cli.mjs` in the
 checkout.
 
@@ -216,22 +218,22 @@ A static owner uses `static:admin` the same way.
 
 ### Through the plugin
 
-`/team-messaging:bind` reuses a saved credential. A token-file user has none,
+`/glab-team:messaging-bind` reuses a saved credential. A token-file user has none,
 so the plugin owner must be a minted identity like `alice`
 (`channel/cli.mjs:219`, `CREDENTIAL_MISSING`).
 
 Run it in the Claude session that should be the project's agent session. One
 command handles both cases: the workspace is created if it does not exist,
 or reused when you own it, and the topic is created or reused
-(`channel/cli.mjs:210-275`):
+(`bind` in `channel/cli.mjs`):
 
 ```
-/team-messaging:bind https://broker.example.com alice myproject dev
+/glab-team:messaging-bind https://broker.example.com alice myproject dev
 ```
 
-It runs `team-messaging bind https://broker.example.com --name alice
+It runs `glab-team-messaging bind https://broker.example.com --name alice
 --workspace myproject --topic dev --claude-session '${CLAUDE_SESSION_ID}'
---data-dir '${CLAUDE_PLUGIN_DATA}'`. The steps run in order, and each one is
+--data-dir '${CLAUDE_PLUGIN_DATA}/messaging'`. The steps run in order, and each one is
 idempotent:
 
 1. The local pre-check: a project already bound to another workspace, topic
@@ -264,7 +266,7 @@ A member without `--topic` gets `WORKSPACE_NOT_OWNED`, because a
 workspace-level binding is the owner's (`channel/cli.mjs`, AM-9). A rerun after any failure skips what exists; a rerun after
 success is `skipped`.
 
-Then reconnect the team-messaging MCP server (`/mcp`, then team-messaging,
+Then reconnect the glab-team messaging MCP server (`/mcp`, then plugin:glab-team:messaging,
 then Reconnect), or restart with `claude --continue` if the credential was
 saved for the first time. Inviting is a separate step: call `invite` with
 `{"topics":["dev"]}`. The skill saves the code to a private file with mode
@@ -300,8 +302,8 @@ with an error on stderr, and the invite stays unused, when:
 
 - `PLUGIN_ALREADY_BOUND`: this project is already bound (the hint names the
   file, its workspace and topic, and its agent session), or the plugin's
-  saved credential is for another broker or name. A 0.9 global workspace
-  binding never blocks (P-13).
+  saved credential is for another broker or name. The workspace and topic
+  are never plugin options: the binding lives in the project file (P-13).
 - `PLUGIN_NOT_READY`: the plugin is not installed, or its options cannot be
   read. Install the plugin or fix its configuration, then join again.
 - `PROJECT_OPTIONS_UNTRUSTED`, `PROJECT_OPTIONS_INVALID` or
@@ -314,7 +316,7 @@ reports `conflict`; a retry gives `INVITE_USED`.
 In Claude Code, with the code saved in a private file:
 
 ```
-/team-messaging:join https://broker.example.com bob ~/bob-myproject-dev.code
+/glab-team:messaging-join https://broker.example.com bob ~/bob-myproject-dev.code
 ```
 
 From a terminal, the same thing:
@@ -370,32 +372,50 @@ now a member and the invite is used. Running the same invite again gives
 
 A project that is already bound is refused before anything is sent
 (`PLUGIN_ALREADY_BOUND`, `channel/cli.mjs:89-98`). To bind it again, remove
-the team-messaging entry (`pluginConfigs["team-messaging@team-messaging-local"]`)
+the glab-team messaging entry (`pluginConfigs["glab-team@glab-services"]`)
 from its `.claude/settings.local.json`, or move the agent role with
-`/team-messaging:claim`. The global options hold only the credential: if the
+`/glab-team:messaging-claim`. The global options hold only the credential: if the
 saved broker URL or credential path differs from the requested one, `bind`
 and `join` refuse before the invite, and `join` reports `conflict` if it
-changed during the join (`channel/plugin-config.mjs:54-70`). If `claude
-plugin configure` itself fails, the status is `failed` (`:43-47`).
+changed during the join (`pluginAdapter` in `channel/plugin-config.mjs`). If `claude
+plugin configure` itself fails, the status is `failed` (`writePluginConfig`).
 
 ### Reset with uninstall and install
 
 ```sh
-claude plugin uninstall team-messaging@team-messaging-local --scope local
-claude plugin install team-messaging@team-messaging-local --scope local
+claude plugin uninstall glab-team@glab-services --scope local
+claude plugin install glab-team@glab-services --scope local
 ```
 
 Checked with claude 2.1.310 under a scratch HOME: uninstalling the **last**
 install removes the plugin options and the plugin data directory
-`~/.claude/plugins/data/team-messaging-team-messaging-local`. If the plugin is
+`~/.claude/plugins/data/glab-team-glab-services`. If the plugin is
 still installed in another project, the options and the data directory stay.
 The credential under `~/.config/team-messaging/credentials` is outside Claude
 Code's directories and is kept, so the next `bind` or `join` can reuse it.
 
+### Moving from team-messaging@team-messaging-local
+
+`glab-team@glab-services` is a new plugin id, so nothing carries over from an
+install of the earlier plugin, `team-messaging@team-messaging-local`: not its
+options, not its data directory and not the project entries it wrote. Uninstall
+it first, because two installs run two sets of hooks in every session:
+
+```sh
+claude plugin uninstall team-messaging@team-messaging-local --scope local
+```
+
+Its data directory, `~/.claude/plugins/data/team-messaging-team-messaging-local`,
+goes with its last install. A project entry it wrote under
+`pluginConfigs["team-messaging@team-messaging-local"]` is not read by
+`glab-team` and stays until you delete it. The saved credential is kept (see
+above), so `/glab-team:messaging-bind` can bind each project again without a
+new invite.
+
 ### Under umask 002, make the data directory private
 
 Under umask 002, Claude Code creates the plugin directories with mode 0775.
-The watcher state directory `${CLAUDE_PLUGIN_DATA}/state` accepts that only
+The watcher state directory `${CLAUDE_PLUGIN_DATA}/messaging/state` accepts that only
 when a directory above it, such as a 0700 `~/.claude`, belongs to you with no
 group or world bits (`channel/watch-state.mjs:18-21`,
 `channel/credentials.mjs:26-35`). Otherwise the hooks report
@@ -404,32 +424,30 @@ group or world bits (`channel/watch-state.mjs:18-21`,
 private again:
 
 ```sh
-mkdir -p ~/.claude/plugins/data/team-messaging-team-messaging-local
-chmod 700 ~/.claude/plugins/data/team-messaging-team-messaging-local
+mkdir -p ~/.claude/plugins/data/glab-team-glab-services
+chmod 700 ~/.claude/plugins/data/glab-team-glab-services
 ```
 
-Then run `/team-messaging:bind` or `/team-messaging:join` in the agent
+Then run `/glab-team:messaging-bind` or `/glab-team:messaging-join` in the agent
 session and **restart Claude Code** (`claude --continue`): the saved
 credential only takes effect after a restart.
 
 ### One agent session per project
 
 **The model.** Global plugin options (in `~/.claude/settings.json`, written by
-`claude plugin configure`) hold only the credential: `broker_url`,
-`token_file`, `mode` and `arm`. The old `workspace`, `topic` and `session_id`
-options stay in `plugin.json` so 0.9 settings still validate, but they are
-unused since 0.10. A project is bound only by our key in its own
-`.claude/settings.local.json`:
+`claude plugin configure`) hold only the credential: `messaging_broker_url`,
+`messaging_token_file`, `messaging_mode` and `messaging_arm`. A project is
+bound only by our key in its own `.claude/settings.local.json`:
 
 ```json
 {
   "pluginConfigs": {
-    "team-messaging@team-messaging-local": {
+    "glab-team@glab-services": {
       "options": {
-        "version": 1,
-        "claude_session_id": "<the agent session>",
-        "bindings": ["<workspace>:<topic or empty>:<broker session>"],
-        "mac": "<64 hex>"
+        "messaging_version": 1,
+        "messaging_claude_session_id": "<the agent session>",
+        "messaging_bindings": ["<workspace>:<topic or empty>:<broker session>"],
+        "messaging_mac": "<64 hex>"
       }
     }
   }
@@ -437,9 +455,9 @@ unused since 0.10. A project is bound only by our key in its own
 ```
 
 A project without that key is **idle**: no tools, no broker request, and one
-session-start line pointing to `/team-messaging:bind` and
-`/team-messaging:join`. In a bound project, only the session named in
-`claude_session_id` is **active**. Every other session is **inert**: the MCP
+session-start line pointing to `/glab-team:messaging-bind` and
+`/glab-team:messaging-join`. In a bound project, only the session named in
+`messaging_claude_session_id` is **active**. Every other session is **inert**: the MCP
 server lists no tools and answers every call with `NOT_AGENT_SESSION`, no
 token is read, nothing is sent, the Stop hook and watchers are silent, and
 the session-start line names the agent session
@@ -467,30 +485,31 @@ inside HOME, else in the project directory, keeping every other setting in
 the file, its mode (0600 for a new file, 0700 for a new `.claude`) and a
 2-space indent.
 
-**The MAC.** `mac` is an HMAC-SHA256, keyed by `HMAC(token, "team-messaging
-project binding v1")`, over the canonical JSON of `[project root realpath,
-broker URL, version, claude_session_id, bindings]` (`:56-64`). Only the
+**The MAC.** `messaging_mac` is an HMAC-SHA256, keyed by `HMAC(token, "glab-team
+messaging project binding v1")`, over the canonical JSON of `[project root realpath,
+broker URL, version, claude_session_id, bindings]` (the values of the stored
+`messaging_*` fields) (`:56-64`). Only the
 agent session checks it, after the session id matches and before any
 request. A file committed to a repository, copied to another clone or
 worktree, or edited by hand fails as `PROJECT_OPTIONS_UNTRUSTED`. Rotating
 the token therefore means binding the project again.
 
-**Claim.** `/team-messaging:claim` moves the agent role to the session the
+**Claim.** `/glab-team:messaging-claim` moves the agent role to the session the
 user runs it in. `disable-model-invocation` keeps the model from invoking the
 skill, but it only gates the Skill tool: the skill's command runs through
-Bash, and a model can run `team-messaging claim` itself. What stops a
+Bash, and a model can run `glab-team-messaging claim` itself. What stops a
 message from making an agent take over a project is the user-only skill plus
 the Bash permission prompt for that command. **With Bash auto-approved, a
 model can claim the project.** It needs a trusted file,
-rewrites only `claude_session_id` and the MAC, makes no broker call, and keeps
+rewrites only `messaging_claude_session_id` and the MAC, makes no broker call, and keeps
 the broker session, so the inbox, cursors, leases and queue claims carry over
-(`channel/cli.mjs:321-338`). The previous agent's MCP server refuses its next
+(`claim` in `channel/cli.mjs`). The previous agent's MCP server refuses its next
 call and stops polling within about 5 s; its watcher exits at its next poll.
 SessionStart also runs for forked sessions (matcher
 `startup|resume|clear|compact|fork` since 0.11.1), so a fork gets its session
 record and the claim skill finds the project without `--project`. In a
 session that is not the agent, SessionStart shows the user a notice (a
-`systemMessage`) that names the agent session and `/team-messaging:claim`,
+`systemMessage`) that names the agent session and `/glab-team:messaging-claim`,
 and tells the model the same; the inert MCP server's instructions say it
 too. The notice shows at every SessionStart of a non-agent session, a
 deliberate second session included, because a fork cannot be told apart
@@ -510,7 +529,7 @@ appear without a reconnect. Claude Code documents that re-fetch for the
 interactive terminal, `-p` and the Agent SDK; for the desktop app it is
 **UNVERIFIED** until acceptance A3. The conditions are those of a restart:
 the same project-file checks, the MAC verified with the token read only
-after the session id matches. A reconnect (`/mcp`, then team-messaging, then
+after the session id matches. A reconnect (`/mcp`, then plugin:glab-team:messaging, then
 Reconnect) or a restart with `claude --continue` is still needed:
 - after `/clear`, because the MCP server keeps the id it started with and can
   never become the new id's agent;
@@ -536,9 +555,9 @@ and its directory names.
 - A copied file fails the MAC because the root differs.
 - Symlink, owner and mode tricks fail the checks above.
 - No path is pasted into a shell: the skills pass only
-  `${CLAUDE_SESSION_ID}`, `${CLAUDE_PLUGIN_DATA}` and saved options, and the
+  `${CLAUDE_SESSION_ID}`, `${CLAUDE_PLUGIN_DATA}/messaging` and saved options, and the
   CLI finds the project through a record SessionStart writes in
-  `${CLAUDE_PLUGIN_DATA}/state`. Records older than 30 days are pruned, so a
+  `${CLAUDE_PLUGIN_DATA}/messaging/state`. Records older than 30 days are pruned, so a
   session that runs more than 30 days without a SessionStart can lose its
   record (the CLI then reports `PROJECT_UNKNOWN`); a restart or
   `claude --resume` rewrites it.
@@ -552,7 +571,7 @@ and its directory names.
   auto-approved Bash lets a model claim.
 
 **S-1, fixed in 0.10.** In 0.9.x a repository's `.claude/settings.json` env
-block could set `CLAUDE_PLUGIN_OPTION_BROKER_URL` and `_TOKEN_FILE` while
+block could set `CLAUDE_PLUGIN_OPTION_MESSAGING_BROKER_URL` and `_TOKEN_FILE` while
 those options were unsaved (for example right after the reset in this
 section), and the hooks then sent a real credential to the repository's
 broker. In 0.10 the token file must be exactly the path `join` saved for that
@@ -561,55 +580,6 @@ sent (`channel/credentials.mjs:12-25`), so a repository-chosen broker URL can
 only reach a credential minted for that same URL. **Hand-named token files
 therefore stop working**: rejoin, or move the file to the path `join` prints
 as `credential_path`.
-
-**Rollback.** Plugin 0.9.4 ignores the project file. After an adopt (below)
-its global options hold only the credential, so 0.9.4 reports the plugin as
-not configured; rebind it globally with 0.9.4's `bind` to go back.
-
-### Upgrading from 0.9
-
-After the upgrade, a 0.9 global binding (for example a node bound to
-workspace `test1`) is ignored and every project is idle. The session-start
-line names the old workspace and points to the adopt step. To keep that
-binding, with its broker session, inbox and leases, in one project:
-
-1. **Restart Claude Code on 0.10 first**, in the project that should keep the
-   binding (`claude --continue` is enough). The 0.10 SessionStart hook writes
-   the record that lets the CLI find this project from this session; without
-   it, adopt stops with `PROJECT_UNKNOWN`. Use the session that should be the
-   project's agent.
-2. Run `/team-messaging:bind`, choosing the adopt form. It runs:
-
-   ```sh
-   team-messaging bind --adopt-global --claude-session '${CLAUDE_SESSION_ID}' --data-dir '${CLAUDE_PLUGIN_DATA}'
-   ```
-
-   It checks the 0.9 session with the broker (an ended one is refused),
-   writes the project file with the same workspace, topic and session, and
-   only then rewrites the global options to the credential only
-   (`channel/cli.mjs`, `adopt`).
-3. `adapters[0].status` is `adopted`. Restart with `claude --continue`.
-4. If the global rewrite failed after the project file was written, run the
-   same command again **from the same Claude session**: it recognises its own
-   file only when the session matches, and then finishes the clearing. A
-   second adopt after success finds nothing (`NOTHING_TO_ADOPT`). A marker in
-   `${CLAUDE_PLUGIN_DATA}/state/adopted.json` refuses adopting into a second
-   project.
-
-**A hand-named token file** (one not at the path `join` prints as
-`credential_path`) makes adopt stop with `TOKEN_FILE_MISMATCH` before
-anything is read or sent. Move the file to the join path for the same broker
-URL and name, `~/.config/team-messaging/credentials/<16 hex>-<name>.token`
-(the hex is the start of the SHA-256 of the exact broker URL; see
-[the credential file name](#the-credential-file-name-hashes-the-broker-url)),
-keep it mode 0600, save that path as `token_file` with `claude plugin
-configure`, and run the adopt again. Or rejoin with a new invite.
-
-**Other projects that used the global binding become idle.** Only one
-project adopts it. In each other project, the session that should be its
-agent binds it again: a member runs `/team-messaging:bind` with the topic
-(member bind, above), and an owner runs `/team-messaging:bind` for the
-workspace and topic. Each project then gets its own broker session.
 
 ## Keep sharing inside the project (a constant)
 
@@ -664,17 +634,17 @@ The plugin enforces it in three layers, plus settings you add yourself:
   `Read`, `Glob` and `Grep` inside the project root (a path starting with
   `~` or holding `$` or `%`, and a glob with `{` or a `..` segment, are
   denied), `Read` of this session's
-  fresh large tool results, the team-messaging tools (checked by their
+  fresh large tool results, the glab-team messaging tools (checked by their
   `mcp_server` provenance), `ToolSearch`, `TodoWrite`, `AskUserQuestion`,
-  the plan-mode tools and the exact `/team-messaging:watch` command. It
+  the plan-mode tools and the exact `/glab-team:messaging-watch` command. It
   denies everything else, in every permission mode including
   `bypassPermissions`: `Bash`, `WebFetch`, `WebSearch`, `Agent`/`Task`
   subagents, other MCP servers, `LSP`, and `Write`, `Edit` and
   `NotebookEdit` even inside the root. It never asks. Subagents' tool calls
   go through the same hook. The window is one marker per project root,
-  `${CLAUDE_PLUGIN_DATA}/state/scope-<sha256(root)>.json`, so `/clear` or
+  `${CLAUDE_PLUGIN_DATA}/messaging/state/scope-<sha256(root)>.json`, so `/clear` or
   another session in the same checkout is covered too. In the window, re-arm
-  the watcher only with the exact `/team-messaging:watch` command, and read
+  the watcher only with the exact `/glab-team:messaging-watch` command, and read
   messages with `inbox`. The human's own `send`, `ask` and `invite` and the
   name-only tools (`topics`, `members`, `workspaces`, `invites`) never open
   it.
@@ -686,9 +656,9 @@ The plugin enforces it in three layers, plus settings you add yourself:
   denial prints, in a terminal outside Claude:
   `node '<plugin>/runtime/channel/cli.mjs' scope-close --project-dir '<root>' --data-dir '<plugin data>'`,
   with the paths filled in, or delete the marker file the denial names. On
-  its own, `team-messaging scope-close` uses the current directory and the
+  its own, `glab-team-messaging scope-close` uses the current directory and the
   default data directory
-  `~/.claude/plugins/data/team-messaging-team-messaging-local`. If the window cannot be written, the teammate content
+  `~/.claude/plugins/data/glab-team-glab-services/messaging`. If the window cannot be written, the teammate content
   is withheld: the tool returns `SCOPE_WINDOW_UNAVAILABLE`, a push is dropped
   (the message stays in `inbox`), SessionStart leaves the messages out, and
   the watcher and the Stop hook do not wake the session. A project root the
@@ -700,7 +670,7 @@ The plugin enforces it in three layers, plus settings you add yourself:
   and SessionStart wake the session, list pending messages or open the
   window only while this session's MCP server serves: it has answered a
   non-empty `tools/list` and its process is alive (a private record
-  `${CLAUDE_PLUGIN_DATA}/state/<session>.serving`, checked by `serving` in
+  `${CLAUDE_PLUGIN_DATA}/messaging/state/<session>.serving`, checked by `serving` in
   `channel/agent-live.mjs`). Otherwise the Stop hook neither blocks nor opens
   the window and shows the user `TOOLS_NOT_LOADED`, the watcher keeps polling
   without waking, and SessionStart leaves the messages out with a
@@ -711,7 +681,7 @@ The plugin enforces it in three layers, plus settings you add yourself:
   is written.
 
 **Requirements.** Claude Code 2.1.274 or later, which passes `mcp_server` to
-hooks; older versions deny the team-messaging tools inside the window.
+hooks; older versions deny the glab-team messaging tools inside the window.
 `permissions.blockReadsOutsideWorkingDirectories` below needs 2.1.257 or
 later.
 
@@ -740,10 +710,10 @@ from the automated tests):**
 5. A subagent's `Read` of `/etc/hosts` is denied.
 6. A large tool result is readable from the session's `tool-results`
    directory.
-7. The hook input for a team-messaging tool carries `mcp_server`
-   `{"source":"plugin","name":"plugin:team-messaging:team-messaging"}`.
+7. The hook input for a glab-team messaging tool carries `mcp_server`
+   `{"source":"plugin","name":"plugin:glab-team:messaging"}`.
 8. With `arm=bash`, the watcher re-arms in the window with the exact
-   `/team-messaging:watch` command, and a changed command is denied.
+   `/glab-team:messaging-watch` command, and a changed command is denied.
 9. After `/clear` in the window, `Bash` is still denied until the Stop.
 10. After the turn, the human's own `Read` outside the root is not blocked.
 11. **UNVERIFIED (0.11.1, review r1 R6):** in a real non-agent session, the
@@ -829,33 +799,33 @@ leaves these residuals:
 
 | Code | Where it comes from | Meaning | Fix |
 |---|---|---|---|
-| `conflict` | `adapters[0].status`, `channel/plugin-config.mjs:54-70` | The plugin's saved credential changed to another broker or name during the join, or its configuration could not be read. Nothing was written. A `join` that reports this has already redeemed the invite. | Fix the plugin options, then ask the owner for a new invite. |
-| `PLUGIN_ALREADY_BOUND` | `bind`/`join` stderr, `channel/cli.mjs:81-109` | This project is already bound (the hint names the file, binding and agent session), the saved credential is for another broker or name, or a 0.9 binding was already adopted into another project. The invite was not used. | Claim the project, or remove its team-messaging entry, or clear the saved credential, then run again. |
+| `conflict` | `adapters[0].status`, `pluginAdapter` in `channel/plugin-config.mjs` | The plugin's saved credential changed to another broker or name during the join, or its configuration could not be read. Nothing was written. A `join` that reports this has already redeemed the invite. | Fix the plugin options, then ask the owner for a new invite. |
+| `PLUGIN_ALREADY_BOUND` | `bind`/`join` stderr, `alreadyBound`, `projectPrecheck`, `credentialPrecheck` in `channel/cli.mjs` | This project is already bound (the hint names the file, binding and agent session), the saved credential is for another broker or name. The invite was not used. | Claim the project, or remove its glab-team messaging entry, or clear the saved credential, then run again. |
 | `PLUGIN_NOT_READY` | `bind`/`join` stderr, `channel/cli.mjs:102-109` | No `claude` CLI on PATH, the plugin is not installed, or its options could not be read. The invite was not used. | Install Claude Code and the plugin, or fix the plugin configuration, then run the same `join` again. |
-| `manual` | `adapters[0].status`, `channel/plugin-config.mjs:46`, `:59-62` | No `claude` CLI on PATH, or the plugin is not installed, so nothing could be written. | Install Claude Code and the plugin, then rerun. After a `join`, the project file was not written: rerun as `bind` (a member with `--topic`, member bind); the membership already exists. |
-| `failed` | `adapters[0].status`, `channel/plugin-config.mjs:46` | `claude plugin configure` exited non-zero, so the options were not saved. After a `join`, the invite is already redeemed. | Check `claude plugin list` and the Claude Code output, then rerun as `bind` (a member with `--topic`). |
+| `manual` | `adapters[0].status`, `pluginAdapter` and `writePluginConfig` in `channel/plugin-config.mjs` | No `claude` CLI on PATH, or the plugin is not installed, so nothing could be written. | Install Claude Code and the plugin, then rerun. After a `join`, the project file was not written: rerun as `bind` (a member with `--topic`, member bind); the membership already exists. |
+| `failed` | `adapters[0].status`, `writePluginConfig` in `channel/plugin-config.mjs` | `claude plugin configure` exited non-zero, so the options were not saved. After a `join`, the invite is already redeemed. | Check `claude plugin list` and the Claude Code output, then rerun as `bind` (a member with `--topic`). |
 | `CREDENTIAL_MISSING` | `channel/cli.mjs:219` | `bind` found no saved credential for this exact broker URL and name. | Join with an invite first, or use the exact URL string the credential was saved with. |
 | `TOPIC_REQUIRED` | `broker/broker.mjs:50` | The broker refused a workspace-level session, which only the workspace owner may open. `bind` reports a member's workspace-level request as `WORKSPACE_NOT_OWNED` before it reaches the broker. | Members bind with `--topic` for a subscribed topic. |
-| `NOT_A_MEMBER` | `bind` stderr, `broker/broker.mjs:44` | `bind --topic` for a workspace this name is not a member of, or a membership that ended. | Ask the owner for an invite and use `/team-messaging:join`. |
+| `NOT_A_MEMBER` | `bind` stderr, `broker/broker.mjs:44` | `bind --topic` for a workspace this name is not a member of, or a membership that ended. | Ask the owner for an invite and use `/glab-team:messaging-join`. |
 | `NOT_SUBSCRIBED` | `bind` stderr, `broker/broker.mjs:51` | A member's `bind --topic` for a topic this user is not subscribed to. | Ask the owner for an invite to that topic (section 5 or the static join). |
 | `INVITE_EXPIRED` | `broker/invites.mjs:66` | The invite is older than `INVITE_TTL` (default 3600 s). | Ask the owner for a new invite. |
 | `INSECURE_CREDENTIAL_DIR` | `channel/credentials.mjs:38-41`, `:73-86` | A credential or state directory, or one of its ancestors, is group- or world-writable, not yours, or a user-owned symlink. The hint names the directory. | Run the `chmod go-w '<dir>'` from the hint. For the plugin data directory, run `chmod 700` as in section 6. |
 | `INSECURE_BROKER_URL` | `channel/cli.mjs:31-32` | Plain `http://` to a host that is not loopback. | Use `https://`. HTTP is allowed only for `127.0.0.1`, `[::1]` and `localhost`. |
-| `PROJECT_OPTIONS_INVALID` | `channel/project-options.mjs:40-51`, `:104-143` | The project's team-messaging entry is not a valid binding: an unknown key (such as `broker_url` or `token_file`), a malformed field, bad JSON naming the plugin, or a file that is not a regular file of at most 1 MiB. No token is read. | Remove the entry, then bind or join again. |
+| `PROJECT_OPTIONS_INVALID` | `channel/project-options.mjs:40-51`, `:104-143` | The project's glab-team messaging entry is not a valid binding: an unknown key (such as `broker_url`, `token_file` or an unprefixed `version`), a malformed field, bad JSON naming the plugin, or a file that is not a regular file of at most 1 MiB. No token is read. | Remove the entry, then bind or join again. |
 | `PROJECT_OPTIONS_UNTRUSTED` | `channel/project-options.mjs:84-97`, `channel/plugin-env.mjs:115` | The file was not written for this checkout by this user: a MAC that does not verify (committed, copied, edited, or the token rotated), a symlink, a foreign owner, or an other-writable file or directory. | Remove the entry and bind or join again; fix the modes for a permissions problem. |
 | `PROJECT_OPTIONS_UNSUPPORTED` | `channel/project-options.mjs:40-51` | The file was written by a newer plugin (a higher `version`, or more than one binding). | Upgrade the plugin. |
 | `TOKEN_FILE_MISMATCH` | `channel/credentials.mjs:12-25` | The saved token file is not the path `join` saved for the saved broker URL, for example a hand-named file (S-1). Nothing was read or sent. | Rejoin, or move the file to the `credential_path` path. |
 | `INVALID_HOOK_ARGS` | `channel/plugin-env.mjs:82-90` | A hook got arguments other than `--project-dir` and `--data-dir`. | Reinstall the plugin. |
 | `SESSION_ID_UNKNOWN` | `channel/plugin-env.mjs:110`, `channel/cli.mjs:72-79` | No valid Claude session id: the MCP server's `CLAUDE_CODE_SESSION_ID` is absent or malformed (the server stays inert), or a CLI call lacks `--claude-session`. | Use the skills, which pass `${CLAUDE_SESSION_ID}`. |
-| `NOT_AGENT_SESSION` | MCP tool result, `channel/plugin-main.mjs`, `channel/server.mjs:61-110` | This session is not the project's agent session, it stopped being it after a claim, or the project's binding was refused. | Use the agent session, or run `/team-messaging:claim` here; the tools load within a few seconds, reconnect if they do not. A reconnect is always needed after `/clear` (the MCP server keeps its old id) or once this process was demoted (demotion stays final). |
-| `PROJECT_NOT_BOUND` | MCP tool result, Bash watcher, `claim` | The project has no team-messaging binding (idle). | Run `/team-messaging:bind` or `/team-messaging:join` in the session that should be the agent; the tools load within a few seconds, reconnect if they do not (restart after a first credential save). |
-| `PROJECT_UNKNOWN` | `channel/cli.mjs:72-79`, `channel/project-options.mjs:104-109` | The project directory is unknown: no SessionStart record for this session in `${CLAUDE_PLUGIN_DATA}/state`, or the directory does not exist. A session forked under 0.11.0 or earlier has no record, because SessionStart did not run for forks. | Start Claude Code in the project, or restart the session (or pass `--project <dir>` from a terminal). |
-| `TOOLS_NOT_LOADED` | Stop hook `systemMessage`, SessionStart context; `serving` in `channel/agent-live.mjs` | Team messages are pending, but this session's team-messaging MCP server has not listed its tools (right after a claim, bind or join, or a server that did not start), so the session was not woken and no window opened. | Wait a few seconds for the tools to load; if they do not appear, reconnect the team-messaging MCP server (`/mcp`, then team-messaging, then Reconnect). |
-| `WORKSPACE_NOT_OWNED` | `bind` stderr, `channel/cli.mjs:248` | The workspace exists and you are not its owner, or it was deleted. Nothing was written. | Choose another name, or ask its owner for an invite and use `/team-messaging:join`. |
+| `NOT_AGENT_SESSION` | MCP tool result, `channel/plugin-main.mjs`, `channel/server.mjs:61-110` | This session is not the project's agent session, it stopped being it after a claim, or the project's binding was refused. | Use the agent session, or run `/glab-team:messaging-claim` here; the tools load within a few seconds, reconnect if they do not. A reconnect is always needed after `/clear` (the MCP server keeps its old id) or once this process was demoted (demotion stays final). |
+| `PROJECT_NOT_BOUND` | MCP tool result, Bash watcher, `claim` | The project has no glab-team messaging binding (idle). | Run `/glab-team:messaging-bind` or `/glab-team:messaging-join` in the session that should be the agent; the tools load within a few seconds, reconnect if they do not (restart after a first credential save). |
+| `PROJECT_UNKNOWN` | `channel/cli.mjs:72-79`, `channel/project-options.mjs:104-109` | The project directory is unknown: no SessionStart record for this session in `${CLAUDE_PLUGIN_DATA}/messaging/state`, or the directory does not exist. A session forked under 0.11.0 or earlier has no record, because SessionStart did not run for forks. | Start Claude Code in the project, or restart the session (or pass `--project <dir>` from a terminal). |
+| `TOOLS_NOT_LOADED` | Stop hook `systemMessage`, SessionStart context; `serving` in `channel/agent-live.mjs` | Team messages are pending, but this session's glab-team messaging MCP server has not listed its tools (right after a claim, bind or join, or a server that did not start), so the session was not woken and no window opened. | Wait a few seconds for the tools to load; if they do not appear, reconnect the glab-team messaging MCP server (`/mcp`, then plugin:glab-team:messaging, then Reconnect). |
+| `WORKSPACE_NOT_OWNED` | `bind` stderr, `channel/cli.mjs:248` | The workspace exists and you are not its owner, or it was deleted. Nothing was written. | Choose another name, or ask its owner for an invite and use `/glab-team:messaging-join`. |
 | `TOPIC_MODE_MISMATCH` | `bind` stderr, `channel/cli.mjs:262` | The topic exists with a mode other than `--mode`. | Leave out `--mode` to reuse the topic, or choose another name. |
 | `OUTBOUND_SCOPE` | MCP tool result, `guardOutbound` in `channel/server.mjs` | The outbound guard refused the call; `reason` is `<rule>:<field>`. Nothing reached the broker. | Rewrite without that part (project-relative paths and project content only), or ask your human. Retrying the same content is refused again. |
 | `SCOPE_WINDOW_UNAVAILABLE` | MCP tool result, SessionStart context, watcher or Stop-hook stderr; `openWindow` in `channel/scope-window.mjs` | The team-message window could not be written (plugin data directory missing, relative, insecure, or the marker path is not a file), so teammate content was withheld and no wake happened. | Fix the plugin data directory (section 6), then use `inbox`. |
-| `SCOPE_WINDOW_INVALID` | `scope_hook_unavailable` stderr at Stop, `closeWindow` | The window marker path is not a regular file, so it was left alone and the window stays. | Remove the non-file at the marker path (`${CLAUDE_PLUGIN_DATA}/state/scope-<sha256(root)>.json`). |
+| `SCOPE_WINDOW_INVALID` | `scope_hook_unavailable` stderr at Stop, `closeWindow` | The window marker path is not a regular file, so it was left alone and the window stays. | Remove the non-file at the marker path (`${CLAUDE_PLUGIN_DATA}/messaging/state/scope-<sha256(root)>.json`). |
 | `PROJECT_DIR_UNRESOLVED` | `scope_hook_unavailable` stderr, `channel/scope-hook.mjs` | The hook could not resolve `--project-dir`, and no window was open, so nothing was blocked. | Start Claude Code in an existing project directory. |
 | `INVALID_SCOPE_HOOK_ARGS` | `scope_hook_unavailable` stderr | The scope hook got arguments other than `--event`, `--project-dir`, `--data-dir` in that order. | Reinstall the plugin. |
 | `SESSION_ID_UNKNOWN`, `DATA_DIR_REQUIRED` | `scope_hook_unavailable` stderr | The hook input had no valid session id, or `--data-dir` was not absolute; the call passed (residual R-5). | Reinstall the plugin; report the Claude Code version. |

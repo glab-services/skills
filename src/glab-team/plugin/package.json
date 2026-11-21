@@ -1,9 +1,9 @@
 {
-  "name": "team-messaging-plugin",
-  "version": "0.11.1",
+  "name": "glab-team-plugin",
+  "version": "0.12.0",
   "private": true,
   "license": "Apache-2.0",
-  "description": "Runtime dependencies of the team-messaging Claude Code plugin bundle.",
+  "description": "Runtime dependencies of the glab-team Claude Code plugin bundle.",
   "engines": {
     "node": ">=24"
   },

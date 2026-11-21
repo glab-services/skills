@@ -538,7 +538,7 @@ bytes and secrets use 32. SQLite stores only SHA-256 secret digests; lookup uses
 the public ID and digest comparison uses `timingSafeEqual`. Logs, errors, audit
 and invite listings contain no code or token values. The one permitted model
 exposure is the issuing `invite` tool result. Its command is
-`team-messaging join <broker-url> -`: the person supplies the code over stdin.
+`glab-team-messaging join <broker-url> -`: the person supplies the code over stdin.
 The local join CLI and client registration ship in M6c; no redemption MCP tool
 is available. Positional invite codes will be accepted by that CLI but are
 discouraged because shell history and process lists expose argv.

@@ -116,9 +116,14 @@ export async function freezingProxy(t, fixture) {
 // saved options (env), and its binding from a project file naming the hook's
 // Claude session. `tokenFile` is a hand-named credential, which AM-2 refuses;
 // env() saves the token where join does for that broker URL.
-// - env(fixture, extra): the hook env (CLAUDE_PLUGIN_OPTION_*);
+// - env(fixture, extra): the hook env (CLAUDE_PLUGIN_OPTION_MESSAGING_*);
 // - tmEnv(fixture, extra): the MCP, CLI and Bash-watcher env (TM_*, and
 //   CLAUDE_PLUGIN_DATA for the MCP server's team-message window);
+// CLAUDE_PLUGIN_DATA is the plugin's data directory, `s.pluginData`, as Claude
+// Code exports it; the plugin keeps its files in its messaging/ subfolder,
+// `s.data`, which the manifests pass as --data-dir, so `s.hook` and `s.bash`
+// hand a process `s.data` and the MCP server derives the same directory from
+// CLAUDE_PLUGIN_DATA.
 // - project(fixture, key, binding): a project bound to Claude session `key`;
 // - unbound(): a project without a binding;
 // - hook(fixture, key, binding): the hook args --project-dir and --data-dir;
@@ -126,15 +131,15 @@ export async function freezingProxy(t, fixture) {
 //   record that points the Bash watcher at the project.
 export function pluginScratch(t, { token = tokens.bob } = {}) {
   const dir = testTempDir('plugin-'); t.after(() => rmSync(dir, { recursive: true, force: true }));
-  const home = pathJoin(dir, 'home'), data = pathJoin(home, '.claude', 'plugins', 'data', 'team-messaging'), tokenFile = pathJoin(home, '.config', 'team-messaging', 'credentials', 'plugin.token');
+  const home = pathJoin(dir, 'home'), pluginData = pathJoin(home, '.claude', 'plugins', 'data', 'glab-team-glab-services'), data = pathJoin(pluginData, 'messaging'), tokenFile = pathJoin(home, '.config', 'team-messaging', 'credentials', 'plugin.token');
   mkdirSync(dirname(tokenFile), { recursive: true, mode: 0o700 }); writeFileSync(tokenFile, token, { mode: 0o600 });
-  const s = { dir, home, data, tokenFile };
+  const s = { dir, home, data, pluginData, tokenFile };
   const credential = (fixture, name = 'bob', secret = token) => credentialScratch(s, fixture.url, { name, token: secret });
   const projects = new Map();
-  s.env = (fixture, extra = {}) => ({ HOME: home, TMPDIR: process.env.TMPDIR, CLAUDE_PLUGIN_DATA: data, CLAUDE_PLUGIN_OPTION_BROKER_URL: fixture.url, CLAUDE_PLUGIN_OPTION_TOKEN_FILE: credential(fixture), ...extra });
+  s.env = (fixture, extra = {}) => ({ HOME: home, TMPDIR: process.env.TMPDIR, CLAUDE_PLUGIN_DATA: pluginData, CLAUDE_PLUGIN_OPTION_MESSAGING_BROKER_URL: fixture.url, CLAUDE_PLUGIN_OPTION_MESSAGING_TOKEN_FILE: credential(fixture), ...extra });
   // FA-3 (project-scoped sharing): the MCP server writes the team-message
   // window under CLAUDE_PLUGIN_DATA, which Claude Code exports to it.
-  s.tmEnv = (fixture, extra = {}) => ({ HOME: home, TMPDIR: process.env.TMPDIR, CLAUDE_PLUGIN_DATA: data, TM_BROKER_URL: fixture.url, TM_TOKEN_FILE: credential(fixture), ...extra });
+  s.tmEnv = (fixture, extra = {}) => ({ HOME: home, TMPDIR: process.env.TMPDIR, CLAUDE_PLUGIN_DATA: pluginData, TM_BROKER_URL: fixture.url, TM_TOKEN_FILE: credential(fixture), ...extra });
   s.project = (fixture, key, binding = {}) => {
     const id = JSON.stringify([fixture.url, key, binding.workspace, binding.topic, binding.session, binding.token]);
     if (!projects.has(id)) {
@@ -155,13 +160,13 @@ export function pluginScratch(t, { token = tokens.bob } = {}) {
 // test process, which is alive, for `session` and the project root `project`.
 export function markServing(s, session, project) { markServingRecord(s.data, session, project, { home: s.home }); }
 // Recreates what Claude Code leaves under umask 002: ~/.claude/plugins,
-// plugins/data and the plugin data dir at `mode`, below `claude` (the
+// plugins/data, the plugin data dir and its messaging/ subfolder at `mode`, below `claude` (the
 // ~/.claude mode) and the scratch HOME at `home`. Needs no extra group, so it
 // runs in CI.
 export function umaskPluginData(s, { mode = 0o775, claude = 0o700, home = 0o700 } = {}) {
   mkdirSync(s.data, { recursive: true, mode: 0o700 });
   const plugins = pathJoin(s.home, '.claude', 'plugins');
-  for (const dir of [plugins, pathJoin(plugins, 'data'), s.data]) chmodSync(dir, mode);
+  for (const dir of [plugins, pathJoin(plugins, 'data'), s.pluginData, s.data]) chmodSync(dir, mode);
   chmodSync(pathJoin(s.home, '.claude'), claude); chmodSync(s.home, home);
 }
 // Runs one channel entrypoint as a real child process.
@@ -177,9 +182,9 @@ export function runChannel(script, args = [], env = {}, stdin = '') {
 // Project-file fixtures (plan project-options AM-3, AM-4). The MAC is
 // computed here independently of channel/project-options.mjs, so a test
 // that accepts a file also checks the production MAC against this one.
-export const PLUGIN_KEY = 'team-messaging@team-messaging-local';
+export const PLUGIN_KEY = 'glab-team@glab-services';
 export function projectMac({ root, url, version = 1, claudeSession, bindings, token }) {
-  const key = createHmac('sha256', token).update('team-messaging project binding v1').digest();
+  const key = createHmac('sha256', token).update('glab-team messaging project binding v1').digest();
   return createHmac('sha256', key).update(JSON.stringify([realpathSync(root), url, version, claudeSession, bindings])).digest('hex');
 }
 // Writes <dir>/.claude/settings.local.json holding `options` under our key,
@@ -197,7 +202,7 @@ export function writeProjectFile(dir, options, { other = {}, mode = 0o600, git =
 export function bindProject(dir, { url, token = tokens.bob, claudeSession, workspace = 'default', topic = '', session = 'shared-b', bindings, mac, ...rest }) {
   mkdirSync(dir, { recursive: true, mode: 0o700 });
   const list = bindings ?? [`${workspace}:${topic}:${session}`];
-  return writeProjectFile(dir, { version: 1, claude_session_id: claudeSession, bindings: list, mac: mac ?? projectMac({ root: dir, url, claudeSession, bindings: list, token }) }, rest);
+  return writeProjectFile(dir, { messaging_version: 1, messaging_claude_session_id: claudeSession, messaging_bindings: list, messaging_mac: mac ?? projectMac({ root: dir, url, claudeSession, bindings: list, token }) }, rest);
 }
 // The hook environment a saved credential gives: broker_url and token_file
 // only, with the token stored where join stores it for that broker and name.

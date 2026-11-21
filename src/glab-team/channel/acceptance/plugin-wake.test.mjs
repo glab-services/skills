@@ -58,7 +58,7 @@ test('real Claude Code: an idle plugin session wakes through the asyncRewake wat
   const tokenFile = credentialPath(fixture.url, 'bob', { env: { HOME: home } });
   mkdirSync(dirname(tokenFile), { recursive: true, mode: 0o700 }); writeFileSync(tokenFile, tokens.bob, { mode: 0o600 });
   t.after(() => rmSync(tokenFile, { force: true }));
-  assert.equal(writePluginConfig(PLUGIN_ID, { broker_url: fixture.url, token_file: tokenFile, workspace: '', topic: '', session_id: '', mode: 'poll', arm: 'rewake' }, { env }), 'registered');
+  assert.equal(writePluginConfig(PLUGIN_ID, { broker_url: fixture.url, token_file: tokenFile, mode: 'poll', arm: 'rewake' }, { env }), 'registered');
   const session = randomUUID();
   bindProject(project, { url: fixture.url, claudeSession: session, session: `wake-${id}` });
   child = spawn('script', ['-q', '-c', `claude --debug-file ${debugLog} --session-id ${session} 'say ready'`, '/dev/null'], { cwd: project, env, stdio: ['pipe', 'ignore', 'ignore'] });
@@ -70,7 +70,7 @@ test('real Claude Code: an idle plugin session wakes through the asyncRewake wat
   const sent = fixture.broker.send('alice', 'a', { to: 'user:bob', body: 'Reply with the word pong.' });
   assert.equal(fixture.store.get('SELECT acked_at FROM messages WHERE id=?', sent.id).acked_at, null);
   assert.ok(await until(() => fixture.store.get('SELECT acked_at FROM messages WHERE id=?', sent.id).acked_at !== null, 120000), 'the idle session woke and acked within 120 s');
-  const transcript = transcriptOf(configDir, session), wake = transcript.indexOf(`team-message id=${sent.id} `), ack = transcript.search(new RegExp(`"name":"mcp__plugin_team-messaging_team-messaging__ack","input":\\{"id":${sent.id}\\}`));
+  const transcript = transcriptOf(configDir, session), wake = transcript.indexOf(`team-message id=${sent.id} `), ack = transcript.search(new RegExp(`"name":"mcp__plugin_glab-team_messaging__ack","input":\\{"id":${sent.id}\\}`));
   assert.ok(wake >= 0 && ack > wake, 'the transcript shows the rewake line before the MCP ack tool call');
   assert.equal(fixture.requests.filter(r => r.path.startsWith('/ack')).length, 1, 'only the MCP server acked');
   const log = existsSync(debugLog) ? readFileSync(debugLog, 'utf8') : '';

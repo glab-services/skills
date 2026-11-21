@@ -14,7 +14,7 @@ function checkKey(key) {
   requireValue(typeof key === 'string' && /^[A-Za-z0-9_.-]{1,128}$/.test(key) && !/^\.\.?$/.test(key), 'INVALID_SESSION_KEY', 'Use the host session_id (letters, digits, underscores, dots or hyphens) as the watcher key.');
 }
 export function stateDir(dataDir, { home } = {}) {
-  requireValue(typeof dataDir === 'string' && dataDir.length > 0, 'DATA_DIR_REQUIRED', 'Pass --data-dir ${CLAUDE_PLUGIN_DATA}.');
+  requireValue(typeof dataDir === 'string' && dataDir.length > 0, 'DATA_DIR_REQUIRED', 'Pass --data-dir ${CLAUDE_PLUGIN_DATA}/messaging.');
   const dir = join(dataDir, 'state');
   // Watcher state, not a credential: a sealed ancestor makes the 0775 plugin
   // data directories Claude Code creates under umask 002 acceptable (decision 149).

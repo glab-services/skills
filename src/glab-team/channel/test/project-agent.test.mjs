@@ -45,7 +45,7 @@ const contextOf = result => result.stdout ? JSON.parse(result.stdout).hookSpecif
 // see plugin-config.mjs). `state.inputs` is what --json reports; a write
 // updates it, as the real CLI would. `fail` makes the write fail.
 function claudeConfig(inputs = {}) {
-  const state = { inputs: { broker_url: '', token_file: '', workspace: '', topic: '', session_id: '', mode: 'poll', arm: 'rewake', ...inputs }, writes: [], fail: false };
+  const state = { inputs: { messaging_broker_url: '', messaging_token_file: '', messaging_mode: 'poll', messaging_arm: 'rewake', ...inputs }, writes: [], fail: false };
   state.spawn = (command, args, options) => {
     if (args.includes('--json')) return { status: 0, stdout: JSON.stringify({ inputs: state.inputs, configured: [] }) };
     if (state.fail) return { status: 1 };
@@ -69,8 +69,8 @@ test('a second Claude session in a bound project sends no broker request', async
   const f = await brokerFixture(t, { defaultOwner: 'bob' }), s = pluginScratch(t), tokenFile = credentialScratch(s, f.url);
   const project = pathJoin(s.dir, 'project');
   bindProject(project, { url: f.url, claudeSession: 'agent-1' });
-  const saved = { CLAUDE_PLUGIN_OPTION_BROKER_URL: f.url, CLAUDE_PLUGIN_OPTION_TOKEN_FILE: tokenFile, CLAUDE_PLUGIN_OPTION_WORKSPACE: 'default', CLAUDE_PLUGIN_OPTION_SESSION_ID: 'shared-b' };
-  const env = { HOME: s.home, TMPDIR: process.env.TMPDIR, CLAUDE_PLUGIN_DATA: s.data, ...saved };
+  const saved = { CLAUDE_PLUGIN_OPTION_MESSAGING_BROKER_URL: f.url, CLAUDE_PLUGIN_OPTION_MESSAGING_TOKEN_FILE: tokenFile, CLAUDE_PLUGIN_OPTION_MESSAGING_WORKSPACE: 'default', CLAUDE_PLUGIN_OPTION_MESSAGING_SESSION_ID: 'shared-b' };
+  const env = { HOME: s.home, TMPDIR: process.env.TMPDIR, CLAUDE_PLUGIN_DATA: s.pluginData, ...saved };
   const [start, stop, watcher] = await hooks(s, env, project, 'other-2');
   assert.deepEqual(f.requests, [], 'no hook or watcher request from the non-agent session');
   const { client } = await mcp(t, { HOME: s.home, TM_BROKER_URL: f.url, TM_TOKEN_FILE: tokenFile, TM_WORKSPACE: 'default', TM_TOPIC: '', TM_SESSION_ID: 'shared-b', TM_MODE: '', TM_ARM: '', CLAUDE_CODE_SESSION_ID: 'other-2', CLAUDE_PROJECT_DIR: project });
@@ -84,12 +84,12 @@ test('a second Claude session in a bound project sends no broker request', async
 
 // Phase 0.6 (red on c9543a1/2361ab1), S-1: a cloned repo's settings.json env
 // block can set CLAUDE_PLUGIN_OPTION_* for an unsaved option (U-2).
-test('a repo env CLAUDE_PLUGIN_OPTION_BROKER_URL never makes a hook send a token', async t => {
+test('a repo env CLAUDE_PLUGIN_OPTION_MESSAGING_BROKER_URL never makes a hook send a token', async t => {
   const f = await brokerFixture(t, { defaultOwner: 'bob' }), s = pluginScratch(t), tokenFile = credentialScratch(s, f.url), attacker = await recorder(t);
   const bound = pathJoin(s.dir, 'bound'), unbound = pathJoin(s.dir, 'unbound');
   bindProject(bound, { url: f.url, claudeSession: 'agent-1' });
-  const repoEnv = { CLAUDE_PLUGIN_OPTION_BROKER_URL: attacker.url, CLAUDE_PLUGIN_OPTION_TOKEN_FILE: tokenFile, CLAUDE_PLUGIN_OPTION_WORKSPACE: 'default', CLAUDE_PLUGIN_OPTION_SESSION_ID: 'shared-b', TM_BROKER_URL: f.url, TM_TOKEN_FILE: tokenFile };
-  const env = { HOME: s.home, TMPDIR: process.env.TMPDIR, CLAUDE_PLUGIN_DATA: s.data, ...repoEnv };
+  const repoEnv = { CLAUDE_PLUGIN_OPTION_MESSAGING_BROKER_URL: attacker.url, CLAUDE_PLUGIN_OPTION_MESSAGING_TOKEN_FILE: tokenFile, CLAUDE_PLUGIN_OPTION_MESSAGING_WORKSPACE: 'default', CLAUDE_PLUGIN_OPTION_MESSAGING_SESSION_ID: 'shared-b', TM_BROKER_URL: f.url, TM_TOKEN_FILE: tokenFile };
+  const env = { HOME: s.home, TMPDIR: process.env.TMPDIR, CLAUDE_PLUGIN_DATA: s.pluginData, ...repoEnv };
   const results = [];
   for (const project of [bound, unbound]) results.push(...await hooks(s, env, project, 'agent-1'));
   assert.deepEqual(attacker.seen, [], 'the repo-chosen broker URL received nothing');
@@ -168,11 +168,11 @@ test('a second Claude session in the same project is inert: zero broker requests
   const f = await brokerFixture(t, { defaultOwner: 'bob' }), s = pluginScratch(t), project = gitDir(s.dir, 'project');
   bindProject(project, { url: f.url, claudeSession: 'agent-1' });
   const [start, stop, watcher] = await hooks(s, s.env(f), project, 'other-2');
-  assert.equal(contextOf(start), "team-messaging: this session is not this project's team-messaging agent (the agent is Claude session agent-1), so it has no team-messaging tools and is not woken for team messages. A fork or /clear gives a session a new id; if the user expects this session to be the agent, tell them to run /team-messaging:claim here.");
+  assert.equal(contextOf(start), "glab-team messaging: this session is not this project's glab-team messaging agent (the agent is Claude session agent-1), so it has no glab-team messaging tools and is not woken for team messages. A fork or /clear gives a session a new id; if the user expects this session to be the agent, tell them to run /glab-team:messaging-claim here.");
   assert.deepEqual([start.stderr, stop.stdout, stop.stderr, watcher.code, watcher.stdout, watcher.stderr], ['', '', '', 0, '', '']);
   const m = await mcp(t, mcpEnv(s, f, 'other-2', project));
   assert.deepEqual(m.client.getServerCapabilities().tools, { listChanged: true });
-  assert.deepEqual(m.client.getServerVersion(), { name: 'team-messaging', version: '0.11.1' });
+  assert.deepEqual(m.client.getServerVersion(), { name: 'messaging', version: '0.12.0' });
   assert.deepEqual((await m.client.listTools()).tools, []);
   const refused = await m.client.callTool({ name: 'inbox', arguments: {} });
   assert.deepEqual([refused.isError, refused.structuredContent.error], [true, 'NOT_AGENT_SESSION']);
@@ -190,25 +190,25 @@ test('F1: the inert MCP server\'s instructions say this session is not the agent
   bindProject(project, { url: f.url, claudeSession: 'agent-1' });
   const inertServer = await mcp(t, mcpEnv(s, f, 'other-2', project)), inert = inertServer.client.getInstructions();
   // Follow-up to review r1 R4: the refusal hint matches in-place promotion too.
-  assert.equal((await inertServer.client.callTool({ name: 'inbox', arguments: {} })).structuredContent.hint, 'This Claude session is not the agent session of this project; only the user can move the agent here with /team-messaging:claim; the tools load within a few seconds, reconnect the MCP server if they do not.');
-  assert.ok(inert?.includes('/team-messaging:claim'), inert);
+  assert.equal((await inertServer.client.callTool({ name: 'inbox', arguments: {} })).structuredContent.hint, 'This Claude session is not the agent session of this project; only the user can move the agent here with /glab-team:messaging-claim; the tools load within a few seconds, reconnect the MCP server if they do not.');
+  assert.ok(inert?.includes('/glab-team:messaging-claim'), inert);
   assert.ok(inert.includes(ACK_RULE), inert);
   // Review r1 S2: the model is told that a Bash-run command can also do it.
-  assert.ok(inert.includes('Only /team-messaging:claim, bind or join run in this session makes it the agent (a model-run Bash command can do this when Bash is auto-approved; see docs/setup.md).'), inert);
+  assert.ok(inert.includes('Only /glab-team:messaging-claim, bind or join run in this session makes it the agent (a model-run Bash command can do this when Bash is auto-approved; see docs/setup.md).'), inert);
   const idleServer = await mcp(t, mcpEnv(s, f, 'any', unbound)), idle = idleServer.client.getInstructions();
-  assert.ok(idle?.includes('/team-messaging:bind'), idle);
+  assert.ok(idle?.includes('/glab-team:messaging-bind'), idle);
   assert.ok(idle.includes(ACK_RULE), idle);
   // Review r1 R4: with in-place promotion the tools load without a reconnect.
   const refusedIdle = (await idleServer.client.callTool({ name: 'inbox', arguments: {} })).structuredContent;
-  assert.equal(refusedIdle.hint, 'This project has no team-messaging binding; run /team-messaging:bind or /team-messaging:join in the session that should be the agent; the tools load within a few seconds, reconnect the MCP server if they do not.');
+  assert.equal(refusedIdle.hint, 'This project has no glab-team messaging binding; run /glab-team:messaging-bind or /glab-team:messaging-join in the session that should be the agent; the tools load within a few seconds, reconnect the MCP server if they do not.');
   assert.deepEqual(f.requests, []);
 });
 
 test('F1: the inert MCP server\'s instructions name the refusal code in the invalid state', async t => {
   const f = await brokerFixture(t, { defaultOwner: 'bob' }), s = pluginScratch(t), project = gitDir(s.dir, 'project');
-  writeProjectFile(project, { version: 1, claude_session_id: 'agent-1', bindings: ['default::shared-b'], mac: 'a'.repeat(64) });
+  writeProjectFile(project, { messaging_version: 1, messaging_claude_session_id: 'agent-1', messaging_bindings: ['default::shared-b'], messaging_mac: 'a'.repeat(64) });
   const instructions = (await mcp(t, mcpEnv(s, f, 'agent-1', project))).client.getInstructions();
-  assert.ok(instructions?.includes('The team-messaging binding of this project was refused (PROJECT_OPTIONS_UNTRUSTED)'), instructions);
+  assert.ok(instructions?.includes('The glab-team messaging binding of this project was refused (PROJECT_OPTIONS_UNTRUSTED)'), instructions);
   assert.ok(instructions.includes(ACK_RULE), instructions);
   assert.deepEqual(f.requests, []);
 });
@@ -219,7 +219,7 @@ test('claim moves the agent; the old MCP refuses its next call and stops within 
   bindProject(project, { url: f.url, claudeSession: 'agent-1', session: 'sp' });
   const old = await mcp(t, mcpEnv(s, f, 'agent-1', project));
   assert.deepEqual(old.client.getServerCapabilities().tools, { listChanged: true });
-  assert.equal(old.client.getServerVersion().version, '0.11.1', 'the active server reports the release too');
+  assert.equal(old.client.getServerVersion().version, '0.12.0', 'the active server reports the release too');
   assert.ok((await old.client.listTools()).tools.length > 10);
   await eventually(() => requestsOf(f, 'sp').length > 0, 4000);
   const watcher = runChannel('watch.mjs', ['--mode', 'rewake', '--project-dir', project, '--data-dir', s.data, '--poll-s', '1', '--deadline-s', '30'], s.env(f), hookInput('Stop', 'agent-1'));
@@ -329,7 +329,7 @@ test('F5: right after claim, the Stop hook does not block or open the window unt
   const stop = () => runChannel('stop-hook.mjs', ['--project-dir', project, '--data-dir', s.data], s.env(f), hookInput('Stop', 'agent-2')).result;
   const early = await stop();
   assert.equal(early.code, 0, early.stderr);
-  assert.match(JSON.parse(early.stdout).systemMessage, /^team-messaging: TOOLS_NOT_LOADED: /);
+  assert.match(JSON.parse(early.stdout).systemMessage, /^glab-team messaging: TOOLS_NOT_LOADED: /);
   assert.ok(!early.stdout.includes('decision'), 'no block');
   assert.equal(fs.existsSync(window), false, 'no window');
   await eventually(() => m.changed.length >= 1, 5000);
@@ -392,7 +392,7 @@ test('F3: a session the claim does not name stays inert, and SESSION_ID_UNKNOWN 
 test('no project file: idle, zero broker requests, idle line', async t => {
   const f = await brokerFixture(t, { defaultOwner: 'bob' }), s = pluginScratch(t), project = gitDir(s.dir, 'project');
   const [start, stop, watcher] = await hooks(s, s.env(f), project, 'any');
-  assert.equal(contextOf(start), 'team-messaging is idle in this project; run /team-messaging:bind or /team-messaging:join in the session that should be the agent');
+  assert.equal(contextOf(start), 'glab-team messaging is idle in this project; run /glab-team:messaging-bind or /glab-team:messaging-join in the session that should be the agent');
   assert.deepEqual([stop.stdout, stop.stderr, watcher.stdout, watcher.stderr], ['', '', '', '']);
   const m = await mcp(t, mcpEnv(s, f, 'any', project));
   assert.deepEqual((await m.client.listTools()).tools, []);
@@ -402,42 +402,9 @@ test('no project file: idle, zero broker requests, idle line', async t => {
   assert.deepEqual(f.requests, []);
 });
 
-test('0.9 global binding: idle with the migration hint; --adopt-global keeps the session and clears global; a second adopt finds nothing', async t => {
-  const f = await brokerFixture(t, { defaultOwner: 'bob' }), s = pluginScratch(t), tokenFile = credentialScratch(s, f.url), env = { HOME: s.home };
-  const a = gitDir(s.dir, 'a'), b = gitDir(s.dir, 'b');
-  f.broker.heartbeat('bob', 'old-09', 'worker', 'default', null);
-  const global = { broker_url: f.url, token_file: tokenFile, workspace: 'default', topic: '', session_id: 'old-09', mode: 'push', arm: 'bash' };
-  const [start] = await hooks(s, s.env(f, { CLAUDE_PLUGIN_OPTION_WORKSPACE: 'default', CLAUDE_PLUGIN_OPTION_SESSION_ID: 'old-09' }), a, 'agent-a');
-  assert.match(contextOf(start), /^team-messaging is idle in this project; .* 0\.9 binding to workspace default, .*\/team-messaging:bind --adopt-global/);
-  assert.deepEqual(f.requests.filter(r => r.session === 'old-09'), [], 'the 0.9 binding is ignored');
-  // Failure after the rename: the file is written, the global rewrite fails.
-  const cli = claudeConfig(global); cli.fail = true;
-  const failed = await bind({ adoptGlobal: true, claudeSession: 'agent-a', dataDir: s.data, project: a }, { env, spawn: cli.spawn });
-  assert.equal(failed.adapters[0].status, 'failed');
-  assert.deepEqual(findProject(a).binding, { workspace: 'default', topic: null, session_id: 'old-09' }); assert.equal(cli.inputs.workspace, 'default', 'global still full');
-  // The rerun finds its own adopted file and finishes clearing the global binding.
-  cli.fail = false;
-  const adopted = await bind({ adoptGlobal: true, claudeSession: 'agent-a', dataDir: s.data, project: a }, { env, spawn: cli.spawn });
-  assert.equal(adopted.adapters[0].status, 'adopted');
-  assert.deepEqual(cli.writes, [{ ...global, workspace: '', topic: '', session_id: '' }], 'credential-only, mode and arm kept');
-  await assert.rejects(bind({ adoptGlobal: true, claudeSession: 'agent-a', dataDir: s.data, project: a }, { env, spawn: cli.spawn }), { code: 'NOTHING_TO_ADOPT' });
-  // The adopt marker refuses a second root even if a global binding reappears.
-  await assert.rejects(bind({ adoptGlobal: true, claudeSession: 'agent-b', dataDir: s.data, project: b }, { env, spawn: claudeConfig(global).spawn }), error => error.code === 'PLUGIN_ALREADY_BOUND' && error.hint.includes(a));
-  assert.equal(findProject(b).state, 'absent');
-  // The adopted session works at once: the MCP server of the agent uses old-09.
-  const m = await mcp(t, mcpEnv(s, f, 'agent-a', a));
-  assert.equal((await m.client.callTool({ name: 'inbox', arguments: {} })).isError, undefined);
-  assert.ok(requestsOf(f, 'old-09').length > 0);
-  // An ended 0.9 session is refused and nothing is written.
-  const ended = { ...global, session_id: 'ended-09' }, c = gitDir(s.dir, 'c'), other = pathJoin(s.dir, 'other-data');
-  f.broker.heartbeat('bob', 'ended-09', 'worker', 'default', null); f.store.run("UPDATE agents SET ended_at=?, ended_reason='membership_ended' WHERE session_id='ended-09'", Date.now());
-  await assert.rejects(bind({ adoptGlobal: true, claudeSession: 'agent-c', dataDir: other, project: c }, { env, spawn: claudeConfig(ended).spawn }), { code: 'SESSION_ENDED' });
-  assert.equal(findProject(c).state, 'absent');
-});
-
 // The owner flow (P-16) against a real broker; `bob` is the owner.
 function owner(t, f, s, fetcher = fetch) {
-  const tokenFile = credentialScratch(s, f.url), cli = claudeConfig({ broker_url: f.url, token_file: tokenFile }), sent = [];
+  const tokenFile = credentialScratch(s, f.url), cli = claudeConfig({ messaging_broker_url: f.url, messaging_token_file: tokenFile }), sent = [];
   const record = (url, options) => { sent.push(`${options.method} ${new URL(url).pathname}`); return fetcher(url, options); };
   return { cli, sent, tokenFile, run: (project, options = {}, deps = {}) => bind({ url: f.url, name: 'bob', claudeSession: 'owner-s', project, ...options }, { env: { HOME: s.home }, spawn: cli.spawn, fetch: record, ...deps }) };
 }
@@ -469,12 +436,12 @@ test('owner bind creates workspace, topic and subscription, then writes the file
     assert.equal(retried.adapters[0].status, 'registered', step); assert.equal(findProject(dir).binding.workspace, `retry-${i}`);
   }
   // The global write failing: no project file; the rerun completes.
-  const empty = owner(t, f, s); empty.cli.inputs.broker_url = ''; empty.cli.inputs.token_file = ''; empty.cli.fail = true;
+  const empty = owner(t, f, s); empty.cli.inputs.messaging_broker_url = ''; empty.cli.inputs.messaging_token_file = ''; empty.cli.fail = true;
   const dir = gitDir(s.dir, 'retry-global');
   assert.equal((await empty.run(dir, { workspace: 'retry-g' })).adapters[0].status, 'failed'); assert.equal(findProject(dir).state, 'absent');
   empty.cli.fail = false;
   assert.equal((await empty.run(dir, { workspace: 'retry-g' })).adapters[0].status, 'registered');
-  assert.deepEqual(empty.cli.writes.at(-1), { broker_url: f.url, token_file: empty.tokenFile, workspace: '', topic: '', session_id: '', mode: 'poll', arm: 'rewake' });
+  assert.deepEqual(empty.cli.writes.at(-1), { messaging_broker_url: f.url, messaging_token_file: empty.tokenFile, messaging_mode: 'poll', messaging_arm: 'rewake' });
 });
 
 test('bind into an existing owned workspace creates only the topic', async t => {
@@ -551,12 +518,12 @@ test('a committed file with any ids stays inert and claim refuses it', async t =
   const f = await brokerFixture(t, { defaultOwner: 'bob' }), s = pluginScratch(t), project = gitDir(s.dir, 'cloned');
   for (const agent of ['agent-1', 'someone']) {
     // The attacker cannot compute the MAC without the user's token.
-    const file = writeProjectFile(project, { version: 1, claude_session_id: agent, bindings: ['default::stolen-session'], mac: 'a'.repeat(64) });
+    const file = writeProjectFile(project, { messaging_version: 1, messaging_claude_session_id: agent, messaging_bindings: ['default::stolen-session'], messaging_mac: 'a'.repeat(64) });
     const [start, stop, watcher] = await hooks(s, s.env(f), project, 'agent-1');
-    if (agent === 'agent-1') assert.match(contextOf(start), /^team-messaging: PROJECT_OPTIONS_UNTRUSTED: /);
-    else assert.equal(contextOf(start), "team-messaging: this session is not this project's team-messaging agent (the agent is Claude session someone), so it has no team-messaging tools and is not woken for team messages. A fork or /clear gives a session a new id; if the user expects this session to be the agent, tell them to run /team-messaging:claim here.");
+    if (agent === 'agent-1') assert.match(contextOf(start), /^glab-team messaging: PROJECT_OPTIONS_UNTRUSTED: /);
+    else assert.equal(contextOf(start), "glab-team messaging: this session is not this project's glab-team messaging agent (the agent is Claude session someone), so it has no glab-team messaging tools and is not woken for team messages. A fork or /clear gives a session a new id; if the user expects this session to be the agent, tell them to run /glab-team:messaging-claim here.");
     assert.equal(watcher.stdout + watcher.stderr, '');
-    if (agent === 'agent-1') assert.match(JSON.parse(stop.stdout).systemMessage, /^team-messaging: PROJECT_OPTIONS_UNTRUSTED: /);
+    if (agent === 'agent-1') assert.match(JSON.parse(stop.stdout).systemMessage, /^glab-team messaging: PROJECT_OPTIONS_UNTRUSTED: /);
     const m = await mcp(t, mcpEnv(s, f, 'agent-1', project));
     assert.deepEqual((await m.client.listTools()).tools, []);
     const before = readFileSync(file, 'utf8');
@@ -573,17 +540,17 @@ test('a file copied to another clone is untrusted', async t => {
   const file = bindProject(origin, { url: f.url, claudeSession: 'agent-1' });
   mkdirSync(pathJoin(clone, '.claude'), { mode: 0o700 }); copyFileSync(file, pathJoin(clone, '.claude', 'settings.local.json'));
   const [start] = await hooks(s, s.env(f), clone, 'agent-1');
-  assert.match(contextOf(start), /^team-messaging: PROJECT_OPTIONS_UNTRUSTED: /);
+  assert.match(contextOf(start), /^glab-team messaging: PROJECT_OPTIONS_UNTRUSTED: /);
   const m = await mcp(t, mcpEnv(s, f, 'agent-1', clone));
   assert.deepEqual((await m.client.listTools()).tools, []);
   await new Promise(resolve => setTimeout(resolve, 500));
   assert.deepEqual(f.requests, []);
   // AM-4: editing any binding field or the agent breaks the MAC too.
-  const options = JSON.parse(readFileSync(file, 'utf8')).pluginConfigs['team-messaging@team-messaging-local'].options;
-  for (const edited of [{ bindings: ['other::shared-b'] }, { bindings: ['default:fixture:shared-b'] }, { bindings: ['default::stolen'] }, { claude_session_id: 'agent-2' }]) {
+  const options = JSON.parse(readFileSync(file, 'utf8')).pluginConfigs['glab-team@glab-services'].options;
+  for (const edited of [{ messaging_bindings: ['other::shared-b'] }, { messaging_bindings: ['default:fixture:shared-b'] }, { messaging_bindings: ['default::stolen'] }, { messaging_claude_session_id: 'agent-2' }]) {
     writeProjectFile(origin, { ...options, ...edited });
-    const [edit] = await hooks(s, s.env(f), origin, edited.claude_session_id ?? 'agent-1');
-    assert.match(contextOf(edit), /^team-messaging: PROJECT_OPTIONS_UNTRUSTED: /, JSON.stringify(edited));
+    const [edit] = await hooks(s, s.env(f), origin, edited.messaging_claude_session_id ?? 'agent-1');
+    assert.match(contextOf(edit), /^glab-team messaging: PROJECT_OPTIONS_UNTRUSTED: /, JSON.stringify(edited));
   }
   assert.deepEqual(f.requests, []);
 });
@@ -594,7 +561,7 @@ test('a file with broker_url or token_file is invalid and no token leaves', asyn
   for (const extra of [{ broker_url: attacker.url }, { token_file: s.tokenFile }, { broker_url: attacker.url, token_file: credentialPath(attacker.url, 'bob', { env: { HOME: s.home } }) }]) {
     writeProjectFile(project, { ...good, ...extra });
     const results = await hooks(s, s.env(f), project, 'agent-1');
-    assert.match(contextOf(results[0]), /^team-messaging: PROJECT_OPTIONS_INVALID: /, JSON.stringify(extra));
+    assert.match(contextOf(results[0]), /^glab-team messaging: PROJECT_OPTIONS_INVALID: /, JSON.stringify(extra));
     for (const result of results) assert.ok(!(result.stdout + result.stderr).includes(tokens.bob));
     const m = await mcp(t, mcpEnv(s, f, 'agent-1', project));
     assert.deepEqual((await m.client.listTools()).tools, []);
@@ -605,13 +572,13 @@ test('a file with broker_url or token_file is invalid and no token leaves', asyn
 test('a file with two bindings or version 2 is UNSUPPORTED', async t => {
   const f = await brokerFixture(t, { defaultOwner: 'bob' }), s = pluginScratch(t), project = gitDir(s.dir, 'p');
   const good = projectOptions(tokens.bob, { root: project, url: f.url, claudeSession: 'agent-1', binding: { workspace: 'default', topic: null, session_id: 'shared-b' } });
-  for (const options of [{ ...good, bindings: ['default::a', 'w2:t:b'] }, { ...good, version: 2 }, { ...good, version: 2, new_field: 'x' }]) {
+  for (const options of [{ ...good, messaging_bindings: ['default::a', 'w2:t:b'] }, { ...good, messaging_version: 2 }, { ...good, messaging_version: 2, new_field: 'x' }]) {
     writeProjectFile(project, options);
     assert.equal(findProject(project).code, 'PROJECT_OPTIONS_UNSUPPORTED', JSON.stringify(options));
     const [start] = await hooks(s, s.env(f), project, 'agent-1');
-    assert.equal(contextOf(start), "team-messaging: PROJECT_OPTIONS_UNSUPPORTED: This project's team-messaging binding was written by a newer plugin; upgrade the plugin.");
+    assert.equal(contextOf(start), "glab-team messaging: PROJECT_OPTIONS_UNSUPPORTED: This project's glab-team messaging binding was written by a newer plugin; upgrade the plugin.");
   }
-  for (const options of [{ ...good, version: '1' }, { ...good, bindings: [] }, { ...good, bindings: [{ workspace: 'default' }] }, { ...good, bindings: ['default:a'] }, { ...good, bindings: ['broker::s'] }, { ...good, bindings: ['default::broker'] }, { ...good, claude_session_id: 'a.b' }, { ...good, mac: 'x' }, { ...good, extra: 1 }, (({ mac, ...rest }) => rest)(good)]) {
+  for (const options of [{ ...good, messaging_version: '1' }, { ...good, messaging_bindings: [] }, { ...good, messaging_bindings: [{ workspace: 'default' }] }, { ...good, messaging_bindings: ['default:a'] }, { ...good, messaging_bindings: ['broker::s'] }, { ...good, messaging_bindings: ['default::broker'] }, { ...good, messaging_claude_session_id: 'a.b' }, { ...good, messaging_mac: 'x' }, { ...good, extra: 1 }, (({ messaging_mac, ...rest }) => rest)(good), { version: 1, claude_session_id: 'agent-1', bindings: ['default::shared-b'], mac: 'a'.repeat(64) }]) {
     writeProjectFile(project, options);
     assert.equal(findProject(project).code, 'PROJECT_OPTIONS_INVALID', JSON.stringify(options));
   }
@@ -625,10 +592,10 @@ test('a file with two bindings or version 2 is UNSUPPORTED', async t => {
 test('the project options the CLI writes hold only strings, numbers and string arrays', t => {
   const s = pluginScratch(t), root = gitDir(s.dir, 'r');
   const options = projectOptions('t'.repeat(32), { root, url: 'https://b.example', claudeSession: 'a', binding: { workspace: 'w', topic: 'a/b', session_id: 's' } });
-  assert.deepEqual(Object.keys(options), ['version', 'claude_session_id', 'bindings', 'mac']);
+  assert.deepEqual(Object.keys(options), ['messaging_version', 'messaging_claude_session_id', 'messaging_bindings', 'messaging_mac']);
   for (const value of Object.values(options)) assert.ok(typeof value === 'string' || typeof value === 'number' || (Array.isArray(value) && value.every(item => typeof item === 'string')), JSON.stringify(value));
-  assert.deepEqual(options.bindings, ['w:a/b:s']);
-  assert.equal(options.mac, projectMac({ root, url: 'https://b.example', claudeSession: 'a', bindings: ['w:a/b:s'], token: 't'.repeat(32) }), 'the MAC matches the independent test implementation');
+  assert.deepEqual(options.messaging_bindings, ['w:a/b:s']);
+  assert.equal(options.messaging_mac, projectMac({ root, url: 'https://b.example', claudeSession: 'a', bindings: ['w:a/b:s'], token: 't'.repeat(32) }), 'the MAC matches the independent test implementation');
 });
 
 test('other-writable, foreign or symlinked files fail closed; 0664/0775 accepted; no key means absent', async t => {
@@ -663,9 +630,9 @@ test('other-writable, foreign or symlinked files fail closed; 0664/0775 accepted
   assert.equal(state(other), 'absent', 'no key means absent');
   writeFileSync(pathJoin(other, '.claude', 'settings.local.json'), '{ not json');
   assert.equal(state(other), 'absent', 'bad JSON without our id is somebody else\'s');
-  writeFileSync(pathJoin(other, '.claude', 'settings.local.json'), '{ "team-messaging@team-messaging-local": ');
+  writeFileSync(pathJoin(other, '.claude', 'settings.local.json'), '{ "glab-team@glab-services": ');
   assert.equal(state(other), 'PROJECT_OPTIONS_INVALID', 'bad JSON naming our id fails closed');
-  writeFileSync(pathJoin(other, '.claude', 'settings.local.json'), JSON.stringify({ pluginConfigs: { 'team-messaging@team-messaging-local': { options: { version: 1 } } } }));
+  writeFileSync(pathJoin(other, '.claude', 'settings.local.json'), JSON.stringify({ pluginConfigs: { 'glab-team@glab-services': { options: { messaging_version: 1 } } } }));
   chmodSync(pathJoin(other, '.claude', 'settings.local.json'), 0o666);
   assert.equal(state(other), 'PROJECT_OPTIONS_UNTRUSTED', 'trust is checked once the key is present');
 });
@@ -681,7 +648,7 @@ test('a keyed file in a 1777 ancestor is never read: the project stays idle, not
   const project = pathJoin(shared, 'mine'); mkdirSync(project, { mode: 0o700 });
   assert.equal(findProject(project, { home: s.home }).state, 'absent');
   const [start, stop] = await hooks(s, s.env(f), project, 'agent-1');
-  assert.match(contextOf(start), /^team-messaging is idle in this project; /);
+  assert.match(contextOf(start), /^glab-team messaging is idle in this project; /);
   assert.equal(stop.stdout, '');
   chmodSync(shared, 0o700);
   assert.equal(findProject(project, { home: s.home }).state, 'found', 'positive control: the same file is found from a private ancestor');
@@ -697,7 +664,7 @@ test('a foreign-owned keyed file or .claude directory is skipped and the walk go
   const s = pluginScratch(t), url = 'http://127.0.0.1:9', outer = pathJoin(s.dir, 'outer');
   bindProject(outer, { url, claudeSession: 'a', git: false });
   const repo = gitDir(outer, 'repo'), inner = pathJoin(repo, 'inner');
-  writeProjectFile(inner, { version: 1 }, { git: false }); chmodSync(inner, 0o770);
+  writeProjectFile(inner, { messaging_version: 1 }, { git: false }); chmodSync(inner, 0o770);
   const real = fs.lstatSync, foreignPaths = new Set();
   fs.lstatSync = (path, ...rest) => { const stat = real(path, ...rest); if (stat && foreignPaths.has(String(path))) { const copy = Object.create(Object.getPrototypeOf(stat), Object.getOwnPropertyDescriptors(stat)); copy.uid = stat.uid + 1; return copy; } return stat; };
   syncBuiltinESMExports();
@@ -740,7 +707,7 @@ test('bind and join write at the git root inside HOME, else the project director
   const file = writeProjectFile(repo, {}, { other: { permissions: { allow: ['Bash(ls)'] } }, mode: 0o640 });
   writeProjectOptions(repo, options);
   const written = readFileSync(file, 'utf8');
-  assert.deepEqual(JSON.parse(written), { permissions: { allow: ['Bash(ls)'] }, pluginConfigs: { 'team-messaging@team-messaging-local': { options } } });
+  assert.deepEqual(JSON.parse(written), { permissions: { allow: ['Bash(ls)'] }, pluginConfigs: { 'glab-team@glab-services': { options } } });
   assert.ok(written.startsWith('{\n  "permissions"'), '2-space indent'); assert.equal(statSync(file).mode & 0o777, 0o640, 'the mode is kept');
   assert.equal(findProject(sub, { home }).state, 'found');
   writeProjectOptions(nogit, options);
@@ -825,7 +792,7 @@ test('a credential-only global does not block; a credential for another broker r
   const first = claudeConfig(), code = await invite(f), p1 = gitDir(s.dir, 'p1');
   const joined = await join({ url: f.url, code, name: 'newbie', client: 'claude-plugin', claudeSession: 'agent-1', project: p1 }, { env, spawn: first.spawn });
   assert.equal(joined.adapters[0].status, 'registered');
-  assert.deepEqual(first.inputs, { broker_url: f.url, token_file: path, workspace: '', topic: '', session_id: '', mode: 'poll', arm: 'rewake' });
+  assert.deepEqual(first.inputs, { messaging_broker_url: f.url, messaging_token_file: path, messaging_mode: 'poll', messaging_arm: 'rewake' });
   assert.equal(findProject(p1).binding.topic, FIXTURE_TOPIC);
   // The credential-only global is this credential: it does not block a second project.
   const code2 = await invite(f), p2 = gitDir(s.dir, 'p2'), writes = first.writes.length;
@@ -833,7 +800,7 @@ test('a credential-only global does not block; a credential for another broker r
   assert.equal(second.adapters[0].status, 'registered'); assert.equal(first.writes.length, writes, 'nothing written globally');
   // A credential for another broker refuses before the invite.
   const code3 = await invite(f), p3 = gitDir(s.dir, 'p3'), joins = f.requests.filter(r => r.path === '/join').length;
-  const other = claudeConfig({ broker_url: 'https://other.example', token_file: credentialPath('https://other.example', 'newbie', { env }) });
+  const other = claudeConfig({ messaging_broker_url: 'https://other.example', messaging_token_file: credentialPath('https://other.example', 'newbie', { env }) });
   await assert.rejects(join({ url: f.url, code: code3, name: 'newbie', client: 'claude-plugin', claudeSession: 'agent-3', project: p3 }, { env, spawn: other.spawn }), error => error.code === 'PLUGIN_ALREADY_BOUND' && error.hint.includes('not used'));
   assert.ok(unredeemed(f, code3)); assert.equal(f.requests.filter(r => r.path === '/join').length, joins); assert.equal(findProject(p3).state, 'absent');
 });

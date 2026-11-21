@@ -1,12 +1,12 @@
 {
-  "name": "@glab/team-messaging-channel",
+  "name": "@glab/glab-team-messaging-channel",
   "version": "0.8.1",
   "private": true,
   "license": "Apache-2.0",
   "type": "module",
   "bin": {
-    "team-messaging-channel": "main.mjs",
-    "team-messaging": "cli.mjs"
+    "glab-team-messaging-channel": "main.mjs",
+    "glab-team-messaging": "cli.mjs"
   },
   "engines": {
     "node": ">=24"

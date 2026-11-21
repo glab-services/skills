@@ -20,7 +20,7 @@ export function credentialName(url, path, { env = process.env, home } = {}) {
   const name = typeof path === 'string' ? /^[0-9a-f]{16}-([a-zA-Z0-9_.-]{1,128})\.token$/.exec(basename(path))?.[1] : undefined;
   let expected;
   try { if (name !== undefined) expected = credentialPath(url, name, { env, ...(home ? { home } : {}) }); } catch {}
-  requireValue(expected !== undefined && expected === path, 'TOKEN_FILE_MISMATCH', 'The token file is not the credential join saved for this broker URL; run /team-messaging:join or /team-messaging:bind again.');
+  requireValue(expected !== undefined && expected === path, 'TOKEN_FILE_MISMATCH', 'The token file is not the credential join saved for this broker URL; run /glab-team:messaging-join or /glab-team:messaging-bind again.');
   return name;
 }
 // Decision 146, narrowed by decision 149: a directory no other non-root user

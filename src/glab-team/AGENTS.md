@@ -1,5 +1,15 @@
 # Working agreement
 
+- This folder is the maintained source of the `glab-team` plugin; the
+  repository's `AGENTS.md` governs and wins where the two differ.
+- Naming is per tool: the messaging tool's skills are `messaging-*`
+  (`/glab-team:messaging-*`), its MCP server is `messaging`
+  (`plugin:glab-team:messaging`), its data is `<plugin data>/messaging`, its
+  plugin options are `messaging_*` and its CLI is `glab-team-messaging`. The
+  scope hook confines a team-message window to the `messaging` server's tools
+  only (`OUR_PREFIX` and `OUR_SERVER` in `channel/scope-hook.mjs`): a later
+  `glab-team` tool server, such as `telegram`, must revise those two constants
+  to be allowed in a window.
 - Use Node.js 24+ and pnpm. Read broker/README.md and channel/README.md before
   changing messaging behavior. Keep changes scoped and stop for review after
   each self-contained change.
