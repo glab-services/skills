@@ -40,6 +40,12 @@ the marketplace and plugin names
 
 - `.claude-plugin/marketplace.json`
 - `plugins/glab/.claude-plugin/plugin.json`
+- `plugins/glab-team/.claude-plugin/plugin.json` (the build of
+  `src/glab-team/plugin/.claude-plugin/plugin.json`)
+- `src/glab-team/channel/project-options.mjs` (`PLUGIN_ID`)
+- `src/glab-team/channel/cli.mjs` (`PLUGIN_DATA_NAME`)
+- the install commands of `src/glab-team/README.md`, `channel/README.md` and
+  `docs/setup.md`
 - `README.md`
 - `tests/gates.sh`
 
@@ -47,9 +53,10 @@ the marketplace and plugin names
 
 what each plugin holds — its component counts and its hook events
 
-- `tests/gates.sh`
+- `tests/gates.sh` (G24–G26, G42–G44)
 - `README.md`
-- each plugin's `hooks/hooks.json`
+- each plugin's `hooks/hooks.json` (`glab-team`'s from
+  `src/glab-team/plugin/hooks/hooks.json`)
 
 ## The model per role
 
@@ -523,3 +530,47 @@ agents' — and refuses a Skill call to a `glab:` skill not on it
 - the `description:` of every `plugins/glab/skills/*/SKILL.md` and
   `plugins/glab/agents/*.md`
 - `README.md`
+
+## The team messaging source and its toolchain
+
+the team messaging source at `src/glab-team/`, and what its suites need —
+Node.js 24 or newer as the `node` first on `PATH`, pnpm 10 or newer, and
+`pnpm install --frozen-lockfile` run in it
+
+- `tests/gates.sh` (the preflight, G40–G41 and G45)
+- `AGENTS.md` *Layout* and *Gates*
+- `README.md` *Working on this repo*
+- `host.example.md` *Tool paths* (where Node.js 24 is on a host)
+- and, for Node.js 24, the source's own files: `src/glab-team/package.json`,
+  `channel/package.json` and `plugin/package.json` (`engines`), `AGENTS.md`,
+  `README.md`, `broker/README.md`, `channel/README.md` and `docs/setup.md`
+
+## The committed glab-team build
+
+`plugins/glab-team/` is the output of `src/glab-team/scripts/build-plugin.mjs`, never edited by hand
+
+- `AGENTS.md` *Layout*
+- `README.md` *Working on this repo*
+- `tests/gates.sh` (G45)
+- `src/glab-team/scripts/build-plugin.mjs` (its admitted target)
+- `src/glab-team/package.json` (`plugin:build`)
+- `src/glab-team/AGENTS.md`, `README.md` and `channel/README.md`
+
+## The glab-team version
+
+the `glab-team` version
+
+- `src/glab-team/plugin/.claude-plugin/plugin.json`
+- `src/glab-team/plugin/package.json`
+- `src/glab-team/plugin/package-lock.json`
+- `src/glab-team/channel/version.mjs`
+- the tests that assert it: `src/glab-team/channel/test/plugin-env.test.mjs`
+  and `channel/test/project-agent.test.mjs`
+- and its build in `plugins/glab-team/`
+
+## The earlier plugin id
+
+the id `glab-team` replaces, `team-messaging@team-messaging-local`, and what a user of it does
+
+- `README.md` *Moving to glab-team*
+- `src/glab-team/docs/setup.md` *Moving from …*

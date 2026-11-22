@@ -1,11 +1,12 @@
 # skills
 
-A Claude Code plugin marketplace, `glab-services`, with one plugin: the
-workflow we run in every session.
+A Claude Code plugin marketplace, `glab-services`, with two plugins: `glab`, the
+workflow we run in every session, and `glab-team`, team agent messaging.
 
 | Plugin | What it adds |
 |---|---|
 | `glab` | Skills `glab:bootstrap`, `glab:project-manager`, `glab:session-rules`, `glab:security`, `glab:comments`, `glab:audit`, `glab:severity` · agents `glab:project-planner`, `glab:project-plan-analyzer`, `glab:project-analyzer`, `glab:project-developer`, `glab:project-integrator`, `glab:project-reviewer`, `glab:committer` · stage skills `/glab:project-plan-accept`, `/glab:project-plan-analyze`, `/glab:project-develop`, `/glab:project-analyze`, `/glab:project-integrate`, `/glab:project-review`, `/glab:commit`, `/glab:push`, `/glab:project-ship`, `/glab:project-plan-report`, `/glab:project-record`, which `glab:project-manager` runs itself and you can type to step in · `/glab:project-plan <task>`, the planning procedure `glab:project-planner` follows, which you can type to plan in your own session · `/glab:project-issue <owner>/<repo>#<n>`, which takes a GitHub issue as the task: it reads the issue with `gh api` into the plan folder, and the planner quotes it in the master · a `SessionStart` hook that injects the session bootstrap rules · a context hook on `UserPromptSubmit`, `PostToolUse` (`Agent`) and `Stop` that tells the session its context size and tells you when a turn crosses 300k or a further 100k · a `PreToolUse` hook on `Skill` and on `Bash`, `PowerShell` and `Monitor` that refuses another level's skill and asks you before a verdict by `user` · the product level (*Levels*): skills `glab:product-manager`, `glab:product-plan`, `glab:product-plan-analyze`, `glab:product-project-brief`, `glab:product-project-plan-analyze`, `glab:product-project-plan-verdict` · agents `glab:product-planner`, `glab:product-analyzer` · templates under `templates/docs-mirror/` for a CI job that mirrors a code repo's `docs/` to a read-only `{repo}-docs` repository (*The docs mirror*) |
+| `glab-team` | Team agent messaging, built from `src/glab-team/`: skills `/glab-team:messaging-join`, `/glab-team:messaging-bind`, `/glab-team:messaging-claim`, `/glab-team:messaging-status`, `/glab-team:messaging-watch` · the MCP server `messaging` · hooks on `SessionStart`, `PreToolUse`, `Stop` and `StopFailure` that wake an idle agent session when messages arrive and keep a team-message window to the messaging tools · needs Node.js 24 or newer as `node` on `PATH` |
 
 In `glab` the skills and agents are one set: `glab:project-manager` runs each stage
 through its stage skill, which dispatches the agents, and dispatches
@@ -372,12 +373,15 @@ Set `CLAUDE_CODE_PLUGIN_PREFER_HTTPS=1` to skip the SSH attempt.
    live there and nowhere in these files. Without it a `glab` session has no
    temp-directory rule and falls back to `$TMPDIR` or its scratchpad, which may
    be a small `/tmp`.
-2. Add the marketplace and install the plugin:
+2. Add the marketplace and install the plugins you use:
 
    ```bash
    claude plugin marketplace add glab-services/skills
    claude plugin install glab@glab-services
+   claude plugin install glab-team@glab-services --scope local
    ```
+
+   `glab-team` needs Node.js 24 or newer. Joining a broker and binding a project are in `src/glab-team/docs/setup.md`.
 
 Each plugin carries a `version`. `claude plugin update glab@glab-services`
 fetches a newer one; a change that did not raise the version is not delivered.
@@ -413,6 +417,15 @@ repository's `.claude/settings.json` for the people who work in it:
 Every person still needs the access and the credential described above. In a
 repository's settings the marketplace entry applies only once that person has
 trusted the folder.
+
+## Moving to glab-team
+
+`glab-team` was published before as `team-messaging@team-messaging-local`.
+Its id, skills, options and data directory are new, so nothing carries over.
+If that plugin is installed, uninstall it before you install
+`glab-team@glab-services`: two installs run two sets of hooks in every
+session. The command, what stays behind and how to bind your projects again
+are in `src/glab-team/docs/setup.md`, *Moving from team-messaging@team-messaging-local*.
 
 ## Renamed in 0.15.0
 
@@ -507,8 +520,9 @@ running keeps what it loaded until it is restarted.
 | Path | What it is |
 |---|---|
 | `AGENTS.md` | Working agreement for changes to this repo, and the gates |
-| `.claude-plugin/marketplace.json` | The marketplace: lists the plugin |
-| `plugins/` | The plugin. Payload: written for the sessions of whoever installs them |
+| `.claude-plugin/marketplace.json` | The marketplace: lists the plugins |
+| `plugins/` | The plugins. Payload: written for the sessions of whoever installs them. `plugins/glab-team/` is the build of `src/glab-team/`, committed with its `node_modules/`, and is rebuilt, never edited |
+| `src/glab-team/` | The team messaging source — plugin, channel, broker, shared code, `scripts/build-plugin.mjs` and their Node.js tests — brought from glab-services/claude-plugins at `441887c` and maintained here, with no upstream. Its `AGENTS.md` holds the area's notes; this repo's `AGENTS.md` wins where they differ |
 | `host.example.md` | Template for the per-machine `~/.claude/host.md` |
 | `tests/` | The scripts' tests — the hooks, `plan-gate.sh`, `docs-mirror.sh` — and the product-loop walkthrough with its fixtures, `tests/fixtures/product-loop/`, and `tests/gates.sh`, every gate with its expected result |
 | `plan/` | Working area: the files of changes in progress, removed on your word once each change is recorded |
@@ -517,6 +531,12 @@ running keeps what it loaded until it is restarted.
 | `docs/one-fact.md` | The *One fact, one value* registry: each fact more than one file states, and the files that state it |
 
 To try a change without installing anything, load the plugin for one session:
-`claude --plugin-dir ./plugins/glab`. Do not pass the repo root: the CLI does not read `marketplace.json` from a
+`claude --plugin-dir ./plugins/glab`, or `./plugins/glab-team`. Do not pass the repo root: the CLI does not read `marketplace.json` from a
 `--plugin-dir`, so the plugin does not load — at most an empty plugin named after
 the directory.
+
+### The team messaging source
+
+`src/glab-team/` is a pnpm workspace of its own. `tests/gates.sh` runs its two Node.js suites, `pnpm -s broker:test` and `pnpm -s channel:test`. Before any check the script needs Node.js 24 or newer as the `node` first on `PATH`, pnpm 10 or newer on `PATH`, and the workspace installed from its lockfile. Without any of them it stops with one line on stderr and exit 2. A host whose default `node` is older puts Node.js 24's `bin` first on `PATH`, as its host file says. Run `pnpm install --frozen-lockfile` in `src/glab-team` once, and again after `src/glab-team/pnpm-lock.yaml` changes; the install needs the npm registry, the gates do not, and `src/glab-team/.gitignore` ignores `node_modules/`. The suites take about one and two minutes and run with umask `0002`, because some tests make a group-writable directory and expect it to stay so. Each is `ok` when every failed or cancelled test is in its host list in `tests/gates.sh` — the tests that fail on the reference host, which has no IPv6 and runs as root, each with its reason — and its `ok` line names the known ones it saw; a failure outside the list is a `FAIL` that names it. The suites run with an empty home and Claude Code config directory of their own under the gates' work directory, never yours. With `TMPDIR` under `/tmp` the tests keep their temp files in `src/glab-team/.tmp/`, ignored too, and leave it empty.
+
+`plugins/glab-team/` is what `src/glab-team/scripts/build-plugin.mjs` writes from the source, `node_modules/` included, because an install copies the directory and runs no install. To change the plugin, change the source, raise its version as `src/glab-team/AGENTS.md` says, remove `plugins/glab-team/` and run `pnpm -s plugin:build` in `src/glab-team`, with the npm registry reachable and `claude` on `PATH` under a new empty `CLAUDE_CONFIG_DIR`; the build refuses a directory that is not empty. `tests/gates.sh` checks the result: G23 validates it, G42–G44 compare its `plugin details` lines, and G45 builds the source again offline (`--no-install`) into a new directory under `src/glab-team/dist/`, removed after, and fails on any difference outside `node_modules/` — a byte, a file missing or added, an execute bit — and on a `node_modules/` whose packages differ from `src/glab-team/plugin/package-lock.json` by path, name or version. G45 does not read the files inside a package: a file edited in a package of the right version passes. A fresh build compared byte for byte, `node_modules/` included, needs the registry and is not a gate.

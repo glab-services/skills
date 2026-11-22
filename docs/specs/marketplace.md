@@ -73,9 +73,78 @@ lists one plugin, `glab`; its lines as of `e73185e` are the first bullet
 below, which supersedes every other line of this file that names
 `memory-sync`, two plugins, the gate ids G12, G13, G20, G23, G27-G29 and
 G32, the 39 checks and `tests/memory-sync.test.sh`, those lines being as of
-the records that wrote them.
+the records that wrote them. *Amended by `add-team-messaging` (`c100700`,
+`glab` 0.19.1 and `glab-team` 0.12.0, 2026-11-22):* the marketplace lists two
+plugins again, `glab` and `glab-team`; its lines as of `c100700` are the first
+bullet below, which supersedes every other line of this file that says one
+plugin, 31 checks or `AGENTS.md`'s 8461 bytes; the plugin and its source are
+specified in `docs/specs/glab-team.md`.
 
 ## How it works now
+
+- **The repo after `add-team-messaging`, as of `c100700`** (base `6e2c867`,
+  commits `5dee913`, `abee3ee`, `c100700` on `claude/bold-tesla-11sx3v`; the
+  owners `.claude-plugin/marketplace.json`, `AGENTS.md`, `docs/one-fact.md`,
+  `README.md`, `host.example.md`, `tests/gates.sh` and
+  `plugins/glab-team/.claude-plugin/plugin.json`). **Two plugins:**
+  `marketplace.json` lists `glab` then `glab-team` (`jq -r '.plugins[].name'`
+  prints both lines); the new entry is `{"name": "glab-team", "source":
+  "./plugins/glab-team"}` with the description "Team agent messaging: the
+  /glab-team:messaging-* skills, the messaging MCP server and its hooks", and
+  the top description reads "The glab workflow and the glab-team tools for
+  Claude Code" (`[add-team-messaging/03-publish-plugin/plan.md 03-D9]`).
+  **The layout:** `src/glab-team/` is the plugin's source, a pnpm workspace of
+  its own (161 files from glab-services/claude-plugins `441887c`, tree
+  `e4e5d1b`; `[add-team-messaging/index.md D2]`) and `plugins/glab-team/` is its
+  committed build, `node_modules/` included, 3693 files, 29 MB, tree
+  `3695ea81cefdbbdd9322edf9bcf76de6720d5c43` (D4, `03-D8`) — the repo grows by
+  those two folders, and every later change to the source adds a rebuilt copy.
+  `AGENTS.md` *Layout* says so in `src/glab-team/` (its own `AGENTS.md` yields
+  to the repo's) and `plugins/glab-team/`. **Versions:** `glab` stays 0.19.1;
+  `glab-team` starts at 0.12.0 (`[add-team-messaging/index.md D7]`), raised by
+  a change under `plugins/glab-team/` like `glab`'s. **The gates**
+  (`[add-team-messaging/index.md D17]`): `tests/gates.sh` runs 38 checks, not
+  31. 01 added G40 (`pnpm -s broker:test` in `src/glab-team`, host list empty)
+  and G41 (`channel:test`, host list of 9) behind a preflight that stops the
+  script, exit 2, without Node.js 24 or newer first on `PATH`, pnpm 10 or newer
+  or the workspace installed from its lockfile; 03 added `plugins/glab-team` as
+  the third entry of the validate loop, which numbers it G23 (unused since
+  `remove-memory-sync`) beside G21 and G22, a `glab-team` line to G30's
+  version check, G42, G43 and G44 (the `glab-team` `plugin details` Skills,
+  Hooks and MCP lines, compared as exact lines like G26), and G45 (the
+  committed build equals the source's build, `node_modules/` by name and version
+  only: how it works and what it does not guarantee are in
+  `docs/specs/glab-team.md`); G31 and G35 stay `ok` with `plugins/glab-team` in
+  their globs. `plugin:test` (registry, `claude`) and the fresh-build compare
+  are commands run once, not gates (`M4`, `M5`). `host.example.md` *Tool paths*
+  gains a generic Node.js 24 line, and `README.md`'s section *The team
+  messaging source* gives the toolchain, install, umask and host-list rule.
+  **The rules** (`AGENTS.md`, 8796 bytes as of this record, `wc -c`; cap 8800):
+  the opening line names `glab` and `glab-team`; *Layout* lists the plugins,
+  `plugins/glab-team/` and `src/glab-team/`; *Gates* says the script also
+  stops, exit 2, without Node.js 24, pnpm 10 or the install; *Rules* says the
+  plugin's hooks, MCP and CLI change only with a plan and that the source's
+  Node suites gate them (`D12`), without restating them; the `plan/` rule
+  lists `glab-team.md`, its entry worded to fit by shortening the clause of
+  the two removed areas' specs (`[add-team-messaging/03-publish-plugin/plan.md M-h]`;
+  see *Records*); no existing rule was cut and the old id does not appear in
+  `AGENTS.md`. **One fact** (`docs/one-fact.md`, `03-D14`): the names entry and
+  the holdings entry name `glab-team`'s files (`PLUGIN_ID`, `PLUGIN_DATA_NAME`,
+  the install commands of its READMEs, `hooks/hooks.json`); the toolchain entry
+  adds Node.js 24 and G45; new entries: the committed `glab-team` build, the
+  `glab-team` version in its four files, and the earlier plugin id (one
+  old-name line, `docs/one-fact.md`). **`README.md`:** the table lists
+  `glab-team`, the install step names it, a section *Moving to glab-team* tells
+  an installer of the earlier plugin to uninstall it first and points at
+  `src/glab-team/docs/setup.md`. **License:** `src/glab-team/LICENSE`
+  (Apache-2.0) is copied into the plugin by the build; no repo-wide `LICENSE`
+  (open, below). **Gates as run:** the manager's run on `c100700`:
+  `FAIL 6/38`, exit 1, with `PATH=/opt/node24/bin:$PATH`: FAIL G14, G19, G21,
+  G22, G23 and G38, the other 32 `ok` (G40–G45 among them); on a host whose
+  baseline is green, `PASS 38/38`. The old-name search of `D15`
+  (`git grep -c -P '(?<!glab-)team-messaging'`) is a closed allow-list of 30
+  files at 03's commit (`M2`, `03-D16`), `docs/specs/` and `docs/features/`
+  outside it (their hits are counted under *Records*).
 
 - **The repo after `remove-memory-sync`, as of 0.19.1** (`e73185e`, base
   `346d286`; the owners `.claude-plugin/marketplace.json`, `AGENTS.md`,
@@ -317,7 +386,7 @@ the records that wrote them.
   `docs/specs/product.md`.
 
 - **One marketplace, two plugins** (*amended by `remove-memory-sync`: one
-  plugin, `glab`, since `e73185e`; the first bullet above*)**.** `.claude-plugin/marketplace.json` names
+  plugin, `glab`, since `e73185e`, and by `add-team-messaging`: `glab` and `glab-team`, since `c100700`; the first bullet above*)**.** `.claude-plugin/marketplace.json` names
   the marketplace `glab-services` and lists `glab` (`source`
   `./plugins/glab`) and `memory-sync` (`source` `./plugins/memory-sync`).
   The two plugins do not reference each other and install alone
@@ -1347,6 +1416,25 @@ the records that wrote them.
 - [remove-memory-sync/plan.md M5] (the manager) G31's grep gains `-H`, so its output keeps the `<file>:<n>` form for any number of plugins; its comment says why (`E12`).
 - [remove-memory-sync/plan.md M6] (the manager, after review round 1, all three `SHIP`) The low findings go to the record, not a fix round; they are the follow-ups tagged `[remove-memory-sync/plan.md M6-1]` to `M6-8` under *Open follow-ups*.
 
+- [add-team-messaging/index.md D1] Three sub-plans, built and committed in order — the verbatim import, the rename, the published plugin — one commit each (`5dee913`, `abee3ee`, `c100700`); the area's decisions are in `docs/specs/glab-team.md`, the repo-level ones follow.
+- [add-team-messaging/index.md D6] The gates need Node.js 24 or newer first on `PATH` and pnpm 10 or newer; `pnpm install --frozen-lockfile` in `src/glab-team` needs the registry once and is a before step, not a gate; a missing tool is exit 2 with one line, never a skip. On this host Node 24 is `PATH=/opt/node24/bin:$PATH`.
+- [add-team-messaging/index.md D12] The plugin's hooks, MCP server and CLI are this repo's contracts and change only with a plan; `AGENTS.md` says that and that the source's Node suites are their gate, and does not restate them beside the shell hooks' contracts.
+- [add-team-messaging/index.md D13] `AGENTS.md` keeps its 8800-byte cap: 8461 at `5bd3648`, 8572 after 01's first build, 8667 after its review round, 8798 after 03, 8796 after this record; the cap is not raised and no existing rule is cut. Fallback when text does not fit: one pointer clause per section, the rest to `README.md` or `src/glab-team/AGENTS.md` (not shipped).
+- [add-team-messaging/index.md D16] G40 and G41 are `ok` when every failure is in a host-list array in `tests/gates.sh` (zero included) and name the known ones they saw; `FAIL` on any other. The user's rule at step 01's review, "Pass if only known (Recommended)" (`[add-team-messaging/master.md Request]`).
+- [add-team-messaging/index.md D17] Check ids and totals: 33 after 01, 38 after 03; on this host `FAIL 6/38`: G14, G19, G21, G22, G38 and G23. The script's header comment on ids changes with each.
+- [add-team-messaging/index.md D21] The secrets searches (credential shapes; broker URLs; token values; token-shaped files) run over `src/glab-team` and `plugins/glab-team`; only the pinned fixture, the `jose` PEM string and the placeholder lines may print (`[add-team-messaging/03-publish-plugin/plan.md 03-D11, M-i, M-n]`).
+- [add-team-messaging/index.md M2] The old-name grep is a closed allow-list with per-file counts, not "every other hit is one the plan keeps" (`D15`).
+- [add-team-messaging/index.md M5] The committed-plugin gate is honest about its guarantee: byte-equal for what the build writes from source, `node_modules/` by name and version against the lockfile only; a full byte check against a fresh build is a record-time command.
+- [add-team-messaging/index.md M6] `claude plugin validate --strict plugins/glab-team` (G23) is written like G21, so on this host it is a pinned host red (`last line [√ Validation passed]`, no `; rc=`).
+- [add-team-messaging/index.md M8] The `build-plugin.mjs` changes belong to 03 alone.
+- [add-team-messaging/index.md D9] The licence of the source travels with the plugin; no repo-wide `LICENSE` is added (outside the request).
+- [add-team-messaging/index.md D14] The Claude acceptance suites need a real session and an installed plugin; no gate runs them.
+- [add-team-messaging/01-import-source/plan.md 01-D3] The suites run with `umask 0002`, in the gate and in the non-root run, because three `join.test.mjs` cases make a `0770` directory.
+- [add-team-messaging/01-import-source/plan.md 01-D7] No `timeout` around the suites: it would kill pnpm and orphan the runner's children; a hang is ended by its PID tree.
+- [add-team-messaging/01-import-source/plan.md M12] The change's branch stays `claude/bold-tesla-11sx3v`; it was moved to `origin/main` `6e2c867` by `git merge --ff-only` before the build (PR #2 had merged), so the push is a plain fast-forward and this slug's PR is a new one.
+- [add-team-messaging/03-publish-plugin/plan.md 03-D10] The install source named in the source's docs follows `README.md`'s, `glab-services/skills` (one fact, `FU-DM-R5`).
+- [add-team-messaging/03-publish-plugin/plan.md 03-D17] One commit publishes the plugin (`feat(repo): publish the glab-team plugin`), since G45 binds the plugin, the build script and `tests/gates.sh` to one tree.
+
 ## Known limits and not verified
 
 - [feature-plugin-marketplace/plan.md unverified] Not shown in a live session, as of the record: prefixed names resolve (`/glab:plan`, the Skill tool with `glab:manager`, the Agent tool with `glab:developer`); the bootstrap hook fires from a plugin and its text reaches the model; `${CLAUDE_PLUGIN_ROOT}` is substituted in the `sync-memory` skill body, and the skill's fallback for when it is not; everything the README says about credentials, SSH then HTTPS, `CLAUDE_CODE_PLUGIN_PREFER_HTTPS`, background auto-update and the `extraKnownMarketplaces` / `enabledPlugins` keys (it restates the Claude Code docs); `CLAUDE_CODE_SESSIONEND_HOOKS_TIMEOUT_MS` for a plugin's `SessionEnd` hook; `claude plugin marketplace add glab-services/skills` on a teammate's machine; `claude plugin update glab@glab-services` delivering a raised version.
@@ -1379,6 +1467,12 @@ the records that wrote them.
 - [remove-memory-sync/plan.md E11] `tests/gates.sh` untested on a bash older than 4.4: the refusal was never run on a real old bash, and the plan's `tests/gates.sh` header dropped the note saying so (`[remove-memory-sync/plan.md M6-5]`); `[slim-agents-md/follow-ups.md FU2]` and `[script-hardening/plan.md Coverage]` above still hold, the `${MS_AGENTS[@]+…}` expansion they name having left with G28.
 - [remove-memory-sync/plan.md M6] The README text of the change is Markdown, no gate: it was checked only by the plan's searches (the absence search printed only the *Removed* section, one copy-install sentence, four `tests/gates.sh` comments naming what left and the `AGENTS.md` `plan/`-rule line) and the `git diff --stat HEAD` list of 13 files; the per-line P6 verifications were not re-run at integration (`integration.md` *Not exercised*).
 
+- [add-team-messaging/master.md Final check] UNVERIFIED, the user's step: installing `glab-team@glab-services` and running `/glab-team:messaging-join` — `AGENTS.md` forbids an agent to install. The MCP tool prefix, the hook option env and the acceptance suites are in `docs/specs/glab-team.md` *Known limits and not verified*.
+- [add-team-messaging/03-publish-plugin/integration.md] UNVERIFIED that the six host reds (G14, G19, G21, G22, G23, G38) are pre-existing on the merge base `abee3ee`: the integrator matched the set and G23's glyph cause against the expected list and did not run `tests/gates.sh` there. G14 and G38 are shellcheck 0.9.0 findings in files this change does not touch (inferred); the host reds together come from shellcheck 0.9.0, the `√` validate glyph and an empty `LANG`.
+- [add-team-messaging/index.md M5] G45 passes a file edited inside a right-versioned package of `plugins/glab-team/node_modules/`; the spec says so and the fresh-build compare is a record command.
+- [add-team-messaging/01-import-source/result.md Not done] The reporter's `test:summary` was proven on Node 24.22.3 only, the install check on pnpm 10.28.0 only; the gates take about three minutes longer than before.
+- The Markdown of this change, `README.md`, the docs and the source's READMEs, has no gate: verified by the plans' searches only.
+
 ## Open follow-ups
 
 - [bug-reviewer-findings/follow-ups.md 17] `AGENTS.md` *No secrets* names the placeholder as `<profile, or delete this key>`, which reads oddly outside the JSON example — open: `AGENTS.md` at `6838133` still reads so; a cleaner wording is the user's call.
@@ -1404,6 +1498,16 @@ the records that wrote them.
 - [docs-mirror/record FU-DM-R5] re-read at `e73185e`: `plugins/memory-sync/.claude-plugin/plugin.json:8` is gone with the plugin, so five lines now name the public repo as the install source (`README.md:365`, `:382`, `:410`, `host.example.md:30` and `plugins/glab/.claude-plugin/plugin.json:8`), line numbers as of `cf511d4` — still open.
 - [docs-mirror/follow-ups.md FU-DM-R2] re-read at `e73185e`: G14's empty reason shows in every gate run on this host (`FAIL G14 … findings: `), the reason of *Known limits* above — still open.
 
+- [add-team-messaging/01-import-source/plan.md M15 a] G40/G41 `ok` does not check the `fail`+`cancelled` counts against the number of failure lines — open, in `docs/specs/glab-team.md`.
+- [add-team-messaging/01-import-source/plan.md M15 b] `tests/gates.sh` comments cite plan files (the header and the G40–G41 text); cite the spec instead — open, in `docs/specs/glab-team.md`.
+- [add-team-messaging/01-import-source/plan.md M15 e] one-run load flake in `channel/test/watch.test.mjs` as non-root — open, in `docs/specs/glab-team.md`.
+- [add-team-messaging/01-import-source/result.md Follow-ups 1] a non-root host with a fresh `src/glab-team/.tmp` gets `INSECURE_CREDENTIAL_DIR` reds under umask `0002` — open, in `docs/specs/glab-team.md`.
+- [add-team-messaging/03-publish-plugin/plan.md M-p] `build-plugin.mjs` cleans its staging directory only through `fail()`; no test covers the rename onto an existing empty `plugins/glab-team` — open, in `docs/specs/glab-team.md`.
+- [add-team-messaging/index.md D9] no repo-wide `LICENSE` — open: the user's call.
+- [add-team-messaging/03-publish-plugin/plan.md 03-D10] `glab-services/skills` is the install source named for `glab-team`; the plugin reaches users only once the change is mirrored there — open (`[docs-mirror/record FU-DM-R5]`, still open, now also for `glab-team`).
+- [level-guard/follow-ups.md FU-LG10] re-read at `c100700`: `AGENTS.md` is 8796 bytes, 4 under its cap; inferred still open, its 15 bytes do not fit.
+- The other open items of this change (`FU-1`, `F-02a`, `M-g` of 02, the `G16` T49 flake, `F-03b`) are in `docs/specs/glab-team.md` *Open follow-ups*.
+
 ## Closed follow-ups
 
 - [slim-agents-md/follow-ups.md FU1] `tests/gates.sh:33-35` (review round 2, low): only `claude` is made absolute before the `cd`; a `jq` or `shellcheck` found through a relative `PATH` entry passes the preflight and then gives `FAIL` lines instead of exit 2. Suggested: resolve both the way `:32` resolves `claude`, or say in the `:24-26` comment that only `claude` gets it — open → **closed by `64b4e57`** (`glab` 0.16.3, `script-hardening`, PR #23), `[script-hardening/plan.md D3]`, `D10`: every relative `PATH` entry, an empty one included, is made absolute against the calling directory before the preflight's `command -v`, so the checks after the `cd` use the tool the preflight found; shown by logging wrappers on a relative `PATH` entry, both run, `PASS 31/31` (`plan.md` PC4, PC4b; *The gates*, above).
@@ -1422,6 +1526,8 @@ the records that wrote them.
 - [feature-plugin-marketplace/result-slice-S.md 5] `0.1.0` is the first version, so no bump was due — closed: information.
 - [slim-agents-md/follow-ups.md FU3] `docs/specs/marketplace.md` still described the old *Gates* blocks and the registry in `AGENTS.md` — closed by this record (`D16`): *The gates*, *What each plugin holds* and *The repo's own rules* name `tests/gates.sh` and `docs/one-fact.md` as of `113870b`.
 - [lifecycle-hardening/plan.md Record] `docs/features/docs-lifecycle.md` is 2315 bytes at `bf9c73f`, over `[docs-lifecycle/plan.md D19]`'s 2048 (`wc -c`): the `D26` rework rewrote *When a plan folder is removed* in the change's own commit (`result.md` *D26 rework*, *Unplanned changes*). The plan's `## Record` had the record add that a record committed off the change's branch, or whose branch is gone, makes the manager ask, and that a copied or restored folder counts as newer; under `D26` the page already says nothing removes a plan folder without asking, and the record left the page as built rather than lengthen it further, so the copied-or-restored clause is not on it. Shortening the page to 2048 bytes, and whether that clause belongs there — open, the record's decision (2026-11-18), for the user. **Closed by this record (`lifecycle-hardening`, the manager's decision, 2026-11-18):** the record may change feature pages, so the page was shortened in the wording only, keeping its meaning and the ask-once design (`D26`, `D27`), to 2047 bytes (`wc -c`); *When a plan folder is removed* now reads that the record never removes a folder and nothing does without asking you, the checks, the record's commit and the newer files shown, one question, only the named folders removed after a re-check, a kept one not raised again that session, and the not-landed, cannot-run, other-failure and pre-0.16.0 cases. The optional copied-or-restored clause did not fit and is not on the page; Rule 2 states it (`session-rules/SKILL.md:87`).
+
+- [add-team-messaging/03-publish-plugin/plan.md 03-D12] the bytes `AGENTS.md` had left for the `glab-team.md` entry of its `plan/` rule — **closed by this record**: the entry is worded within 8796 bytes (see *Records*). The others closed by this change are in `docs/specs/glab-team.md` *Closed follow-ups*.
 
 ## Incidents
 
@@ -1451,6 +1557,8 @@ the records that wrote them.
 
 - [remove-memory-sync/plan.md E12] **The first build of the removal went red on a check the plan never ran.** After `plugins/memory-sync/` was gone, `tests/gates.sh` ended `FAIL 6/31` with `FAIL G31 no user_config in hooks.json: got [0]`: G31 ran `grep -c user_config plugins/*/hooks/hooks.json` and, with one `hooks.json`, `grep` drops the filename prefix and prints `0`, while the expectation was `plugins/glab/hooks/hooks.json:0`. The plan's boundary proof (`E4`) ran validate, details and the G30 `jq` on a one-plugin copy but never G31. The developer stopped, the plan was amended (`M5`: `-H`), and the gate was `FAIL 5/31` afterwards (`gates-dev-r1.log`, `gates-dev-r2.log` on disk). Lesson: a proof that a tree "still works" without one of its parts has to run the whole gate on it, not the checks that seemed to bear on the part.
 - [remove-memory-sync/integration.md] **A pid-reuse test flaked once under integration** (`tests/plan-gate.test.sh` T45, `FAIL G16`, `FAIL 2/86`): see `[remove-memory-sync/plan.md M6-7]` under *Open follow-ups*. Classified as an environment flake, not a regression: the change touches neither the test nor the script, and the next run and eight runs on `HEAD` passed.
+
+- **The `glab-team` import, rename and publish** (`add-team-messaging`): the G41 that could never pass (pinned count against 9 and 0; the user chose "Pass if only known (Recommended)"); the non-root run that failed 19 tests on a `0775` `.tmp` (`INSECURE_CREDENTIAL_DIR`); the rename's old-name check that contradicted its own fix round (`M-e` against `M-f`, PLAN WRONG); the build script's `../../` in `package.json` that sent a channel test red through the outbound-scope rule `parent_escape` (PLAN WRONG, `M-m`, `--publish`); a 24-minute G41 stall and the `G16` T49 flake. Told in full in `docs/specs/glab-team.md` *Incidents*.
 
 ## Records
 
@@ -1561,3 +1669,14 @@ the records that wrote them.
   - Incidents → `[remove-memory-sync/plan.md E12]` and the T45 flake, above under *Incidents*; this area's old incidents in `docs/specs/memory-sync.md`.
   - Review → round 1, three reviewers (correctness, `AGENTS.md` conformance, test quality), all `SHIP`, low findings only, carried as `M6-1` to `M6-8`; the final check `CONFORMS`.
   - Record → this record, in this file, `docs/specs/memory-sync.md` and `docs/specs/workflow.md`; no audit file; the plan folder holds `master.md`, `plan.md` with round copies `plan.r1.md`–`plan.r3.md` and `master.r1.md`, `master.r2.md` (history; the items are taken from the current files), `result.md`, `integration.md` and four gate logs.
+- 2026-11-22 · add-team-messaging · 5dee913 · c100700 · claude/bold-tesla-11sx3v · https://github.com/glab-services/skills-marketplace/pull/4
+  - PR → none at this record; a PR to `main` follows and this line's PR field is edited when it exists. The push landed as `5bd3648..c100700  claude/bold-tesla-11sx3v -> claude/bold-tesla-11sx3v`; commits `5dee913` (import, 01), `abee3ee` (rename, 02), `c100700` (publish, 03); a squash or rebase merge can give them new shas, so look up the branch and the PR. Recorded here (the repo's layout, gates and rules) and in `docs/specs/glab-team.md` (the area, new), with the feature page `docs/features/glab-team.md` (new).
+  - [add-team-messaging/index.md Decisions] Decisions → `D1`, `D6`, `D9`, `D12`–`D14`, `D16`, `D17`, `D21`, `M2`, `M5`, `M6`, `M8`, `01-D3`, `01-D7`, `M12` and `03-D10`, `03-D17` above under *Decisions that still bind*; the others (`D2`–`D5`, `D7`, `D8`, `D10`, `D11`, `D15`, `D18`–`D20`, `D22`, `M1`, `M3`, `M4`, `M7`, `M9`–`M11`, `M16`, and 01's, 02's and 03's) in `docs/specs/glab-team.md`.
+  - Not verified → the user's install step, the UNVERIFIED six host reds on the merge base, G45's `node_modules/` limit, the Markdown's lack of a gate, above under *Known limits and not verified*; the tool prefix and the acceptance suites in `docs/specs/glab-team.md`.
+  - Follow-ups → open: `M15 a`, `M15 b`, `M15 e`, `01 Follow-ups 1`, `M-p`, `D9` (the licence) and `03-D10` above; `[level-guard/follow-ups.md FU-LG10]` re-read, still open; `[docs-mirror/record FU-DM-R5]` re-read, still open (now also for `glab-team`); closed here: `03-D12`; the rest in `docs/specs/glab-team.md`.
+  - Gates → the manager's run on `c100700`: `FAIL 6/38`, exit 1 (G14, G19, G21, G22, G23, G38; G40–G45 `ok`), `PATH=/opt/node24/bin:$PATH`; the sub-plans' runs: 01 `FAIL 6/33` then `FAIL 5/33`, 02 `FAIL 5/33`, 03 `FAIL 6/38` (a G16 T49 flake once, then `FAIL 6/38`). This record ran no gate: it changed `docs/specs/*.md`, `docs/features/glab-team.md` and one clause of `AGENTS.md`, which no gate reads; `wc -c AGENTS.md` → 8796.
+  - AGENTS.md → the `plan/` rule's entry for the new spec costs bytes the plan did not leave (`03-D12`: 2 bytes left, about 40 needed); the record fits it by rewording the clause of the two removed areas — `memory-sync.md` (the plugin removed, a record only) and `external-agents.md` (removed in 0.8.0, a record only) became `memory-sync.md` and `external-agents.md` (removed, records only) — which drops "removed in 0.8.0" from `AGENTS.md` (still stated in `docs/specs/external-agents.md`). `AGENTS.md` goes from 8798 to 8796 bytes; no rule is cut or changed.
+  - Old-name hits → at this record `git grep -c -P '(?<!glab-)team-messaging'` over the tree: `docs/specs/glab-team.md` 62 lines (of which only 7 name the old plugin and its stored names; the rest are the slug `add-team-messaging` in tags, which the pattern matches), `docs/specs/marketplace.md` 43 lines (slug tags, and the two lines that quote the search pattern), `docs/features/glab-team.md` 0 (it points at `README.md` instead of naming the old id), `docs/one-fact.md` 1 and `README.md` 2 and the allow-list files of `D15` unchanged; `AGENTS.md` 0 (`D15`). The slug-tag hits are unavoidable under this repo's tag rule.
+  - Incidents → above under *Incidents*, told in full in `docs/specs/glab-team.md`.
+  - Review → the final check (6b) round 1: `CONFORMS`, all five goals served; the sub-plans' review rounds ended `SHIP` (01 round 2, 03 round 2).
+  - Record → this record, in this file, `docs/specs/glab-team.md`, `docs/features/glab-team.md` and the `plan/` rule line of `AGENTS.md`; no audit file; the plan folder's history files (`master.v1.md`, `master.v2.md`, round copies, `evidence.v1.md`, `plan.v1.md`, the sub-plans' `plan.r<n>.md`, probes, gate logs) were not the source of any item: the items are taken from the current files.

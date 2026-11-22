@@ -1,22 +1,32 @@
 #!/usr/bin/env bash
 # Runs every gate of this repo and compares each result with its expected value: the syntax and
 # execute-bit check and shellcheck on the scripts, the six script tests, `claude plugin validate
-# --strict`, the component lines of `claude plugin details`, and the searches that nothing else
-# catches. G36-G39, appended last, are the same three kinds of check and the test for the docs
-# mirror's script. It prints one line per check, `ok G<n> <name>` or `FAIL G<n> <name>: <reason>`,
+# --strict` (G23 is `plugins/glab-team`), the component lines of `claude plugin details` (G42-G44
+# are `glab-team`'s), and the searches that nothing else catches. G36-G39, appended last, are the same three kinds of check and the test for the docs
+# mirror's script. G40-G41, appended after G39, run the two Node.js suites of `src/glab-team`
+# (`pnpm -s broker:test`, `pnpm -s channel:test`) and compare their failures with a pinned host
+# list. G45, appended after G44, builds `src/glab-team` again offline and fails when the committed
+# `plugins/glab-team` is not that build. It prints one line per check, `ok G<n> <name>` or `FAIL G<n> <name>: <reason>`,
 # then `PASS n/n` or `FAIL f/n`.
 #
 # Ids: the loop blocks number their checks by position, so removing the `memory-sync` plugin in
-# this change shifted G1-G11, G15-G19 and G21-G22 and left G12, G13, G20 and G23 unused; the
-# hard-coded ids (G14, G24-G26, G30, G31, G33-G39) did not move.
+# this change shifted G1-G11, G15-G19 and G21-G22 and left G12, G13 and G20 unused; G23 is the
+# third entry of the validate loop, `plugins/glab-team`. The hard-coded ids (G14, G24-G26, G30,
+# G31, G33-G39) did not move. G40 and G41 are hard-coded ids too, appended after G39, and G42-G45
+# after G41.
 #
 # Call it as `bash tests/gates.sh`, with no arguments, from anywhere: it changes to the repo root
-# before any check. It changes no file in the repo; its work directory under `$TMPDIR` is removed
-# on every exit path, an INT, TERM or HUP signal included.
+# before any check. It changes no tracked file in the repo. Its work directory under `$TMPDIR` is
+# removed on every exit path, an INT, TERM or HUP signal included, and so is G45's build directory
+# under `src/glab-team/dist/` (`dist/` itself is ignored by git and may be left, empty).
+# A TERM sent to the script alone is handled once the foreground suite returns (nothing runs in the
+# background). The source's tests put their temp roots under `$TMPDIR`, or under `src/glab-team/.tmp/` when it is `/tmp` or below
+# (`src/glab-team/test-support/temp.mjs`); they leave that directory empty, and git ignores it.
 #
 # Exit codes: 0 every check passed; 1 at least one check failed; 2 a preflight failed (a bash
 # older than 4.4, no TMPDIR or one that is not an absolute path, no Claude Code CLI, no jq or no
-# `shellcheck`, or no work directory), in which case it prints one line on stderr and no ok, FAIL
+# `shellcheck`, no Node.js 24 or newer first on `PATH`, no pnpm 10 or newer, `src/glab-team` not
+# installed from its lockfile, or no work directory), in which case it prints one line on stderr and no ok, FAIL
 # or PASS line.
 set -uo pipefail
 
@@ -65,7 +75,21 @@ claude=$(command -v "${CLAUDE_BIN:-claude}") || { echo 'gates.sh: no Claude Code
 case $claude in /*) ;; *) claude=$PWD/$claude ;; esac
 command -v jq >/dev/null || { echo 'gates.sh: no jq found on PATH' >&2; exit 2; }
 command -v shellcheck >/dev/null || { echo 'gates.sh: no shellcheck found on PATH' >&2; exit 2; }
+# G40-G41 and G45 need Node.js 24 or newer and pnpm 10 or newer, and `src/glab-team` installed from its
+# lockfile; without them the suites fail for a reason that is not theirs, so the script stops here
+# like the lines above [01-import-source/plan.md 01-D4, 01-D5]. Node.js is the
+# `node` first on `PATH`, with no `NODE_BIN` variable: pnpm's `#!/usr/bin/env node` runs on that
+# same `node`, so one check covers both. Both versions are read as a minimum, so an upgrade does
+# not stop the gates. "Installed" is the `cmp -s` below: pnpm writes
+# `node_modules/.pnpm/lock.yaml` at install as a copy of the lockfile, so a missing install and
+# one stale after a lockfile change differ from it, with no write and no registry; proven with
+# pnpm 10.28.0 only.
+nv=$(node --version 2>/dev/null)
+if [[ $nv =~ ^v([0-9]+)\. ]] && [ "${BASH_REMATCH[1]}" -ge 24 ]; then :; else echo "gates.sh: Node.js 24 or newer must be the node first on PATH, found ${nv:-none} (README.md)" >&2; exit 2; fi
+pv=$(pnpm --version 2>/dev/null)
+if [[ $pv =~ ^([0-9]+)\. ]] && [ "${BASH_REMATCH[1]}" -ge 10 ]; then :; else echo 'gates.sh: pnpm 10 or newer not found on PATH (README.md)' >&2; exit 2; fi
 cd "$(dirname "$0")/.." || exit 2
+cmp -s src/glab-team/node_modules/.pnpm/lock.yaml src/glab-team/pnpm-lock.yaml || { echo 'gates.sh: src/glab-team is not installed from its lockfile - run pnpm install --frozen-lockfile there (README.md)' >&2; exit 2; }
 
 # The work directory and the CLI's config directory inside it. The script makes the config
 # directory and starts no `claude` command when it cannot - with `TMPDIR` unset nothing runs, as
@@ -73,11 +97,74 @@ cd "$(dirname "$0")/.." || exit 2
 # Bash does not run an EXIT trap when a signal kills it, so INT, TERM and HUP each exit with the
 # usual 128+n code through the EXIT trap instead.
 # The script starts no background process, so there is nothing to kill by PID.
+D45=''    # G45's build directory under src/glab-team/dist/, removed by the trap on every exit path
 W=$(mktemp -d "$TMPDIR/gates.XXXXXX") || { echo 'gates.sh: cannot make a work directory under TMPDIR' >&2; exit 2; }
-trap 'rm -rf "${W:?}"' EXIT
+trap 'rm -rf "${W:?}"; [ -z "${D45:-}" ] || rm -rf "$D45"' EXIT
 trap 'exit 130' INT; trap 'exit 143' TERM; trap 'exit 129' HUP
 mkdir "$W/claude-config" || { echo 'gates.sh: cannot make the config directory under TMPDIR' >&2; exit 2; }
 cfg=$W/claude-config
+
+# The reporter for G40-G41: one `<file relative to the workspace>: <name>` line per failed or
+# cancelled test, suites failing only by their subtests left out, then a `# tests ...` summary
+# line. Node's default `spec` reporter prints failures with stacks and has no one-line form, and
+# an option after the pnpm script (`pnpm -s x:test --test-reporter=tap`) is not honoured, so the
+# reporter goes in through `NODE_OPTIONS`, which is honoured
+# [01-import-source/evidence.md F7, plan.md 01-D2]. Written here, not kept as a
+# repo file: only this script uses it.
+cat >"$W/fail.mjs" <<'REPORTER'
+// Prints `<file relative to cwd>: <name>` per failed or cancelled test (suites failing only by
+// their subtests left out, skipped and todo tests left out), then `# tests N pass N fail N cancelled N skipped N todo N`.
+import { relative } from 'node:path';
+export default async function* (source) {
+  for await (const ev of source) {
+    if (ev.type === 'test:fail' && !ev.data.skip && !ev.data.todo && ev.data.details?.error?.failureType !== 'subtestsFailed')
+      yield `${ev.data.file ? relative(process.cwd(), ev.data.file) : '?'}: ${String(ev.data.name).replace(/[\r\n]/g, ' ')}\n`;
+    if (ev.type === 'test:summary' && ev.data.file === undefined) {
+      const c = ev.data.counts;
+      yield `# tests ${c.tests} pass ${c.passed} fail ${c.failed} cancelled ${c.cancelled} skipped ${c.skipped} todo ${c.todo}\n`;
+    }
+  }
+}
+REPORTER
+
+# G45's walk of `plugins/glab-team/node_modules`: the lockfile's non-root packages (none is `dev`)
+# as `<key> <name>@<version>` against what is on disk, every directory not starting with `.`, each
+# package's own `node_modules/` recursed, `@scope/name` expanded. Prints `packages <n>` and exits 0
+# when the sets are equal; else every `missing <entry>` line, then every `unexpected <entry>` line,
+# each group in `LC_ALL=C` order, and exits 1. A package directory without `package.json` is
+# reported as `<path> NO package.json`. Written here for the same reason as the reporter.
+cat >"$W/nm.mjs" <<'NMWALK'
+import { readFileSync, readdirSync, existsSync, statSync } from 'node:fs';
+import { join } from 'node:path';
+const [plugin, lock] = process.argv.slice(2);
+const expected = new Set(), actual = new Set();
+for (const [key, meta] of Object.entries(JSON.parse(readFileSync(lock, 'utf8')).packages)) {
+  if (key === '' || meta.dev) continue;
+  expected.add(`${key} ${meta.name ?? key.split('node_modules/').pop()}@${meta.version}`);
+}
+function walk(dir, prefix) {
+  for (const name of readdirSync(dir).sort()) {
+    if (name.startsWith('.')) continue;
+    const path = join(dir, name);
+    if (!statSync(path).isDirectory()) continue;
+    if (name.startsWith('@')) { walk(path, `${prefix}${name}/`); continue; }
+    const rel = `${prefix}${name}`, manifest = join(path, 'package.json');
+    if (!existsSync(manifest)) { actual.add(`${rel} NO package.json`); continue; }
+    const pkg = JSON.parse(readFileSync(manifest, 'utf8'));
+    actual.add(`${rel} ${pkg.name}@${pkg.version}`);
+    if (existsSync(join(path, 'node_modules'))) walk(join(path, 'node_modules'), `${rel}/node_modules/`);
+  }
+}
+walk(join(plugin, 'node_modules'), 'node_modules/');
+const sort = set => [...set].sort((a, b) => (a < b ? -1 : a > b ? 1 : 0));
+const missing = sort(new Set([...expected].filter(e => !actual.has(e)))), unexpected = sort(new Set([...actual].filter(e => !expected.has(e))));
+if (missing.length || unexpected.length) {
+  for (const e of missing) console.log(`missing ${e}`);
+  for (const e of unexpected) console.log(`unexpected ${e}`);
+  process.exit(1);
+}
+console.log(`packages ${actual.size}`);
+NMWALK
 
 # Expected values. These arrays are the one copy of them in this repo's tooling; `README.md` and
 # each plugin's `hooks/hooks.json` state them too (docs/one-fact.md).
@@ -120,7 +207,13 @@ GLAB_AGENTS=(
 	project-integrator project-plan-analyzer project-planner project-reviewer
 )
 GLAB_HOOKS='Hooks (5)  SessionStart, UserPromptSubmit, PreToolUse, PostToolUse, Stop  (harness-only — no model context cost)'
-MARKET=('glab = glab')
+MARKET=('glab = glab' 'glab-team = glab-team')
+# G42-G44: the three component lines of `plugin details glab-team` (the Agents line is not pinned).
+GLAB_TEAM_LINES=(
+	'Skills (5)  messaging-bind, messaging-claim, messaging-join, messaging-status, messaging-watch'
+	'Hooks (4)  SessionStart, PreToolUse, Stop, StopFailure  (harness-only — no model context cost)'
+	'MCP servers (1)  messaging  (tool schemas resolved at runtime; not counted)'
+)
 MODEL_LINES=(
 	'plugins/glab/agents/project-analyzer.md:model: sonnet'
 	'plugins/glab/agents/committer.md:model: haiku'
@@ -151,6 +244,29 @@ SKILL_LINES=(
 	'plugins/glab/agents/project-reviewer.md:glab:security'
 	'plugins/glab/agents/project-reviewer.md:glab:comments'
 	'plugins/glab/agents/project-reviewer.md:glab:severity'
+)
+# The tests of `src/glab-team` that fail on the reference host, for G40-G41: each is a line
+# `<file>: <name>` as the reporter prints it, and they are compared as sorted lines with duplicates
+# kept. A check is `ok` when every failure is in its array, zero included, and its line names the
+# known ones it saw; it is `FAIL` on any failure outside the array. A pinned test that passes is no
+# failure and is not reported [the master's index.md D16].
+# Broker suite: none fails on the reference host (as root and as uid 65534 alike).
+BROKER_HOST_REDS=()
+CHANNEL_HOST_REDS=(
+	# The reference host has no IPv6 (`/proc/net/if_inet6` is absent), so a listener on `::1` cannot
+	# be made; these fail as root and as uid 65534 alike.
+	'channel/test/join.test.mjs: loopback channel bypasses inherited proxies for ::1'
+	'channel/test/join.test.mjs: loopback cli bypasses inherited proxies for ::1'
+	# The reference host runs the gates as root, and root passes the file-mode checks these tests
+	# expect to refuse. Proven by the same tests passing as uid 65534
+	# (the 01-import-source folder of the plan, P1, P5, P6).
+	'channel/test/credentials.test.mjs: with sealedAncestors, a user-owned symlink and a non-private leaf are still refused below a sealed ancestor'
+	'channel/test/join.test.mjs: F5: a real post-redemption filesystem write failure revokes the new credential and membership'
+	'channel/test/join.test.mjs: credential preflight refuses a symlinked ancestor before consuming an invite'
+	'channel/test/outbound-scope-rules.test.mjs: the project tree walk and the identity read fail closed'
+	'channel/test/project-agent.test.mjs: bind and join write at the git root inside HOME, else the project directory, keeping other settings and the mode'
+	'channel/test/scope-hook.test.mjs: D-21 edge inputs: unknown projects and unplaceable paths deny inside a window; no binding means no window'
+	'channel/test/scope-hook.test.mjs: scope-window edge cases in process'
 )
 
 pass=0 fail=0 n=0
@@ -257,18 +373,19 @@ done
 	[ -d "$cfg" ] || exit 1
 	export CLAUDE_CONFIG_DIR="$cfg"
 	k=0
-	for p in plugins/glab .; do
+	for p in plugins/glab . plugins/glab-team; do
 		k=$((k + 1))
 		"$claude" plugin validate --strict "$p" >"$W/validate.$k" 2>&1
 		echo $? >"$W/validate.$k.rc"
 	done
 	"$claude" --plugin-dir ./plugins plugin details glab >"$W/details.glab" 2>"$W/details.glab.err"
+	"$claude" --plugin-dir ./plugins plugin details glab-team >"$W/details.glab-team" 2>"$W/details.glab-team.err"
 )
 
-# G21-G22. `plugin validate --strict` on the plugin and on the marketplace: its last line is
+# G21-G23. `plugin validate --strict` on the plugin, on the marketplace and on `plugins/glab-team`: its last line is
 # `✔ Validation passed`, with rc 0.
 i=20 k=0
-for p in plugins/glab .; do
+for p in plugins/glab . plugins/glab-team; do
 	i=$((i + 1)) k=$((k + 1))
 	if [ -f "$W/validate.$k" ]; then
 		last=$(tail -n 1 "$W/validate.$k")
@@ -380,6 +497,126 @@ else
 	bad "last line [$last], expected PASS n/n"
 fi
 done_case G39 "test: ${cmd[1]}" "${last#PASS }"
+
+# G40-G41. The two Node.js suites of `src/glab-team`, run by the source's own pnpm scripts with the
+# reporter above appended to the caller's `NODE_OPTIONS`. The `# tests ...` line is the summary,
+# every other non-blank line is a failed or cancelled test. The result and its text are those
+# described above the host-list arrays [01-D8].
+# Each suite runs with a `HOME` and a `CLAUDE_CONFIG_DIR` of its own under the work directory: the
+# suites must not read or write the person's `~/.claude` or home, and the CLI's data directory
+# falls back to `$HOME/.claude` (`src/glab-team/channel/cli.mjs`). `RUN_CLAUDE_ACCEPTANCE` is
+# removed so that a later change to the suites' globs cannot start the acceptance tests
+# (`channel/acceptance/*.test.mjs` start a real `claude` and are skipped unless it is `1`); today
+# the globs never load them.
+# `opts` is the caller's `NODE_OPTIONS`, with every `--test-reporter*` word of theirs removed (and
+# the word after one that has no `=`): a second reporter would mix its output into the lines read.
+# It is split on blanks, so a quoted value with a blank in it is not kept.
+# umask 0002: three `join.test.mjs` cases make their "group-writable" directory with
+# `mkdir 0o770`, which umask 0022 turns into 0750, so they fail as root and as uid 65534 alike; that
+# is a fixture's assumption and not a host red [01-D3].
+# No `timeout`: it would kill pnpm and orphan the runner's children, and the only hangs seen were in
+# a tree owned by another uid or under `/tmp`; a hung run is ended by the person, by the PID tree of
+# the run [01-D7].
+opts=${NODE_OPTIONS:-}
+if [[ $opts == *--test-reporter* ]]; then
+	read -r -a words <<<"$opts"
+	opts='' skipnext=0
+	for w in "${words[@]}"; do
+		if [ "$skipnext" -eq 1 ]; then skipnext=0; continue; fi
+		case $w in
+		--test-reporter*)
+			case $w in *=*) ;; *) skipnext=1 ;; esac
+			continue
+			;;
+		esac
+		opts=${opts:+$opts }$w
+	done
+fi
+joinbar() { awk 'NR > 1 { printf " | " } { printf "%s", $0 }'; }
+i=39
+for s in broker channel; do
+	i=$((i + 1))
+	rc=0 summary='' okline=''
+	if ! mkdir "$W/$s-home"; then
+		bad "cannot make $W/$s-home"
+	elif ! mkdir "$W/$s-config"; then
+		bad "cannot make $W/$s-config"
+	else
+		(cd src/glab-team && umask 0002 && env -u RUN_CLAUDE_ACCEPTANCE HOME="$W/$s-home" CLAUDE_CONFIG_DIR="$W/$s-config" NODE_OPTIONS="${opts:+$opts }--test-reporter=\"$W/fail.mjs\"" pnpm -s "$s:test") >"$W/$s.out" 2>"$W/$s.err"
+		rc=$?
+		summary=$(command grep -m 1 '^# tests ' "$W/$s.out")
+		command grep -v -e '^# tests ' -e '^$' "$W/$s.out" | LC_ALL=C sort >"$W/$s.failed"
+		if [ "$s" = broker ]; then
+			lines "${BROKER_HOST_REDS[@]}" | LC_ALL=C sort >"$W/$s.pinned"
+		else
+			lines "${CHANNEL_HOST_REDS[@]}" | LC_ALL=C sort >"$W/$s.pinned"
+		fi
+		unknown=$(LC_ALL=C comm -23 "$W/$s.failed" "$W/$s.pinned" | joinbar)
+		known=$(LC_ALL=C comm -12 "$W/$s.failed" "$W/$s.pinned" | joinbar)
+		m=$(LC_ALL=C comm -12 "$W/$s.failed" "$W/$s.pinned" | wc -l)
+		if [[ $summary =~ ^\#\ tests\ ([0-9]+)\ pass\ ([0-9]+)\ fail\ ([0-9]+)\ cancelled\ ([0-9]+)\ skipped\ ([0-9]+)\ todo\ ([0-9]+)$ ]]; then
+			t=${BASH_REMATCH[1]} p=${BASH_REMATCH[2]} f=${BASH_REMATCH[3]} c=${BASH_REMATCH[4]} k=${BASH_REMATCH[5]}
+			if [ -n "$unknown" ]; then
+				bad "rc=$rc; not in host list [$unknown]; known [$known]"
+			elif [ "$m" -eq 0 ] && { [ "$rc" -ne 0 ] || [ "$f" -ne 0 ] || [ "$c" -ne 0 ]; }; then
+				bad "rc=$rc; no failure lines; summary [$summary]"
+			else
+				okline="tests $t pass $p skipped $k; known host reds $m${known:+ [$known]}"
+			fi
+		else
+			bad "no summary line; stderr [$(command grep -m 1 '[^[:space:]]' "$W/$s.err")]"
+		fi
+	fi
+	done_case "G$i" "test: src/glab-team $s:test" "$okline"
+done
+
+# G42-G44. The three component lines of `plugin details glab-team`, each compared as an exact
+# string, as G26 is. The CLI sorts the Skills names itself (03-F8), so the
+# directory read order is not a risk here, unlike G24.
+i=41
+for l in "${GLAB_TEAM_LINES[@]}"; do
+	i=$((i + 1))
+	kind=${l%% (*}
+	line=$(command grep -E "^  $kind " "$W/details.glab-team")
+	[ "$line" = "  $l" ] || bad "line [$line]"
+	done_case "G$i" "glab-team $l"
+done
+
+# G45. `plugins/glab-team` is the build of `src/glab-team`. The script builds offline
+# (`--no-install`: no npm, no claude) into a new directory under `src/glab-team/dist/`, which the
+# build accepts and git ignores, and the trap removes it. Three compares, none skipping another:
+# every file outside `node_modules/` byte for byte (a changed, missing or added file), the
+# execute bits outside it, and `node_modules/` by `<path> <name>@<version>` against
+# `src/glab-team/plugin/package-lock.json` (`$W/nm.mjs`).
+# What it does not guarantee: a file edited inside a package of the right name and version passes;
+# `node_modules/.package-lock.json` and `.bin/` are not read. The full byte compare, `node_modules/`
+# included, needs the npm registry and is run once as a command, not as a gate
+# [the glab-team plan, M5]. Execute-bit branch and the INT/TERM/HUP trap are not
+# exercised by a test: the first is a two-line `find` compare, the second is the mechanism of `W`.
+okline=''
+if mkdir -p src/glab-team/dist && D45=$(mktemp -d "$PWD/src/glab-team/dist/g45.XXXXXX"); then
+	node src/glab-team/scripts/build-plugin.mjs --no-install --out "$D45" >"$W/g45.out" 2>&1
+	rc=$?
+	if [ "$rc" -ne 0 ]; then
+		bad "build rc=$rc [$(command grep -m 1 '[^[:space:]]' "$W/g45.out")]"
+	else
+		d=$(diff -r --exclude=node_modules plugins/glab-team "$D45" 2>&1 | head -n 1)
+		[ -z "$d" ] || bad "differs from the build [$d]"
+		a=$(cd plugins/glab-team && find . -path ./node_modules -prune -o -type f -perm -u+x -print | LC_ALL=C sort)
+		b=$(cd "$D45" && find . -path ./node_modules -prune -o -type f -perm -u+x -print | LC_ALL=C sort)
+		[ "$a" = "$b" ] || bad "execute bits differ"
+		nm=$(node "$W/nm.mjs" plugins/glab-team src/glab-team/plugin/package-lock.json 2>&1)
+		rc=$?
+		if [ "$rc" -ne 0 ]; then
+			bad "node_modules [$(lines "$nm" | paste -sd, -)]"
+		else
+			okline=$nm
+		fi
+	fi
+else
+	bad "cannot make a build directory under src/glab-team/dist"
+fi
+done_case G45 "plugins/glab-team is the build of src/glab-team" "$okline"
 
 if [ "$fail" -eq 0 ]; then
 	echo "PASS $pass/$n"
