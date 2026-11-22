@@ -507,7 +507,7 @@ From the plan (`[add-team-messaging/index.md <id>]` unless another file is named
 
 ## Records
 
-- 2026-11-22 · add-team-messaging · 5dee913 · c100700 · claude/bold-tesla-11sx3v · pushed without a PR (the PR field is edited when it exists)
+- 2026-11-22 · add-team-messaging · 5dee913 · c100700 · claude/bold-tesla-11sx3v · https://github.com/glab-services/skills-marketplace/pull/4 (the PR field is edited when it exists)
   - Commits → `5dee913` `feat(repo): import the team messaging source into src/glab-team` (01), `abee3ee` `feat(repo): rename the team messaging source to glab-team` (02), `c100700` `feat(repo): publish the glab-team plugin` (03); the push `5bd3648..c100700  claude/bold-tesla-11sx3v -> claude/bold-tesla-11sx3v`; the branch continues `6e2c867`, the merge of PR #2. A squash or rebase merge can give the commits new shas: look up the branch and the PR.
   - [add-team-messaging/master.md Goals] G1–G5 → served: the manager's final check (6b) round 1, CONFORMS. Sub-plan records: 01 CONFORMS then review round 2 SHIP; 02 CONFORMS after a delta (`M-g`); 03 CONFORMS after a delta, review round 2 SHIP.
   - Decisions → `D1`–`D22`, `M1`–`M16` of `index.md`, 01's `01-D1`–`01-D13`, `M12`–`M15`, 02's `D-A`…`D-E`, `M-a`…`M-g`, 03's `03-D1`…`03-D18`, `M-h`…`M-p`, above.
