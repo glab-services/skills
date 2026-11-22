@@ -198,7 +198,7 @@ MIRROR=(
 GLAB_SKILLS=(
 	audit bootstrap comments commit product-manager product-plan product-plan-analyze
 	product-project-brief product-project-plan-analyze product-project-plan-verdict project-analyze
-	project-develop project-integrate project-manager project-plan project-plan-accept
+	project-develop project-integrate project-issue project-manager project-plan project-plan-accept
 	project-plan-analyze project-plan-report project-record project-review project-ship push
 	security session-rules severity
 )
