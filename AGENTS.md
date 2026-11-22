@@ -106,8 +106,8 @@ repo and to nothing else.
   each area it touched —
   `marketplace.md` (the marketplace, this repo's layout, gates and rules),
   `workflow.md` (the `glab` workflow), `product.md` (the product level and the
-  product ⇄ project loop), `memory-sync.md` (the plugin removed, a record only),
-  `external-agents.md` (removed in 0.8.0, a record only): how the area works
+  product ⇄ project loop), `glab-team.md` (the `glab-team` plugin), `memory-sync.md` and
+  `external-agents.md` (removed, records only): how the area works
   now, the decisions that still
   bind, what is not verified, every follow-up — open or closed, each tagged
   `[<slug>/<file> <id>]` — and its incidents, moved into *Incidents* rather
