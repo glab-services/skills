@@ -1,16 +1,17 @@
 # Working agreement
 
-This repo is a Claude Code plugin marketplace, `glab-services`, holding one plugin, `glab`. Everything under `plugins/` is **payload**: it is written for the
+This repo is a Claude Code plugin marketplace, `glab-services`, holding `glab` and `glab-team`. Everything under `plugins/` is **payload**: it is written for the
 sessions of whoever installs a plugin, not for this repo. When payload text
 and this file disagree about how to work *in this repo*, this file wins.
 
 ## Layout
 
-- `.claude-plugin/marketplace.json` — the marketplace. It lists the plugin.
+- `.claude-plugin/marketplace.json` — the marketplace. It lists the plugins.
 - `plugins/glab/` — the workflow plugin: its skills and agents,
   `hooks/hooks.json`, `scripts/` (`manager-bootstrap.sh`,
   `context-size.sh`, `level-guard.sh`, `glab-level.sh` — the level
   rule both hooks source — and `plan-gate.sh`) and `templates/`.
+- `plugins/glab-team/` — the build of `src/glab-team/`.
 - `docs/specs/` — one spec per area: how it works now, why, what is not
   verified, what is open (*Rules*, the `plan/` rule).
 - `docs/features/` — one page per feature: what it does, how to use it.
@@ -20,7 +21,7 @@ and this file disagree about how to work *in this repo*, this file wins.
   *One fact* registry), `src/glab-team/` (its `AGENTS.md` yields to this
   file), `host.example.md`, `README.md`, `.gitignore` (it holds `/plan/`, the
   working area, handoff files included) and this file belong to the repo and
-  not to the plugin.
+  not to a plugin.
 
 ## Gates
 
@@ -89,6 +90,7 @@ repo and to nothing else.
   write or fetch; every refusal one `REFUSED:` line on stderr; on 1 or 2 no
   write but taking over a provably dead run's claim and temporary file, a
   clone's sync, and what it wrote and undoes (header); no `.git`, no git.
+  Nor do `glab-team`'s hooks, MCP and CLI; its Node suites gate them.
 - **One fact, one value.** A number or name stated in more than one file
   changes in all of them in the same commit. A rule lives in the file of the
   role that acts on it; every other file points at it without restating it.

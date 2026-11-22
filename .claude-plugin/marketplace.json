@@ -1,6 +1,6 @@
 {
   "name": "glab-services",
-  "description": "The glab workflow for Claude Code",
+  "description": "The glab workflow and the glab-team tools for Claude Code",
   "owner": {
     "name": "glab-services"
   },
@@ -9,6 +9,11 @@
       "name": "glab",
       "source": "./plugins/glab",
       "description": "The glab workflow: skills, agents, the session bootstrap hook and the context hook"
+    },
+    {
+      "name": "glab-team",
+      "source": "./plugins/glab-team",
+      "description": "Team agent messaging: the /glab-team:messaging-* skills, the messaging MCP server and its hooks"
     }
   ]
 }

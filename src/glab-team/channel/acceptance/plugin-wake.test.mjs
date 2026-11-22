@@ -42,13 +42,17 @@ test('real Claude Code: an idle plugin session wakes through the asyncRewake wat
   const dir = testTempDir('plugin-wake-'), out = join(dir, 'bundle'), project = join(dir, 'project'), id = randomUUID(), debugLog = join(dir, `m12-bob-${id}.debug.log`);
   mkdirSync(project, { mode: 0o700 });
   const claude = args => spawnSync('claude', args, { cwd: project, env, encoding: 'utf8' });
-  assert.equal(spawnSync(process.execPath, [fileURLToPath(new URL('../../scripts/build-plugin.mjs', import.meta.url)), '--out', out], { stdio: 'ignore', env: { ...process.env, TMPDIR: dir } }).status, 0);
+  assert.equal(spawnSync(process.execPath, [fileURLToPath(new URL('../../scripts/build-plugin.mjs', import.meta.url)), '--out', join(out, 'plugins', 'glab-team')], { stdio: 'ignore', env: { ...process.env, TMPDIR: dir } }).status, 0);
+  // The build writes no marketplace, so this test writes its own scratch one
+  // beside it: named glab-services, as the real marketplace is, so PLUGIN_ID installs unchanged.
+  mkdirSync(join(out, '.claude-plugin'), { recursive: true });
+  writeFileSync(join(out, '.claude-plugin', 'marketplace.json'), JSON.stringify({ name: 'glab-services', owner: { name: 'glab-services' }, plugins: [{ name: 'glab-team', source: './plugins/glab-team' }] }));
   assert.equal(claude(['plugin', 'marketplace', 'add', out]).status, 0);
   assert.equal(claude(['plugin', 'install', PLUGIN_ID, '--scope', 'local']).status, 0);
   let child;
   t.after(() => {
     child?.kill('SIGTERM');
-    claude(['plugin', 'uninstall', PLUGIN_ID, '--scope', 'local']); claude(['plugin', 'marketplace', 'remove', 'team-messaging-local']);
+    claude(['plugin', 'uninstall', PLUGIN_ID, '--scope', 'local']); claude(['plugin', 'marketplace', 'remove', 'glab-services']);
     rmSync(dir, { recursive: true, force: true });
   });
   const fixture = await brokerFixture(t, { defaultOwner: 'bob' });

@@ -47,8 +47,8 @@ hook").
   plus a checkout of this repository:
 
   ```sh
-  git clone https://github.com/glab-services/skills-marketplace.git
-  cd skills-marketplace/src/glab-team
+  git clone https://github.com/glab-services/skills.git
+  cd skills/src/glab-team
   pnpm install --frozen-lockfile
   ```
 
@@ -56,7 +56,7 @@ hook").
 - The Claude Code plugin, installed from this repository's marketplace:
 
   ```sh
-  claude plugin marketplace add glab-services/skills-marketplace
+  claude plugin marketplace add glab-services/skills
   claude plugin install glab-team@glab-services --scope local
   ```
 

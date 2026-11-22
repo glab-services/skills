@@ -2,7 +2,7 @@ import { topicHeartbeat } from '../../test-support/topic-fixture.mjs';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { accessSync, constants, existsSync, readFileSync, readdirSync, rmSync } from 'node:fs';
+import { accessSync, constants, copyFileSync, existsSync, mkdirSync, readFileSync, readdirSync, realpathSync, rmSync, statSync, symlinkSync, writeFileSync } from 'node:fs';
 import { dirname, join, relative, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
@@ -14,8 +14,8 @@ import { HOOK_TIMEOUT_S } from '../watch.mjs';
 
 // One bundle for the whole file: npm ci needs the network, which is why these
 // tests run only through pnpm plugin:test (decision 133).
-const out = testTempDir('plugin-build-'), plugin = join(out, 'plugins', 'team-messaging');
-const build = spawnSync(process.execPath, [fileURLToPath(new URL('../../scripts/build-plugin.mjs', import.meta.url)), '--out', out], { encoding: 'utf8', env: { ...process.env, TMPDIR: dirname(out) } });
+const out = testTempDir('plugin-build-'), plugin = join(out, 'glab-team');
+const build = spawnSync(process.execPath, [fileURLToPath(new URL('../../scripts/build-plugin.mjs', import.meta.url)), '--out', plugin], { encoding: 'utf8', env: { ...process.env, TMPDIR: dirname(out) } });
 process.on('exit', () => rmSync(out, { recursive: true, force: true }));
 const claudeMissing = spawnSync('claude', ['--version'], { stdio: 'ignore' }).error?.code === 'ENOENT';
 
@@ -26,24 +26,94 @@ test('the build succeeds, validates and refuses unsafe output directories', t =>
     t.diagnostic('SKIP: claude plugin validate (claude not on PATH)');
   } else {
     assert.ok(!build.stdout.includes('SKIP:'));
-    for (const target of [plugin, out]) {
-      const validated = spawnSync('claude', ['plugin', 'validate', target, '--strict'], { encoding: 'utf8' });
-      assert.equal(validated.status, 0, `validate ${target}`); assert.match(validated.stdout, /Validation passed/);
-    }
+    const validated = spawnSync('claude', ['plugin', 'validate', plugin, '--strict'], { encoding: 'utf8' });
+    assert.equal(validated.status, 0, `validate ${plugin}`); assert.match(validated.stdout, /Validation passed/);
   }
   const script = fileURLToPath(new URL('../../scripts/build-plugin.mjs', import.meta.url));
-  for (const target of [out, '/tmp/glab-team-plugin', resolve('/var/glab-team-plugin')]) {
+  for (const target of [plugin, '/tmp/glab-team-plugin', resolve('/var/glab-team-plugin')]) {
     const refused = spawnSync(process.execPath, [script, '--out', target], { encoding: 'utf8', env: { ...process.env, TMPDIR: dirname(out) } });
     assert.equal(refused.status, 1, target); assert.match(refused.stderr, /not empty|refusing \/tmp|must be under/);
   }
-  const marketplace = JSON.parse(readFileSync(join(out, '.claude-plugin', 'marketplace.json'), 'utf8'));
-  assert.deepEqual([marketplace.name, marketplace.plugins[0].source], ['team-messaging-local', './plugins/team-messaging']);
-  assert.ok(marketplace.owner && marketplace.description);
-  assert.equal(existsSync(join(plugin, '.claude-plugin', 'marketplace.json')), false, 'only one marketplace.json');
-  // Apache-2.0 section 4(a): the installed plugin and the published marketplace
-  // each carry the repository LICENSE byte for byte.
+  // --publish resolves to plugins/glab-team beside the script's own location,
+  // so a copy in a directory of this test's own makes it checkable without
+  // ever naming the repository's committed plugin as a target. The "not empty"
+  // refusal comes after the place guard, so it proves --publish resolved to the
+  // admitted path and was let through; --out reaches no plugins/ directory.
+  const g = testTempDir('plugin-guard-'), guardTmp = testTempDir('plugin-guard-tmp-');
+  try {
+    const copy = join(g, 'src', 'glab-team', 'scripts', 'build-plugin.mjs');
+    mkdirSync(dirname(copy), { recursive: true }); copyFileSync(script, copy);
+    for (const name of ['glab-team', 'other']) { mkdirSync(join(g, 'plugins', name), { recursive: true }); writeFileSync(join(g, 'plugins', name, 'keep'), 'x'); }
+    const guarded = argv => spawnSync(process.execPath, [copy, ...argv], { encoding: 'utf8', env: { ...process.env, TMPDIR: guardTmp } });
+    const published = guarded(['--publish']);
+    // realpathSync: the script's own path is the real one.
+    assert.equal(published.status, 1); assert.ok(published.stderr.includes(`${join(realpathSync(g), 'plugins', 'glab-team')} is not empty`), published.stderr);
+    for (const name of ['glab-team', 'other']) {
+      const refusedOut = guarded(['--out', join(g, 'plugins', name)]);
+      assert.equal(refusedOut.status, 1, name); assert.match(refusedOut.stderr, /must be under/);
+    }
+  } finally { rmSync(g, { recursive: true, force: true }); rmSync(guardTmp, { recursive: true, force: true }); }
+  const usageDir = testTempDir('plugin-usage-');
+  try {
+    const fresh = join(usageDir, 'new');
+    for (const bad of [['--no-install'], ['--out', fresh, '--bogus'], ['--publish', '--out', fresh]]) {
+      const usage = spawnSync(process.execPath, [script, ...bad], { encoding: 'utf8', env: { ...process.env, TMPDIR: dirname(out) } });
+      assert.equal(usage.status, 2, bad.join(' ')); assert.match(usage.stderr, /use build-plugin\.mjs --out <dir> \| --publish \[--no-install\]/);
+      assert.equal(existsSync(fresh), false, `${bad.join(' ')} created ${fresh}`);
+    }
+  } finally { rmSync(usageDir, { recursive: true, force: true }); }
+  assert.deepEqual(readdirSync(out), ['glab-team'], 'nothing beside the plugin');
+  assert.equal(existsSync(join(plugin, '.claude-plugin', 'marketplace.json')), false, 'the build writes no marketplace');
+  // Apache-2.0 section 4(a): the installed plugin carries the repository
+  // LICENSE byte for byte; it is the only copy the build makes.
   const license = readFileSync(fileURLToPath(new URL('../../LICENSE', import.meta.url)));
-  for (const dir of [plugin, out]) assert.deepEqual(readFileSync(join(dir, 'LICENSE')), license, `LICENSE in ${dir}`);
+  assert.deepEqual(readFileSync(join(plugin, 'LICENSE')), license, `LICENSE in ${plugin}`);
+});
+
+// Review round 1: a failed build leaves no output directory (nor staging
+// sibling), --out naming a file is refused cleanly, and a symlink under the
+// admitted root that points outside it is refused.
+test('a failed build leaves nothing behind, and --out must be a directory below a real admitted root', () => {
+  const script = fileURLToPath(new URL('../../scripts/build-plugin.mjs', import.meta.url));
+  const base = testTempDir('plugin-fail-'), elsewhere = testTempDir('plugin-elsewhere-'), noPath = testTempDir('plugin-fail-path-');
+  try {
+    const env = { ...process.env, TMPDIR: base };
+    const target = join(base, 'glab-team');
+    // No npm on PATH: npm ci cannot succeed, after the files were copied.
+    const failed = spawnSync(process.execPath, [script, '--out', target], { encoding: 'utf8', env: { ...env, PATH: noPath } });
+    assert.equal(failed.status, 1); assert.match(failed.stderr, /npm ci failed/);
+    assert.deepEqual(readdirSync(base), [], 'no output or staging directory remains');
+    const file = join(base, 'afile'); writeFileSync(file, 'x');
+    const notDir = spawnSync(process.execPath, [script, '--out', file], { encoding: 'utf8', env });
+    assert.equal(notDir.status, 1); assert.match(notDir.stderr, /is not a directory/); assert.doesNotMatch(notDir.stderr, /ENOTDIR|at /);
+    symlinkSync(elsewhere, join(base, 'link'));
+    const linked = spawnSync(process.execPath, [script, '--no-install', '--out', join(base, 'link', 'glab-team')], { encoding: 'utf8', env });
+    assert.equal(linked.status, 1); assert.match(linked.stderr, /must be under/);
+    assert.deepEqual(readdirSync(elsewhere), [], 'nothing written through the symlink');
+  } finally { for (const dir of [base, elsewhere, noPath]) rmSync(dir, { recursive: true, force: true }); }
+});
+
+// 03-D4: --no-install is the offline form the repository's gate G45 runs. With
+// a PATH holding neither npm nor claude and no validate skip, exit 0 proves
+// both steps were skipped; every file outside node_modules must equal the
+// full build's.
+test('--no-install builds every file outside node_modules without npm or claude', () => {
+  const lean = join(testTempDir('plugin-lean-'), 'glab-team'), dirs = [dirname(lean)];
+  try {
+    dirs.push(testTempDir('plugin-nopath-'));
+    const script = fileURLToPath(new URL('../../scripts/build-plugin.mjs', import.meta.url));
+    const built = spawnSync(process.execPath, [script, '--no-install', '--out', lean], { encoding: 'utf8', env: { ...process.env, TMPDIR: dirname(dirname(lean)), PATH: dirs[1], PLUGIN_VALIDATE_SKIP: '' } });
+    assert.equal(built.status, 0, built.stderr);
+    assert.equal(existsSync(join(lean, 'node_modules')), false);
+    const files = base => readdirSync(base, { recursive: true, withFileTypes: true }).filter(entry => !entry.isDirectory()).map(entry => relative(base, join(entry.parentPath, entry.name))).filter(file => !file.startsWith('node_modules' + sep)).sort();
+    const expected = files(plugin);
+    assert.deepEqual(files(lean), expected);
+    for (const file of expected) {
+      assert.deepEqual(readFileSync(join(lean, file)), readFileSync(join(plugin, file)), file);
+      assert.equal(statSync(join(lean, file)).mode & 0o100, statSync(join(plugin, file)).mode & 0o100, `execute bit of ${file}`);
+    }
+    for (const file of readdirSync(join(lean, 'bin'))) assert.equal(statSync(join(lean, 'bin', file)).mode & 0o777, 0o755, file);
+  } finally { for (const dir of dirs) rmSync(dir, { recursive: true, force: true }); }
 });
 
 // Decision 150: SessionStart arms the same rewake watcher as Stop, so a

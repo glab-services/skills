@@ -17,13 +17,13 @@ source of the plugin; its messaging skills are `/glab-team:messaging-*`.
 The plugin installs from this repository's marketplace:
 
 ```sh
-claude plugin marketplace add glab-services/skills-marketplace
+claude plugin marketplace add glab-services/skills
 claude plugin install glab-team@glab-services --scope local
 ```
 
 See the M12 section of [channel/README.md](channel/README.md) for joining and
-binding. If an earlier plugin under another name is installed, read
-*Moving from an earlier install* in [docs/setup.md](docs/setup.md) first.
+binding. If an earlier plugin under another name is installed, read the
+section on moving from the earlier plugin in [docs/setup.md](docs/setup.md) first.
 
 ## Development
 
@@ -37,9 +37,11 @@ pnpm channel:test
 
 [AGENTS.md](AGENTS.md) lists the gates for each area.
 
+The plugin in the repository's `plugins/glab-team/` is this folder's build; `AGENTS.md` says how to rebuild it.
+
 ## Provenance
 
-This source was brought into glab-services/skills-marketplace from
+This source was brought into this repository from
 glab-services/claude-plugins at `441887c` and is maintained here, with no upstream.
 
 This code was imported from a private source repo at afb35c6, without its

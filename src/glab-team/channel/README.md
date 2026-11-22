@@ -805,16 +805,16 @@ acknowledging stays an explicit MCP `ack` call.
 ### Install
 
 ```sh
-claude plugin marketplace add glab-services/skills-marketplace
+claude plugin marketplace add glab-services/skills
 claude plugin install glab-team@glab-services --scope local
 ```
 
-The plugin is built from this source by `scripts/build-plugin.mjs`.
+The plugin is built from this source by `scripts/build-plugin.mjs` into the repository's `plugins/glab-team/` (`pnpm -s plugin:build`), which is committed and checked by the repository's gates; `--no-install` builds it without `npm ci` or validation, for that offline check.
 
 The bundle copies `channel/*.mjs` and `shared/address.mjs` into `runtime/` and
 vendors `node_modules` with `npm ci`, because a local-path plugin gets no
 dependency install. The build runs `claude plugin validate --strict` on the
-plugin and the marketplace; without `claude` on PATH it fails unless
+plugin; without `claude` on PATH it fails unless
 `PLUGIN_VALIDATE_SKIP=1` is set. Every option is declared optional: Claude
 Code hides a plugin's MCP server while a required option is unset.
 

@@ -16,7 +16,7 @@
     "messaging:hardening": "node --test broker/test/hardening.test.mjs broker/test/webhook-concurrency.test.mjs broker/test/retention-process.test.mjs channel/test/restart.test.mjs channel/test/queue-restart.test.mjs channel/test/hook.test.mjs",
     "messaging:claude-hook": "RUN_CLAUDE_ACCEPTANCE=1 node --test channel/acceptance/claude-hook.test.mjs",
     "messaging:plugin-wake": "RUN_CLAUDE_ACCEPTANCE=1 node --test channel/acceptance/plugin-wake.test.mjs",
-    "plugin:build": "node scripts/build-plugin.mjs --out dist/plugin",
+    "plugin:build": "node scripts/build-plugin.mjs --publish",
     "plugin:test": "node --test channel/plugin-test/*.test.mjs",
     "messaging:membership": "node --test broker/test/membership.test.mjs channel/test/membership.test.mjs broker/test/invites.test.mjs channel/test/invites.test.mjs channel/test/join.test.mjs",
     "messaging:workspaces": "node --test broker/test/schema-v5.test.mjs broker/test/workspaces.test.mjs channel/test/workspaces.test.mjs channel/test/hook.test.mjs",

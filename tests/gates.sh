@@ -1,21 +1,24 @@
 #!/usr/bin/env bash
 # Runs every gate of this repo and compares each result with its expected value: the syntax and
 # execute-bit check and shellcheck on the scripts, the six script tests, `claude plugin validate
-# --strict`, the component lines of `claude plugin details`, and the searches that nothing else
-# catches. G36-G39, appended last, are the same three kinds of check and the test for the docs
+# --strict` (G23 is `plugins/glab-team`), the component lines of `claude plugin details` (G42-G44
+# are `glab-team`'s), and the searches that nothing else catches. G36-G39, appended last, are the same three kinds of check and the test for the docs
 # mirror's script. G40-G41, appended after G39, run the two Node.js suites of `src/glab-team`
 # (`pnpm -s broker:test`, `pnpm -s channel:test`) and compare their failures with a pinned host
-# list. It prints one line per check, `ok G<n> <name>` or `FAIL G<n> <name>: <reason>`,
+# list. G45, appended after G44, builds `src/glab-team` again offline and fails when the committed
+# `plugins/glab-team` is not that build. It prints one line per check, `ok G<n> <name>` or `FAIL G<n> <name>: <reason>`,
 # then `PASS n/n` or `FAIL f/n`.
 #
 # Ids: the loop blocks number their checks by position, so removing the `memory-sync` plugin in
-# this change shifted G1-G11, G15-G19 and G21-G22 and left G12, G13, G20 and G23 unused; the
-# hard-coded ids (G14, G24-G26, G30, G31, G33-G39) did not move. G40 and G41 are hard-coded ids
-# too, appended after G39.
+# this change shifted G1-G11, G15-G19 and G21-G22 and left G12, G13 and G20 unused; G23 is the
+# third entry of the validate loop, `plugins/glab-team`. The hard-coded ids (G14, G24-G26, G30,
+# G31, G33-G39) did not move. G40 and G41 are hard-coded ids too, appended after G39, and G42-G45
+# after G41.
 #
 # Call it as `bash tests/gates.sh`, with no arguments, from anywhere: it changes to the repo root
 # before any check. It changes no tracked file in the repo. Its work directory under `$TMPDIR` is
-# removed on every exit path, an INT, TERM or HUP signal included.
+# removed on every exit path, an INT, TERM or HUP signal included, and so is G45's build directory
+# under `src/glab-team/dist/` (`dist/` itself is ignored by git and may be left, empty).
 # A TERM sent to the script alone is handled once the foreground suite returns (nothing runs in the
 # background). The source's tests put their temp roots under `$TMPDIR`, or under `src/glab-team/.tmp/` when it is `/tmp` or below
 # (`src/glab-team/test-support/temp.mjs`); they leave that directory empty, and git ignores it.
@@ -72,7 +75,7 @@ claude=$(command -v "${CLAUDE_BIN:-claude}") || { echo 'gates.sh: no Claude Code
 case $claude in /*) ;; *) claude=$PWD/$claude ;; esac
 command -v jq >/dev/null || { echo 'gates.sh: no jq found on PATH' >&2; exit 2; }
 command -v shellcheck >/dev/null || { echo 'gates.sh: no shellcheck found on PATH' >&2; exit 2; }
-# G40-G41 need Node.js 24 or newer and pnpm 10 or newer, and `src/glab-team` installed from its
+# G40-G41 and G45 need Node.js 24 or newer and pnpm 10 or newer, and `src/glab-team` installed from its
 # lockfile; without them the suites fail for a reason that is not theirs, so the script stops here
 # like the lines above [01-import-source/plan.md 01-D4, 01-D5]. Node.js is the
 # `node` first on `PATH`, with no `NODE_BIN` variable: pnpm's `#!/usr/bin/env node` runs on that
@@ -94,8 +97,9 @@ cmp -s src/glab-team/node_modules/.pnpm/lock.yaml src/glab-team/pnpm-lock.yaml |
 # Bash does not run an EXIT trap when a signal kills it, so INT, TERM and HUP each exit with the
 # usual 128+n code through the EXIT trap instead.
 # The script starts no background process, so there is nothing to kill by PID.
+D45=''    # G45's build directory under src/glab-team/dist/, removed by the trap on every exit path
 W=$(mktemp -d "$TMPDIR/gates.XXXXXX") || { echo 'gates.sh: cannot make a work directory under TMPDIR' >&2; exit 2; }
-trap 'rm -rf "${W:?}"' EXIT
+trap 'rm -rf "${W:?}"; [ -z "${D45:-}" ] || rm -rf "$D45"' EXIT
 trap 'exit 130' INT; trap 'exit 143' TERM; trap 'exit 129' HUP
 mkdir "$W/claude-config" || { echo 'gates.sh: cannot make the config directory under TMPDIR' >&2; exit 2; }
 cfg=$W/claude-config
@@ -122,6 +126,45 @@ export default async function* (source) {
   }
 }
 REPORTER
+
+# G45's walk of `plugins/glab-team/node_modules`: the lockfile's non-root packages (none is `dev`)
+# as `<key> <name>@<version>` against what is on disk, every directory not starting with `.`, each
+# package's own `node_modules/` recursed, `@scope/name` expanded. Prints `packages <n>` and exits 0
+# when the sets are equal; else every `missing <entry>` line, then every `unexpected <entry>` line,
+# each group in `LC_ALL=C` order, and exits 1. A package directory without `package.json` is
+# reported as `<path> NO package.json`. Written here for the same reason as the reporter.
+cat >"$W/nm.mjs" <<'NMWALK'
+import { readFileSync, readdirSync, existsSync, statSync } from 'node:fs';
+import { join } from 'node:path';
+const [plugin, lock] = process.argv.slice(2);
+const expected = new Set(), actual = new Set();
+for (const [key, meta] of Object.entries(JSON.parse(readFileSync(lock, 'utf8')).packages)) {
+  if (key === '' || meta.dev) continue;
+  expected.add(`${key} ${meta.name ?? key.split('node_modules/').pop()}@${meta.version}`);
+}
+function walk(dir, prefix) {
+  for (const name of readdirSync(dir).sort()) {
+    if (name.startsWith('.')) continue;
+    const path = join(dir, name);
+    if (!statSync(path).isDirectory()) continue;
+    if (name.startsWith('@')) { walk(path, `${prefix}${name}/`); continue; }
+    const rel = `${prefix}${name}`, manifest = join(path, 'package.json');
+    if (!existsSync(manifest)) { actual.add(`${rel} NO package.json`); continue; }
+    const pkg = JSON.parse(readFileSync(manifest, 'utf8'));
+    actual.add(`${rel} ${pkg.name}@${pkg.version}`);
+    if (existsSync(join(path, 'node_modules'))) walk(join(path, 'node_modules'), `${rel}/node_modules/`);
+  }
+}
+walk(join(plugin, 'node_modules'), 'node_modules/');
+const sort = set => [...set].sort((a, b) => (a < b ? -1 : a > b ? 1 : 0));
+const missing = sort(new Set([...expected].filter(e => !actual.has(e)))), unexpected = sort(new Set([...actual].filter(e => !expected.has(e))));
+if (missing.length || unexpected.length) {
+  for (const e of missing) console.log(`missing ${e}`);
+  for (const e of unexpected) console.log(`unexpected ${e}`);
+  process.exit(1);
+}
+console.log(`packages ${actual.size}`);
+NMWALK
 
 # Expected values. These arrays are the one copy of them in this repo's tooling; `README.md` and
 # each plugin's `hooks/hooks.json` state them too (docs/one-fact.md).
@@ -164,7 +207,13 @@ GLAB_AGENTS=(
 	project-integrator project-plan-analyzer project-planner project-reviewer
 )
 GLAB_HOOKS='Hooks (5)  SessionStart, UserPromptSubmit, PreToolUse, PostToolUse, Stop  (harness-only — no model context cost)'
-MARKET=('glab = glab')
+MARKET=('glab = glab' 'glab-team = glab-team')
+# G42-G44: the three component lines of `plugin details glab-team` (the Agents line is not pinned).
+GLAB_TEAM_LINES=(
+	'Skills (5)  messaging-bind, messaging-claim, messaging-join, messaging-status, messaging-watch'
+	'Hooks (4)  SessionStart, PreToolUse, Stop, StopFailure  (harness-only — no model context cost)'
+	'MCP servers (1)  messaging  (tool schemas resolved at runtime; not counted)'
+)
 MODEL_LINES=(
 	'plugins/glab/agents/project-analyzer.md:model: sonnet'
 	'plugins/glab/agents/committer.md:model: haiku'
@@ -324,18 +373,19 @@ done
 	[ -d "$cfg" ] || exit 1
 	export CLAUDE_CONFIG_DIR="$cfg"
 	k=0
-	for p in plugins/glab .; do
+	for p in plugins/glab . plugins/glab-team; do
 		k=$((k + 1))
 		"$claude" plugin validate --strict "$p" >"$W/validate.$k" 2>&1
 		echo $? >"$W/validate.$k.rc"
 	done
 	"$claude" --plugin-dir ./plugins plugin details glab >"$W/details.glab" 2>"$W/details.glab.err"
+	"$claude" --plugin-dir ./plugins plugin details glab-team >"$W/details.glab-team" 2>"$W/details.glab-team.err"
 )
 
-# G21-G22. `plugin validate --strict` on the plugin and on the marketplace: its last line is
+# G21-G23. `plugin validate --strict` on the plugin, on the marketplace and on `plugins/glab-team`: its last line is
 # `✔ Validation passed`, with rc 0.
 i=20 k=0
-for p in plugins/glab .; do
+for p in plugins/glab . plugins/glab-team; do
 	i=$((i + 1)) k=$((k + 1))
 	if [ -f "$W/validate.$k" ]; then
 		last=$(tail -n 1 "$W/validate.$k")
@@ -519,6 +569,54 @@ for s in broker channel; do
 	fi
 	done_case "G$i" "test: src/glab-team $s:test" "$okline"
 done
+
+# G42-G44. The three component lines of `plugin details glab-team`, each compared as an exact
+# string, as G26 is. The CLI sorts the Skills names itself (03-F8), so the
+# directory read order is not a risk here, unlike G24.
+i=41
+for l in "${GLAB_TEAM_LINES[@]}"; do
+	i=$((i + 1))
+	kind=${l%% (*}
+	line=$(command grep -E "^  $kind " "$W/details.glab-team")
+	[ "$line" = "  $l" ] || bad "line [$line]"
+	done_case "G$i" "glab-team $l"
+done
+
+# G45. `plugins/glab-team` is the build of `src/glab-team`. The script builds offline
+# (`--no-install`: no npm, no claude) into a new directory under `src/glab-team/dist/`, which the
+# build accepts and git ignores, and the trap removes it. Three compares, none skipping another:
+# every file outside `node_modules/` byte for byte (a changed, missing or added file), the
+# execute bits outside it, and `node_modules/` by `<path> <name>@<version>` against
+# `src/glab-team/plugin/package-lock.json` (`$W/nm.mjs`).
+# What it does not guarantee: a file edited inside a package of the right name and version passes;
+# `node_modules/.package-lock.json` and `.bin/` are not read. The full byte compare, `node_modules/`
+# included, needs the npm registry and is run once as a command, not as a gate
+# [the glab-team plan, M5]. Execute-bit branch and the INT/TERM/HUP trap are not
+# exercised by a test: the first is a two-line `find` compare, the second is the mechanism of `W`.
+okline=''
+if mkdir -p src/glab-team/dist && D45=$(mktemp -d "$PWD/src/glab-team/dist/g45.XXXXXX"); then
+	node src/glab-team/scripts/build-plugin.mjs --no-install --out "$D45" >"$W/g45.out" 2>&1
+	rc=$?
+	if [ "$rc" -ne 0 ]; then
+		bad "build rc=$rc [$(command grep -m 1 '[^[:space:]]' "$W/g45.out")]"
+	else
+		d=$(diff -r --exclude=node_modules plugins/glab-team "$D45" 2>&1 | head -n 1)
+		[ -z "$d" ] || bad "differs from the build [$d]"
+		a=$(cd plugins/glab-team && find . -path ./node_modules -prune -o -type f -perm -u+x -print | LC_ALL=C sort)
+		b=$(cd "$D45" && find . -path ./node_modules -prune -o -type f -perm -u+x -print | LC_ALL=C sort)
+		[ "$a" = "$b" ] || bad "execute bits differ"
+		nm=$(node "$W/nm.mjs" plugins/glab-team src/glab-team/plugin/package-lock.json 2>&1)
+		rc=$?
+		if [ "$rc" -ne 0 ]; then
+			bad "node_modules [$(lines "$nm" | paste -sd, -)]"
+		else
+			okline=$nm
+		fi
+	fi
+else
+	bad "cannot make a build directory under src/glab-team/dist"
+fi
+done_case G45 "plugins/glab-team is the build of src/glab-team" "$okline"
 
 if [ "$fail" -eq 0 ]; then
 	echo "PASS $pass/$n"
