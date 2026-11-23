@@ -14,7 +14,7 @@
 # third entry of the validate loop, `plugins/glab-team`. The hard-coded ids (G14, G24-G26, G30,
 # G31, G33-G39) did not move. G40 and G41 are hard-coded ids too, appended after G39, and G42-G45
 # after G41. G46-G48, appended after G45: `plugin validate --strict` on project and
-# product, and the byte check of the shared copies.
+# product, and the byte check of the shared copies. G49: plugins/test.
 #
 # Call it as `bash tests/gates.sh`, with no arguments, from anywhere: it changes to the repo root
 # before any check. It changes no tracked file in the repo. Its work directory under `$TMPDIR` is
@@ -208,7 +208,7 @@ GLAB_AGENTS=(
 	project-integrator project-planner project-reviewer
 )
 GLAB_HOOKS='Hooks (5)  SessionStart, UserPromptSubmit, PreToolUse, PostToolUse, Stop  (harness-only — no model context cost)'
-MARKET=('glab = glab' 'project = project' 'product = product' 'glab-team = glab-team')
+MARKET=('glab = glab' 'project = project' 'product = product' 'test = test' 'glab-team = glab-team')
 # G42-G44: the three component lines of `plugin details glab-team` (the Agents line is not pinned).
 GLAB_TEAM_LINES=(
 	'Skills (5)  messaging-bind, messaging-claim, messaging-join, messaging-status, messaging-watch'
@@ -228,6 +228,7 @@ MODEL_LINES=(
 	'plugins/project/agents/developer.md:model: sonnet'
 	'plugins/project/agents/reviewer.md:model: sonnet'
 	'plugins/project/agents/committer.md:model: haiku'
+	'plugins/test/agents/tester.md:model: sonnet'
 	'plugins/product/agents/planner.md:model: opus'
 	'plugins/product/agents/analyzer.md:model: opus'
 	'plugins/product/agents/committer.md:model: haiku'
@@ -398,6 +399,8 @@ done
 	echo $? >"$W/validate.slim.rc"
 	"$claude" plugin validate --strict plugins/product >"$W/validate.prod" 2>&1
 	echo $? >"$W/validate.prod.rc"
+	"$claude" plugin validate --strict plugins/test >"$W/validate.test" 2>&1
+	echo $? >"$W/validate.test.rc"
 	"$claude" --plugin-dir ./plugins plugin details glab >"$W/details.glab" 2>"$W/details.glab.err"
 	"$claude" --plugin-dir ./plugins plugin details glab-team >"$W/details.glab-team" 2>"$W/details.glab-team.err"
 )
@@ -672,6 +675,22 @@ for pair in 'plugins/glab/scripts/plan-gate.sh plugins/project/scripts/plan-gate
 	[ ! -x "$a" ] || [ -x "$b" ] || bad "$b is not executable"
 done
 done_case G48 "shared copies match their source"
+
+# G49. `plugin validate --strict plugins/test`, green as G46, and each forked skill's `agent:`
+# names an agent of its plugin: an unknown one falls back to another agent with no error.
+if [ -f "$W/validate.test" ]; then
+	last=$(tail -n 1 "$W/validate.test")
+	[ "$last" = '✔ Validation passed' ] || bad "last line [$last]"
+	rc=$(cat "$W/validate.test.rc")
+	[ "$rc" = 0 ] || bad "rc=$rc"
+else
+	bad "the CLI did not run"
+fi
+for f in plugins/test/skills/*/SKILL.md; do
+	a=$(sed -n 's/^agent: test://p' "$f")
+	[ -n "$a" ] && [ -f "plugins/test/agents/$a.md" ] || bad "$f: agent [$a] is not in plugins/test/agents"
+done
+done_case G49 "plugin validate --strict plugins/test"
 
 if [ "$fail" -eq 0 ]; then
 	echo "PASS $pass/$n"

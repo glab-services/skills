@@ -1,6 +1,6 @@
 # Working agreement
 
-This repo is a Claude Code plugin marketplace, `glab-services`, holding `project`, `product`, `glab-team` and the archived `glab`. Everything under `plugins/` is **payload**: it is written for the
+This repo is a Claude Code plugin marketplace, `glab-services`, holding `project`, `product`, `test`, `glab-team` and the archived `glab`. Everything under `plugins/` is **payload**: it is written for the
 sessions of whoever installs a plugin, not for this repo. When payload text
 and this file disagree about how to work *in this repo*, this file wins.
 
@@ -15,6 +15,7 @@ and this file disagree about how to work *in this repo*, this file wins.
   no hooks; `scripts/plan-gate.sh` is a byte copy of glab's (G48).
 - `plugins/product/` — the product level: its manager, skills and two
   agents, no hooks; `scripts/plan-gate.sh` is a byte copy of glab's (G48).
+- `plugins/test/` — manual QA: three forked skills run by one tester agent.
 - `plugins/glab-team/` — the build of `src/glab-team/`.
 - `docs/specs/` — one spec per area: how it works now, why, what is not
   verified, what is open (*Rules*, the `plan/` rule).

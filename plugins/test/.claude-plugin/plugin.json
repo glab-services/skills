@@ -1,0 +1,9 @@
+{
+  "name": "test",
+  "version": "0.1.0",
+  "description": "Manual QA: /test:unit, /test:e2e and /test:regression, each run by one tester agent in its own context",
+  "author": {
+    "name": "glab-services"
+  },
+  "repository": "https://github.com/glab-services/skills"
+}

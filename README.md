@@ -6,6 +6,7 @@ A Claude Code plugin marketplace, `glab-services`.
 |---|---|
 | `project` | The project workflow. A manager session dispatches four agents through plan → develop → review → commit → push, and each plan opens its GitHub issue. Sensitive work (data, formats, auth, secrets, money) adds your approval of the plan and a second, blind reviewer. It takes briefs from `product`. No hooks. |
 | `product` | The product level. A product plan becomes product rules and one brief per project in a shared store, and each project's plan gets a verdict before it is built. No hooks. |
+| `test` | Manual QA you call in a session: `/test:unit`, `/test:e2e`, `/test:regression`. Each runs in its own tester agent (sonnet) and returns a short verdict. Optional, works beside `project`. |
 | `glab-team` | Team agent messaging: skills `/glab-team:messaging-*`, an MCP server and hooks that wake an idle agent session when messages arrive. Needs Node.js 24 or newer. |
 | `glab` | **Archived:** the earlier full workflow, 0.21.0, kept as it is. Use `project` and `product` instead, not beside it. |
 
@@ -45,6 +46,7 @@ This marketplace is private. Claude Code runs `git` with your machine's own cred
    claude plugin marketplace add glab-services/skills
    claude plugin install project@glab-services   # in a code repo
    claude plugin install product@glab-services   # in a product repo
+   claude plugin install test@glab-services      # optional, manual QA
    claude plugin install glab-team@glab-services --scope local
    ```
 
@@ -70,4 +72,4 @@ Coming from `glab`, or an older setup (`team-messaging`, names before 0.15.0, `m
 | `docs/one-fact.md` | each fact more than one file states, and those files |
 | `host.example.md` | the template for `~/.claude/host.md` |
 
-To try a change without installing, run `claude --plugin-dir ./plugins/project` (or `./plugins/product`, or `./plugins/glab-team`). Pass the plugin's folder, not the repo root.
+To try a change without installing, run `claude --plugin-dir ./plugins/project` (or `./plugins/product`, `./plugins/test`, or `./plugins/glab-team`). Pass the plugin's folder, not the repo root.
