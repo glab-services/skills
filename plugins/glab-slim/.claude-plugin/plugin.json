@@ -1,7 +1,7 @@
 {
   "name": "glab-slim",
-  "version": "0.1.0",
-  "description": "The slim glab project flow: plan, develop, review, commit, push through four agents, with one gate run by the manager and a short evidence rule",
+  "version": "0.2.0",
+  "description": "The slim glab project flow: plan, develop, review, commit, push through four agents, each plan opening its GitHub issue, with one gate run by the manager and a short evidence rule",
   "author": {
     "name": "glab-services"
   },

@@ -11,7 +11,7 @@ and this file disagree about how to work *in this repo*, this file wins.
   `hooks/hooks.json`, `scripts/` (`manager-bootstrap.sh`,
   `context-size.sh`, `level-guard.sh`, `glab-level.sh` — the level
   rule both hooks source — and `plan-gate.sh`) and `templates/`.
-- `plugins/glab-slim/` — the slim project flow: four agents, six skills,
+- `plugins/glab-slim/` — the slim project flow: four agents, seven skills,
   no hooks and no scripts.
 - `plugins/glab-team/` — the build of `src/glab-team/`.
 - `docs/specs/` — one spec per area: how it works now, why, what is not

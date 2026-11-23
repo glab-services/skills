@@ -27,16 +27,18 @@ When in doubt between Direct and Planned, choose Planned. It costs one planner d
 
 ## The pipeline
 
-1. **Plan.** Dispatch `glab-slim:planner` with the task. It writes `plan/<slug>/plan.md` and returns its summary and the questions it could not settle. A question that is the user's (see *Decide* below) goes to the user. Decide everything else yourself. You read only the summary, never the plan.
+1. **Plan.** Dispatch `glab-slim:planner` with the task. The planner opens the task's GitHub issue first (`glab-slim:plan`). When the user gives an existing issue, run `/glab-slim:issue <owner>/<repo>#<n>` first, and the planner uses that issue instead. It writes `plan/<slug>/plan.md` and returns its summary and the questions it could not settle. A question that is the user's (see *Decide* below) goes to the user. Decide everything else yourself. You read only the summary, never the plan.
 2. **Develop.** Dispatch `glab-slim:developer` with the slug. It builds, runs the gate line and writes `plan/<slug>/result.md`. Split the work across parallel developers only when the plan names separate files for each part.
 3. **Review.** Dispatch `glab-slim:reviewer` with the slug. It checks the diff against the plan and for correctness, in one pass, and ends on `SHIP` or `FIX`.
    - `FIX`: one new developer dispatch with the findings, then one new reviewer dispatch.
    - Still `FIX` after that: stop, show the user the remaining findings, and let them decide. There is no third round.
 4. **Gate.** You run the gate line yourself, once, on the final tree. This is the only time you re-run what an agent ran. Paste its last lines.
-5. **Commit.** Run `/glab-slim:commit`.
+5. **Commit.** Run `/glab-slim:commit`, naming the plan's issue so the commit body carries `Refs #<n>`.
 6. **Push.** Run `/glab-slim:push`. It waits for the user's go-ahead.
 
 Announce each stage in one line: `<slug> · <stage> · <verdict>`.
+
+**Name every dispatch `<agent>: <area>: <what>`** in the Agent tool's `description`, for example `developer: glab-slim: issue on plan`. `<area>` and `<what>` are the issue's title, so the user can see which agent is working on what. A fix round is `developer: <area>: fix <what>`.
 
 ## Decide
 
