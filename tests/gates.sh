@@ -13,7 +13,7 @@
 # this change shifted G1-G11, G15-G19 and G21-G22 and left G12, G13 and G20 unused; G23 is the
 # third entry of the validate loop, `plugins/glab-team`. The hard-coded ids (G14, G24-G26, G30,
 # G31, G33-G39) did not move. G40 and G41 are hard-coded ids too, appended after G39, and G42-G45
-# after G41.
+# after G41. G46, appended after G45, is `plugin validate --strict plugins/glab-slim`.
 #
 # Call it as `bash tests/gates.sh`, with no arguments, from anywhere: it changes to the repo root
 # before any check. It changes no tracked file in the repo. Its work directory under `$TMPDIR` is
@@ -207,7 +207,7 @@ GLAB_AGENTS=(
 	project-integrator project-plan-analyzer project-planner project-reviewer
 )
 GLAB_HOOKS='Hooks (5)  SessionStart, UserPromptSubmit, PreToolUse, PostToolUse, Stop  (harness-only — no model context cost)'
-MARKET=('glab = glab' 'glab-team = glab-team')
+MARKET=('glab = glab' 'glab-slim = glab-slim' 'glab-team = glab-team')
 # G42-G44: the three component lines of `plugin details glab-team` (the Agents line is not pinned).
 GLAB_TEAM_LINES=(
 	'Skills (5)  messaging-bind, messaging-claim, messaging-join, messaging-status, messaging-watch'
@@ -224,6 +224,10 @@ MODEL_LINES=(
 	'plugins/glab/agents/product-analyzer.md:model: opus'
 	'plugins/glab/agents/product-planner.md:model: opus'
 	'plugins/glab/agents/project-reviewer.md:model: sonnet'
+	'plugins/glab-slim/agents/planner.md:model: opus'
+	'plugins/glab-slim/agents/developer.md:model: sonnet'
+	'plugins/glab-slim/agents/reviewer.md:model: sonnet'
+	'plugins/glab-slim/agents/committer.md:model: haiku'
 )
 SKILL_LINES=(
 	'plugins/glab/agents/project-analyzer.md:glab:security'
@@ -243,6 +247,12 @@ SKILL_LINES=(
 	'plugins/glab/agents/product-planner.md:glab:security'
 	'plugins/glab/agents/project-reviewer.md:glab:security'
 	'plugins/glab/agents/project-reviewer.md:glab:comments'
+	'plugins/glab-slim/agents/planner.md:glab-slim:plan'
+	'plugins/glab-slim/agents/planner.md:glab-slim:security'
+	'plugins/glab-slim/agents/developer.md:glab-slim:security'
+	'plugins/glab-slim/agents/developer.md:glab-slim:comments'
+	'plugins/glab-slim/agents/reviewer.md:glab-slim:security'
+	'plugins/glab-slim/agents/committer.md:glab-slim:security'
 	'plugins/glab/agents/project-reviewer.md:glab:severity'
 )
 # The tests of `src/glab-team` that fail on the reference host, for G40-G41: each is a line
@@ -378,6 +388,9 @@ done
 		"$claude" plugin validate --strict "$p" >"$W/validate.$k" 2>&1
 		echo $? >"$W/validate.$k.rc"
 	done
+	# G46's run, kept out of the loop above so G21-G23 keep their ids.
+	"$claude" plugin validate --strict plugins/glab-slim >"$W/validate.slim" 2>&1
+	echo $? >"$W/validate.slim.rc"
 	"$claude" --plugin-dir ./plugins plugin details glab >"$W/details.glab" 2>"$W/details.glab.err"
 	"$claude" --plugin-dir ./plugins plugin details glab-team >"$W/details.glab-team" 2>"$W/details.glab-team.err"
 )
@@ -617,6 +630,18 @@ else
 	bad "cannot make a build directory under src/glab-team/dist"
 fi
 done_case G45 "plugins/glab-team is the build of src/glab-team" "$okline"
+
+# G46. `plugin validate --strict plugins/glab-slim`, green as G21-G23. A hard-coded id appended
+# after G45, so no earlier id moves.
+if [ -f "$W/validate.slim" ]; then
+	last=$(tail -n 1 "$W/validate.slim")
+	[ "$last" = '✔ Validation passed' ] || bad "last line [$last]"
+	rc=$(cat "$W/validate.slim.rc")
+	[ "$rc" = 0 ] || bad "rc=$rc"
+else
+	bad "the CLI did not run"
+fi
+done_case G46 "plugin validate --strict plugins/glab-slim"
 
 if [ "$fail" -eq 0 ]; then
 	echo "PASS $pass/$n"

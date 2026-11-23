@@ -1,6 +1,6 @@
 # Working agreement
 
-This repo is a Claude Code plugin marketplace, `glab-services`, holding `glab` and `glab-team`. Everything under `plugins/` is **payload**: it is written for the
+This repo is a Claude Code plugin marketplace, `glab-services`, holding `glab`, `glab-slim` and `glab-team`. Everything under `plugins/` is **payload**: it is written for the
 sessions of whoever installs a plugin, not for this repo. When payload text
 and this file disagree about how to work *in this repo*, this file wins.
 
@@ -11,6 +11,8 @@ and this file disagree about how to work *in this repo*, this file wins.
   `hooks/hooks.json`, `scripts/` (`manager-bootstrap.sh`,
   `context-size.sh`, `level-guard.sh`, `glab-level.sh` — the level
   rule both hooks source — and `plan-gate.sh`) and `templates/`.
+- `plugins/glab-slim/` — the slim project flow: four agents, seven skills,
+  no hooks and no scripts.
 - `plugins/glab-team/` — the build of `src/glab-team/`.
 - `docs/specs/` — one spec per area: how it works now, why, what is not
   verified, what is open (*Rules*, the `plan/` rule).
