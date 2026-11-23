@@ -1,6 +1,6 @@
 {
   "name": "glab-services",
-  "description": "The glab workflow and the glab-team tools for Claude Code",
+  "description": "The glab workflow, its slim variant and the glab-team tools for Claude Code",
   "owner": {
     "name": "glab-services"
   },
@@ -9,6 +9,11 @@
       "name": "glab",
       "source": "./plugins/glab",
       "description": "The glab workflow: skills, agents, the session bootstrap hook and the context hook"
+    },
+    {
+      "name": "glab-slim",
+      "source": "./plugins/glab-slim",
+      "description": "The slim glab project flow: plan, develop, review, commit, push through four agents, with one gate run by the manager"
     },
     {
       "name": "glab-team",
