@@ -61,6 +61,41 @@ The task can be a brief from a `product` store: `<store>/briefs/<project>/brief.
    - **`REJECTED`:** a new planner amends from its reason, then report again.
    - **`ACCEPTED`:** go to Develop. Before the first developer dispatch, `$PG check plan/<slug> <store>` must print `ACCEPTED r<n> <digest>`.
 
+## Handoff
+
+A long task must survive a new session or another machine. Its handoff is one comment on the task's issue, starting with `<!-- project:handoff -->`, edited in place, never a new one each time.
+
+**Write it** after each stage's verdict, when the user says "pause" or "stop", and before the session compacts. On "pause", first commit the work on the session's own branch and push it, so another machine has it.
+
+Write the body to `plan/<slug>/handoff.md`, at most about 30 lines, the state now, never history, no secrets, no hosts, no internal addresses:
+
+```
+<!-- project:handoff -->
+## Handoff — <YYYY-MM-DD>
+- Task: <area>: <what>
+- Branch: <branch>, pushed
+- Done: <stages done>
+- Next: <the next stage or step>
+- Steps left:
+  1. <step from plan.md, as it is>
+- Decisions: <choice — who decided>
+- Open: <question — waiting for whom>, or none
+- Gates: <last result>
+```
+
+Then post it, in one Bash call, with `<n>` the plan's issue:
+
+```bash
+api='repos/{owner}/{repo}/issues/<n>'; me=$(gh api user --jq .login) &&
+id=$(gh api --paginate "$api/comments?per_page=100" --jq ".[] | select(.user.login==\"$me\" and (.body|startswith(\"<!-- project:handoff -->\"))) | .id" | tail -n 1) &&
+if [ -n "$id" ]; then gh api -X PATCH "repos/{owner}/{repo}/issues/comments/$id" -F body=@plan/<slug>/handoff.md --jq .html_url
+else gh api "$api/comments" -F body=@plan/<slug>/handoff.md --jq .html_url; fi
+```
+
+A plan from a brief has no issue: keep `handoff.md` only.
+
+**Continue** when `/project:issue` prints `HANDOFF`: run `git fetch` and `git switch <branch>`. When `plan/<slug>/plan.md` is missing, write it from the issue title and the handoff's *Steps left*, *Decisions* and *Open*. Then go on from *Next*, without planning again.
+
 ## Talk to the user
 
 Simple language in every reply: the answer first; short sentences, one idea each; plain words, with a technical word explained the first time; a small example for a hard idea; no file names, hashes or flags unless needed; one question at the end, with clear choices. "simpler" → explain it again more simply; "more detail" → the full version.
