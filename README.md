@@ -4,7 +4,7 @@ A Claude Code plugin marketplace, `glab-services`.
 
 | Plugin | What it is |
 |---|---|
-| `project` | The project workflow. A manager session dispatches four agents through plan → develop → review → commit → push, and each plan opens its GitHub issue. Sensitive work (data, formats, auth, secrets, money) adds your approval of the plan and a second, blind reviewer. It takes briefs from `product`. No hooks. |
+| `project` | The project workflow. A manager session dispatches four agents through plan → develop → review → commit → push, and each plan opens its GitHub issue. Sensitive work (data, formats, auth, secrets, money) adds your approval of the plan and a second, blind reviewer. It takes briefs from `product`. It also has `plain`, an output style for simple, easy replies. No hooks. |
 | `product` | The product level. A product plan becomes product rules and one brief per project in a shared store, and each project's plan gets a verdict before it is built. No hooks. |
 | `test` | Manual QA you call in a session: `/test:unit`, `/test:e2e`, `/test:regression`. Each runs in its own tester agent (sonnet) and returns a short verdict. Optional, works beside `project`. |
 | `glab-team` | Team agent messaging: skills `/glab-team:messaging-*`, an MCP server and hooks that wake an idle agent session when messages arrive. Needs Node.js 24 or newer. |
@@ -28,6 +28,7 @@ What each plugin holds is in `docs/specs/marketplace.md`.
   - Setting up a store clone: `docs/features/remote-store.md`.
   - Trying it: `docs/features/product-loop.md`.
 - **Docs mirror.** The archived `glab` ships CI templates that publish a code repo's `docs/` to a read-only `<repo>-docs` repository: `docs/features/docs-mirror.md`.
+- **Simple replies.** Turn on the `plain` output style from `project`: `/config` → Output style, or `"outputStyle": "project:plain"` in settings.
 
 ## Requirements
 

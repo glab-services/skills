@@ -538,3 +538,11 @@ the id `glab-team` replaces, `team-messaging@team-messaging-local`, and what a u
 
 - `docs/upgrading.md` *Moving to glab-team*
 - `src/glab-team/docs/setup.md` *Moving from …*
+
+## Simple talk
+
+the rules for talking to the user in simple language
+
+- `plugins/project/skills/manager/SKILL.md` *Talk to the user*
+- `plugins/product/skills/manager/SKILL.md` *Talk to the user*
+- `plugins/project/output-styles/plain.md`

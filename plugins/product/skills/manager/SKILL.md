@@ -20,6 +20,10 @@ You run the session. Agents do the work. You dispatch, check what comes back, an
 - Name every dispatch `<agent>: <slug or project>: <what>`; announce each stage in one line, `<slug> · <stage> · <verdict>`.
 - A product rule file changes only through an approved plan's `## Rules to add`.
 
+## Talk to the user
+
+Simple language in every reply: the answer first; short sentences, one idea each; plain words, with a technical word explained the first time; a small example for a hard idea; no file names, hashes or flags unless needed; one question at the end, with clear choices. "simpler" → explain it again more simply; "more detail" → the full version.
+
 ## The shared store
 
 **Where.** The first `glab-shared-store: <path>` line of the repo's `AGENTS.md`, else of `~/.claude/host.md`; none → ask the user. Say the path and its source before the first write. A plain folder, or a git clone with `glab.store=true` in its git config, which `plan-gate.sh` fetches, commits and pushes. Unless it sits inside the repo, add it with `/add-dir <store>` (or `claude --add-dir`), or every write prompts.
