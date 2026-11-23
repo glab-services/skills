@@ -39,5 +39,5 @@ Each check's expected value and its reason are in the script itself.
 
 ## Known limits
 
-- G40 and G41 call `pnpm -s`. pnpm 12 rejects `-s`, so on a host with pnpm 12 both fail before the suites run (seen 2026-11-23 with pnpm 12.5.1).
+- G40 and G41 call `pnpm --silent`, not `-s`: pnpm 12 rejects `-s` (seen 2026-11-23 with pnpm 12.5.1).
 - The Markdown payload has no gate. A change to it is checked by running what it prescribes, and by searches.

@@ -4,7 +4,7 @@
 # --strict` (G23 is `plugins/glab-team`), the component lines of `claude plugin details` (G42-G44
 # are `glab-team`'s), and the searches that nothing else catches. G36-G39, appended last, are the same three kinds of check and the test for the docs
 # mirror's script. G40-G41, appended after G39, run the two Node.js suites of `src/glab-team`
-# (`pnpm -s broker:test`, `pnpm -s channel:test`) and compare their failures with a pinned host
+# (`pnpm --silent broker:test`, `pnpm --silent channel:test`) and compare their failures with a pinned host
 # list. G45, appended after G44, builds `src/glab-team` again offline and fails when the committed
 # `plugins/glab-team` is not that build. It prints one line per check, `ok G<n> <name>` or `FAIL G<n> <name>: <reason>`,
 # then `PASS n/n` or `FAIL f/n`.
@@ -107,7 +107,7 @@ cfg=$W/claude-config
 # The reporter for G40-G41: one `<file relative to the workspace>: <name>` line per failed or
 # cancelled test, suites failing only by their subtests left out, then a `# tests ...` summary
 # line. Node's default `spec` reporter prints failures with stacks and has no one-line form, and
-# an option after the pnpm script (`pnpm -s x:test --test-reporter=tap`) is not honoured, so the
+# an option after the pnpm script (`pnpm --silent x:test --test-reporter=tap`) is not honoured, so the
 # reporter goes in through `NODE_OPTIONS`, which is honoured
 # [01-import-source/evidence.md F7, plan.md 01-D2]. Written here, not kept as a
 # repo file: only this script uses it.
@@ -552,7 +552,7 @@ for s in broker channel; do
 	elif ! mkdir "$W/$s-config"; then
 		bad "cannot make $W/$s-config"
 	else
-		(cd src/glab-team && umask 0002 && env -u RUN_CLAUDE_ACCEPTANCE HOME="$W/$s-home" CLAUDE_CONFIG_DIR="$W/$s-config" NODE_OPTIONS="${opts:+$opts }--test-reporter=\"$W/fail.mjs\"" pnpm -s "$s:test") >"$W/$s.out" 2>"$W/$s.err"
+		(cd src/glab-team && umask 0002 && env -u RUN_CLAUDE_ACCEPTANCE HOME="$W/$s-home" CLAUDE_CONFIG_DIR="$W/$s-config" NODE_OPTIONS="${opts:+$opts }--test-reporter=\"$W/fail.mjs\"" pnpm --silent "$s:test") >"$W/$s.out" 2>"$W/$s.err"
 		rc=$?
 		summary=$(command grep -m 1 '^# tests ' "$W/$s.out")
 		command grep -v -e '^# tests ' -e '^$' "$W/$s.out" | LC_ALL=C sort >"$W/$s.failed"
