@@ -8,8 +8,9 @@ The `glab-services` marketplace as of 2026-11-23: its plugins, the repo's layout
 
 | Plugin | Version | Source | What it is |
 |---|---|---|---|
-| `glab` | 0.21.0 | `plugins/glab/` | the full workflow: the product and project levels, 25 skills, 8 agents, 5 hook events |
-| `glab-slim` | 0.2.0 | `plugins/glab-slim/` | the fast project flow: 7 skills, 4 agents, no hooks. Install it instead of `glab`, not beside it |
+| `glab-project` | 0.3.0 | `plugins/glab-project/` | the project workflow: 7 skills, 4 agents, no hooks, a copy of `plan-gate.sh` |
+| `glab-product` | 0.1.0 | `plugins/glab-product/` | the product level: its skills, 3 agents, no hooks, a copy of `plan-gate.sh` |
+| `glab` | 0.21.0 | `plugins/glab/` | archived: the earlier full workflow, 25 skills, 8 agents, 5 hook events, kept as it is |
 | `glab-team` | see its `plugin.json` | `plugins/glab-team/`, built from `src/glab-team/` | team agent messaging: 5 skills, an MCP server, 4 hook events |
 
 `.claude-plugin/marketplace.json` lists them. G30 checks that each entry's name matches its `plugin.json`.
@@ -28,7 +29,8 @@ The `glab-services` marketplace as of 2026-11-23: its plugins, the repo's layout
 | G1–G11, G36–G37 | each script and test parses and is executable |
 | G14, G38 | `shellcheck` |
 | G15–G19, G39 | the script tests: context-size, plan-gate, manager-bootstrap, product-loop, level-guard, docs-mirror |
-| G21–G23, G46 | `claude plugin validate --strict` on `glab`, the marketplace, `glab-team` and `glab-slim` |
+| G21–G23, G46, G47 | `claude plugin validate --strict` on `glab`, the marketplace, `glab-team`, `glab-project` and `glab-product` |
+| G48 | the copies of `plan-gate.sh` and the security skill are byte-identical to their source |
 | G24–G26 | `glab`'s skills, agents and hook events |
 | G30, G31, G35 | marketplace names, no `user_config` in hooks, no prefixed `name:` |
 | G33, G34 | each agent's model and preloaded skills, pinned |

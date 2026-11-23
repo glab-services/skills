@@ -1,18 +1,20 @@
 # Working agreement
 
-This repo is a Claude Code plugin marketplace, `glab-services`, holding `glab`, `glab-slim` and `glab-team`. Everything under `plugins/` is **payload**: it is written for the
+This repo is a Claude Code plugin marketplace, `glab-services`, holding `glab-project`, `glab-product`, `glab-team` and the archived `glab`. Everything under `plugins/` is **payload**: it is written for the
 sessions of whoever installs a plugin, not for this repo. When payload text
 and this file disagree about how to work *in this repo*, this file wins.
 
 ## Layout
 
 - `.claude-plugin/marketplace.json` — the marketplace. It lists the plugins.
-- `plugins/glab/` — the workflow plugin: its skills and agents,
+- `plugins/glab/` — archived at 0.21.0, kept as it is; its scripts' tests still run. The workflow plugin: its skills and agents,
   `hooks/hooks.json`, `scripts/` (`manager-bootstrap.sh`,
   `context-size.sh`, `level-guard.sh`, `glab-level.sh` — the level
   rule both hooks source — and `plan-gate.sh`) and `templates/`.
-- `plugins/glab-slim/` — the slim project flow: four agents, seven skills,
-  no hooks and no scripts.
+- `plugins/glab-project/` — the project workflow: four agents, seven skills,
+  no hooks; `scripts/plan-gate.sh` is a byte copy of glab's (G48).
+- `plugins/glab-product/` — the product level: its manager, skills and two
+  agents, no hooks; `scripts/plan-gate.sh` is a byte copy of glab's (G48).
 - `plugins/glab-team/` — the build of `src/glab-team/`.
 - `docs/specs/` — one spec per area: how it works now, why, what is not
   verified, what is open (*Rules*, the `plan/` rule).

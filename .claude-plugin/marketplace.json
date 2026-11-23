@@ -1,6 +1,6 @@
 {
   "name": "glab-services",
-  "description": "The glab workflow, its slim variant and the glab-team tools for Claude Code",
+  "description": "The glab project and product workflows, the archived glab plugin, and the glab-team tools for Claude Code",
   "owner": {
     "name": "glab-services"
   },
@@ -8,12 +8,17 @@
     {
       "name": "glab",
       "source": "./plugins/glab",
-      "description": "The glab workflow: skills, agents, the session bootstrap hook and the context hook"
+      "description": "Archived: the earlier full glab workflow (0.21.0), kept as is. Use glab-project and glab-product instead"
     },
     {
-      "name": "glab-slim",
-      "source": "./plugins/glab-slim",
-      "description": "The slim glab project flow: plan, develop, review, commit, push through four agents, with one gate run by the manager"
+      "name": "glab-project",
+      "source": "./plugins/glab-project",
+      "description": "The glab project workflow: plan, develop, review, commit, push through four agents, with briefs from glab-product"
+    },
+    {
+      "name": "glab-product",
+      "source": "./plugins/glab-product",
+      "description": "The glab product level: a product plan, briefs and rules in a shared store, and a verdict on each project's plan"
     },
     {
       "name": "glab-team",

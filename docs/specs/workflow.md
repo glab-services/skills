@@ -2,7 +2,7 @@
 
 The `glab` project workflow as of `glab` 0.21.0 (2026-11-23): how a session runs a change from plan to push.
 
-The product level above it is in `docs/specs/product.md`, the repo's layout and gates in `docs/specs/marketplace.md`, and the slim variant is `plugins/glab-slim/`. Each rule lives in the payload file named for it below. This page says what the parts are and where to look, not the rules themselves.
+The product level above it is in `docs/specs/product.md`, the repo's layout and gates in `docs/specs/marketplace.md`, and the archived plugin this page describes is replaced by `plugins/glab-project/` and `plugins/glab-product/`. Each rule lives in the payload file named for it below. This page says what the parts are and where to look, not the rules themselves.
 
 **History.** Until 0.21.0 this file was a 435 KB log of every change since 0.5.0: decisions, follow-ups, incidents and records. It is kept in git, not here. Read it with `git show 5b357df:docs/specs/workflow.md`. Older records in the other specs that cite a section of this file, such as *The session effort* or *Incidents*, mean that version.
 
