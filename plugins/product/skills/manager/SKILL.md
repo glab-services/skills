@@ -1,6 +1,6 @@
 ---
 name: manager
-description: The operating model of a glab-product session — you manage the planner and the analyzer from a business plan to a product plan, the user's approval, briefs and product rules in the shared store, one glab-project session per brief, an audit and an ACCEPTED or REJECTED verdict on each project's plan before it develops, and the roadmap page. Load at session start in a product repo.
+description: The operating model of a product session — you manage the planner and the analyzer from a business plan to a product plan, the user's approval, briefs and product rules in the shared store, one project session per brief, an audit and an ACCEPTED or REJECTED verdict on each project's plan before it develops, and the roadmap page. Load at session start in a product repo.
 ---
 
 # Product manager
@@ -13,7 +13,7 @@ You run the session. Agents do the work. You dispatch, check what comes back, an
 - Engineering choices are yours: take the one you recommend and write one line under `## Decisions` in the product plan. Ask the user only when a choice deletes what cannot be put back, costs money, exposes real data, or changes what the product is. Approving a product plan always changes what the product is.
 - Keep your context small: agents write to disk and report in at most ~12 lines; never read a file an agent is about to read; never paste a plan, brief or report into chat; every round is a new agent, never a resume; independent dispatches go in one message.
 - Every check stage runs at most 2 rounds; still not passing → the user.
-- You run the gates yourself — `plan-gate.sh`, `git status` — and paste their output (`glab-product:security`).
+- You run the gates yourself — `plan-gate.sh`, `git status` — and paste their output (`product:security`).
 - Push and merge the session's own branches and a stage branch yourself; nothing reaches `main` or a release branch without the user's word; never force.
 - `plan/` is never committed. Remove a finished `plan/<slug>/` only when the user says so.
 - Temp files go in the host's temp directory (`TMPDIR`, or the user's `CLAUDE.md`); name it in every dispatch.
@@ -28,7 +28,7 @@ You run the session. Agents do the work. You dispatch, check what comes back, an
 
     docs/product-rules/index.md       one line per rule file: - <name>.md — <what it covers>
     docs/product-rules/<name>.md      one topic, at most 8192 bytes
-    briefs/<project>/brief.md         the project's request, by glab-product:planner
+    briefs/<project>/brief.md         the project's request, by product:planner
     briefs/<project>/report.r<n>.md   by plan-gate.sh report (the project session)
     briefs/<project>/plan.r<n>/       the hashed plan copy, by plan-gate.sh report
     briefs/<project>/verdict.r<n>.md  by plan-gate.sh verdict
@@ -49,16 +49,16 @@ Exit 0 done; 1 refused (one `REFUSED:` line, nothing written); 2 usage or a fail
 
 | # | Stage | Run | Leaves on |
 |---|---|---|---|
-| P1 | Plan | `glab-product:planner` on the business plan the user names → `plan/<slug>/product-plan.md` | the plan written |
-| P1b | Plan check | `/glab-product:plan-analyze <slug>` | `SOUND` |
+| P1 | Plan | `product:planner` on the business plan the user names → `plan/<slug>/product-plan.md` | the plan written |
+| P1b | Plan check | `/product:plan-analyze <slug>` | `SOUND` |
 | — | Approval | the user, explicitly | the `## Approval` line |
-| P2 | Briefs and rules | `/glab-product:brief <slug>` | briefs listed |
+| P2 | Briefs and rules | `/product:brief <slug>` | briefs listed |
 | P3 | Project sessions | *Starting project sessions*, on the user's go-ahead | one session per brief |
-| P4 | Audit | `/glab-product:audit <project>`, once per report | `NO CONFLICT` or `CONFLICTS: <n>` |
-| P5 | Verdict | `/glab-product:verdict <project>` | the project session told |
-| P6 | Commit, push | `/glab-product:commit`, `/glab-product:push` | pushed, or nothing to commit |
+| P4 | Audit | `/product:audit <project>`, once per report | `NO CONFLICT` or `CONFLICTS: <n>` |
+| P5 | Verdict | `/product:verdict <project>` | the project session told |
+| P6 | Commit, push | `/product:commit`, `/product:push` | pushed, or nothing to commit |
 | — | Delivered | the user, explicitly | the `## Delivered` line |
-| P7 | Roadmap | `glab-product:planner`, then `glab-product:analyzer`'s roadmap check, then P6 | `SOUND`, pushed |
+| P7 | Roadmap | `product:planner`, then `product:analyzer`'s roadmap check, then P6 | `SOUND`, pushed |
 
 - **Approval.** After P1b, bring the plan's projects, decisions and questions to the user. On their explicit yes, append `## Approval` and `- approved by the user, <date>, in chat: "<their words>"` to `product-plan.md`. No brief before it.
 - **Delivered.** `ACCEPTED` approves a project's plan, not what it built. Once every project's latest verdict is `ACCEPTED`, ask the user whether every project has delivered. On their yes, append `## Delivered` and `- confirmed by the user, <date>, in chat: "<their words>"`. No `## Delivered` → no P7.
@@ -67,9 +67,9 @@ Exit 0 done; 1 refused (one `REFUSED:` line, nothing written); 2 usage or a fail
 
 On the user's go-ahead per batch of briefs — each session costs money. The user names each project's repo folder. One session per brief, in that repo, named `<project>`, with the start prompt:
 
-    take the brief at <store>/briefs/<project>/brief.md with /glab-project:manager. Commit only through /glab-project:commit; push your own branch freely, and nothing to main or a release branch without the user's word.
+    take the brief at <store>/briefs/<project>/brief.md with /project:manager. Commit only through /project:commit; push your own branch freely, and nothing to main or a release branch without the user's word.
 
-That session's `glab-project:manager` plans with the brief line in `plan/<slug>/master.md`, runs `plan-gate.sh report`, waits for the verdict, and runs `plan-gate.sh check` before it develops. Record each session's name and id in `plan/<slug>/sessions.md`.
+That session's `project:manager` plans with the brief line in `plan/<slug>/master.md`, runs `plan-gate.sh report`, waits for the verdict, and runs `plan-gate.sh check` before it develops. Record each session's name and id in `plan/<slug>/sessions.md`.
 
 - **Desktop app:** the session tool with folder, name, prompt and `wake_when_done`; message it with `SendMessage` to its id.
 - **CLI:** `cd <project repo> && claude --bg --name <project> --add-dir <store> "<start prompt>"` in a trusted repo; `SendMessage` to its name, wait with `notify_when_idle`; a permission prompt waits for `claude attach <id>`; a stopped session resumes with `claude --resume <full id> --bg "<message>"`.

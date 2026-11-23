@@ -13,6 +13,6 @@ Write the reason to a file in the temp directory, then run:
 
     "${CLAUDE_PLUGIN_ROOT}/scripts/plan-gate.sh" verdict <store> <project> ACCEPTED|REJECTED product-manager <reason file>
 
-Show the path it prints, or the `REFUSED:` line. The refusal `two REJECTED verdicts since the last ACCEPTED; the next verdict is by user` → `glab-product:manager` *The cap*.
+Show the path it prints, or the `REFUSED:` line. The refusal `two REJECTED verdicts since the last ACCEPTED; the next verdict is by user` → `product:manager` *The cap*.
 
 Then tell the project session the verdict is there — `SendMessage` to its name, or a resume of a stopped CLI session — or tell the user, who tells it.

@@ -13,8 +13,8 @@
 # this change shifted G1-G11, G15-G19 and G21-G22 and left G12, G13 and G20 unused; G23 is the
 # third entry of the validate loop, `plugins/glab-team`. The hard-coded ids (G14, G24-G26, G30,
 # G31, G33-G39) did not move. G40 and G41 are hard-coded ids too, appended after G39, and G42-G45
-# after G41. G46-G48, appended after G45: `plugin validate --strict` on glab-project and
-# glab-product, and the byte check of the shared copies.
+# after G41. G46-G48, appended after G45: `plugin validate --strict` on project and
+# product, and the byte check of the shared copies.
 #
 # Call it as `bash tests/gates.sh`, with no arguments, from anywhere: it changes to the repo root
 # before any check. It changes no tracked file in the repo. Its work directory under `$TMPDIR` is
@@ -208,7 +208,7 @@ GLAB_AGENTS=(
 	project-integrator project-planner project-reviewer
 )
 GLAB_HOOKS='Hooks (5)  SessionStart, UserPromptSubmit, PreToolUse, PostToolUse, Stop  (harness-only — no model context cost)'
-MARKET=('glab = glab' 'glab-project = glab-project' 'glab-product = glab-product' 'glab-team = glab-team')
+MARKET=('glab = glab' 'project = project' 'product = product' 'glab-team = glab-team')
 # G42-G44: the three component lines of `plugin details glab-team` (the Agents line is not pinned).
 GLAB_TEAM_LINES=(
 	'Skills (5)  messaging-bind, messaging-claim, messaging-join, messaging-status, messaging-watch'
@@ -224,13 +224,13 @@ MODEL_LINES=(
 	'plugins/glab/agents/product-analyzer.md:model: opus'
 	'plugins/glab/agents/product-planner.md:model: opus'
 	'plugins/glab/agents/project-reviewer.md:model: sonnet'
-	'plugins/glab-project/agents/planner.md:model: opus'
-	'plugins/glab-project/agents/developer.md:model: sonnet'
-	'plugins/glab-project/agents/reviewer.md:model: sonnet'
-	'plugins/glab-project/agents/committer.md:model: haiku'
-	'plugins/glab-product/agents/planner.md:model: opus'
-	'plugins/glab-product/agents/analyzer.md:model: opus'
-	'plugins/glab-product/agents/committer.md:model: haiku'
+	'plugins/project/agents/planner.md:model: opus'
+	'plugins/project/agents/developer.md:model: sonnet'
+	'plugins/project/agents/reviewer.md:model: sonnet'
+	'plugins/project/agents/committer.md:model: haiku'
+	'plugins/product/agents/planner.md:model: opus'
+	'plugins/product/agents/analyzer.md:model: opus'
+	'plugins/product/agents/committer.md:model: haiku'
 )
 SKILL_LINES=(
 	'plugins/glab/agents/project-analyzer.md:glab:security'
@@ -248,16 +248,16 @@ SKILL_LINES=(
 	'plugins/glab/agents/product-planner.md:glab:security'
 	'plugins/glab/agents/project-reviewer.md:glab:security'
 	'plugins/glab/agents/project-reviewer.md:glab:comments'
-	'plugins/glab-project/agents/planner.md:glab-project:plan'
-	'plugins/glab-project/agents/planner.md:glab-project:security'
-	'plugins/glab-project/agents/developer.md:glab-project:security'
-	'plugins/glab-project/agents/developer.md:glab-project:comments'
-	'plugins/glab-project/agents/reviewer.md:glab-project:security'
-	'plugins/glab-project/agents/committer.md:glab-project:security'
-	'plugins/glab-product/agents/planner.md:glab-product:plan'
-	'plugins/glab-product/agents/planner.md:glab-product:security'
-	'plugins/glab-product/agents/analyzer.md:glab-product:security'
-	'plugins/glab-product/agents/committer.md:glab-product:security'
+	'plugins/project/agents/planner.md:project:plan'
+	'plugins/project/agents/planner.md:project:security'
+	'plugins/project/agents/developer.md:project:security'
+	'plugins/project/agents/developer.md:project:comments'
+	'plugins/project/agents/reviewer.md:project:security'
+	'plugins/project/agents/committer.md:project:security'
+	'plugins/product/agents/planner.md:product:plan'
+	'plugins/product/agents/planner.md:product:security'
+	'plugins/product/agents/analyzer.md:product:security'
+	'plugins/product/agents/committer.md:product:security'
 	'plugins/glab/agents/project-reviewer.md:glab:severity'
 )
 # The tests of `src/glab-team` that fail on the reference host, for G40-G41: each is a line
@@ -394,9 +394,9 @@ done
 		echo $? >"$W/validate.$k.rc"
 	done
 	# G46's and G47's runs, kept out of the loop above so G21-G23 keep their ids.
-	"$claude" plugin validate --strict plugins/glab-project >"$W/validate.slim" 2>&1
+	"$claude" plugin validate --strict plugins/project >"$W/validate.slim" 2>&1
 	echo $? >"$W/validate.slim.rc"
-	"$claude" plugin validate --strict plugins/glab-product >"$W/validate.prod" 2>&1
+	"$claude" plugin validate --strict plugins/product >"$W/validate.prod" 2>&1
 	echo $? >"$W/validate.prod.rc"
 	"$claude" --plugin-dir ./plugins plugin details glab >"$W/details.glab" 2>"$W/details.glab.err"
 	"$claude" --plugin-dir ./plugins plugin details glab-team >"$W/details.glab-team" 2>"$W/details.glab-team.err"
@@ -638,7 +638,7 @@ else
 fi
 done_case G45 "plugins/glab-team is the build of src/glab-team" "$okline"
 
-# G46. `plugin validate --strict plugins/glab-project`, green as G21-G23. A hard-coded id appended
+# G46. `plugin validate --strict plugins/project`, green as G21-G23. A hard-coded id appended
 # after G45, so no earlier id moves.
 if [ -f "$W/validate.slim" ]; then
 	last=$(tail -n 1 "$W/validate.slim")
@@ -648,9 +648,9 @@ if [ -f "$W/validate.slim" ]; then
 else
 	bad "the CLI did not run"
 fi
-done_case G46 "plugin validate --strict plugins/glab-project"
+done_case G46 "plugin validate --strict plugins/project"
 
-# G47. `plugin validate --strict plugins/glab-product`, green as G46.
+# G47. `plugin validate --strict plugins/product`, green as G46.
 if [ -f "$W/validate.prod" ]; then
 	last=$(tail -n 1 "$W/validate.prod")
 	[ "$last" = '✔ Validation passed' ] || bad "last line [$last]"
@@ -659,14 +659,14 @@ if [ -f "$W/validate.prod" ]; then
 else
 	bad "the CLI did not run"
 fi
-done_case G47 "plugin validate --strict plugins/glab-product"
+done_case G47 "plugin validate --strict plugins/product"
 
 # G48. The copies of shared files are byte-identical to their source, so no copy drifts:
-# plan-gate.sh in glab-project and glab-product is glab's (tests/plan-gate.test.sh tests glab's),
-# and glab-product's security skill is glab-project's.
-for pair in 'plugins/glab/scripts/plan-gate.sh plugins/glab-project/scripts/plan-gate.sh' \
-	'plugins/glab/scripts/plan-gate.sh plugins/glab-product/scripts/plan-gate.sh' \
-	'plugins/glab-project/skills/security/SKILL.md plugins/glab-product/skills/security/SKILL.md'; do
+# plan-gate.sh in project and product is glab's (tests/plan-gate.test.sh tests glab's),
+# and product's security skill is project's.
+for pair in 'plugins/glab/scripts/plan-gate.sh plugins/project/scripts/plan-gate.sh' \
+	'plugins/glab/scripts/plan-gate.sh plugins/product/scripts/plan-gate.sh' \
+	'plugins/project/skills/security/SKILL.md plugins/product/skills/security/SKILL.md'; do
 	read -r a b <<<"$pair"
 	cmp -s "$a" "$b" || bad "$b differs from $a"
 	[ ! -x "$a" ] || [ -x "$b" ] || bad "$b is not executable"

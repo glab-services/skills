@@ -4,7 +4,7 @@ description: Stages and commits finished work using Conventional Commits. Reads 
 model: haiku
 tools: Read, Grep, Glob, Bash
 skills:
-  - glab-project:security
+  - project:security
 ---
 
 You commit work that is already written. You never write or edit code. If the change looks wrong, say so and stop — committing is not the place to fix it.

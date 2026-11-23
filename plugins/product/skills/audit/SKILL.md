@@ -1,6 +1,6 @@
 ---
 name: audit
-description: Audit a project's reported plan against the product's gates — its brief, the rule files it names, the product plan's decisions — with glab-product:analyzer. Ends in NO CONFLICT or CONFLICTS.
+description: Audit a project's reported plan against the product's gates — its brief, the rule files it names, the product plan's decisions — with product:analyzer. Ends in NO CONFLICT or CONFLICTS.
 argument-hint: "[project]"
 ---
 
@@ -12,6 +12,6 @@ Run `"${CLAUDE_PLUGIN_ROOT}/scripts/plan-gate.sh" sync <store>` first; anything 
 - `briefs/<project>/brief.md`, `docs/product-rules/index.md` and the rule files the brief names;
 - in the product repo, the one `plan/*/product-plan.md` whose `## Projects` has `### <project>`. None or several → ask the user.
 
-Dispatch `glab-product:analyzer` for the project plan audit, naming those files.
+Dispatch `product:analyzer` for the project plan audit, naming those files.
 
-`NO CONFLICT` or `CONFLICTS: <n>` → `/glab-product:verdict <project>` with the findings. `BLOCK: target unresolved` → say which file is missing.
+`NO CONFLICT` or `CONFLICTS: <n>` → `/product:verdict <project>` with the findings. `BLOCK: target unresolved` → say which file is missing.

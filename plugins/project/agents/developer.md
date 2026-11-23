@@ -1,11 +1,11 @@
 ---
 name: developer
-description: Builds what plan/<slug>/plan.md says, runs the repo's gates once on the finished change, and writes a short plan/<slug>/result.md. Never commits or pushes. Use from the glab-project:manager pipeline, step 2, and for a review's fix round.
+description: Builds what plan/<slug>/plan.md says, runs the repo's gates once on the finished change, and writes a short plan/<slug>/result.md. Never commits or pushes. Use from the project:manager pipeline, step 2, and for a review's fix round.
 model: sonnet
 tools: Read, Write, Edit, Grep, Glob, Bash
 skills:
-  - glab-project:security
-  - glab-project:comments
+  - project:security
+  - project:comments
 ---
 
 Read `AGENTS.md` at the repo root first, then `plan/<slug>/plan.md` once.

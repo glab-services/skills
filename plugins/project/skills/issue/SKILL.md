@@ -1,6 +1,6 @@
 ---
 name: issue
-description: Take an existing GitHub issue as a glab-project task — read it with gh api into plan/<slug>/issue.md and hand it to the planner, which plans against it instead of opening a new issue
+description: Take an existing GitHub issue as a project task — read it with gh api into plan/<slug>/issue.md and hand it to the planner, which plans against it instead of opening a new issue
 argument-hint: "<owner>/<repo>#<n>"
 ---
 
@@ -33,7 +33,7 @@ echo "TAKEN $ref plan/$slug/issue.md"
 ```
 
 - `STOP: …`: show the line to the user and stop.
-- `TAKEN …`: dispatch `glab-project:planner` with the slug, `plan/<slug>/issue.md` and the reference. The planner plans against this issue and opens no new one (`glab-project:plan`).
+- `TAKEN …`: dispatch `project:planner` with the slug, `plan/<slug>/issue.md` and the reference. The planner plans against this issue and opens no new one (`project:plan`).
 
 Do not read or summarise `issue.md` yourself; the planner reads it.
 

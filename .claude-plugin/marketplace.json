@@ -8,16 +8,16 @@
     {
       "name": "glab",
       "source": "./plugins/glab",
-      "description": "Archived: the earlier full glab workflow (0.21.0), kept as is. Use glab-project and glab-product instead"
+      "description": "Archived: the earlier full glab workflow (0.21.0), kept as is. Use project and product instead"
     },
     {
-      "name": "glab-project",
-      "source": "./plugins/glab-project",
-      "description": "The glab project workflow: plan, develop, review, commit, push through four agents, with briefs from glab-product"
+      "name": "project",
+      "source": "./plugins/project",
+      "description": "The glab project workflow: plan, develop, review, commit, push through four agents, with briefs from product"
     },
     {
-      "name": "glab-product",
-      "source": "./plugins/glab-product",
+      "name": "product",
+      "source": "./plugins/product",
       "description": "The glab product level: a product plan, briefs and rules in a shared store, and a verdict on each project's plan"
     },
     {

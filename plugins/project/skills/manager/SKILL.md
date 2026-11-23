@@ -1,6 +1,6 @@
 ---
 name: manager
-description: The operating model of a glab-project session — you manage four agents (planner, developer, reviewer, committer) through plan, develop, review, commit and push, run the repo's gates yourself once, and take product briefs from a glab-product store. Load at session start in a repo that uses glab-project, and for any request that changes code, config or tests.
+description: The operating model of a project session — you manage four agents (planner, developer, reviewer, committer) through plan, develop, review, commit and push, run the repo's gates yourself once, and take product briefs from a product store. Load at session start in a repo that uses project, and for any request that changes code, config or tests.
 ---
 
 # Manager
@@ -27,27 +27,27 @@ When in doubt between Direct and Planned, choose Planned. It costs one planner d
 
 **Sensitive** is Planned work that touches stored data, a schema, a file or wire format, authorization, secrets or money. It adds three things:
 - the user approves `plan.md` explicitly before Develop;
-- the durability list of `glab-project:security` applies;
+- the durability list of `project:security` applies;
 - Review runs two reviewers in parallel, the usual one and a blind one.
 
 ## The pipeline
 
-1. **Plan.** Dispatch `glab-project:planner` with the task. The planner opens the task's GitHub issue first (`glab-project:plan`). When the user gives an existing issue, run `/glab-project:issue <owner>/<repo>#<n>` first, and the planner uses that issue instead. It writes `plan/<slug>/plan.md` and returns its summary and the questions it could not settle. A question that is the user's (see *Decide* below) goes to the user. Decide everything else yourself. You read only the summary, never the plan.
-2. **Develop.** Dispatch `glab-project:developer` with the slug. It builds, runs the gate line and writes `plan/<slug>/result.md`. Split the work across parallel developers only when the plan names separate files for each part.
-3. **Review.** Dispatch `glab-project:reviewer` with the slug. It checks the diff against the plan and for correctness, in one pass, and ends on `SHIP` or `FIX`. For Sensitive work, also dispatch a second reviewer in the same message, with `blind` and the target only: no slug, no plan. Both must say `SHIP`.
+1. **Plan.** Dispatch `project:planner` with the task. The planner opens the task's GitHub issue first (`project:plan`). When the user gives an existing issue, run `/project:issue <owner>/<repo>#<n>` first, and the planner uses that issue instead. It writes `plan/<slug>/plan.md` and returns its summary and the questions it could not settle. A question that is the user's (see *Decide* below) goes to the user. Decide everything else yourself. You read only the summary, never the plan.
+2. **Develop.** Dispatch `project:developer` with the slug. It builds, runs the gate line and writes `plan/<slug>/result.md`. Split the work across parallel developers only when the plan names separate files for each part.
+3. **Review.** Dispatch `project:reviewer` with the slug. It checks the diff against the plan and for correctness, in one pass, and ends on `SHIP` or `FIX`. For Sensitive work, also dispatch a second reviewer in the same message, with `blind` and the target only: no slug, no plan. Both must say `SHIP`.
    - `FIX`: one new developer dispatch with the findings, then one new reviewer dispatch.
    - Still `FIX` after that: stop, show the user the remaining findings, and let them decide. There is no third round.
 4. **Gate.** You run the gate line yourself, once, on the final tree. This is the only time you re-run what an agent ran. Paste its last lines.
-5. **Commit.** Run `/glab-project:commit`, naming the plan's issue so the commit body carries `Refs #<n>`.
-6. **Push.** Run `/glab-project:push`. It pushes the session's own branch, or a stage branch, without asking; for `main` or a release branch, it waits for the user's word.
+5. **Commit.** Run `/project:commit`, naming the plan's issue so the commit body carries `Refs #<n>`.
+6. **Push.** Run `/project:push`. It pushes the session's own branch, or a stage branch, without asking; for `main` or a release branch, it waits for the user's word.
 
 Announce each stage in one line: `<slug> · <stage> · <verdict>`.
 
-**Name every dispatch `<agent>: <area>: <what>`** in the Agent tool's `description`, for example `developer: glab-project: issue on plan`. `<area>` and `<what>` are the issue's title, so the user can see which agent is working on what. A fix round is `developer: <area>: fix <what>`.
+**Name every dispatch `<agent>: <area>: <what>`** in the Agent tool's `description`, for example `developer: project: issue on plan`. `<area>` and `<what>` are the issue's title, so the user can see which agent is working on what. A fix round is `developer: <area>: fix <what>`.
 
 ## A brief from the product level
 
-The task can be a brief from a `glab-product` store: `<store>/briefs/<project>/brief.md`. The store is the path on the first `glab-shared-store:` line of the repo's `AGENTS.md`, else of `~/.claude/host.md`. `PG` below is `"${CLAUDE_PLUGIN_ROOT}/scripts/plan-gate.sh"`. For any `PG` line other than exit 0, show its one `REFUSED:` stderr line and stop.
+The task can be a brief from a `product` store: `<store>/briefs/<project>/brief.md`. The store is the path on the first `glab-shared-store:` line of the repo's `AGENTS.md`, else of `~/.claude/host.md`. `PG` below is `"${CLAUDE_PLUGIN_ROOT}/scripts/plan-gate.sh"`. For any `PG` line other than exit 0, show its one `REFUSED:` stderr line and stop.
 
 1. Run `$PG sync <store>`, then dispatch the planner with the brief's path. It writes `plan/<slug>/master.md` beside `plan.md`, holding:
    - a date line;
@@ -91,4 +91,4 @@ Aim for at most one question per task.
 - **Specs are current-state only.** When a plan names `docs/specs/<area>.md`, the developer rewrites it to say how the area works now, in at most about 10 KB. It never appends history; git and the PR hold that.
 - `plan/` is a working area: never commit it. When the repo's `.gitignore` lacks `/plan/`, add it, which is a Direct change.
 - No `--force` push. Nothing reaches `main` or a release branch, by push or merge, without the user's word. The session's own branches and a stage branch it may push and merge itself.
-- The rules in `glab-project:security`, *Always*.
+- The rules in `project:security`, *Always*.
