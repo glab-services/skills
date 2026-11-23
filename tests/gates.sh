@@ -199,12 +199,12 @@ GLAB_SKILLS=(
 	audit bootstrap comments commit product-manager product-plan product-plan-analyze
 	product-project-brief product-project-plan-analyze product-project-plan-verdict project-analyze
 	project-develop project-integrate project-issue project-manager project-plan project-plan-accept
-	project-plan-analyze project-plan-report project-record project-review project-ship push
+	project-plan-report project-record project-review project-ship push
 	security session-rules severity
 )
 GLAB_AGENTS=(
 	committer product-analyzer product-planner project-analyzer project-developer
-	project-integrator project-plan-analyzer project-planner project-reviewer
+	project-integrator project-planner project-reviewer
 )
 GLAB_HOOKS='Hooks (5)  SessionStart, UserPromptSubmit, PreToolUse, PostToolUse, Stop  (harness-only — no model context cost)'
 MARKET=('glab = glab' 'glab-slim = glab-slim' 'glab-team = glab-team')
@@ -219,7 +219,6 @@ MODEL_LINES=(
 	'plugins/glab/agents/committer.md:model: haiku'
 	'plugins/glab/agents/project-developer.md:model: sonnet'
 	'plugins/glab/agents/project-integrator.md:model: sonnet'
-	'plugins/glab/agents/project-plan-analyzer.md:model: opus'
 	'plugins/glab/agents/project-planner.md:model: opus'
 	'plugins/glab/agents/product-analyzer.md:model: opus'
 	'plugins/glab/agents/product-planner.md:model: opus'
@@ -237,8 +236,6 @@ SKILL_LINES=(
 	'plugins/glab/agents/project-developer.md:glab:comments'
 	'plugins/glab/agents/project-integrator.md:glab:security'
 	'plugins/glab/agents/project-integrator.md:glab:comments'
-	'plugins/glab/agents/project-plan-analyzer.md:glab:security'
-	'plugins/glab/agents/project-plan-analyzer.md:glab:severity'
 	'plugins/glab/agents/project-planner.md:glab:project-plan'
 	'plugins/glab/agents/project-planner.md:glab:security'
 	'plugins/glab/agents/product-analyzer.md:glab:security'

@@ -6,7 +6,7 @@ workflow we run in every session, `glab-slim`, its fast project flow, and
 
 | Plugin | What it adds |
 |---|---|
-| `glab` | Skills `glab:bootstrap`, `glab:project-manager`, `glab:session-rules`, `glab:security`, `glab:comments`, `glab:audit`, `glab:severity` · agents `glab:project-planner`, `glab:project-plan-analyzer`, `glab:project-analyzer`, `glab:project-developer`, `glab:project-integrator`, `glab:project-reviewer`, `glab:committer` · stage skills `/glab:project-plan-accept`, `/glab:project-plan-analyze`, `/glab:project-develop`, `/glab:project-analyze`, `/glab:project-integrate`, `/glab:project-review`, `/glab:commit`, `/glab:push`, `/glab:project-ship`, `/glab:project-plan-report`, `/glab:project-record`, which `glab:project-manager` runs itself and you can type to step in · `/glab:project-plan <task>`, the planning procedure `glab:project-planner` follows, which you can type to plan in your own session · `/glab:project-issue <owner>/<repo>#<n>`, which takes a GitHub issue as the task: it reads the issue with `gh api` into the plan folder, and the planner quotes it in the master · a `SessionStart` hook that injects the session bootstrap rules · a context hook on `UserPromptSubmit`, `PostToolUse` (`Agent`) and `Stop` that tells the session its context size and tells you when a turn crosses 300k or a further 100k · a `PreToolUse` hook on `Skill` and on `Bash`, `PowerShell` and `Monitor` that refuses another level's skill and asks you before a verdict by `user` · the product level (*Levels*): skills `glab:product-manager`, `glab:product-plan`, `glab:product-plan-analyze`, `glab:product-project-brief`, `glab:product-project-plan-analyze`, `glab:product-project-plan-verdict` · agents `glab:product-planner`, `glab:product-analyzer` · templates under `templates/docs-mirror/` for a CI job that mirrors a code repo's `docs/` to a read-only `{repo}-docs` repository (*The docs mirror*) |
+| `glab` | Skills `glab:bootstrap`, `glab:project-manager`, `glab:session-rules`, `glab:security`, `glab:comments`, `glab:audit`, `glab:severity` · agents `glab:project-planner`, `glab:project-analyzer`, `glab:project-developer`, `glab:project-integrator`, `glab:project-reviewer`, `glab:committer` · stage skills `/glab:project-plan-accept`, `/glab:project-develop`, `/glab:project-analyze`, `/glab:project-integrate`, `/glab:project-review`, `/glab:commit`, `/glab:push`, `/glab:project-ship`, `/glab:project-plan-report`, `/glab:project-record`, which `glab:project-manager` runs itself and you can type to step in · `/glab:project-plan <task>`, the planning procedure `glab:project-planner` follows, which you can type to plan in your own session · `/glab:project-issue <owner>/<repo>#<n>`, which takes a GitHub issue as the task: it reads the issue with `gh api` into the plan folder, and the planner quotes it in the master · a `SessionStart` hook that injects the session bootstrap rules · a context hook on `UserPromptSubmit`, `PostToolUse` (`Agent`) and `Stop` that tells the session its context size and tells you when a turn crosses 300k or a further 100k · a `PreToolUse` hook on `Skill` and on `Bash`, `PowerShell` and `Monitor` that refuses another level's skill and asks you before a verdict by `user` · the product level (*Levels*): skills `glab:product-manager`, `glab:product-plan`, `glab:product-plan-analyze`, `glab:product-project-brief`, `glab:product-project-plan-analyze`, `glab:product-project-plan-verdict` · agents `glab:product-planner`, `glab:product-analyzer` · templates under `templates/docs-mirror/` for a CI job that mirrors a code repo's `docs/` to a read-only `{repo}-docs` repository (*The docs mirror*) |
 | `glab-slim` | The slim project flow, installed instead of `glab`, not beside it: skill `glab-slim:manager` (plan → develop → review → commit → push, one gate run by the manager, one fix round) · `/glab-slim:plan`, which opens the task's GitHub issue (`<area>: <what>`, labels `type/<type>` and `area/<area>`) · `/glab-slim:issue <owner>/<repo>#<n>`, which takes an existing issue as the task · `/glab-slim:commit`, `/glab-slim:push` · `glab-slim:security` (the short evidence rules, the durability list only on data, format or concurrency paths) · `glab-slim:comments` · agents `glab-slim:planner`, `glab-slim:developer`, `glab-slim:reviewer`, `glab-slim:committer` · no hooks, no product level |
 | `glab-team` | Team agent messaging, built from `src/glab-team/`: skills `/glab-team:messaging-join`, `/glab-team:messaging-bind`, `/glab-team:messaging-claim`, `/glab-team:messaging-status`, `/glab-team:messaging-watch` · the MCP server `messaging` · hooks on `SessionStart`, `PreToolUse`, `Stop` and `StopFailure` that wake an idle agent session when messages arrive and keep a team-message window to the messaging tools · needs Node.js 24 or newer as `node` on `PATH` |
 
@@ -31,14 +31,14 @@ you named alike.
 Each change's working files live in `plan/<slug>/`: `master.md` —
 your request in your words, its goals and the final check, constant once
 accepted — and one `plan.md`, or sub-plans `<nn>-<name>/` that each run
-their own cycle. `glab:project-plan-analyzer` checks the plan against `master.md`
-before the build (Stage 1b), `glab:project-analyzer` the build after it (Stage 3),
-the reviewer sees only the code, and `glab:project-analyzer`'s final check before
-the push compares the master with everything built.
-Once the change has been pushed, the workflow records what
+their own cycle. `glab:project-analyzer` checks the build against the plan and
+the master's goals (Stage 3), and the reviewer sees only the code. Every check
+stage runs at most two rounds; after that you decide.
+Once the change is committed, and before its push, the workflow records what
 stays true — how the area works, the decisions that still bind, what is open
 — in `docs/specs/<area>.md`, and what a user can do with it in
-`docs/features/<feature>.md`, as a docs commit of its own. `plan/` is ignored
+`docs/features/<feature>.md`, as a docs commit of its own that goes out in
+the same push. `plan/` is ignored
 by git and never committed; once the record has landed, the manager asks
 at a session start whether to remove the plan folder, and removes it only on
 your word. A repo's `AGENTS.md` can also put specs
@@ -62,15 +62,6 @@ steps become 150k, 250k, …; every line then ends `; compact at 150k)`.
 The number is the last completed model call's, and can trail the turn a
 little. It runs in every session where `glab` is enabled, and not at all when
 hooks are turned off (`disableAllHooks`, `--bare`).
-
-Ask for it, and the manager has you
-approve `master.md` in Claude Code's plan mode instead of the chat.
-UNVERIFIED: how the dialog takes the plan and that it sets the session's
-permission mode from then on are read from Claude Code's documentation, not
-yet run — the live tests L1–L7 in `docs/specs/workflow.md` settle them;
-until then pick the mode you were in. The plugin
-never changes `plansDirectory`, and the manager writes no plan file under
-`~/.claude/plans`.
 
 ## Levels
 
@@ -446,7 +437,7 @@ and what it became:
 | `ship` | `glab:project-ship` |
 | `product-project-plan-report` | `glab:project-plan-report` |
 | `planner` | `glab:project-planner` |
-| `plan-analyzer` | `glab:project-plan-analyzer` |
+| `plan-analyzer` | `glab:project-plan-analyzer`, removed in 0.21.0 |
 | `analyzer` | `glab:project-analyzer` |
 | `developer` | `glab:project-developer` |
 | `integrator` | `glab:project-integrator` |

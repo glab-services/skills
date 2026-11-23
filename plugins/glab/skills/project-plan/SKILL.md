@@ -11,7 +11,7 @@ Analyze, then plan. No implementation without a plan.
 **The task** is what follows `/glab:project-plan` when a person types it — $ARGUMENTS — or, when nothing does, as when `glab:project-planner` preloads this skill, the task its dispatch or the user names. A brief is read only after `"${CLAUDE_PLUGIN_ROOT}/scripts/plan-gate.sh" sync <store>` (anything but exit 0 → stop and show its stderr line). An issue is the task when the dispatch names `plan/<slug>/issue.md`, its sha256 and its `<owner>/<repo>#<n>`, as `glab:project-issue` writes them: `sha256sum plan/<slug>/issue.md` must print that hash — anything else, stop and report — and you never fetch the issue.
 
 ```
-size → analyze → decide → plan → verify
+size → analyze → decide → plan
 ```
 
 ## Step 0 — Size the Task
@@ -105,26 +105,17 @@ The split goes into `plan/{slug}/index.md`, one line per sub-plan — `<nn>-<nam
 
 **Planning in cycles.** The first planning agent writes `master.md` and, when the work splits, `index.md` — no sub-plan yet. Each sub-plan is then planned by its own agent from `master.md`, its own `index.md` line and the map files it needs — `plan/{slug}/map-<area>.md`, at the slug's level — never from another sub-plan, once what it depends on is committed, so it cites the tree it will be built on. When the task is a brief, every sub-plan is planned before any is built — from the tree the slug starts on and its own `index.md` line, never another sub-plan's folder, because one report to product covers the master and every sub-plan (`glab:project-plan-report`). A sub-plan that needs another goal or another sub-plan's files says so and does not reach into them: the split is the manager's.
 
-## Step 4 — Verify the Plan
+## Amending
 
-Before the plan goes to the plan check, confirm what follows; the check and the approval after it are `glab:project-plan-analyze`'s and `glab:project-plan-accept`'s, and `/glab:project-develop` checks both before any code is written:
+A new planning agent writes an amendment from the files on disk and the findings in its dispatch: an analyzer's divergence, or a REJECTED verdict's reason (`glab:project-plan-report`). Change what the findings name and what that forces, and **replace the text you change, in place**: the step, the finding or the decision line is rewritten under its own id, a changed choice with its new reason. Never append an amendment section, a "superseded" line or a round marker beside the old text — the `<name>.r<n>.md` copies the manager kept are the history; leave them as they are. A line the manager added to overrule a decision stays as the manager wrote it. No round amends a `master.md` that has an `## Approval` line. When the user changes the request and your dispatch grants it, copy the old master to `master.v<n>.md` — a version copy, never `.r<n>` — and write a new `master.md` with no `## Approval` line; its hash, its approval are the manager's (`glab:project-plan-accept`). Step 1 is not run again, except for a gap a finding opens.
 
-- every gap is proven, decided, or answered by the user;
-- the plan covers every finding, with no gaps left;
-- the call-site review is complete for any changed existing method, and every method the plan only calls has its precondition recorded;
-- the chosen boundary is proven against the existing implementation by a command you ran (`glab:security` Rule 6) — not by naming or file placement;
-- rollback/delete/state semantics are proven where relevant;
-- ownership/lifecycle risks are reviewed on resource-sensitive paths.
+## After Step 3
 
-**Amending after a plan check.** Under the project manager, an amendment after `NOT BUILDABLE`, or after a REJECTED verdict, is written by a new planning agent from the files on disk and the round's findings in its dispatch (`glab:project-plan-analyze`) — after a verdict, its reason is the round's findings (`glab:project-plan-report`). Change what the findings name and what that forces, and **replace the text you change, in place**: the step, the finding or the decision line is rewritten under its own id, a changed choice with its new reason. Never append an amendment section, a "superseded" line or a round marker beside the old text — the `<name>.r<n>.md` copies the manager kept are the history; leave them as they are. A line the manager added to overrule a decision stays as the manager wrote it. No round amends a `master.md` that has an `## Approval` line. When the user changes the request and your dispatch grants it, copy the old master to `master.v<n>.md` — a version copy, never `.r<n>` — and write a new `master.md` with no `## Approval` line; its hash, its approval and its plan check are the manager's (`glab:project-plan-accept`). Step 1 is not run again, except for a gap a finding opens.
-
-## After Step 4
-
-The build is `glab:project-developer`'s, through `/glab:project-develop`; the E2E run is `glab:project-integrator`'s (Stage 4). A planning agent stops at Step 4.
+The build is `glab:project-developer`'s, through `/glab:project-develop`; the E2E run is `glab:project-integrator`'s (Stage 4). A planning agent stops after Step 3.
 
 ## Repo Rules
 
-**Plan files are working files; the docs are what stay.** `/plan/` is ignored by git and never committed; a repo without the line adds `/plan/` to `.gitignore` (`glab:bootstrap` step 5). After the push, `glab:project-record` writes from `plan/<slug>/` on disk: a docs change updates the spec of each area the change touched in `docs/specs/`, one file per area — how the area works now, the decisions that still bind, what is not verified, and every follow-up still open and every incident, each under its source file and number — and each feature page `docs/features/<feature>.md` whose user-visible behaviour changed. A feature page (kebab-case; the area's name when the area is one feature) says what the feature does, who it is for and how to use it: commands, inputs, outputs, and the limits a user meets; it never holds decisions, incidents, follow-ups or records, which stay in the spec. Both go where the repo's `AGENTS.md` names other places, if it does. The record never removes `plan/{slug}/` or an audit file. Once the record has landed on the default branch, the manager lists the folder at a session start (`glab:bootstrap` step 5) and removes it only on the user's word (`glab:session-rules` Rule 2); the docs are then the only copy. A plan folder whose `master.md` — or `plan.md`, in a folder with no master — has no `## Record` was written before the repo followed this rule, and Stage 8 does not record it.
+**Plan files are working files; the docs are what stay.** `/plan/` is ignored by git and never committed; a repo without the line adds `/plan/` to `.gitignore` (`glab:bootstrap` step 5). After the commits and before the push, `glab:project-record` writes from `plan/<slug>/` on disk: a docs change updates the spec of each area the change touched in `docs/specs/`, one file per area — how the area works now, the decisions that still bind, what is not verified, and every follow-up still open and every incident, each under its source file and number — and each feature page `docs/features/<feature>.md` whose user-visible behaviour changed. A feature page (kebab-case; the area's name when the area is one feature) says what the feature does, who it is for and how to use it: commands, inputs, outputs, and the limits a user meets; it never holds decisions, incidents, follow-ups or records, which stay in the spec. Both go where the repo's `AGENTS.md` names other places, if it does. The record never removes `plan/{slug}/` or an audit file. Once the record has landed on the default branch, the manager lists the folder at a session start (`glab:bootstrap` step 5) and removes it only on the user's word (`glab:session-rules` Rule 2); the docs are then the only copy. A plan folder whose `master.md` — or `plan.md`, in a folder with no master — has no `## Record` was written before the repo followed this rule, and Stage 8 does not record it.
 
 **One slug per task.** Reuse the same folder for findings, questions, and plan.
 

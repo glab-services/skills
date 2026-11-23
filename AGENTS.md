@@ -103,7 +103,7 @@ repo and to nothing else.
 - **Tests clean up by PID.** A test kills only processes it started itself,
   never by name or pattern.
 - **`plan/` is the working area; `docs/` is what stays.** `plan/` is ignored
-  by git and never committed. After a change's push, the record
+  by git and never committed. After a change's commits and before its push, the record
   (`glab:project-record`) writes, from `plan/<slug>/` on disk, the spec of
   each area it touched —
   `marketplace.md` (the marketplace, this repo's layout, gates and rules),
@@ -120,8 +120,8 @@ repo and to nothing else.
   change's commits on the pushed branch by both ends, `<first>` and `<last>`,
   the branch, and the PR when one exists; a squash or rebase merge can give the commits new shas, so
   the branch and the PR are what to look up. The record is committed
-  on the change's branch, after its push and before its merge
-  (`glab:project-record`). Once the record has landed on
+  on the change's branch, after its commits and before its push, so it goes
+  out in the same push (`glab:project-record`). Once the record has landed on
   `origin/main`, the manager lists `plan/<slug>` at a session start and
   removes it only on the user's word (`glab:session-rules` Rule 2).
   Nothing else under `plan/` is removed, except a completed handoff file under

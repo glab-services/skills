@@ -93,7 +93,7 @@ Then say what you did not check. If you could not run the tests, say that plainl
 
 ## Re-reviews — capped rounds, then a decision
 
-The dispatch says which round this is and which is the last. Round 2 is the last unless you report a `critical` or `high` finding in it — then answer `BLOCK: <n> issues`, and a round 3 may follow; round 3 is the last with no exception. In the last round the answer must be publish or do not publish; there is no round after it.
+The dispatch says which round this is. Round 2 is the last, with no exception. In it the answer must be publish or do not publish; there is no round after it.
 
 Every round after the first is a **new reviewer**: you did not review the round before. From round 2 the dispatch adds the previous round's findings, as they were returned, and the range of the fix — two tree ids or two commit ids. Check each previous finding: closed, or still open under its old `file:line`. Review everything in `git diff <old> <new>` in full. The whole target stays in your scope, but text a previous round passed is not re-litigated — a finding in unchanged text is advisory, not blocking, unless it is data loss, a credential leak, or something outward-facing.
 

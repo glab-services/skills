@@ -45,15 +45,15 @@ The product level and its projects exchange plain files in one shared folder, th
 | # | Stage | Run | Writes | Leaves on | The project stage of the same role |
 |---|-------|-----|--------|-----------|-------------------------------------|
 | P1 | Product plan | `glab:product-planner` on the business plan the user names | `plan/{slug}/product-plan.md` | the plan written | 1 |
-| P1b | Product plan check | `/glab:product-plan-analyze {slug}` (`glab:product-analyzer`) | — | `SOUND`; its rounds under `glab:session-rules` *Round caps*, the last one's outcome in `glab:product-plan-analyze` | 1b |
+| P1b | Product plan check | `/glab:product-plan-analyze {slug}` (`glab:product-analyzer`) | — | `SOUND`; its rounds under `glab:session-rules` *Round caps*, the last one's outcome in `glab:product-plan-analyze` | — |
 | — | Approval | the user, always, explicitly | the `## Approval` line, appended to `product-plan.md` | the user's words | the approval |
 | P2 | Briefs and rules | `/glab:product-project-brief {slug}` (`glab:product-planner`) | the store's `briefs/<project>/brief.md`, and the approved rule files with their `index.md` lines | the briefs listed | — |
 | P3 | Project sessions | *Starting project sessions* below, on the user's go-ahead | — | one session per brief, started | — |
 | P4 | Audit | `/glab:product-project-plan-analyze <project>` (`glab:product-analyzer`), once per report | — | `NO CONFLICT` or `CONFLICTS: <n>` | — |
 | P5 | Verdict | `/glab:product-project-plan-verdict <project>` | the store's `verdict.r<n>.md` | the project session told | — |
-| P6 | Commit, push | `/glab:commit`, `/glab:push` | commits of the product repo, the remote branch | landed and confirmed, on the user's go-ahead; or nothing to commit — in the product repo `git status --short --branch` exits 0 and prints one line, `## <branch>...origin/<upstream>`, with no bracket or exactly `[behind <n>]`; `[gone]`, `[ahead`, `No commits yet`, no upstream, a detached HEAD or exit ≠ 0 fail it | 6 and 7 |
+| P6 | Commit, push | `/glab:commit`, `/glab:push` | commits of the product repo, the remote branch | landed and confirmed, on the user's go-ahead; or nothing to commit — in the product repo `git status --short --branch` exits 0 and prints one line, `## <branch>...origin/<upstream>`, with no bracket or exactly `[behind <n>]`; `[gone]`, `[ahead`, `No commits yet`, no upstream, a detached HEAD or exit ≠ 0 fail it | 6 and 8 |
 | — | Delivered | the user, always, explicitly | the `## Delivered` line, appended to `product-plan.md` | the user's words | — |
-| P7 | Roadmap | glab:product-planner, then glab:product-analyzer's roadmap check, then /glab:commit, /glab:push | docs/roadmap/<slug>.md of the product repo | SOUND, committed, pushed on the user's go-ahead | 8 |
+| P7 | Roadmap | glab:product-planner, then glab:product-analyzer's roadmap check, then /glab:commit, /glab:push | docs/roadmap/<slug>.md of the product repo | SOUND, committed, pushed on the user's go-ahead | 7 and 8 |
 
 The last column is the project stage of the same role: it is how `glab:session-rules` *How to read these rules* maps a stage its rules name onto this level. P2 to P5 and Delivered have none, so a rule about another stage does not apply to them.
 
