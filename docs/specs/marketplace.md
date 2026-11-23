@@ -8,8 +8,8 @@ The `glab-services` marketplace as of 2026-11-23: its plugins, the repo's layout
 
 | Plugin | Version | Source | What it is |
 |---|---|---|---|
-| `project` | 0.3.1 | `plugins/project/` | the project workflow: 7 skills, 4 agents, no hooks, a copy of `plan-gate.sh` |
-| `product` | 0.1.0 | `plugins/product/` | the product level: its skills, 3 agents, no hooks, a copy of `plan-gate.sh` |
+| `project` | 0.3.2 | `plugins/project/` | the project workflow: 7 skills, 4 agents, no hooks, a copy of `plan-gate.sh` |
+| `product` | 0.1.1 | `plugins/product/` | the product level: its skills, 3 agents, no hooks, a copy of `plan-gate.sh` |
 | `glab` | 0.21.0 | `plugins/glab/` | archived: the earlier full workflow, 25 skills, 8 agents, 5 hook events, kept as it is |
 | `glab-team` | see its `plugin.json` | `plugins/glab-team/`, built from `src/glab-team/` | team agent messaging: 5 skills, an MCP server, 4 hook events |
 
