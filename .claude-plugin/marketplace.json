@@ -1,6 +1,6 @@
 {
   "name": "glab-services",
-  "description": "The glab project and product workflows, the archived glab plugin, and the glab-team tools for Claude Code",
+  "description": "The glab project and product workflows, manual QA tests, the archived glab plugin, and the glab-team tools for Claude Code",
   "owner": {
     "name": "glab-services"
   },
@@ -19,6 +19,11 @@
       "name": "product",
       "source": "./plugins/product",
       "description": "The glab product level: a product plan, briefs and rules in a shared store, and a verdict on each project's plan"
+    },
+    {
+      "name": "test",
+      "source": "./plugins/test",
+      "description": "Manual QA: /test:unit, /test:e2e and /test:regression, run by one tester agent"
     },
     {
       "name": "glab-team",
