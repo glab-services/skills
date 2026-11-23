@@ -23,7 +23,7 @@ repository, say how an operator runs one and creates invites.
 Install and moving from the earlier plugin are written once, in the repository
 `glab-services/skills` (the install source `README.md` names), not in the
 installed plugin. In that repository, `README.md` *Install* gives the commands
-and requirements, and `README.md` *Moving to glab-team* says what to do if you
+and requirements, and `docs/upgrading.md` *Moving to glab-team* says what to do if you
 installed the earlier messaging plugin first. `src/glab-team/docs/setup.md`
 *Moving from …* there covers the old plugin's id and what stays behind.
 
