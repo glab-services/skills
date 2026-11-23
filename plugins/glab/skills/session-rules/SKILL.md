@@ -102,7 +102,7 @@ With the listing, show the first commit on `origin/<default>` that adds its *Rec
 - **A check that cannot run** (a failed fetch, no `## Record`, no *Records* line): name the folder in one line.
 - **Any other failed check:** name the folder and the check, and ask.
 
-Every other removal under `plan/` stops and asks (`glab:security`). Why the user decides on each folder is recorded in `docs/specs/workflow.md`: a standing approval removed folders unasked in glab 0.16.0–0.16.1.
+Every other removal under `plan/` stops and asks (`glab:security`). Why the user decides on each folder: a standing approval removed folders unasked in glab 0.16.0–0.16.1. The user replaced it with "Ask once per folder".
 
 ## Rule 3 — decide, record, move on
 
