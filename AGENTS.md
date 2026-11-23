@@ -100,35 +100,15 @@ repo and to nothing else.
   role that acts on it; every other file points at it without restating it.
   The known cases — each such fact and the files that state it — are in
   `docs/one-fact.md`.
-- **Comments and recorded incidents are kept.** Update them when the thing
-  they describe changes; do not delete them.
+- **Comments are minimal.** Comment only what the code cannot say, in one
+  line. Keep a comment true or delete it.
 - **Tests clean up by PID.** A test kills only processes it started itself,
   never by name or pattern.
 - **`plan/` is the working area; `docs/` is what stays.** `plan/` is ignored
-  by git and never committed. After a change's commits and before its push, the record
-  (`glab:project-record`) writes, from `plan/<slug>/` on disk, the spec of
-  each area it touched —
-  `marketplace.md` (the marketplace, this repo's layout, gates and rules),
-  `workflow.md` (the `glab` workflow), `product.md` (the product level and the
-  product ⇄ project loop), `glab-team.md` (the `glab-team` plugin), `memory-sync.md` and
-  `external-agents.md` (removed, records only): how the area works
-  now, the decisions that still
-  bind, what is not verified, every follow-up — open or closed, each tagged
-  `[<slug>/<file> <id>]` — and its incidents, moved into *Incidents* rather
-  than dropped (*Comments and recorded incidents are kept*) — and a page in
-  `docs/features/` when what a user sees changed. A spec states a fact as of
-  its last record and names the file that owns it, so it is not one of the
-  *One fact* files. Its *Records* line names the date, the slug, and the
-  change's commits on the pushed branch by both ends, `<first>` and `<last>`,
-  the branch, and the PR when one exists; a squash or rebase merge can give the commits new shas, so
-  the branch and the PR are what to look up. The record is committed
-  on the change's branch, after its commits and before its push, so it goes
-  out in the same push (`glab:project-record`). Once the record has landed on
-  `origin/main`, the manager lists `plan/<slug>` at a session start and
-  removes it only on the user's word (`glab:session-rules` Rule 2).
-  Nothing else under `plan/` is removed, except a completed handoff file under
-  the same Rule. A folder committed before glab 0.16.0 is read back from the
-  commit its *Records* line names: `git show <sha>:plan/<slug>/<file>`.
+  by git and never committed. A change that alters how an area works updates
+  its spec in `docs/specs/` (current state only, at most about 10 KB, no
+  history) and its page in `docs/features/` when what a user sees changed,
+  in the same push. A folder under `plan/` is removed only on the user's word.
 - **A change under `plugins/<name>/` raises that plugin's `version`** in
   `plugins/<name>/.claude-plugin/plugin.json`, in the same commit. When one
   push carries several commits of one change — one per sub-plan — the first
