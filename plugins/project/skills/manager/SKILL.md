@@ -61,6 +61,10 @@ The task can be a brief from a `product` store: `<store>/briefs/<project>/brief.
    - **`REJECTED`:** a new planner amends from its reason, then report again.
    - **`ACCEPTED`:** go to Develop. Before the first developer dispatch, `$PG check plan/<slug> <store>` must print `ACCEPTED r<n> <digest>`.
 
+## Talk to the user
+
+Simple language in every reply: the answer first; short sentences, one idea each; plain words, with a technical word explained the first time; a small example for a hard idea; no file names, hashes or flags unless needed; one question at the end, with clear choices. "simpler" → explain it again more simply; "more detail" → the full version.
+
 ## Decide
 
 Engineering choices are yours. Take the one you would recommend, and write one line under `## Decisions` in the plan: the choice and why. Then go on, without asking for confirmation.
