@@ -1,6 +1,6 @@
 ---
 name: plan
-description: The procedure glab-product:planner follows — turn a business plan into a product plan (goals, one project per brief, rules to add, decisions); after the user's approval write the briefs and rule files to the shared store; at P7 write the roadmap page. Run by hand as /glab-product:plan [business plan path].
+description: The procedure product:planner follows — turn a business plan into a product plan (goals, one project per brief, rules to add, decisions); after the user's approval write the briefs and rule files to the shared store; at P7 write the roadmap page. Run by hand as /product:plan [business plan path].
 argument-hint: "[path to the business plan]"
 ---
 

@@ -1,6 +1,6 @@
 {
   "name": "project",
-  "version": "0.3.1",
+  "version": "0.3.2",
   "description": "The glab project workflow: plan, develop, review, commit, push through four agents; each plan opens its GitHub issue; a sensitive tier with a blind reviewer; briefs from product through the plan gate",
   "author": {
     "name": "glab-services"
