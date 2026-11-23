@@ -1,0 +1,9 @@
+{
+  "name": "product",
+  "version": "0.1.0",
+  "description": "The glab product level: business plan to product plan, the user's approval, one brief per project in a shared store, and an audited ACCEPTED or REJECTED verdict on each project plan before it develops",
+  "author": {
+    "name": "glab-services"
+  },
+  "repository": "https://github.com/glab-services/skills"
+}

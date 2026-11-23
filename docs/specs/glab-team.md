@@ -49,7 +49,7 @@ out of date. Tags `[add-team-messaging/<file> <id>]` name the plan file under
   directory and nothing runs an install there (D4).
 - **How a change is made and rebuilt.** Change `src/glab-team/`, then, in
   `src/glab-team` with the registry once, `rm -rf plugins/glab-team` and
-  `pnpm -s plugin:build` (`node scripts/build-plugin.mjs --publish`), then
+  `pnpm --silent plugin:build` (`node scripts/build-plugin.mjs --publish`), then
   stage with `git -c core.excludesFile=/dev/null add plugins/glab-team` (a
   global ignore must not drop `node_modules/`; `[add-team-messaging/03-publish-plugin/plan.md 03-D8]`).
   The build script: `--out <dir>` (under `$TMPDIR` or `src/glab-team/dist/`;
@@ -87,7 +87,7 @@ out of date. Tags `[add-team-messaging/<file> <id>]` name the plan file under
   messaging-status, messaging-watch`, `Hooks (4)  SessionStart, PreToolUse,
   Stop, StopFailure  (harness-only — no model context cost)`, `MCP servers (1)
   messaging  (tool schemas resolved at runtime; not counted)`.
-- **The Node suites.** G40 runs `pnpm -s broker:test` and G41 `pnpm -s
+- **The Node suites.** G40 runs `pnpm --silent broker:test` and G41 `pnpm --silent
   channel:test` in `src/glab-team`, `umask 0002` (three `join.test.mjs` cases
   make a `0770` directory), Node.js 24 first on `PATH`, with an empty `HOME`
   and `CLAUDE_CONFIG_DIR` of their own under the gate's work directory and
@@ -108,7 +108,7 @@ out of date. Tags `[add-team-messaging/<file> <id>]` name the plan file under
   `src/glab-team` installed from its lockfile (`cmp -s
   src/glab-team/node_modules/.pnpm/lock.yaml src/glab-team/pnpm-lock.yaml`);
   never a skip (`[add-team-messaging/index.md D6]`, `01-D4`, `01-D5`).
-  `pnpm -s plugin:test` (the build's test, needs the registry and `claude`;
+  `pnpm --silent plugin:test` (the build's test, needs the registry and `claude`;
   9 tests) and the acceptance suites are not gates (M4, D14).
 - **The naming map** (`[add-team-messaging/index.md D3]` as `M1` overrules it,
   `D18`, `M11`; exact strings are 02's, `[add-team-messaging/02-rename-glab-team/plan.md D-N]`).

@@ -4,7 +4,7 @@
 # --strict` (G23 is `plugins/glab-team`), the component lines of `claude plugin details` (G42-G44
 # are `glab-team`'s), and the searches that nothing else catches. G36-G39, appended last, are the same three kinds of check and the test for the docs
 # mirror's script. G40-G41, appended after G39, run the two Node.js suites of `src/glab-team`
-# (`pnpm -s broker:test`, `pnpm -s channel:test`) and compare their failures with a pinned host
+# (`pnpm --silent broker:test`, `pnpm --silent channel:test`) and compare their failures with a pinned host
 # list. G45, appended after G44, builds `src/glab-team` again offline and fails when the committed
 # `plugins/glab-team` is not that build. It prints one line per check, `ok G<n> <name>` or `FAIL G<n> <name>: <reason>`,
 # then `PASS n/n` or `FAIL f/n`.
@@ -13,7 +13,8 @@
 # this change shifted G1-G11, G15-G19 and G21-G22 and left G12, G13 and G20 unused; G23 is the
 # third entry of the validate loop, `plugins/glab-team`. The hard-coded ids (G14, G24-G26, G30,
 # G31, G33-G39) did not move. G40 and G41 are hard-coded ids too, appended after G39, and G42-G45
-# after G41. G46, appended after G45, is `plugin validate --strict plugins/glab-slim`.
+# after G41. G46-G48, appended after G45: `plugin validate --strict` on project and
+# product, and the byte check of the shared copies.
 #
 # Call it as `bash tests/gates.sh`, with no arguments, from anywhere: it changes to the repo root
 # before any check. It changes no tracked file in the repo. Its work directory under `$TMPDIR` is
@@ -107,7 +108,7 @@ cfg=$W/claude-config
 # The reporter for G40-G41: one `<file relative to the workspace>: <name>` line per failed or
 # cancelled test, suites failing only by their subtests left out, then a `# tests ...` summary
 # line. Node's default `spec` reporter prints failures with stacks and has no one-line form, and
-# an option after the pnpm script (`pnpm -s x:test --test-reporter=tap`) is not honoured, so the
+# an option after the pnpm script (`pnpm --silent x:test --test-reporter=tap`) is not honoured, so the
 # reporter goes in through `NODE_OPTIONS`, which is honoured
 # [01-import-source/evidence.md F7, plan.md 01-D2]. Written here, not kept as a
 # repo file: only this script uses it.
@@ -199,15 +200,15 @@ GLAB_SKILLS=(
 	audit bootstrap comments commit product-manager product-plan product-plan-analyze
 	product-project-brief product-project-plan-analyze product-project-plan-verdict project-analyze
 	project-develop project-integrate project-issue project-manager project-plan project-plan-accept
-	project-plan-analyze project-plan-report project-record project-review project-ship push
+	project-plan-report project-record project-review project-ship push
 	security session-rules severity
 )
 GLAB_AGENTS=(
 	committer product-analyzer product-planner project-analyzer project-developer
-	project-integrator project-plan-analyzer project-planner project-reviewer
+	project-integrator project-planner project-reviewer
 )
 GLAB_HOOKS='Hooks (5)  SessionStart, UserPromptSubmit, PreToolUse, PostToolUse, Stop  (harness-only — no model context cost)'
-MARKET=('glab = glab' 'glab-slim = glab-slim' 'glab-team = glab-team')
+MARKET=('glab = glab' 'project = project' 'product = product' 'glab-team = glab-team')
 # G42-G44: the three component lines of `plugin details glab-team` (the Agents line is not pinned).
 GLAB_TEAM_LINES=(
 	'Skills (5)  messaging-bind, messaging-claim, messaging-join, messaging-status, messaging-watch'
@@ -219,15 +220,17 @@ MODEL_LINES=(
 	'plugins/glab/agents/committer.md:model: haiku'
 	'plugins/glab/agents/project-developer.md:model: sonnet'
 	'plugins/glab/agents/project-integrator.md:model: sonnet'
-	'plugins/glab/agents/project-plan-analyzer.md:model: opus'
 	'plugins/glab/agents/project-planner.md:model: opus'
 	'plugins/glab/agents/product-analyzer.md:model: opus'
 	'plugins/glab/agents/product-planner.md:model: opus'
 	'plugins/glab/agents/project-reviewer.md:model: sonnet'
-	'plugins/glab-slim/agents/planner.md:model: opus'
-	'plugins/glab-slim/agents/developer.md:model: sonnet'
-	'plugins/glab-slim/agents/reviewer.md:model: sonnet'
-	'plugins/glab-slim/agents/committer.md:model: haiku'
+	'plugins/project/agents/planner.md:model: opus'
+	'plugins/project/agents/developer.md:model: sonnet'
+	'plugins/project/agents/reviewer.md:model: sonnet'
+	'plugins/project/agents/committer.md:model: haiku'
+	'plugins/product/agents/planner.md:model: opus'
+	'plugins/product/agents/analyzer.md:model: opus'
+	'plugins/product/agents/committer.md:model: haiku'
 )
 SKILL_LINES=(
 	'plugins/glab/agents/project-analyzer.md:glab:security'
@@ -237,8 +240,6 @@ SKILL_LINES=(
 	'plugins/glab/agents/project-developer.md:glab:comments'
 	'plugins/glab/agents/project-integrator.md:glab:security'
 	'plugins/glab/agents/project-integrator.md:glab:comments'
-	'plugins/glab/agents/project-plan-analyzer.md:glab:security'
-	'plugins/glab/agents/project-plan-analyzer.md:glab:severity'
 	'plugins/glab/agents/project-planner.md:glab:project-plan'
 	'plugins/glab/agents/project-planner.md:glab:security'
 	'plugins/glab/agents/product-analyzer.md:glab:security'
@@ -247,12 +248,16 @@ SKILL_LINES=(
 	'plugins/glab/agents/product-planner.md:glab:security'
 	'plugins/glab/agents/project-reviewer.md:glab:security'
 	'plugins/glab/agents/project-reviewer.md:glab:comments'
-	'plugins/glab-slim/agents/planner.md:glab-slim:plan'
-	'plugins/glab-slim/agents/planner.md:glab-slim:security'
-	'plugins/glab-slim/agents/developer.md:glab-slim:security'
-	'plugins/glab-slim/agents/developer.md:glab-slim:comments'
-	'plugins/glab-slim/agents/reviewer.md:glab-slim:security'
-	'plugins/glab-slim/agents/committer.md:glab-slim:security'
+	'plugins/project/agents/planner.md:project:plan'
+	'plugins/project/agents/planner.md:project:security'
+	'plugins/project/agents/developer.md:project:security'
+	'plugins/project/agents/developer.md:project:comments'
+	'plugins/project/agents/reviewer.md:project:security'
+	'plugins/project/agents/committer.md:project:security'
+	'plugins/product/agents/planner.md:product:plan'
+	'plugins/product/agents/planner.md:product:security'
+	'plugins/product/agents/analyzer.md:product:security'
+	'plugins/product/agents/committer.md:product:security'
 	'plugins/glab/agents/project-reviewer.md:glab:severity'
 )
 # The tests of `src/glab-team` that fail on the reference host, for G40-G41: each is a line
@@ -388,9 +393,11 @@ done
 		"$claude" plugin validate --strict "$p" >"$W/validate.$k" 2>&1
 		echo $? >"$W/validate.$k.rc"
 	done
-	# G46's run, kept out of the loop above so G21-G23 keep their ids.
-	"$claude" plugin validate --strict plugins/glab-slim >"$W/validate.slim" 2>&1
+	# G46's and G47's runs, kept out of the loop above so G21-G23 keep their ids.
+	"$claude" plugin validate --strict plugins/project >"$W/validate.slim" 2>&1
 	echo $? >"$W/validate.slim.rc"
+	"$claude" plugin validate --strict plugins/product >"$W/validate.prod" 2>&1
+	echo $? >"$W/validate.prod.rc"
 	"$claude" --plugin-dir ./plugins plugin details glab >"$W/details.glab" 2>"$W/details.glab.err"
 	"$claude" --plugin-dir ./plugins plugin details glab-team >"$W/details.glab-team" 2>"$W/details.glab-team.err"
 )
@@ -555,7 +562,7 @@ for s in broker channel; do
 	elif ! mkdir "$W/$s-config"; then
 		bad "cannot make $W/$s-config"
 	else
-		(cd src/glab-team && umask 0002 && env -u RUN_CLAUDE_ACCEPTANCE HOME="$W/$s-home" CLAUDE_CONFIG_DIR="$W/$s-config" NODE_OPTIONS="${opts:+$opts }--test-reporter=\"$W/fail.mjs\"" pnpm -s "$s:test") >"$W/$s.out" 2>"$W/$s.err"
+		(cd src/glab-team && umask 0002 && env -u RUN_CLAUDE_ACCEPTANCE HOME="$W/$s-home" CLAUDE_CONFIG_DIR="$W/$s-config" NODE_OPTIONS="${opts:+$opts }--test-reporter=\"$W/fail.mjs\"" pnpm --silent "$s:test") >"$W/$s.out" 2>"$W/$s.err"
 		rc=$?
 		summary=$(command grep -m 1 '^# tests ' "$W/$s.out")
 		command grep -v -e '^# tests ' -e '^$' "$W/$s.out" | LC_ALL=C sort >"$W/$s.failed"
@@ -631,7 +638,7 @@ else
 fi
 done_case G45 "plugins/glab-team is the build of src/glab-team" "$okline"
 
-# G46. `plugin validate --strict plugins/glab-slim`, green as G21-G23. A hard-coded id appended
+# G46. `plugin validate --strict plugins/project`, green as G21-G23. A hard-coded id appended
 # after G45, so no earlier id moves.
 if [ -f "$W/validate.slim" ]; then
 	last=$(tail -n 1 "$W/validate.slim")
@@ -641,7 +648,30 @@ if [ -f "$W/validate.slim" ]; then
 else
 	bad "the CLI did not run"
 fi
-done_case G46 "plugin validate --strict plugins/glab-slim"
+done_case G46 "plugin validate --strict plugins/project"
+
+# G47. `plugin validate --strict plugins/product`, green as G46.
+if [ -f "$W/validate.prod" ]; then
+	last=$(tail -n 1 "$W/validate.prod")
+	[ "$last" = '✔ Validation passed' ] || bad "last line [$last]"
+	rc=$(cat "$W/validate.prod.rc")
+	[ "$rc" = 0 ] || bad "rc=$rc"
+else
+	bad "the CLI did not run"
+fi
+done_case G47 "plugin validate --strict plugins/product"
+
+# G48. The copies of shared files are byte-identical to their source, so no copy drifts:
+# plan-gate.sh in project and product is glab's (tests/plan-gate.test.sh tests glab's),
+# and product's security skill is project's.
+for pair in 'plugins/glab/scripts/plan-gate.sh plugins/project/scripts/plan-gate.sh' \
+	'plugins/glab/scripts/plan-gate.sh plugins/product/scripts/plan-gate.sh' \
+	'plugins/project/skills/security/SKILL.md plugins/product/skills/security/SKILL.md'; do
+	read -r a b <<<"$pair"
+	cmp -s "$a" "$b" || bad "$b differs from $a"
+	[ ! -x "$a" ] || [ -x "$b" ] || bad "$b is not executable"
+done
+done_case G48 "shared copies match their source"
 
 if [ "$fail" -eq 0 ]; then
 	echo "PASS $pass/$n"

@@ -40,7 +40,7 @@ marketplace repository (`tests/gates.sh`) need it as the `node` first on
 glab-shared-store: <path to the store folder or clone>
 
 The folder, or a clone of the product's store repository, set up as
-`README.md` *The shared store* says (`glab.store`), where the product level
+`docs/features/remote-store.md` says (`glab.store`), where the product level
 and its projects exchange briefs, reports and verdicts. Its path is a fact
 of one machine, so it sits here; a repo whose `AGENTS.md` has its own
 `glab-shared-store:` line uses that one instead. The filesystems it may sit

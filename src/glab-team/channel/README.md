@@ -809,7 +809,7 @@ claude plugin marketplace add glab-services/skills
 claude plugin install glab-team@glab-services --scope local
 ```
 
-The plugin is built from this source by `scripts/build-plugin.mjs` into the repository's `plugins/glab-team/` (`pnpm -s plugin:build`), which is committed and checked by the repository's gates; `--no-install` builds it without `npm ci` or validation, for that offline check.
+The plugin is built from this source by `scripts/build-plugin.mjs` into the repository's `plugins/glab-team/` (`pnpm --silent plugin:build`), which is committed and checked by the repository's gates; `--no-install` builds it without `npm ci` or validation, for that offline check.
 
 The bundle copies `channel/*.mjs` and `shared/address.mjs` into `runtime/` and
 vendors `node_modules` with `npm ci`, because a local-path plugin gets no

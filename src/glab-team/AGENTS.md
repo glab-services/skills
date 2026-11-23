@@ -2,7 +2,7 @@
 
 - This folder is the maintained source of the `glab-team` plugin; the
   repository's `AGENTS.md` governs and wins where the two differ.
-- `plugins/glab-team/` at the repository root is this folder's build, committed with its `node_modules/`: never edit it. After a change to `plugin/`, `channel/*.mjs`, `shared/address.mjs` or `LICENSE`, raise the version in `plugin/.claude-plugin/plugin.json`, `plugin/package.json`, `plugin/package-lock.json` and `channel/version.mjs` and in the tests that assert it, remove `../../plugins/glab-team` and run `pnpm -s plugin:build` (npm registry and `claude` needed); the repository's gate G45 fails until the two agree.
+- `plugins/glab-team/` at the repository root is this folder's build, committed with its `node_modules/`: never edit it. After a change to `plugin/`, `channel/*.mjs`, `shared/address.mjs` or `LICENSE`, raise the version in `plugin/.claude-plugin/plugin.json`, `plugin/package.json`, `plugin/package-lock.json` and `channel/version.mjs` and in the tests that assert it, remove `../../plugins/glab-team` and run `pnpm --silent plugin:build` (npm registry and `claude` needed); the repository's gate G45 fails until the two agree.
 - Naming is per tool: the messaging tool's skills are `messaging-*`
   (`/glab-team:messaging-*`), its MCP server is `messaging`
   (`plugin:glab-team:messaging`), its data is `<plugin data>/messaging`, its

@@ -1,18 +1,20 @@
 # Working agreement
 
-This repo is a Claude Code plugin marketplace, `glab-services`, holding `glab`, `glab-slim` and `glab-team`. Everything under `plugins/` is **payload**: it is written for the
+This repo is a Claude Code plugin marketplace, `glab-services`, holding `project`, `product`, `glab-team` and the archived `glab`. Everything under `plugins/` is **payload**: it is written for the
 sessions of whoever installs a plugin, not for this repo. When payload text
 and this file disagree about how to work *in this repo*, this file wins.
 
 ## Layout
 
 - `.claude-plugin/marketplace.json` — the marketplace. It lists the plugins.
-- `plugins/glab/` — the workflow plugin: its skills and agents,
+- `plugins/glab/` — archived at 0.21.0, kept as it is; its scripts' tests still run. The workflow plugin: its skills and agents,
   `hooks/hooks.json`, `scripts/` (`manager-bootstrap.sh`,
   `context-size.sh`, `level-guard.sh`, `glab-level.sh` — the level
   rule both hooks source — and `plan-gate.sh`) and `templates/`.
-- `plugins/glab-slim/` — the slim project flow: four agents, seven skills,
-  no hooks and no scripts.
+- `plugins/project/` — the project workflow: four agents, seven skills,
+  no hooks; `scripts/plan-gate.sh` is a byte copy of glab's (G48).
+- `plugins/product/` — the product level: its manager, skills and two
+  agents, no hooks; `scripts/plan-gate.sh` is a byte copy of glab's (G48).
 - `plugins/glab-team/` — the build of `src/glab-team/`.
 - `docs/specs/` — one spec per area: how it works now, why, what is not
   verified, what is open (*Rules*, the `plan/` rule).
@@ -103,7 +105,7 @@ repo and to nothing else.
 - **Tests clean up by PID.** A test kills only processes it started itself,
   never by name or pattern.
 - **`plan/` is the working area; `docs/` is what stays.** `plan/` is ignored
-  by git and never committed. After a change's push, the record
+  by git and never committed. After a change's commits and before its push, the record
   (`glab:project-record`) writes, from `plan/<slug>/` on disk, the spec of
   each area it touched —
   `marketplace.md` (the marketplace, this repo's layout, gates and rules),
@@ -120,8 +122,8 @@ repo and to nothing else.
   change's commits on the pushed branch by both ends, `<first>` and `<last>`,
   the branch, and the PR when one exists; a squash or rebase merge can give the commits new shas, so
   the branch and the PR are what to look up. The record is committed
-  on the change's branch, after its push and before its merge
-  (`glab:project-record`). Once the record has landed on
+  on the change's branch, after its commits and before its push, so it goes
+  out in the same push (`glab:project-record`). Once the record has landed on
   `origin/main`, the manager lists `plan/<slug>` at a session start and
   removes it only on the user's word (`glab:session-rules` Rule 2).
   Nothing else under `plan/` is removed, except a completed handoff file under

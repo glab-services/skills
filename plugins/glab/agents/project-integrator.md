@@ -22,7 +22,7 @@ Search, and report which one you chose and how you found it:
     grep -rl '//go:build integration\|@pytest.mark.integration\|describe.*e2e' --include='*_test.go' --include='*test*.py' --include='*.spec.*' . | head
     grep -n 'e2e\|integration\|itest' Makefile package.json justfile 2>/dev/null
 
-A vendored third-party conformance suite counts; read its results as `glab:security` *Never infer a rule by mirroring a neighbour* says.
+A vendored third-party conformance suite counts; read its results as `glab:security` Part 2's durability reference says (*Never infer a rule by mirroring a neighbour*).
 
 **Found nothing that exercises this change?** Stop and report `BLOCKED: no suite` with exactly what you searched. Ask where the suite lives. Do not invent one, and do not fall back to unit tests and call it integration — those already ran in the develop stage.
 

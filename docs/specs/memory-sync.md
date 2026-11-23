@@ -23,7 +23,7 @@ skill, its settings example and its test are gone, and `README.md` and
 what they governed was removed. *Known limits and not verified* and
 *Incidents* are unchanged; the two smoke-test parts under *Known limits* will
 not run, since there is no plugin to run them on. What a person who installed
-`memory-sync@glab-services` has to do is in `README.md` *Removed:
+`memory-sync@glab-services` has to do is in `docs/upgrading.md` *Removed:
 `memory-sync`*; what an installed copy does once the marketplace drops it is
 UNVERIFIED (`[remove-memory-sync/plan.md E6]`). What the removal changed in
 the gates, the rules and the *One fact* list is in `docs/specs/marketplace.md`;

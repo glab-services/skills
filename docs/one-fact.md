@@ -6,16 +6,14 @@ it.
 
 ## Round caps
 
-the round caps — Stage 1b, Stage 3, Stage 5 and the final check (Stage 6b),
-and P1b at the product level, P7's roadmap check at most 2 rounds and never a
-third, at most 2 rounds at every tier, per sub-plan
-where there are, a third only on a `critical` or `high` finding of round 2,
-recorded first as a `## Decisions` line, or in the handoff line and this
-conversation when there is no plan, none past 3
+the round caps — Stage 3 and Stage 5 at the project level, P1b and P7's
+roadmap check at the product level, at most 2 rounds each at every tier, per
+sub-plan where there are, never a third
 
-- `plugins/glab/skills/session-rules/SKILL.md` *Round caps*
-- `plugins/glab/skills/project-plan-analyze/SKILL.md`
-- `plugins/glab/skills/product-manager/SKILL.md` P7
+- `plugins/glab/skills/session-rules/SKILL.md` *Round caps* and *The handoff line*
+- `plugins/glab/skills/project-analyze/SKILL.md`
+- `plugins/glab/skills/project-review/SKILL.md`
+- `plugins/glab/skills/project-manager/references/without-subagents.md`
 - and the reviewer's round-2 rule in `plugins/glab/agents/project-reviewer.md`
   *Re-reviews*
 
@@ -54,7 +52,6 @@ the marketplace and plugin names
 what each plugin holds — its component counts and its hook events
 
 - `tests/gates.sh` (G24–G26, G42–G44)
-- `README.md`
 - each plugin's `hooks/hooks.json` (`glab-team`'s from
   `src/glab-team/plugin/hooks/hooks.json`)
 
@@ -66,19 +63,18 @@ user's words overriding any role, no `model` parameter otherwise, and
 
 - `glab:session-rules` Rule 5 and *The handoff line* in
   `plugins/glab/skills/session-rules/SKILL.md`
-- the nine `plugins/glab/agents/*.md`
+- the eight `plugins/glab/agents/*.md`
 - `README.md`
 - and the model check (G33) in `tests/gates.sh`
 
 ## The skills each agent preloads
 
 the skills each agent preloads — its frontmatter `skills:` list,
-`glab:security` in all nine, `glab:project-plan` in the planner and
+`glab:security` in all eight, `glab:project-plan` in the planner and
 `glab:product-plan` in the product planner, and no preloaded skill setting
 `disable-model-invocation`, which stops its preload
 
-- the nine `plugins/glab/agents/*.md`
-- `README.md`
+- the eight `plugins/glab/agents/*.md`
 - and the skills check (G34) in `tests/gates.sh`
 
 ## The reviewer's verdict lines
@@ -96,8 +92,7 @@ the severity levels — `critical`, `high`, `medium`, `low` — their meanings i
 `plugins/glab/skills/severity/SKILL.md` only, which
 `plugins/glab/skills/audit/SKILL.md` points at, their four names in the
 *Report* of `plugins/glab/agents/project-reviewer.md`,
-`plugins/glab/agents/project-analyzer.md`,
-`plugins/glab/agents/project-plan-analyzer.md` and
+`plugins/glab/agents/project-analyzer.md` and
 `plugins/glab/agents/product-analyzer.md`
 
 ## Every round a new agent
@@ -105,10 +100,8 @@ the severity levels — `critical`, `high`, `medium`, `low` — their meanings i
 every round a new agent, Rule 5's report check the one resume
 
 - `plugins/glab/skills/session-rules/SKILL.md` Rules 2 and 5
-- `plugins/glab/skills/project-plan-analyze/SKILL.md`
 - `plugins/glab/skills/project-develop/SKILL.md`
 - `plugins/glab/skills/project-review/SKILL.md`
-- `plugins/glab/skills/project-record/SKILL.md`
 - `plugins/glab/skills/project-plan/SKILL.md`
 - `plugins/glab/skills/project-ship/SKILL.md`
 - `plugins/glab/agents/project-reviewer.md`
@@ -122,9 +115,7 @@ subagent's Write of `findings.md` is refused — the round copies
 
 - `plugins/glab/skills/project-manager/SKILL.md`
 - `plugins/glab/skills/project-plan/SKILL.md`
-- `plugins/glab/skills/project-plan-analyze/SKILL.md`
 - `plugins/glab/agents/project-analyzer.md`
-- `plugins/glab/agents/project-plan-analyzer.md` (all but the version copies)
 - `plugins/glab/agents/project-developer.md`
 - for the round copies only: `plugins/glab/scripts/plan-gate.sh`, which leaves
   them out of the digest, `plugins/glab/skills/project-plan-report/SKILL.md`
@@ -168,7 +159,7 @@ texts of the deny reason and the ask reason
 - `plugins/glab/skills/session-rules/SKILL.md` *The level boundary*
 - `plugins/glab/skills/product-manager/SKILL.md` *The cap*
 - `AGENTS.md` *Rules*
-- `README.md`
+- `docs/features/level-guard.md`
 
 ## What a later review round is given
 
@@ -183,7 +174,7 @@ the slug or the intent
 ## The plan lifecycle
 
 the plan lifecycle — `/plan/` ignored by git and never committed; after the
-push the record writes specs in `docs/specs/` and feature pages in
+commits and before the push the record writes specs in `docs/specs/` and feature pages in
 `docs/features/` (the product level: `docs/roadmap/<slug>.md`), unless
 `AGENTS.md` names other places; a *Records* line, a spec's or a roadmap
 page's, names the date, the slug and the change's commits by both ends,
@@ -200,10 +191,9 @@ user's word, asked at a session start once the record has landed
 - `plugins/glab/skills/audit/SKILL.md`
 - `README.md`
 - `plugins/glab/skills/session-rules/SKILL.md` Rule 2
-- `plugins/glab/skills/project-manager/SKILL.md` Stage 8
+- `plugins/glab/skills/project-manager/SKILL.md` Stage 7
 - `plugins/glab/skills/push/SKILL.md` step 4
 - `plugins/glab/agents/committer.md`
-- `plugins/glab/agents/project-plan-analyzer.md`
 - `plugins/glab/skills/product-manager/SKILL.md` P7
 - `plugins/glab/skills/product-plan/SKILL.md` *The roadmap*
 - `plugins/glab/agents/product-planner.md`
@@ -213,8 +203,8 @@ user's word, asked at a session start once the record has landed
 
 ## Where the record is committed
 
-where the record is committed — on the change's branch, after its push and
-before its merge
+where the record is committed — on the change's branch, after its commits and
+before its push, so it goes out in the same push
 
 - `plugins/glab/skills/project-record/SKILL.md`
 - and `AGENTS.md`'s `plan/` rule
@@ -230,7 +220,6 @@ handoff line
 - `glab:session-rules` Rules 0d and 5 and *The handoff line* in
   `plugins/glab/skills/session-rules/SKILL.md`
 - the one pointer line in `plugins/glab/scripts/manager-bootstrap.sh`
-- `README.md`
 
 ## The plan size budget
 
@@ -240,25 +229,22 @@ line
 
 - `plugins/glab/skills/project-plan/SKILL.md` Step 3
 - `plugins/glab/skills/product-plan/SKILL.md`
-- `plugins/glab/skills/project-plan-accept/SKILL.md` checklist item 6
+- `plugins/glab/skills/project-plan-accept/SKILL.md` check 2
 
 ## Amendments in place
 
 amendments replace the text they change, in place
 
-- `plugins/glab/skills/project-plan/SKILL.md` Step 4
-- `plugins/glab/agents/project-plan-analyzer.md` *Re-checks*
+- `plugins/glab/skills/project-plan/SKILL.md` *Amending*
 
 ## `glab:project-plan`'s step numbers
 
-`glab:project-plan`'s step numbers — 0 to 4
+`glab:project-plan`'s step numbers — 0 to 3
 
 - `plugins/glab/skills/project-plan/SKILL.md`
 - `plugins/glab/skills/project-manager/SKILL.md`
 - `plugins/glab/agents/project-planner.md`
-- `plugins/glab/agents/project-plan-analyzer.md`
 - `plugins/glab/skills/project-plan-accept/SKILL.md`
-- `plugins/glab/skills/project-plan-analyze/SKILL.md`
 
 ## The master plan and sub-plans
 
@@ -267,14 +253,13 @@ after `## Approval` and hashed in `master.sha256`, a changed request a new
 master with the old kept as `master.v<n>.md` and its approval and hash not
 carried over, `index.md`, the folders `<nn>-<name>/`, the user's approval of
 every full-tier `plan.md`, a single plan's or a sub-plan's, one commit per
-sub-plan, one final check, push and record per slug, and `## Record` in the
+sub-plan, one record and one push per slug, and `## Record` in the
 master
 
 - `plugins/glab/skills/project-plan/SKILL.md`
 - `plugins/glab/skills/project-manager/SKILL.md`
 - `plugins/glab/agents/project-analyzer.md`
 - `plugins/glab/skills/project-plan-accept/SKILL.md`
-- `plugins/glab/agents/project-plan-analyzer.md`
 - `plugins/glab/agents/project-developer.md`
 - `plugins/glab/skills/project-analyze/SKILL.md`
 - `plugins/glab/skills/project-develop/SKILL.md`
@@ -283,28 +268,21 @@ master
 
 ## The intent check
 
-the intent check — the analyzers at Stage 1b (`glab:project-plan-analyzer`),
-Stage 3 and the final check (`glab:project-analyzer`), never the reviewer
+the intent check — `glab:project-analyzer` at Stage 3, never the reviewer
 
 - `plugins/glab/agents/project-analyzer.md`
-- `plugins/glab/agents/project-plan-analyzer.md`
 - `plugins/glab/skills/project-analyze/SKILL.md`
-- `README.md`
 
 ## The analyzers' verdict lines
 
-the analyzers' verdict lines — `BUILDABLE`, `NOT BUILDABLE`
-(`glab:project-plan-analyzer`), `CONFORMS`, `DIVERGES: <n> steps`
-(`glab:project-analyzer`), `BLOCK: target unresolved` (all three), and
+the analyzers' verdict lines — `CONFORMS`, `DIVERGES: <n> steps` and
+`BLOCK: target unresolved` (`glab:project-analyzer`), and
 `glab:product-analyzer`'s `SOUND`, `NOT SOUND: <n> findings`, `NO CONFLICT`
 and `CONFLICTS: <n>`
 
 - `plugins/glab/agents/project-analyzer.md`
-- `plugins/glab/agents/project-plan-analyzer.md`
 - `plugins/glab/skills/project-manager/SKILL.md`
 - `plugins/glab/skills/project-analyze/SKILL.md`
-- `plugins/glab/skills/project-plan/SKILL.md`
-- `plugins/glab/skills/project-plan-analyze/SKILL.md`
 - `plugins/glab/skills/project-develop/SKILL.md`
 - `plugins/glab/skills/project-plan-report/SKILL.md`
 - `plugins/glab/skills/project-review/SKILL.md`
@@ -314,16 +292,6 @@ and `CONFLICTS: <n>`
 - `plugins/glab/skills/product-plan-analyze/SKILL.md`
 - `plugins/glab/skills/product-project-plan-analyze/SKILL.md`
 - `plugins/glab/skills/product-project-plan-verdict/SKILL.md`
-
-## Approval in plan mode
-
-approval in plan mode — only when the user asks, no plan file outside the
-repo, `plansDirectory` never changed, its claims UNVERIFIED until L1–L7
-
-- `plugins/glab/skills/project-plan-accept/references/plan-mode.md`
-- `plugins/glab/skills/project-manager/SKILL.md`
-- `plugins/glab/skills/project-plan-accept/SKILL.md`
-- `README.md`
 
 ## The level line `glab-level:`
 
@@ -371,7 +339,7 @@ briefs and rules
 - `plugins/glab/skills/session-rules/SKILL.md` Rule 3 (the store-push exception)
 - `plugins/glab/agents/project-planner.md`
 - `AGENTS.md` *Rules*
-- `README.md` *The shared store*
+- `docs/features/remote-store.md` *The store and a store clone*
 - `host.example.md`
 
 ## The store layout
@@ -383,7 +351,7 @@ the store layout — `docs/product-rules/` with `index.md`,
 - `plugins/glab/scripts/plan-gate.sh`
 - `plugins/glab/skills/product-manager/SKILL.md` *The shared store*
 - `plugins/glab/skills/product-plan/SKILL.md`
-- `README.md`
+- `docs/features/remote-store.md`
 
 ## The docs mirror
 
@@ -394,10 +362,10 @@ the docs mirror — its templates `plugins/glab/templates/docs-mirror/` `docs-mi
 commits as `glab docs-mirror <docs-mirror@glab.invalid>`, subject `docs: mirror <12 hex>`,
 last line `Source-Commit: <sha>`, the `Replaces …` and `Adopts …` paragraphs; its `REFUSED:`,
 `skipped` and `docs-mirror: git:` lines; bash 4.4, git 2.28; at most 4 `docs-mirror: git:`
-lines (the script, `README.md`, the test's DM19); GitLab's `stage: .post` (`README.md`, the GitLab
-template, DM21); `main` as the GitHub mirror's branch (`README.md` step 4, the GitHub template's
+lines (the script, `docs/features/docs-mirror.md`, the test's DM19); GitLab's `stage: .post` (`docs/features/docs-mirror.md`, the GitLab
+template, DM21); `main` as the GitHub mirror's branch (`docs/features/docs-mirror.md` step 4, the GitHub template's
 `run:` line, DM21); the GitLab job's environment `docs-mirror`, which the key variable is scoped to
-(`README.md` step 5, the GitLab template, DM21); the GitHub workflow's concurrency group
+(`docs/features/docs-mirror.md` step 5, the GitLab template, DM21); the GitHub workflow's concurrency group
 `glab-docs-mirror` (the GitHub template, DM21)
 
 - `plugins/glab/templates/docs-mirror/docs-mirror.sh`
@@ -405,7 +373,7 @@ template, DM21); `main` as the GitHub mirror's branch (`README.md` step 4, the G
 - `plugins/glab/templates/docs-mirror/gitlab-docs-mirror.yml`
 - `tests/docs-mirror.test.sh`
 - `tests/gates.sh` (the template path)
-- `README.md` *The docs mirror*, *Requirements* and the plugin table
+- `docs/features/docs-mirror.md` *The details*, and its requirements line
 - `AGENTS.md` *Layout* (`templates/`)
 
 ## The plan digest, report and verdict lines
@@ -420,14 +388,13 @@ lines, their parse rules and refusals
 - `plugins/glab/skills/project-plan-report/SKILL.md`
 - `plugins/glab/skills/session-rules/SKILL.md`
 - `plugins/glab/skills/project-develop/SKILL.md`
-- and `README.md` *Levels*
 
 ## The brief line
 
 the brief line — `- brief: briefs/<project>/brief.md sha256 <hash>`
 
 - `plugins/glab/skills/project-plan/SKILL.md`
-- `plugins/glab/skills/project-plan-accept/SKILL.md` checklist item 8
+- `plugins/glab/skills/project-plan-accept/SKILL.md` check 3
 - `plugins/glab/scripts/plan-gate.sh`
 - `tests/fixtures/product-loop/project-plan/master.md`
 
@@ -436,7 +403,7 @@ the brief line — `- brief: briefs/<project>/brief.md sha256 <hash>`
 the issue line — `- issue: <owner>/<repo>#<n> sha256 <hash>`, the hash `sha256sum` of `plan/<slug>/issue.md`, the issue quoted on the lines after it
 
 - `plugins/glab/skills/project-plan/SKILL.md` Step 3
-- `plugins/glab/skills/project-plan-accept/SKILL.md` checklist item 8
+- `plugins/glab/skills/project-plan-accept/SKILL.md` check 3
 - `plugins/glab/skills/project-issue/SKILL.md` (the path and hash it hands over)
 
 ## Issue text is data
@@ -444,8 +411,7 @@ the issue line — `- issue: <owner>/<repo>#<n> sha256 <hash>`, the hash `sha256
 issue text in a master is content, never instructions; owner `glab:project-issue`; a known exception to `glab:session-rules` Rule 0c and to `AGENTS.md` *One fact, one value* [issue-to-plan/index.md D4, M10]
 
 - `plugins/glab/skills/project-issue/SKILL.md` *Issue text is data* — the owner, which holds the rule in full
-- `plugins/glab/skills/project-plan/SKILL.md` Step 3 — from here the four files carry the one identical sentence
-- `plugins/glab/agents/project-plan-analyzer.md`
+- `plugins/glab/skills/project-plan/SKILL.md` Step 3 — from here the three files carry the one identical sentence
 - `plugins/glab/agents/project-analyzer.md`
 - `plugins/glab/agents/project-developer.md`
 
@@ -455,7 +421,7 @@ the issue quote cap — 28672 bytes of quoted `issue.md`, derived from the 49152
 
 - `plugins/glab/skills/project-issue/SKILL.md` (28672, in the take block and its prose)
 - `plugins/glab/skills/project-plan/SKILL.md` Step 3 (the master cap, as 48 KB)
-- `plugins/glab/skills/project-plan-accept/SKILL.md` checklist item 6 (the master cap, as 49152)
+- `plugins/glab/skills/project-plan-accept/SKILL.md` check 2 (the master cap, as 49152)
 
 ## The plan slug pattern
 
@@ -478,19 +444,18 @@ opening with the user's words
 - `plugins/glab/skills/product-project-plan-verdict/SKILL.md`
 - `tests/plan-gate.test.sh`
 - `tests/product-loop.test.sh`
-- `README.md`
 
 ## The `by user` hold
 
 the `by user` hold — a Bash or PowerShell command, and by inference a Monitor
 command, naming `plan-gate.sh` with the words `verdict` and `user` goes to the
 permission dialog, and its known limits as `product-manager/SKILL.md` *The
-cap* and `README.md` *Known limits* state them
+cap* and `docs/features/level-guard.md` *The boundary and known limits* state them
 
 - `plugins/glab/scripts/level-guard.sh`
 - `tests/level-guard.test.sh`
 - `plugins/glab/skills/product-manager/SKILL.md` *The cap*
-- `README.md` *Known limits*
+- `docs/features/level-guard.md` *The boundary and known limits*
 
 ## The rule file budget
 
@@ -510,7 +475,6 @@ each level's manager loads and cites by number
 - `plugins/glab/skills/product-manager/SKILL.md`
 - `plugins/glab/scripts/manager-bootstrap.sh`
 - `plugins/glab/skills/bootstrap/SKILL.md`
-- `README.md`
 
 ## The level boundary
 
@@ -529,7 +493,7 @@ agents' — and refuses a Skill call to a `glab:` skill not on it
 - `tests/level-guard.test.sh`
 - the `description:` of every `plugins/glab/skills/*/SKILL.md` and
   `plugins/glab/agents/*.md`
-- `README.md`
+- `docs/features/level-guard.md`
 
 ## The team messaging source and its toolchain
 
@@ -539,7 +503,7 @@ Node.js 24 or newer as the `node` first on `PATH`, pnpm 10 or newer, and
 
 - `tests/gates.sh` (the preflight, G40–G41 and G45)
 - `AGENTS.md` *Layout* and *Gates*
-- `README.md` *Working on this repo*
+- `README.md` (Node.js 24) and `docs/specs/marketplace.md` *Working on `src/glab-team`*
 - `host.example.md` *Tool paths* (where Node.js 24 is on a host)
 - and, for Node.js 24, the source's own files: `src/glab-team/package.json`,
   `channel/package.json` and `plugin/package.json` (`engines`), `AGENTS.md`,
@@ -572,5 +536,5 @@ the `glab-team` version
 
 the id `glab-team` replaces, `team-messaging@team-messaging-local`, and what a user of it does
 
-- `README.md` *Moving to glab-team*
+- `docs/upgrading.md` *Moving to glab-team*
 - `src/glab-team/docs/setup.md` *Moving from …*

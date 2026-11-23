@@ -42,7 +42,7 @@ Everything you read stays in your context and is paid for again on every later c
 
 ## Step 2 — build the named steps, in order
 
-**The plan is a closed list.** Every hunk you write maps to a named step. If it does not, it does not go in. A plan's `## Record` is not one of these steps: it is built only at Stage 8, when the dispatch says this is the record.
+**The plan is a closed list.** Every hunk you write maps to a named step. If it does not, it does not go in. A plan's `## Record` is not one of these steps: it is built only at Stage 7, when the dispatch says this is the record.
 
 This binds hardest on what looks like an improvement: everything `glab:security` Rule 8 lists, a bug the plan's own findings called out as pre-existing and out of scope, and errors, constants, helpers or config for machinery a later plan will build.
 
@@ -118,7 +118,7 @@ A fix round with no plan behind it — review findings quoted in the dispatch an
 
 ## The record — `glab:project-record`
 
-When the dispatch says this is the record, that is your whole scope. Update the area specs the dispatch names and the feature pages it names (`docs/features/`) — those `master.md`'s `## Record` names — `plan.md`'s, with no master — as `glab:project-plan` *Plan files are working files* says, from the files of `plan/<slug>/`, sub-plan folders included, and any audit file the dispatch names: how the area works now, the decisions that still bind, what is not verified, and every follow-up still open, every binding decision and every incident, each with its source file and number. None is dropped. Change nothing inside `plan/<slug>/`, and remove nothing. A round copy `<name>.r<n>.md` or a version copy `master.v<n>.md` is an earlier version of a file the folder still holds: take the items from the current file. Step 5 does not apply: write no `result.md`; your report is the reply alone, and `detail:` names the spec files and feature pages. Step 3's gates run as for any change; where none reaches the spec files, say so in the report.
+When the dispatch says this is the record (Stage 7, after the commits and before the push), that is your whole scope. Write each spec's *Records* line in the form `glab:project-record` gives, with the commits the dispatch names. Update the area specs the dispatch names and the feature pages it names (`docs/features/`) — those `master.md`'s `## Record` names — `plan.md`'s, with no master — as `glab:project-plan` *Plan files are working files* says, from the files of `plan/<slug>/`, sub-plan folders included, and any audit file the dispatch names: how the area works now, the decisions that still bind, what is not verified, and every follow-up still open, every binding decision and every incident, each with its source file and number. None is dropped. Change nothing inside `plan/<slug>/`, and remove nothing. A round copy `<name>.r<n>.md` or a version copy `master.v<n>.md` is an earlier version of a file the folder still holds: take the items from the current file. Step 5 does not apply: write no `result.md`; your report is the reply alone, and `detail:` names the spec files and feature pages. Step 3's gates run as for any change; where none reaches the spec files, say so in the report.
 
 ## Rules you do not get to weigh
 

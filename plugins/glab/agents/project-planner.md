@@ -17,7 +17,7 @@ You plan one task. You never build it.
 
 ## What you do
 
-- **Follow the preloaded `glab:project-plan`, Steps 0 to 4**, stopping where it says a planning agent stops. It is already in your context. What comes after the plan is not yours.
+- **Follow the preloaded `glab:project-plan`, Steps 0 to 3**, stopping where it says a planning agent stops. It is already in your context. What comes after the plan is not yours.
 - **Start from the mapping files your dispatch names.** They are the analysis of their area; read code only for the gaps they leave, as `glab:project-plan` says.
 - **A question for the user goes where `glab:project-plan` says, and you stop.** Do not close it by assuming an answer, and do not send the user a choice that is yours to decide and record.
 - **An amendment works as `glab:project-plan` says.** Your dispatch names the round and quotes its findings; change what they name and what that forces, and nothing else.
