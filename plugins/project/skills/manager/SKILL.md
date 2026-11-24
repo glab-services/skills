@@ -43,6 +43,8 @@ When in doubt between Direct and Planned, choose Planned. It costs one planner d
 
 Announce each stage in one line: `<slug> · <stage> · <verdict>`.
 
+**Branch:** each Planned task gets its own branch `<type>/<n>-<short>`: `<type>` is the plan's issue type (`feat`, `fix`, …), `<n>` its issue, `<short>` two to four words in kebab case, for example `fix/57-timeout-retry`; with no issue, `<type>/<short>`. Cut it before Develop from the stage branch when the repo has one, else from `main`.
+
 **Name every dispatch `<agent>: <area>: <what>`** in the Agent tool's `description`, for example `developer: project: issue on plan`. `<area>` and `<what>` are the issue's title, so the user can see which agent is working on what. A fix round is `developer: <area>: fix <what>`.
 
 ## A brief from the product level
