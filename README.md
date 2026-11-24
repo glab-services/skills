@@ -28,6 +28,7 @@ What each plugin holds is in `docs/specs/marketplace.md`.
   - Setting up a store clone: `docs/features/remote-store.md`.
   - Trying it: `docs/features/product-loop.md`.
 - **Docs mirror.** The archived `glab` ships CI templates that publish a code repo's `docs/` to a read-only `<repo>-docs` repository: `docs/features/docs-mirror.md`.
+- **Docs after a task.** `/project:docs #<n>` writes the specs and feature pages for a finished issue. You call it; the manager does not.
 - **Simple replies.** Turn on the `plain` output style from `project`: `/config` → Output style, or `"outputStyle": "project:plain"` in settings.
 
 ## Requirements
