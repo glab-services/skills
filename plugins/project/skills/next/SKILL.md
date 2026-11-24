@@ -50,11 +50,12 @@ An issue of yours in `status/question` waits for the lead, so it is skipped.
 
 ## 2. Build it
 
-Run `/project:issue <owner>/<repo>#<n>`, then the `project:manager` pipeline, with these differences:
+Run `/project:issue <owner>/<repo>#<n>`, then size the issue as `project:manager` *Size the request* says. A Direct one (about 20 lines, one area) skips the planner. Then the pipeline, with these differences:
 - **Branch:** `<type>/<n>-<short>`, cut from `origin/<stage>`. `<type>` is the issue's `type/` label (`feat`, `fix`, …); `<short>` is two to four words of its title, in kebab case. Example: `feat/42-payment-status`.
 - **Questions:** you never ask the user. Comment `Question: <one question>` on the issue, swap `status/doing` → `status/question`, write the handoff, and go back to section 1.
 - **Push, then the PR into stage:** `gh api 'repos/{owner}/{repo}/pulls' -f title='<issue title>' -f head=<branch> -f base=<stage> -f body='Closes #<n>' --jq .html_url`.
-- **Then** swap `status/doing` → `status/review` and update the handoff. Do not merge; the lead does.
+- **Then** swap `status/doing` → `status/review`, update the handoff, and go straight back to section 1. Do not wait for the merge; the lead merges.
+- **A conflict with stage** on your PR: merge `origin/<stage>` into your branch, run the gate line, and push. Never rebase or force-push.
 
 **Swap a label:** `gh api -X DELETE 'repos/{owner}/{repo}/issues/<n>/labels/status%2F<old>'`, then `gh api 'repos/{owner}/{repo}/issues/<n>/labels' -f 'labels[]=status/<new>'`.
 

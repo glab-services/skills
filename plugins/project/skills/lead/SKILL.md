@@ -30,7 +30,7 @@ Create them once: `for l in ready doing question review changes; do gh api 'repo
 
 1. Talk the features through with the user until the scope is agreed. Settle every unclear point now, so no manager has to ask.
 2. One milestone per batch: `gh api 'repos/{owner}/{repo}/milestones' -f title='<name>' --jq .number`.
-3. One issue per piece a manager can finish alone. Title `<area>: <what>`. Write the body to a temp file:
+3. One issue per piece a manager can finish alone. A migration, a shared package, or anything another PR must pin is its own issue, and the issues that use it say `Depends on: #<it>`. Title `<area>: <what>`. Write the body to a temp file:
    ```
    ## Goal
    <what and why, in a few lines>
@@ -57,13 +57,13 @@ Show the user a short count per label, then act:
 
 ## 3. Review a PR — `/project:lead review "<milestone>"`
 
-For each issue in `status/review`, find its PR:
+For each issue in `status/review`, one at a time. An issue that others depend on goes first. Find its PR:
 `gh api --paginate 'repos/{owner}/{repo}/pulls?state=open&base=<stage>&per_page=100' --jq '.[] | select((.body // "") | test("Closes #<n>([^0-9]|$)")) | "\(.number) \(.head.sha)"'`
 
 Check:
 - CI: `gh api 'repos/{owner}/{repo}/commits/<sha>/check-runs' --jq '.check_runs[] | "\(.name) \(.conclusion // .status)"'`. Every run is `success` or `skipped`.
 - The diff does what *Done when* says, and nothing beyond it: `gh api 'repos/{owner}/{repo}/pulls/<pr>/files' --paginate --jq '.[] | "\(.filename) +\(.additions) -\(.deletions)"'`, then read what you need.
-- A large or Sensitive PR (`project:manager` *Size the request*): also dispatch `project:reviewer` with `blind` and the PR number.
+- Do not run your own reviewer: the manager already ran one, and a blind one for Sensitive work.
 
 **Good:** `gh api -X PUT 'repos/{owner}/{repo}/pulls/<pr>/merge' -f merge_method=squash -f sha=<sha>`. A PR into stage does not close its issue, so close it: `gh api -X PATCH 'repos/{owner}/{repo}/issues/<n>' -f state=closed`, and remove `status/review`.
 
