@@ -57,12 +57,15 @@ Show the user a short count per label, then act:
 
 ## 3. Review a PR — `/project:lead review "<milestone>"`
 
-For each issue in `status/review`, one at a time. An issue that others depend on goes first. Find its PR:
+Review and merge each PR as soon as its CI is green, one at a time: a PR that other issues depend on first, then in the order the PRs were opened. A slow merge is what makes the next PR conflict. Each manager keeps one open PR and waits for you, so do not let them wait.
+
+For each issue in `status/review`, find its PR:
 `gh api --paginate 'repos/{owner}/{repo}/pulls?state=open&base=<stage>&per_page=100' --jq '.[] | select((.body // "") | test("Closes #<n>([^0-9]|$)")) | "\(.number) \(.head.sha)"'`
 
 Check:
 - CI: `gh api 'repos/{owner}/{repo}/commits/<sha>/check-runs' --jq '.check_runs[] | "\(.name) \(.conclusion // .status)"'`. Every run is `success` or `skipped`.
 - The diff does what *Done when* says, and nothing beyond it: `gh api 'repos/{owner}/{repo}/pulls/<pr>/files' --paginate --jq '.[] | "\(.filename) +\(.additions) -\(.deletions)"'`, then read what you need.
+- Conflict: `gh api 'repos/{owner}/{repo}/pulls/<pr>' --jq .mergeable_state` is `dirty`. Send it back with one line, `Changes needed (PR #<pr>): merge origin/<stage>, rerun the gate, push.`, and swap `status/review` → `status/changes`.
 - Do not run your own reviewer: the manager already ran one, and a blind one for Sensitive work.
 
 **Good:** `gh api -X PUT 'repos/{owner}/{repo}/pulls/<pr>/merge' -f merge_method=squash -f sha=<sha>`. A PR into stage does not close its issue, so close it: `gh api -X PATCH 'repos/{owner}/{repo}/issues/<n>' -f state=closed`, and remove `status/review`.

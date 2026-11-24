@@ -22,8 +22,10 @@ num=$(M="$m" gh api "$R/milestones?state=open&per_page=100" --jq '.[] | select(.
 [ -n "$num" ] || { echo "STOP: no open milestone: $m"; exit 1; }
 gh api --paginate "$R/issues?milestone=$num&state=open&sort=created&direction=asc&per_page=100" >"$TMPDIR/next.$$.json" || exit 1
 mine() { jq -r --arg me "$me" --arg l "$1" '.[] | select((has("pull_request")|not) and ([.assignees[].login]|index($me)) and ([.labels[].name]|index($l))) | .number' "$TMPDIR/next.$$.json" | head -n 1; }
-for l in changes doing question; do
-  n=$(mine status/$l); [ -z "$n" ] || [ $l = question ] || { echo "RESUME #$n status/$l"; rm -f "$TMPDIR/next.$$.json"; exit 0; }
+for l in changes doing review question; do
+  n=$(mine status/$l); [ -z "$n" ] && continue
+  case $l in changes|doing) echo "RESUME #$n status/$l" ;; *) echo "WAIT #$n status/$l" ;; esac
+  rm -f "$TMPDIR/next.$$.json"; exit 0
 done
 jq -r '.[] | select((has("pull_request")|not) and (.assignees|length)==0 and ([.labels[].name]|index("status/ready"))) | "\(.number) \((.body // "") | [scan("(?m)^Depends on:.*$")] | join(" ") | [scan("#([0-9]+)")[0]] | join(" "))"' "$TMPDIR/next.$$.json" |
 while read -r n deps; do
@@ -42,9 +44,12 @@ rm -f "$TMPDIR/next.$$.json"
 - `STOP: …` or `NONE`: tell the user in one line and stop. Nothing is ready, or the rest waits on other managers.
 - `RESUME #<n> status/changes`: the lead sent it back. Section 3.
 - `RESUME #<n> status/doing`: yours, unfinished or answered. Run `/project:issue <owner>/<repo>#<n>` and continue from its handoff, as in section 2.
+- `WAIT #<n> …`: your open PR, or your question, waits for the lead (see *One open PR*). Tell the user in one line and stop. To keep checking, the user can run `/loop 10m /project:next "<milestone>"`.
 - `TAKE #<n>`: section 2.
 
-An issue of yours in `status/question` waits for the lead, so it is skipped.
+## One open PR
+
+You keep at most one open PR. After you open it, take no new issue until the lead merges it or sends it back. While you wait, you may read and plan the next ready issue, but write no code for it and do not take it. A question waiting for the lead (`status/question`) counts as your open PR.
 
 `<owner>/<repo>` is `gh api 'repos/{owner}/{repo}' --jq .full_name`.
 
@@ -53,15 +58,15 @@ An issue of yours in `status/question` waits for the lead, so it is skipped.
 Run `/project:issue <owner>/<repo>#<n>`, then size the issue as `project:manager` *Size the request* says. A Direct one (about 20 lines, one area) skips the planner. Then the pipeline, with these differences:
 - **Branch:** `<type>/<n>-<short>`, cut from `origin/<stage>`. `<type>` is the issue's `type/` label (`feat`, `fix`, …); `<short>` is two to four words of its title, in kebab case. Example: `feat/42-payment-status`.
 - **Questions:** you never ask the user. Comment `Question: <one question>` on the issue, swap `status/doing` → `status/question`, write the handoff, and go back to section 1.
+- **Before every push** (the first one and every fix round): `git fetch origin && git merge origin/<stage>`, then rerun the unit tests. Never rebase or force-push.
 - **Push, then the PR into stage:** `gh api 'repos/{owner}/{repo}/pulls' -f title='<issue title>' -f head=<branch> -f base=<stage> -f body='Closes #<n>' --jq .html_url`.
-- **Then** swap `status/doing` → `status/review`, update the handoff, and go straight back to section 1. Do not wait for the merge; the lead merges.
-- **A conflict with stage** on your PR: merge `origin/<stage>` into your branch, run the gate line, and push. Never rebase or force-push.
+- **Then** swap `status/doing` → `status/review`, update the handoff, and go back to section 1. It says `WAIT` until the lead merges or sends the PR back. You never merge.
 
 **Swap a label:** `gh api -X DELETE 'repos/{owner}/{repo}/issues/<n>/labels/status%2F<old>'`, then `gh api 'repos/{owner}/{repo}/issues/<n>/labels' -f 'labels[]=status/<new>'`.
 
 ## 3. Fix what the lead sent back
 
-Run `/project:issue <owner>/<repo>#<n>` and switch to the issue's branch from its handoff. The lead's latest `Changes needed` comment is the list. Dispatch one developer fix round with exactly that list, then one reviewer, then the gate line, commit and push to the same branch: the PR updates itself. Comment `Fixed: <one line per item>`, swap `status/changes` → `status/review`, and go back to section 1.
+Run `/project:issue <owner>/<repo>#<n>` and switch to the issue's branch from its handoff. The lead's latest `Changes needed` comment is the list. Dispatch one developer fix round with exactly that list, then one reviewer, then the gate line, commit, merge `origin/<stage>` as before every push, and push to the same branch: the PR updates itself. A send-back that only says to merge stage needs no developer: merge, rerun the unit tests, push. Comment `Fixed: <one line per item>`, swap `status/changes` → `status/review`, and go back to section 1.
 
 ## When the lead's text is wrong
 
