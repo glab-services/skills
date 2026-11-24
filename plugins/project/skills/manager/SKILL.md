@@ -76,6 +76,7 @@ Write the body to `plan/<slug>/handoff.md`, at most about 30 lines, the state no
 ## Handoff — <YYYY-MM-DD>
 - Task: <area>: <what>
 - Branch: <branch>, pushed
+- PR: <link>, or none
 - Done: <stages done>
 - Next: <the next stage or step>
 - Steps left:
