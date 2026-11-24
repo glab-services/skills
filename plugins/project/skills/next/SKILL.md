@@ -56,7 +56,11 @@ You keep at most one open PR. After you open it, take no new issue until the lea
 ## 2. Build it
 
 Run `/project:issue <owner>/<repo>#<n>`, then size the issue as `project:manager` *Size the request* says. A Direct one (about 20 lines, one area) skips the planner. Then the pipeline, with these differences:
-- **Branch:** `<type>/<n>-<short>`, cut from `origin/<stage>`. `<type>` is the issue's `type/` label (`feat`, `fix`, …); `<short>` is two to four words of its title, in kebab case. Example: `feat/42-payment-status`.
+- **Branch:** `<type>/<n>-<short>`. `<type>` is the issue's `type/` label (`feat`, `fix`, …); `<short>` is two to four words of its title, in kebab case. Example: `feat/42-payment-status`. Create it from the issue, so the issue links the branch and its PR:
+  ```bash
+  gh issue develop <n> --base <stage> --name <branch> && git fetch origin && git switch <branch>
+  ```
+  If `gh issue develop` fails, cut it yourself: `git fetch origin && git switch -c <branch> origin/<stage>`.
 - **Questions:** you never ask the user. Comment `Question: <one question>` on the issue, swap `status/doing` → `status/question`, write the handoff, and go back to section 1.
 - **Before every push** (the first one and every fix round): `git fetch origin && git merge origin/<stage>`, then rerun the unit tests. Never rebase or force-push.
 - **Push, then the PR into stage:** `gh api 'repos/{owner}/{repo}/pulls' -f title='<issue title>' -f head=<branch> -f base=<stage> -f body='Closes #<n>' --jq .html_url`.

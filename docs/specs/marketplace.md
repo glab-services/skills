@@ -8,7 +8,7 @@ The `glab-services` marketplace as of 2026-11-23: its plugins, the repo's layout
 
 | Plugin | Version | Source | What it is |
 |---|---|---|---|
-| `project` | 0.4.2 | `plugins/project/` | the project workflow: 10 skills, 4 agents, the `plain` output style, no hooks, a copy of `plan-gate.sh` |
+| `project` | 0.4.3 | `plugins/project/` | the project workflow: 10 skills, 4 agents, the `plain` output style, no hooks, a copy of `plan-gate.sh` |
 | `product` | 0.1.2 | `plugins/product/` | the product level: its skills, 3 agents, no hooks, a copy of `plan-gate.sh` |
 | `test` | 0.1.0 | `plugins/test/` | manual QA: 3 forked skills (`unit`, `e2e`, `regression`), 1 agent, no hooks |
 | `glab` | 0.21.0 | `plugins/glab/` | archived: the earlier full workflow, 25 skills, 8 agents, 5 hook events, kept as it is |
