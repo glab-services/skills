@@ -11,7 +11,7 @@ and this file disagree about how to work *in this repo*, this file wins.
   `hooks/hooks.json`, `scripts/` (`manager-bootstrap.sh`,
   `context-size.sh`, `level-guard.sh`, `glab-level.sh` — the level
   rule both hooks source — and `plan-gate.sh`) and `templates/`.
-- `plugins/project/` — the project workflow: four agents, eight skills,
+- `plugins/project/` — the project workflow: four agents, ten skills,
   no hooks; `scripts/plan-gate.sh` is a byte copy of glab's (G48).
 - `plugins/product/` — the product level: its manager, skills and two
   agents, no hooks; `scripts/plan-gate.sh` is a byte copy of glab's (G48).
